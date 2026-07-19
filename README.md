@@ -50,4 +50,4 @@ Successor to [Ara](https://github.com/ywh114/llmconv) (`[a]uto[r]egressive [a]dv
 
 ## License
 
-TBD.
+GPLv3
