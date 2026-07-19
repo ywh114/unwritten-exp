@@ -1,6 +1,6 @@
 # The Unwritten Engine — Design Specification
 
-**Status:** Design draft v1.0 (2026-07-19)
+**Status:** Design draft v1.1 (2026-07-19) — consistency pass: "chapter" defined (§6.4), planning tiers/pricing reconciled (§7.1, §7.5), §8.1 protagonist bullet rewritten, living-environment emphasis restored (§5.4, §8.1)
 **Title:** Unwritten (the world is *unwritten* until observed)
 **Lineage:** Successor architecture to **Ara** (`[a]uto[r]egressive [a]dventure`), a scene-based LLM visual-novel engine. Ara is the special case of this engine where render distance is one room and collapse cadence is every line of dialogue.
 **Genre target:** 2D/2.5D ARPG with a high-power protagonist (DF adventure-mode adjacency); the engine itself is genre-general (see §9).
@@ -59,7 +59,7 @@ Every off-screen entity carries a **parametric position distribution**: a Gaussi
 - Diffusion conserves probability mass, which makes measurement bookkeeping exact (§3.4).
 - Interference fringes and wave dispersion buy nothing gameplay-wise; diffusion's smoothing matches intuition about "where people probably are."
 
-Per-tick cost is O(1) parameter updates per entity; no grid PDE is ever solved. Multimodal mixtures represent genuine alternatives ("in the mineshaft *or* the forest").
+Evaluation is O(1) per entity per query — closed-form parameter updates, no grid PDE ever solved. Multimodal mixtures represent genuine alternatives ("in the mineshaft *or* the forest").
 
 **Internal state vector.** Beyond position, each entity carries a compact structured internal state: health, disposition, goals (soft promises it is pursuing — Chekhov seeds, §5.2), secrets, and a memory handle (§5.4). Goals planted in observed play become constraints that lazy backfill *resolves* — history is the discharge of previously committed intents.
 
@@ -233,6 +233,8 @@ NPCs are LLM instances conditioned on: card (personality, expertise), internal s
 
 Per-NPC LLM treatment is event-driven (observed or predicted-observed interactions only), routed by importance: anonymous background (grammar-only, no tools, no memory — recycled Ara `spawn_anonymous` semantics) → named (memory, wiki recall) → principals (full scratchpads, inner monologue, long-horizon goals).
 
+**Hand-off and overhearing.** In the collapsed region this layer never moves bodies: it writes the goal layer and the reflex layer executes (§8.6) — degradation means the NPC continues its current task, never a frozen puppet. Overheard NPC–NPC conversation is a first-class collapse: eavesdropping backfills the exchange's context (the fence, the feud, three generations of it) and commits it as facts — eavesdropping as worldgen — so observed social life sits high in the generation queue (§7.3).
+
 **Text economics:** the LLM emits compact structured records (facts, refs, two-sentence chronicle lines); templates + the Ara fortune grammars expand meaning into varied prose. LLM as compressor; grammars as decompressor.
 
 ---
@@ -267,8 +269,11 @@ Steering invisibility is thus a *measured* property, not a hope.
 
 ### 6.4 Rhythm
 
+**Chapter.** The validity window of an active intent bundle: a chapter opens when a planning pass commits a set of intents, clocks, and regime flags (§4.6), and closes when they discharge, expire, or a hard event forces replanning. A chapter boundary forces a digest-epoch rewrite (§7.2).
+
 - **Continuous:** event queue (collapses, interactions, gossip injections) → batched orchestrator calls (§7.3).
-- **Chapter beats** (rare): deep-reasoning planning pass — intent authoring, regime transitions, promise-collider design. Runs off the critical path; diegetic delay absorbs latency (the letter arrives tomorrow; the sage finishes translating next week).
+- **Chapter review** (T2, ~30-minute cadence): check the active intent bundle against recent events — usually a no-op (intents still on-clock).
+- **Chapter authoring** (T3, rare — on chapter close): deep-reasoning planning pass — intent authoring, regime-transition decisions, promise-collider design. Runs off the critical path; diegetic delay absorbs latency (the letter arrives tomorrow; the sage finishes translating next week).
 
 ---
 
@@ -284,10 +289,10 @@ DeepSeek V4 API (OpenAI-compatible), prices as of 2026-07 [^6][^7]:
 |---|---|---|
 | T0 | No model — fortune grammars/templates | Names, titles, abilities, minor items, anonymous NPCs |
 | T1 | `deepseek-v4-flash` (non-thinking) | Routine narration, backfill, gossip performance, classification, reframing |
-| T2 | `deepseek-v4-flash` (thinking mode) | Landmark events, regime transitions, complex constraint-heavy generation |
-| T3 | `deepseek-v4-pro` | Chapter-level intent planning (rare) |
+| T2 | `deepseek-v4-flash` (thinking mode) | Landmark events, regime-transition narration, chapter review (§6.4), complex constraint-heavy generation |
+| T3 | `deepseek-v4-pro` | Chapter authoring — intent planning, regime-transition decisions (rare; §6.4) |
 
-V4-Flash: $0.14/1M input cache-miss, $0.0028 cache-hit, $0.28 output; V4-Pro: $0.435/$0.87 (promo; list $1.74/$3.48), both 1M-token context [^6][^7]. Legacy aliases `deepseek-chat`/`deepseek-reasoner` retire 2026-07-24 — target V4 names directly, toggle thinking in the request [^7].
+V4-Flash: $0.14/1M input cache-miss, $0.0028 cache-hit, $0.28 output; V4-Pro: $0.435/1M input cache-miss, $0.0036 cache-hit, $0.87 output (promo; list $1.74/$3.48); both 1M-token context [^6][^7]. Legacy aliases `deepseek-chat`/`deepseek-reasoner` retire 2026-07-24 — target V4 names directly, toggle thinking in the request [^7].
 
 Rationale: orchestration under constraint needs reasoning; routine narration from structured inputs does not. Shrink the hard task (offline chapter planning, rare) and the frequent task becomes cheap-model-able.
 
@@ -296,7 +301,7 @@ Rationale: orchestration under constraint needs reasoning; routine narration fro
 DeepSeek caches prompt prefixes automatically; cache-hit input is ~50× cheaper on Flash [^6][^7]. Rules:
 
 - Strict ordering: `[system + schemas + world digest + active intents]` → `[event tail]`. Nothing volatile in the front half. (Ara lesson: separate user messages per source; no merged growing blocks.)
-- **Distilled digest epochs:** a fixed-budget world digest (2–4k tokens: canon highlights, active intents, chapter state) rewritten asynchronously every N events and *byte-identical between rewrites*. Fresh retrieval lands in the tail, never the prefix.
+- **Distilled digest epochs:** a fixed-budget world digest (2–4k tokens: canon highlights, active intents, chapter state) rewritten asynchronously every N events or on chapter close (§6.4), and *byte-identical between rewrites*. Fresh retrieval lands in the tail, never the prefix.
 - Batch related events into one call — pay the uncached tail once.
 
 ### 7.3 Queueing, prefetch, speculation
@@ -318,7 +323,7 @@ Assume active play: one batched orchestrator call/minute — 4k cached prefix + 
 - output: 300 × $0.28/1M = $0.000084
 - **≈ $0.00017/min ≈ $0.01/hour**
 
-Chapter planning (thinking mode, every ~30 min): ~6k cached + 2k uncached in, ~2k out ≈ $0.0009/call ≈ $0.002/hour. Fine-collapse narratives and heartbeat batches fold into the per-minute batch. Order of magnitude: **one to five cents per hour of play**, dominated by output tokens. Budget risk is not price but prefix-stability discipline — monitor hit rate in the dashboard [^6].
+Chapter review (T2, every ~30 min): ~6k cached + 2k uncached in, ~2k out ≈ $0.0009/call ≈ $0.002/hour — usually a no-op. Chapter authoring (T3 Pro, on chapter close): the same shape at Pro rates ≈ $0.0026/call; at a chapter per few hours, under $0.001/hour. Fine-collapse narratives and heartbeat batches fold into the per-minute batch. Order of magnitude: **one to five cents per hour of play**, dominated by output tokens. Budget risk is not price but prefix-stability discipline — monitor hit rate in the dashboard [^6].
 
 ---
 
@@ -328,8 +333,8 @@ Chapter planning (thinking mode, every ~30 min): ~6k cached + 2k uncached in, ~2
 
 The player starts powerful — dragon-tier. This is a cost decision as much as a fantasy:
 
-- **Power justifies coarse-graining, diegetically.** A dragon interacts with aggregates (villages, armies, herds), not individuals — mean-field is the *faithful* ontology, not an approximation. Fine simulation is reserved for the handful of peers (rival powers, named heroes).
-- **Physical fidelity follows combat relevance; social fidelity follows audibility.** The army you fight is a density field; the army you *listen to* is a gossip network — camp rumors, soldiers' fear, letters home. Mooks are field elements in combat and people at the campfire.
+- **Power licenses coarse-graining by lowering demanded resolution.** The avatar is pointlike — but a being that eats knights whole has no reason to resolve which peasant is unhappy, so the engine is never obligated to resolve it either. Mean-field is the faithful ontology for the masses not because the player *cannot* descend to individuals (peers, rival powers, named heroes get full individual treatment), but because a powerful being rarely *needs* to look closer: fewer tier-3 collapses demanded, fewer promises per capita, less work for the interaction sampler. The savings come from the player's indifference, not from an ontological ban.
+- **Physical fidelity follows combat relevance; social fidelity follows audibility.** The army you fight is a density field; the army you *listen to* is a gossip network — camp rumors, soldiers' fear, letters home. Mooks are field elements in combat and people at the campfire. The living environment is the point, not a side system — overheard NPC–NPC life is first-class collapse content (§5.4) and sits high in the generation queue (§7.3).
 - **Economies of conserved goods are stable fields.** Prices/stocks diffuse along trade routes and relax after perturbation — a burned granary ripples and equilibrates rather than cascading. Non-conserved quantities (fear, renown, legend) may be supercritical and dramatic, because nothing must balance. A dragon's real economy is fear and fame.
 - **Continuous attention:** one avatar, one observation cone, bounded velocity — the prefetch oracle is short-horizon and accurate, and collapse bookkeeping is simple.
 

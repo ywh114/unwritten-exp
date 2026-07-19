@@ -29,7 +29,7 @@ Three mechanical functions — sample, validate, count — plus LLM generation i
 
 ## Status
 
-Design-first; code lands incrementally. Full spec: [`docs/design-specification.md`](docs/design-specification.md).
+Design-first; code lands incrementally. Full specs: [`unwritten-engine-design-specification.md`](unwritten-engine-design-specification.md) (engine, v1.1) · [`unwritten-lab-experiments-repo-spec.md`](unwritten-lab-experiments-repo-spec.md) (lab, v0.4).
 
 - **M0 — Kernel:** GMM drift–diffusion, analytic time-skip, hash-seeded collapse, collapse log.
 - **M1 — Promise engine:** promise records, hard validation, wiki graveyard, density index.

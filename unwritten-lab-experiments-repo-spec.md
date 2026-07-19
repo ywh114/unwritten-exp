@@ -1,9 +1,9 @@
 # Unwritten Lab — Experiments Repository Specification
 
-**Status:** Draft v0.3 (2026-07-19) — restructured: experiment = one kernel/library, built standalone
-**Parent document:** *The Unwritten Engine — Design Specification* v1.0
+**Status:** Draft v0.4 (2026-07-19) — consistency pass: living-environment goal restored, agent gate re-added, independence rule clarified, repo naming/license fixed
+**Parent document:** *The Unwritten Engine — Design Specification* v1.1
 **Lineage:** Ara (`llmconv`) module recycling per design spec §10.4.
-**Repo (provisional name):** `unwritten-lab`.
+**Repo:** `unwritten-exp`.
 
 ---
 
@@ -15,11 +15,13 @@ Later phases, out of scope here except as a map (§5): **assembly** (wire the li
 
 The working rules:
 
-1. **Independence.** Experiments are parallel, not sequential. Any of them can be started on day one. The only permitted dependencies are (a) third-party packages, (b) earlier *lab libraries* imported as packages — library stacking is normal and encouraged — never engine scaffolding.
+1. **Independence.** Kernel and plumbing experiments (K1–K7, L1) are parallel — any of them can be started on day one. Experiments marked *stacks on* can be drafted immediately against their own fixtures; stacking gates integration, not initiation. The only permitted dependencies are (a) third-party packages, (b) earlier *lab libraries* imported as packages — library stacking is normal and encouraged — never engine scaffolding.
 2. **Smallness.** Each experiment is days, not weeks. If a draft grows past that, split the library.
 3. **Interface-first.** Every experiment exposes a CLI entry point (`uv run python -m exp.<name> demo --seed 1`) so a coding agent can build, run, and probe it without ceremony. The unified MUD arrives at assembly; per-library CLIs exist now.
 4. **Determinism.** Every demo takes `--seed`; LLM experiments take `--replay` with committed cassettes.
 5. **Write-backs.** Whatever the implementation teaches about the design goes to `docs/spec-notes/` immediately. These libraries are the design spec's first contact with reality.
+
+**Design goal — living environment.** Carried from the design spec (§8.1, §5.3–5.4): inter-NPC life is the point, not a side system. Two libraries carry it — K6 (gossip as the only channel from the unobserved world) and C3 (performance, including overheard conversation as worldgen). Movement is simmed; meaning is performed.
 
 ---
 
@@ -98,9 +100,9 @@ evaluate counters → sample eventfulness → generate → validate → commit, 
 **Spec-note owed:** what "archaeologically legible" means as a checkable property, not a vibe.
 
 ### C3 — `performance` — NPC delivery layer — S (stacks on K6, K7, L1)
-Card + internal state + trust-tagged facts + querier context → in-character utterance; knowledge-bounded answers (honest ignorance); same rumor told differently at different trust.
-**Demo:** three NPCs deliver K6's rumor at three trust levels; an interrogated NPC with no relevant knowledge says so.
-**Done when:** delivery never leaks facts outside the NPC's information state (validator-checked).
+Card + internal state + trust-tagged facts + querier context → in-character utterance; knowledge-bounded answers (honest ignorance); same rumor told differently at different trust. Also the living-environment carrier: overheard NPC–NPC conversation as a first-class collapse — eavesdropping backfills the exchange's context (the fence, the feud) and commits it as facts. Eavesdropping as worldgen.
+**Demo:** three NPCs deliver K6's rumor at three trust levels; an interrogated NPC with no relevant knowledge says so; the player eavesdrops on two fixture NPCs and the implied context enters the fact store.
+**Done when:** delivery never leaks facts outside the NPC's information state (validator-checked); overheard conversations commit their implied facts without contradicting the fixture's promise set.
 
 ### C4 — `orchestrator_core` — queue, budget, audit — M (stacks on K5, L1, L2)
 The DM as a library: event queue + batch loop, intent records (soft promises; ends-and-clocks-never-means; no player references — rejected at authoring), drama budget with smooth regen, tempering operations, and the audit log + metrics (override rate, KL/χ², player-correlation).
@@ -118,7 +120,8 @@ Curated feature types (ruin, mine, bandit fort) with parametric z; intent→z st
 
 Not this repo's phase, stated so the libraries aim at the right targets:
 
-- **Assembly** (`unwritten-lab`, later milestone): wire the libraries behind the single-player MUD — frontier, avatar, game world, and the slice demos ("walk away and return," "market day," "the hundred-year village," "the overdue caravan"). This is where the modules meet a world for the first time; integration bugs live here.
+- **Assembly** (`unwritten-exp`, later milestone): wire the libraries behind the single-player MUD — frontier, avatar, game world, and the slice demos ("walk away and return," "market day," "the hundred-year village," "the overdue caravan"). This is where the modules meet a world for the first time; integration bugs live here.
+- **Agent gate** (assembly exit criterion): three coding agents, given only the MUD CLI (`--json`, seeded replay, transcripts), must solve the overdue-caravan investigation end to end. If it can't be inspected through the shell, it's a bug by definition.
 - **Glue** (the `unwritten` repo): productionize the assembled whole — fast loop / slow loop per design spec §10.2, renderer decision, game systems.
 
 Assembly targets each library should keep in mind: deterministic seeds end-to-end, JSON-inspectable state, cost logging on every LLM call, and interfaces that don't presume who's calling (engine, MUD, or test).
@@ -128,7 +131,7 @@ Assembly targets each library should keep in mind: deterministic seeds end-to-en
 ## 6. Repo layout
 
 ```
-unwritten_lab/
+unwritten_exp/
 ├── kernel/                        # promoted libraries live here when done
 │   ├── hashrng/  gmm_dynamics/  collapse/  counters/
 │   ├── promise_ledger/  gossip_transport/  wiki_store/
@@ -138,7 +141,7 @@ unwritten_lab/
 ├── exp/
 │   ├── k1_hashrng/
 │   │   ├── README.md            # goal, API sketch, demo, verdict, spec-notes produced
-│   │   ├── __main__.py          # `python -m exp.k1_hashrng demo --seed 1`
+│   │   ├── __main__.py          # `uv run python -m exp.k1_hashrng demo --seed 1`
 │   │   ├── fixtures.py          # its own tiny world, if it needs one
 │   │   └── test_*.py
 │   └── … one directory per experiment, same shape
@@ -157,4 +160,4 @@ Promotion rule: an experiment's code moves from `exp/<name>/` to its permanent p
 - LLM experiments report tokens-in/cached/out and dollars in their README.
 - Ara-recycled code carries `# ARA: <module>` provenance comments.
 - Suggested start order for a solo builder (not a dependency order): K1 → K2 → K5 → L1, then whatever is most interesting — K5 and L1 unblock the most followers.
-- License: match final project (TBD).
+- License: GPLv3 (matching the final project).
