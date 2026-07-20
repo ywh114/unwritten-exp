@@ -9,7 +9,7 @@ import networkx as nx
 
 from kernel.hashrng import Stream
 
-from exp.k6_gossip.rumor import Rumor
+from kernel.gossip_transport.rumor import Rumor
 
 
 def build_graph(world_seed: int) -> nx.Graph:

@@ -11,8 +11,7 @@ explicitly out of scope (that's C3's job).
 
 ## API
 
-Library home: `exp.k6_gossip` (not yet promoted; lab spec §6 gate is the
-reviewer's call).
+Library home: `kernel.gossip_transport` (promoted 2026-07-19 per lab spec §6).
 
 - **`Rumor(subject, event, location, day, magnitude)`** — immutable
   structured event record.  `event_class` property canonicalises

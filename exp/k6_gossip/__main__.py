@@ -18,7 +18,7 @@ import networkx as nx
 from kernel.hashrng import Stream
 
 from exp.k6_gossip.fixtures import build_graph, build_rumor, injected_node
-from exp.k6_gossip.network import GossipNetwork, GossipParams
+from kernel.gossip_transport.network import GossipNetwork, GossipParams
 
 DAYS = 7
 

@@ -1,10 +1,5 @@
-"""K6 experiment — gossip transport: mechanical rumor diffusion over a contact graph.
+"""K6 experiment — demo, fixtures, and tests for the gossip_transport kernel.
 
-The library itself lives here until promotion to kernel/ (per lab spec §6
-promotion rule, the reviewer decides).
+The library itself was promoted to `kernel.gossip_transport` (verdict:
+works); this directory is its living documentation.
 """
-
-from exp.k6_gossip.rumor import Rumor, Belief, perturb
-from exp.k6_gossip.network import GossipParams, GossipNetwork
-
-__all__ = ["Rumor", "Belief", "perturb", "GossipParams", "GossipNetwork"]

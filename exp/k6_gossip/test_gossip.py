@@ -12,8 +12,8 @@ import pytest
 
 from kernel.hashrng import Stream
 
-from exp.k6_gossip.network import GossipNetwork, GossipParams
-from exp.k6_gossip.rumor import Belief, Rumor, perturb
+from kernel.gossip_transport.network import GossipNetwork, GossipParams
+from kernel.gossip_transport.rumor import Belief, Rumor, perturb
 
 
 # ---- helpers ---------------------------------------------------------------
@@ -69,6 +69,26 @@ class TestDeterminism:
                 differs = True
                 break
         assert differs
+
+    def test_incremental_propagation_matches_single_run(self):
+        """propagate(3) then propagate(4) must equal propagate(7) — repeated
+        calls advance onto disjoint draw bands, never replay the same coins."""
+        rumor = Rumor("mill", "burned", "rivermill", 0.0, 1.0)
+        g = nx.watts_strogatz_graph(20, 4, 0.1, seed=123)
+        a = GossipNetwork(g, GossipParams(), 42)
+        b = GossipNetwork(g.copy(), GossipParams(), 42)
+        a.inject(0, rumor)
+        b.inject(0, rumor)
+        a.propagate(3)
+        a.propagate(4)
+        b.propagate(7)
+        for n in range(20):
+            ba, bb = a.belief(n), b.belief(n)
+            if ba is None:
+                assert bb is None
+            else:
+                assert ba.rumor == bb.rumor
+                assert ba.trust == bb.trust
 
 
 # ---------------------------------------------------------------------------

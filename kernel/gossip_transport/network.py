@@ -19,7 +19,7 @@ import networkx as nx
 
 from kernel.hashrng import Stream
 
-from exp.k6_gossip.rumor import Belief, Rumor, perturb
+from kernel.gossip_transport.rumor import Belief, Rumor, perturb
 
 # ---------------------------------------------------------------------------
 # Parameters
@@ -60,7 +60,8 @@ class GossipNetwork:
     # internal state ---------------------------------------------------------
     _beliefs: dict[tuple[int, str, str], Belief] | None = None
     # key = (node, subject, event_class)
-    _clock_offset: int = 0  # next unused clock value
+    _days_propagated: int = 0  # total days simulated; keeps repeated
+    # propagate() calls on disjoint draw bands (incremental advancement)
 
     def _stream(self, clock: int) -> Stream:
         return Stream(self.world_seed, f"k6.gossip.{clock}")
@@ -107,8 +108,9 @@ class GossipNetwork:
         E = len(directed)
 
         for d in range(days):
-            clock = clock0 + d
-            day_base = d * _DAY_BAND
+            day_abs = self._days_propagated + d
+            clock = clock0 + day_abs
+            day_base = day_abs * _DAY_BAND
             prev_beliefs = self._beliefs.copy() if self._beliefs else {}
 
             # Generate all tells from start-of-day beliefs.
@@ -129,7 +131,7 @@ class GossipNetwork:
                                          self.params.sigma_drift)
                         new_trust = belief.trust * self.params.tau
                         tells.append((v, Belief(rumor=rumor2, trust=new_trust,
-                                                 heard_day=d)))
+                                                 heard_day=day_abs)))
                     break  # one belief per node per subject in fixture
 
             # Apply tells — simultaneous (all against start-of-day state)
@@ -142,7 +144,7 @@ class GossipNetwork:
                     self._beliefs[key] = belief
                 # equal trust → keep incumbent (no-op)
 
-        self._clock_offset += days * _DAY_BAND
+        self._days_propagated += days
 
     # ---- traceability ------------------------------------------------------
 
