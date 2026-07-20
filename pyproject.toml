@@ -1,0 +1,18 @@
+[project]
+name = "unwritten-exp"
+version = "0.0.1"
+description = "Experiments lab for the Unwritten engine — kernels and libraries, built standalone."
+readme = "README.md"
+requires-python = ">=3.14"
+license = { text = "GPL-3.0-only" }
+dependencies = [
+    "numpy>=2.5.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["exp", "tests"]

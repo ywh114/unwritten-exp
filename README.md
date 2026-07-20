@@ -43,7 +43,7 @@ Successor to [Ara](https://github.com/ywh114/llmconv) (`[a]uto[r]egressive [a]dv
 
 ## Tech
 
-- Python 3.12
+- Python 3.14
 - DeepSeek V4 API — automatic prefix caching; stable-prefix prompt layout; batched event calls; grammar/template tier for zero-model content. Cost target: <$0.05/hr of play (spec §7.5).
 - ChromaDB — wiki/graveyard vector store
 - Renderer: TBD
