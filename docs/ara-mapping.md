@@ -6,7 +6,7 @@ comments (lab spec §7).
 
 | Ara module | Becomes | Notes |
 |---|---|---|
-| `fortune/` (rolls, distributions, I-Ching, grammars) | Sampling/omen/content layer | Lift wholesale; simulation-agnostic |
+| `fortune/` (rolls, distributions, I-Ching, grammars) | Sampling/omen/content layer | Dice/distribution machinery lifts; **name lists do NOT** (Ara samples a downloaded list — naming will be a custom simple implementation, K11) |
 | `memory/wiki.py` (trust scores, importance, distance cap, querier reframing) | Wiki/graveyard store (**K7**) | Add typed-promise schema + temporal validity metadata; `invented_fact_NNN` IDs → entity-stable UUIDs |
 | `world/summarizer.py` (block format: FACT/TRUST/SOURCE, location finalization, keyword prefetch) | Backfill worker + commit message schema (**C2**) | The location-change classifier → terrain-diff commit gate |
 | `llm/context.py` (per-entity visibility slices, hidden rules, branch/KV discipline) | Observation-log reader; prefix-stability patterns (**L2**) | Strip to visibility core |
