@@ -8,6 +8,7 @@ license = { text = "GPL-3.0-only" }
 dependencies = [
     "networkx>=3.6.1",
     "numpy>=2.5.1",
+    "pydantic>=2.13.4",
 ]
 
 [dependency-groups]

@@ -1,0 +1,105 @@
+{
+  "attempts": [
+    {
+      "payload": {
+        "max_tokens": 512,
+        "messages": [
+          {
+            "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"description\": \"Structured output schema for the demo and tests.\", \"properties\": {\"headline\": {\"description\": \"one line, under 12 words\", \"title\": \"Headline\", \"type\": \"string\"}, \"involves_mill\": {\"title\": \"Involves Mill\", \"type\": \"boolean\"}, \"severity\": {\"description\": \"1 trivial, 5 village-shaking\", \"maximum\": 5, \"minimum\": 1, \"title\": \"Severity\", \"type\": \"integer\"}, \"subject\": {\"description\": \"who the rumor is about\", \"title\": \"Subject\", \"type\": \"string\"}}, \"required\": [\"headline\", \"subject\", \"severity\", \"involves_mill\"], \"title\": \"VillageRumor\", \"type\": \"object\"}",
+            "role": "system"
+          },
+          {
+            "content": "Invent one rumor currently circulating in the village of Ashwick. The village has a mill on the river, an inn called the Restless Fox, and a burned bridge. Return the structured record.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0.0
+      },
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"headline\":\"Innkeeper torched bridge for coin\",\"involves_mill\":false,\"severity\":4,\"subject\":\"innkeeper\"}",
+              "reasoning_content": "We need to invent a rumor. The village has a mill, inn, and burned bridge. Let's think of something plausible. For example: \"Mill's water wheel stolen; ghost blamed.\" That involves mill, severity maybe 3, subject \"ghost\"? Or \"The miller's daughter eloped with a stranger.\" Involves mill? The miller? Subject could be \"miller's daughter\". Involves_mill might be true if mill is involved. But the rumor should be about something. Let's make it about the burned bridge: \"The burned bridge was set on fire by the innkeeper.\" Subject \"innkeeper\", involves_mill? No. Severity maybe 4. Headline: \"Innkeeper burned bridge for insurance\". But that's too long. Let's do \"Innkeeper torched bridge for coin\". That's under 12 words. Subject: \"innkeeper\". Severity: 4. Involves_mill: false. But the prompt says \"responding with a single JSON object matching this JSON Schema.\" So we need to output JSON. Let's construct.",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1784624998,
+        "id": "2eb94af8-94ef-4faa-b57d-a58e2a2822b5",
+        "model": "deepseek-v4-flash",
+        "object": "chat.completion",
+        "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+        "usage": {
+          "completion_tokens": 258,
+          "completion_tokens_details": {
+            "reasoning_tokens": 226
+          },
+          "prompt_cache_hit_tokens": 128,
+          "prompt_cache_miss_tokens": 127,
+          "prompt_tokens": 255,
+          "prompt_tokens_details": {
+            "cached_tokens": 128
+          },
+          "total_tokens": 513
+        }
+      }
+    }
+  ],
+  "final": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"headline\":\"Innkeeper torched bridge for coin\",\"involves_mill\":false,\"severity\":4,\"subject\":\"innkeeper\"}",
+          "reasoning_content": "We need to invent a rumor. The village has a mill, inn, and burned bridge. Let's think of something plausible. For example: \"Mill's water wheel stolen; ghost blamed.\" That involves mill, severity maybe 3, subject \"ghost\"? Or \"The miller's daughter eloped with a stranger.\" Involves mill? The miller? Subject could be \"miller's daughter\". Involves_mill might be true if mill is involved. But the rumor should be about something. Let's make it about the burned bridge: \"The burned bridge was set on fire by the innkeeper.\" Subject \"innkeeper\", involves_mill? No. Severity maybe 4. Headline: \"Innkeeper burned bridge for insurance\". But that's too long. Let's do \"Innkeeper torched bridge for coin\". That's under 12 words. Subject: \"innkeeper\". Severity: 4. Involves_mill: false. But the prompt says \"responding with a single JSON object matching this JSON Schema.\" So we need to output JSON. Let's construct.",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1784624998,
+    "id": "2eb94af8-94ef-4faa-b57d-a58e2a2822b5",
+    "model": "deepseek-v4-flash",
+    "object": "chat.completion",
+    "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+    "usage": {
+      "completion_tokens": 258,
+      "completion_tokens_details": {
+        "reasoning_tokens": 226
+      },
+      "prompt_cache_hit_tokens": 128,
+      "prompt_cache_miss_tokens": 127,
+      "prompt_tokens": 255,
+      "prompt_tokens_details": {
+        "cached_tokens": 128
+      },
+      "total_tokens": 513
+    }
+  },
+  "request": {
+    "max_tokens": 512,
+    "messages": [
+      {
+        "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"description\": \"Structured output schema for the demo and tests.\", \"properties\": {\"headline\": {\"description\": \"one line, under 12 words\", \"title\": \"Headline\", \"type\": \"string\"}, \"involves_mill\": {\"title\": \"Involves Mill\", \"type\": \"boolean\"}, \"severity\": {\"description\": \"1 trivial, 5 village-shaking\", \"maximum\": 5, \"minimum\": 1, \"title\": \"Severity\", \"type\": \"integer\"}, \"subject\": {\"description\": \"who the rumor is about\", \"title\": \"Subject\", \"type\": \"string\"}}, \"required\": [\"headline\", \"subject\", \"severity\", \"involves_mill\"], \"title\": \"VillageRumor\", \"type\": \"object\"}",
+        "role": "system"
+      },
+      {
+        "content": "Invent one rumor currently circulating in the village of Ashwick. The village has a mill on the river, an inn called the Restless Fox, and a burned bridge. Return the structured record.",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-flash",
+    "schema": "VillageRumor",
+    "temperature": 0.0,
+    "thinking": true
+  }
+}

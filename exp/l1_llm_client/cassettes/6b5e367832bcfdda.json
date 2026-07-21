@@ -1,0 +1,100 @@
+{
+  "attempts": [
+    {
+      "payload": {
+        "max_tokens": 512,
+        "messages": [
+          {
+            "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"description\": \"Structured output schema for the demo and tests.\", \"properties\": {\"headline\": {\"description\": \"one line, under 12 words\", \"title\": \"Headline\", \"type\": \"string\"}, \"involves_mill\": {\"title\": \"Involves Mill\", \"type\": \"boolean\"}, \"severity\": {\"description\": \"1 trivial, 5 village-shaking\", \"maximum\": 5, \"minimum\": 1, \"title\": \"Severity\", \"type\": \"integer\"}, \"subject\": {\"description\": \"who the rumor is about\", \"title\": \"Subject\", \"type\": \"string\"}}, \"required\": [\"headline\", \"subject\", \"severity\", \"involves_mill\"], \"title\": \"VillageRumor\", \"type\": \"object\"}",
+            "role": "system"
+          },
+          {
+            "content": "Invent one rumor currently circulating in the village of Ashwick. The village has a mill on the river, an inn called the Restless Fox, and a burned bridge. Return the structured record.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0.0,
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\n  \"headline\": \"Mill burned bridge to spite innkeeper\",\n  \"involves_mill\": true,\n  \"severity\": 4,\n  \"subject\": \"Mill\"\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1784624996,
+        "id": "d43f94cb-5dca-451b-9ced-1e35fafbf172",
+        "model": "deepseek-v4-flash",
+        "object": "chat.completion",
+        "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+        "usage": {
+          "completion_tokens": 41,
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 255,
+          "prompt_tokens": 255,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "total_tokens": 296
+        }
+      }
+    }
+  ],
+  "final": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\n  \"headline\": \"Mill burned bridge to spite innkeeper\",\n  \"involves_mill\": true,\n  \"severity\": 4,\n  \"subject\": \"Mill\"\n}",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1784624996,
+    "id": "d43f94cb-5dca-451b-9ced-1e35fafbf172",
+    "model": "deepseek-v4-flash",
+    "object": "chat.completion",
+    "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+    "usage": {
+      "completion_tokens": 41,
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 255,
+      "prompt_tokens": 255,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 296
+    }
+  },
+  "request": {
+    "max_tokens": 512,
+    "messages": [
+      {
+        "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"description\": \"Structured output schema for the demo and tests.\", \"properties\": {\"headline\": {\"description\": \"one line, under 12 words\", \"title\": \"Headline\", \"type\": \"string\"}, \"involves_mill\": {\"title\": \"Involves Mill\", \"type\": \"boolean\"}, \"severity\": {\"description\": \"1 trivial, 5 village-shaking\", \"maximum\": 5, \"minimum\": 1, \"title\": \"Severity\", \"type\": \"integer\"}, \"subject\": {\"description\": \"who the rumor is about\", \"title\": \"Subject\", \"type\": \"string\"}}, \"required\": [\"headline\", \"subject\", \"severity\", \"involves_mill\"], \"title\": \"VillageRumor\", \"type\": \"object\"}",
+        "role": "system"
+      },
+      {
+        "content": "Invent one rumor currently circulating in the village of Ashwick. The village has a mill on the river, an inn called the Restless Fox, and a burned bridge. Return the structured record.",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-flash",
+    "schema": "VillageRumor",
+    "temperature": 0.0,
+    "thinking": false
+  }
+}
