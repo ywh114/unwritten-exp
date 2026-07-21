@@ -53,7 +53,7 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | K7 | wiki_store (Ara port) | lab spec §2 | **promoted** (`kernel/wiki_store/`) |
 | L1 | llm_client | lab spec §3 | **promoted** (`llm/llm_client/`) |
 | L2 | prefix_bench | lab spec §3 | **promoted** (`llm/prefix_bench/`) — §7.5 envelope confirmed |
-| C1 | eventfulness | lab spec §4 | pending (stacks on L1) |
+| C1 | eventfulness | lab spec §4 | implemented (stacks on L1) |
 | C2 | backfill | lab spec §4 | pending (stacks on K4, K5, C1, L1) |
 | C3 | performance | lab spec §4 | pending (stacks on K6, K7, L1) |
 | C4 | orchestrator_core | lab spec §4 | pending (stacks on K5, L1, L2) |

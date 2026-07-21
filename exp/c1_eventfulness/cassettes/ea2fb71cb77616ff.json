@@ -1,0 +1,171 @@
+{
+  "attempts": [
+    {
+      "payload": {
+        "max_tokens": 256,
+        "messages": [
+          {
+            "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"properties\": {\"notable_events\": {\"description\": \"One short line per notable event; [] if nothing happened\", \"items\": {\"type\": \"string\"}, \"title\": \"Notable Events\", \"type\": \"array\"}, \"texture_line\": {\"description\": \"One dry sentence describing the village texture / atmosphere\", \"title\": \"Texture Line\", \"type\": \"string\"}}, \"required\": [\"notable_events\", \"texture_line\"], \"title\": \"IntervalChronicle\", \"type\": \"object\"}",
+            "role": "system"
+          },
+          {
+            "content": "You are the chronicler of the village. Ashwick lies on the west bank of the Silverflow river. The village mill (held by the Stonehand line) grinds grain for the entire valley; the old stone bridge was burned during the flood riots of year 7. The Restless Fox inn is the social hub. King Eldric holds court at the capital, and Duke Aldric is lord of Northmarch.\n\nWrite a chronicle entry for one interval. Return a JSON object with 'notable_events' (list of strings, one short sentence per event) and 'texture_line' (one dry sentence of village atmosphere).\n\n",
+            "role": "system"
+          },
+          {
+            "content": "Write the chronicle for this season: summer of year 1.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0.0,
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\n  \"notable_events\": [\n    \"The mill's new waterwheel was installed after the spring floods damaged the old one.\",\n    \"A traveling merchant brought news of King Eldric's tax increase on grain shipments.\",\n    \"Duke Aldric's herald passed through, requisitioning a portion of the mill's flour for the capital.\"\n  ],\n  \"texture_line\": \"Dust from the mill hangs in the heavy summer air, mixing with the scent of river mud and the low hum of discontent from the farmers.\"",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1784662997,
+        "id": "539e0b11-95ec-405e-bec7-972eaa8167f5",
+        "model": "deepseek-v4-flash",
+        "object": "chat.completion",
+        "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+        "usage": {
+          "completion_tokens": 110,
+          "prompt_cache_hit_tokens": 256,
+          "prompt_cache_miss_tokens": 43,
+          "prompt_tokens": 299,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "total_tokens": 409
+        }
+      }
+    },
+    {
+      "payload": {
+        "max_tokens": 256,
+        "messages": [
+          {
+            "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"properties\": {\"notable_events\": {\"description\": \"One short line per notable event; [] if nothing happened\", \"items\": {\"type\": \"string\"}, \"title\": \"Notable Events\", \"type\": \"array\"}, \"texture_line\": {\"description\": \"One dry sentence describing the village texture / atmosphere\", \"title\": \"Texture Line\", \"type\": \"string\"}}, \"required\": [\"notable_events\", \"texture_line\"], \"title\": \"IntervalChronicle\", \"type\": \"object\"}",
+            "role": "system"
+          },
+          {
+            "content": "You are the chronicler of the village. Ashwick lies on the west bank of the Silverflow river. The village mill (held by the Stonehand line) grinds grain for the entire valley; the old stone bridge was burned during the flood riots of year 7. The Restless Fox inn is the social hub. King Eldric holds court at the capital, and Duke Aldric is lord of Northmarch.\n\nWrite a chronicle entry for one interval. Return a JSON object with 'notable_events' (list of strings, one short sentence per event) and 'texture_line' (one dry sentence of village atmosphere).\n\n",
+            "role": "system"
+          },
+          {
+            "content": "Write the chronicle for this season: summer of year 1.",
+            "role": "user"
+          },
+          {
+            "content": "{\n  \"notable_events\": [\n    \"The mill's new waterwheel was installed after the spring floods damaged the old one.\",\n    \"A traveling merchant brought news of King Eldric's tax increase on grain shipments.\",\n    \"Duke Aldric's herald passed through, requisitioning a portion of the mill's flour for the capital.\"\n  ],\n  \"texture_line\": \"Dust from the mill hangs in the heavy summer air, mixing with the scent of river mud and the low hum of discontent from the farmers.\"",
+            "role": "assistant"
+          },
+          {
+            "content": "Your previous output failed validation: Expecting ',' delimiter: line 7 column 153 (char 469). Respond again with valid JSON only, matching the schema exactly.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0.0,
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\n  \"notable_events\": [\n    \"The mill's new waterwheel was installed after the spring floods damaged the old one.\",\n    \"A traveling merchant brought news of King Eldric's tax increase on grain shipments.\",\n    \"Duke Aldric's herald passed through, requisitioning a portion of the mill's flour for the capital.\"\n  ],\n  \"texture_line\": \"Dust from the mill hangs in the heavy summer air, mixing with the scent of river mud and the low hum of discontent from the farmers.\"\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1784662999,
+        "id": "fba063ba-8bcd-4157-ba3e-152c5151d228",
+        "model": "deepseek-v4-flash",
+        "object": "chat.completion",
+        "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+        "usage": {
+          "completion_tokens": 111,
+          "prompt_cache_hit_tokens": 384,
+          "prompt_cache_miss_tokens": 63,
+          "prompt_tokens": 447,
+          "prompt_tokens_details": {
+            "cached_tokens": 384
+          },
+          "total_tokens": 558
+        }
+      }
+    }
+  ],
+  "final": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\n  \"notable_events\": [\n    \"The mill's new waterwheel was installed after the spring floods damaged the old one.\",\n    \"A traveling merchant brought news of King Eldric's tax increase on grain shipments.\",\n    \"Duke Aldric's herald passed through, requisitioning a portion of the mill's flour for the capital.\"\n  ],\n  \"texture_line\": \"Dust from the mill hangs in the heavy summer air, mixing with the scent of river mud and the low hum of discontent from the farmers.\"\n}",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1784662999,
+    "id": "fba063ba-8bcd-4157-ba3e-152c5151d228",
+    "model": "deepseek-v4-flash",
+    "object": "chat.completion",
+    "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+    "usage": {
+      "completion_tokens": 111,
+      "prompt_cache_hit_tokens": 384,
+      "prompt_cache_miss_tokens": 63,
+      "prompt_tokens": 447,
+      "prompt_tokens_details": {
+        "cached_tokens": 384
+      },
+      "total_tokens": 558
+    }
+  },
+  "request": {
+    "max_tokens": 256,
+    "messages": [
+      {
+        "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"properties\": {\"notable_events\": {\"description\": \"One short line per notable event; [] if nothing happened\", \"items\": {\"type\": \"string\"}, \"title\": \"Notable Events\", \"type\": \"array\"}, \"texture_line\": {\"description\": \"One dry sentence describing the village texture / atmosphere\", \"title\": \"Texture Line\", \"type\": \"string\"}}, \"required\": [\"notable_events\", \"texture_line\"], \"title\": \"IntervalChronicle\", \"type\": \"object\"}",
+        "role": "system"
+      },
+      {
+        "content": "You are the chronicler of the village. Ashwick lies on the west bank of the Silverflow river. The village mill (held by the Stonehand line) grinds grain for the entire valley; the old stone bridge was burned during the flood riots of year 7. The Restless Fox inn is the social hub. King Eldric holds court at the capital, and Duke Aldric is lord of Northmarch.\n\nWrite a chronicle entry for one interval. Return a JSON object with 'notable_events' (list of strings, one short sentence per event) and 'texture_line' (one dry sentence of village atmosphere).\n\n",
+        "role": "system"
+      },
+      {
+        "content": "Write the chronicle for this season: summer of year 1.",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-flash",
+    "schema": "IntervalChronicle",
+    "temperature": 0.0,
+    "thinking": false
+  }
+}

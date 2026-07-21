@@ -1,0 +1,140 @@
+{
+  "attempts": [
+    {
+      "payload": {
+        "max_tokens": 256,
+        "messages": [
+          {
+            "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"properties\": {\"notable_events\": {\"description\": \"One short line per notable event; [] if nothing happened\", \"items\": {\"type\": \"string\"}, \"title\": \"Notable Events\", \"type\": \"array\"}, \"texture_line\": {\"description\": \"One dry sentence describing the village texture / atmosphere\", \"title\": \"Texture Line\", \"type\": \"string\"}}, \"required\": [\"notable_events\", \"texture_line\"], \"title\": \"IntervalChronicle\", \"type\": \"object\"}",
+            "role": "system"
+          },
+          {
+            "content": "You are the chronicler of the village. Ashwick lies on the west bank of the Silverflow river. The village mill (held by the Stonehand line) grinds grain for the entire valley; the old stone bridge was burned during the flood riots of year 7. The Restless Fox inn is the social hub. King Eldric holds court at the capital, and Duke Aldric is lord of Northmarch.\n\nWrite a chronicle entry for one interval. Return a JSON object with 'notable_events' (list of strings, one short sentence per event) and 'texture_line' (one dry sentence of village atmosphere).\n\n",
+            "role": "system"
+          },
+          {
+            "content": "Write the chronicle for this season (example).",
+            "role": "user"
+          },
+          {
+            "content": "{\"notable_events\": [], \"texture_line\": \"Nothing happened; the barley came in fine.\"}",
+            "role": "assistant"
+          },
+          {
+            "content": "Write the chronicle for this season (example).",
+            "role": "user"
+          },
+          {
+            "content": "{\"notable_events\": [], \"texture_line\": \"An uneventful stretch. The village settled into its rhythms.\"}",
+            "role": "assistant"
+          },
+          {
+            "content": "Write the chronicle for this season: autumn of year 9. Nothing notable happened this season. Record an empty event list and one texture line.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0.0,
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\"notable_events\": [], \"texture_line\": \"Autumn leaves drifted into the millpond; the air smelled of woodsmoke and damp wool.\"}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1784663245,
+        "id": "aaf2662f-9255-4535-bebc-308e41b0a9cc",
+        "model": "deepseek-v4-flash",
+        "object": "chat.completion",
+        "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+        "usage": {
+          "completion_tokens": 34,
+          "prompt_cache_hit_tokens": 256,
+          "prompt_cache_miss_tokens": 137,
+          "prompt_tokens": 393,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "total_tokens": 427
+        }
+      }
+    }
+  ],
+  "final": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\"notable_events\": [], \"texture_line\": \"Autumn leaves drifted into the millpond; the air smelled of woodsmoke and damp wool.\"}",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1784663245,
+    "id": "aaf2662f-9255-4535-bebc-308e41b0a9cc",
+    "model": "deepseek-v4-flash",
+    "object": "chat.completion",
+    "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+    "usage": {
+      "completion_tokens": 34,
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 137,
+      "prompt_tokens": 393,
+      "prompt_tokens_details": {
+        "cached_tokens": 256
+      },
+      "total_tokens": 427
+    }
+  },
+  "request": {
+    "max_tokens": 256,
+    "messages": [
+      {
+        "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"properties\": {\"notable_events\": {\"description\": \"One short line per notable event; [] if nothing happened\", \"items\": {\"type\": \"string\"}, \"title\": \"Notable Events\", \"type\": \"array\"}, \"texture_line\": {\"description\": \"One dry sentence describing the village texture / atmosphere\", \"title\": \"Texture Line\", \"type\": \"string\"}}, \"required\": [\"notable_events\", \"texture_line\"], \"title\": \"IntervalChronicle\", \"type\": \"object\"}",
+        "role": "system"
+      },
+      {
+        "content": "You are the chronicler of the village. Ashwick lies on the west bank of the Silverflow river. The village mill (held by the Stonehand line) grinds grain for the entire valley; the old stone bridge was burned during the flood riots of year 7. The Restless Fox inn is the social hub. King Eldric holds court at the capital, and Duke Aldric is lord of Northmarch.\n\nWrite a chronicle entry for one interval. Return a JSON object with 'notable_events' (list of strings, one short sentence per event) and 'texture_line' (one dry sentence of village atmosphere).\n\n",
+        "role": "system"
+      },
+      {
+        "content": "Write the chronicle for this season (example).",
+        "role": "user"
+      },
+      {
+        "content": "{\"notable_events\": [], \"texture_line\": \"Nothing happened; the barley came in fine.\"}",
+        "role": "assistant"
+      },
+      {
+        "content": "Write the chronicle for this season (example).",
+        "role": "user"
+      },
+      {
+        "content": "{\"notable_events\": [], \"texture_line\": \"An uneventful stretch. The village settled into its rhythms.\"}",
+        "role": "assistant"
+      },
+      {
+        "content": "Write the chronicle for this season: autumn of year 9. Nothing notable happened this season. Record an empty event list and one texture line.",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-flash",
+    "schema": "IntervalChronicle",
+    "temperature": 0.0,
+    "thinking": false
+  }
+}
