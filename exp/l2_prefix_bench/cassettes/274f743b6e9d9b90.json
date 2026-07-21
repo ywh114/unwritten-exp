@@ -1,0 +1,105 @@
+{
+  "attempts": [
+    {
+      "payload": {
+        "max_tokens": 512,
+        "messages": [
+          {
+            "content": "You are the orchestrator of a lazy-world RPG called Unwritten.\n\nTHE WORLD MODEL. Nothing exists concretely until observed. Unobserved world\nstate is exactly three things: probability distributions over entity\npositions and activities, analytic counters for impersonal quantities, and\nthe promise ledger of committed facts and obligations. There is no hidden\nsimulation and there is no hidden truth beyond those records. You do not\nknow anything the ledger does not contain, and you must act as if the\nledger is the whole of reality.\n\nYOUR ROLE. You are event-driven, never per-tick. You consume the world\ndigest and a tail of events, and you emit compact structured records:\nfacts, promise discharges, chronicle lines, and counter anchors. Prose is\nthe renderer's job, not yours; your output is a compression of world\nchange into ledger entries.\n\nHARD RULES.\n1. Never invent quantities. Counters are analytic; you narrate why a\n   number moved, never what the number is. If an event implies a delta,\n   name the cause and let the machinery anchor it.\n2. Never contradict an active promise. The ledger outranks narrative\n   convenience. If an event would violate a promise, the event is\n   reframed or rejected, and the rejection is logged.\n3. Quiet intervals are normal. Most hours, little happens and the barley\n   comes in fine. Do not manufacture incidents to fill the record. An\n   empty chronicle line is a correct chronicle line.\n4. Coarse collapse constrains fine collapse. Facts committed at a coarse\n   tier bind everything you later write at finer tiers. Information only\n   accumulates; it never revises.\n5. Measurement records are the only channel by which the player learns\n   the world. Rumors arrive as trust-tagged claims, never as facts.\n6. Every steering act is a promise. If you bias the world, you record\n   the bias as an intent with provenance, ends and clocks — never means,\n   never player references.\n\nEVENT HANDLING. For each event in the tail, decide: is it notable, or\ntexture? Notable events anchor counters, discharge promises, or create\nfacts. Texture events fold into at most one chronicle line. Urgent\nevents may additionally open an intent, but urgency is not drama — a\nfire matters because it anchors the building counter and threatens the\nmill, not because it is exciting.\n\nSTYLE. Dry-register. Names, numbers, causes. \"The mill wheel stopped;\nrepair anchored to the mill counter.\" Not \"in a shocking turn of\nevents.\" The chronicle is a ledger, and ledgers do not exclaim.\n\nCONSISTENCY. The digest is the world as of this epoch. If the digest\nand the event tail conflict, the digest wins for the past and the tail\nwins for the present; flag the seam in the record. If the tail lacks\ninformation you need, record the gap rather than filling it — gaps are\nwhat the next observation is for.",
+            "role": "system"
+          },
+          {
+            "content": "World digest:\n{\"active_promises\": [\"aldric fealty eldric\", \"beric controls westvale\", \"gareth holds capital [Captain of the Guard]\"], \"counters\": {\"garrison\": 14, \"grain\": 812, \"population\": 203}, \"latest_event\": \"The constable inspects the bridge footings.\", \"recent_collapse\": \"market square observed at dawn: 12 silhouettes, 3 identities\", \"rumors_heard\": [\"the mill burned\", \"bandits on the north road\"], \"season\": \"autumn\", \"village\": \"ashwick\", \"weather\": \"drizzle since dawn\"}",
+            "role": "system"
+          },
+          {
+            "content": "Event:\n- The constable inspects the bridge footings.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "temperature": 0.0,
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "Event: constable inspects bridge footings.\n\nNotability: texture. No counter delta, no promise discharge, no fact creation. Fold into chronicle line.\n\nChronicle line: \"Constable inspects bridge footings; drizzle continues.\"\n\nNo ledger entries.",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1784660492,
+        "id": "6623e39f-2c05-4b07-a92e-cba96d1f8fc3",
+        "model": "deepseek-v4-flash",
+        "object": "chat.completion",
+        "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+        "usage": {
+          "completion_tokens": 53,
+          "prompt_cache_hit_tokens": 640,
+          "prompt_cache_miss_tokens": 156,
+          "prompt_tokens": 796,
+          "prompt_tokens_details": {
+            "cached_tokens": 640
+          },
+          "total_tokens": 849
+        }
+      }
+    }
+  ],
+  "final": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "Event: constable inspects bridge footings.\n\nNotability: texture. No counter delta, no promise discharge, no fact creation. Fold into chronicle line.\n\nChronicle line: \"Constable inspects bridge footings; drizzle continues.\"\n\nNo ledger entries.",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1784660492,
+    "id": "6623e39f-2c05-4b07-a92e-cba96d1f8fc3",
+    "model": "deepseek-v4-flash",
+    "object": "chat.completion",
+    "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+    "usage": {
+      "completion_tokens": 53,
+      "prompt_cache_hit_tokens": 640,
+      "prompt_cache_miss_tokens": 156,
+      "prompt_tokens": 796,
+      "prompt_tokens_details": {
+        "cached_tokens": 640
+      },
+      "total_tokens": 849
+    }
+  },
+  "request": {
+    "max_tokens": 512,
+    "messages": [
+      {
+        "content": "You are the orchestrator of a lazy-world RPG called Unwritten.\n\nTHE WORLD MODEL. Nothing exists concretely until observed. Unobserved world\nstate is exactly three things: probability distributions over entity\npositions and activities, analytic counters for impersonal quantities, and\nthe promise ledger of committed facts and obligations. There is no hidden\nsimulation and there is no hidden truth beyond those records. You do not\nknow anything the ledger does not contain, and you must act as if the\nledger is the whole of reality.\n\nYOUR ROLE. You are event-driven, never per-tick. You consume the world\ndigest and a tail of events, and you emit compact structured records:\nfacts, promise discharges, chronicle lines, and counter anchors. Prose is\nthe renderer's job, not yours; your output is a compression of world\nchange into ledger entries.\n\nHARD RULES.\n1. Never invent quantities. Counters are analytic; you narrate why a\n   number moved, never what the number is. If an event implies a delta,\n   name the cause and let the machinery anchor it.\n2. Never contradict an active promise. The ledger outranks narrative\n   convenience. If an event would violate a promise, the event is\n   reframed or rejected, and the rejection is logged.\n3. Quiet intervals are normal. Most hours, little happens and the barley\n   comes in fine. Do not manufacture incidents to fill the record. An\n   empty chronicle line is a correct chronicle line.\n4. Coarse collapse constrains fine collapse. Facts committed at a coarse\n   tier bind everything you later write at finer tiers. Information only\n   accumulates; it never revises.\n5. Measurement records are the only channel by which the player learns\n   the world. Rumors arrive as trust-tagged claims, never as facts.\n6. Every steering act is a promise. If you bias the world, you record\n   the bias as an intent with provenance, ends and clocks — never means,\n   never player references.\n\nEVENT HANDLING. For each event in the tail, decide: is it notable, or\ntexture? Notable events anchor counters, discharge promises, or create\nfacts. Texture events fold into at most one chronicle line. Urgent\nevents may additionally open an intent, but urgency is not drama — a\nfire matters because it anchors the building counter and threatens the\nmill, not because it is exciting.\n\nSTYLE. Dry-register. Names, numbers, causes. \"The mill wheel stopped;\nrepair anchored to the mill counter.\" Not \"in a shocking turn of\nevents.\" The chronicle is a ledger, and ledgers do not exclaim.\n\nCONSISTENCY. The digest is the world as of this epoch. If the digest\nand the event tail conflict, the digest wins for the past and the tail\nwins for the present; flag the seam in the record. If the tail lacks\ninformation you need, record the gap rather than filling it — gaps are\nwhat the next observation is for.",
+        "role": "system"
+      },
+      {
+        "content": "World digest:\n{\"active_promises\": [\"aldric fealty eldric\", \"beric controls westvale\", \"gareth holds capital [Captain of the Guard]\"], \"counters\": {\"garrison\": 14, \"grain\": 812, \"population\": 203}, \"latest_event\": \"The constable inspects the bridge footings.\", \"recent_collapse\": \"market square observed at dawn: 12 silhouettes, 3 identities\", \"rumors_heard\": [\"the mill burned\", \"bandits on the north road\"], \"season\": \"autumn\", \"village\": \"ashwick\", \"weather\": \"drizzle since dawn\"}",
+        "role": "system"
+      },
+      {
+        "content": "Event:\n- The constable inspects the bridge footings.",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-flash",
+    "schema": null,
+    "temperature": 0.0,
+    "thinking": false
+  }
+}

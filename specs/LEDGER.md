@@ -51,8 +51,8 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | K5 | promise_ledger | lab spec §2 | **promoted** (`kernel/promise_ledger/`) |
 | K6 | gossip_transport | lab spec §2 | **promoted** (`kernel/gossip_transport/`) |
 | K7 | wiki_store (Ara port) | lab spec §2 | **promoted** (`kernel/wiki_store/`) |
-| L1 | llm_client | lab spec §3 | pending (needs DeepSeek API access for cassettes) |
-| L2 | prefix_bench | lab spec §3 | pending (stacks on L1) |
+| L1 | llm_client | lab spec §3 | **promoted** (`llm/llm_client/`) |
+| L2 | prefix_bench | lab spec §3 | **promoted** (`llm/prefix_bench/`) — §7.5 envelope confirmed |
 | C1 | eventfulness | lab spec §4 | pending (stacks on L1) |
 | C2 | backfill | lab spec §4 | pending (stacks on K4, K5, C1, L1) |
 | C3 | performance | lab spec §4 | pending (stacks on K6, K7, L1) |
