@@ -21,74 +21,105 @@ task is incomplete.
 4. **Spec-notes** (`docs/spec-notes/`) — implementation verdicts from the
    lab; folded into the next addendum (or engine-spec revision).
 
-Latest normative document wins. A conflict this rule cannot resolve is
-itself an open question (table 4).
+**Newer = overwrite** (user rule, 2026-07-21): when normative documents
+conflict, the newer document wins, and this ledger applies the ruling at
+adoption time. Applied 2026-07-21: experiment numbering follows A2 §11
+(2026-07-20), superseding the lab spec's implied numbering and this
+ledger's earlier proposals. Conflicts this rule cannot settle land in the
+conflict log (table 4).
 
 ## 1. Document registry
 
 | document | status | amends / feeds | fold state |
 |---|---|---|---|
 | `unwritten-engine-design-specification.md` v1.1 | base | amended by A1 §17, A2 §11, spec-notes K2/K3/K5 | amendments unapplied |
-| `unwritten-lab-experiments-repo-spec.md` v0.4 | base | experiment list extended by RFCs (C6…) | current |
+| `unwritten-lab-experiments-repo-spec.md` v0.4 | base | experiment list extended by A2 §11 (K2b, K8, K9, C6, C7) and RFCs | A2 numbering adopted 2026-07-21 |
 | `unwritten-generation-addendum-spec.md` (A1) v0.1 | normative-draft | amends engine spec (§17 queue); open questions §18 | adopted 2026-07-20 |
-| `unwritten-addendum-a2-topology-items-ecology.md` (A2) | normative-draft | amends engine spec (§11 queue); open questions §12 | adopted 2026-07-20 |
+| `unwritten-addendum-a2-topology-items-ecology.md` (A2) v0.1 | normative-draft | amends engine spec + A1 (§11/§13 queues); open questions §12 | adopted 2026-07-20 |
 | `rfc-fauna-generator.md` v0.1 | proposal | feeds experiment C6; refines A2 §4 | under review |
 | `rfc-game-layer.md` v0.1 | proposal | feeds future Addendum A3; answers A1 §18 q6 partially | under review |
-| `docs/spec-notes/2026-07-19-k2-drift-field-verdict.md` | write-back, final | amends engine spec §3.1 drift-field language | unfurled → fold queue |
-| `docs/spec-notes/2026-07-19-k3-demotion-policy.md` | write-back, final | amends engine spec §3.4 (demotion) | unfurled → fold queue |
-| `docs/spec-notes/2026-07-19-k5-predicate-vocabulary.md` | write-back, final | settles promise predicate vocabulary | unfurled → fold queue |
+| `docs/spec-notes/2026-07-19-k2-drift-field-verdict.md` | write-back, final | amends engine spec §3.1 drift-field language | unfurled → fold queue (W1) |
+| `docs/spec-notes/2026-07-19-k3-demotion-policy.md` | write-back, final | amends engine spec §3.4 (demotion) | unfurled → fold queue (W1) |
+| `docs/spec-notes/2026-07-19-k5-predicate-vocabulary.md` | write-back, final | settles promise predicate vocabulary | unfurled → fold queue (W1); A1 §9.1/§12 and game-layer §5 EXTEND the vocabulary (see W1) |
+| `docs/spec-notes/2026-07-20-l1-deepseek-v4-pricing.md` | write-back, final | confirms §7.5 flash rates; corrects pro rates | unfurled → fold queue (W1) |
+| `docs/spec-notes/2026-07-20-l2-prefix-cache-mechanics.md` | write-back, final | §7.2/§7.5 cache mechanics (128-token blocks) | unfurled → fold queue (W1) |
+| `docs/spec-notes/2026-07-20-c1-eventfulness-calibration.md` | write-back, final | amends engine spec §5.2 (calibration table) | unfurled → fold queue (W1) |
+| `docs/spec-notes/2026-07-20-c2-archaeological-legibility.md` | write-back, final | answers Q-legible (with reviewer addendum) | unfurled → fold queue (W1) |
 
 ## 2. Work items
 
 Status pipeline: `pending → spec-written → implemented → verified → promoted`.
 
+### Experiment queue (numbering per A2 §11, newer = overwrite)
+
 | id | item | source | status |
 |---|---|---|---|
 | K1 | hashrng | lab spec §2 | **promoted** (`kernel/hashrng.py`) |
 | K2 | gmm_dynamics | lab spec §2 | **promoted** (`kernel/gmm_dynamics/`) |
+| K2b | merge policy for split-strategy GMMs (component cap, moment-matched merges, mass-preserving) | A2 §2.2, §10, §12 q1 | pending |
 | K3 | collapse | lab spec §2 | **promoted** (`kernel/collapse/`) |
 | K4 | counters | lab spec §2 | **promoted** (`kernel/counters/`) |
-| K5 | promise_ledger | lab spec §2 | **promoted** (`kernel/promise_ledger/`) |
-| K6 | gossip_transport | lab spec §2 | **promoted** (`kernel/gossip_transport/`) |
-| K7 | wiki_store (Ara port) | lab spec §2 | **promoted** (`kernel/wiki_store/`) |
+| K5 | promise_ledger | lab spec §2 | **promoted** (`kernel/promise_ledger/`); A1 §9 amendments queued in W1 |
+| K6 | gossip_transport | lab spec §2 | **promoted** (`kernel/gossip_transport/`); note: contact graph = route graph at assembly (A2 §1.1) |
+| K7 | wiki_store | lab spec §2 | **promoted** (`kernel/wiki_store/`) |
+| K8 | **route dynamics**: edge first-passage (inverse-Gaussian), bridge sampler, competing leak hazards, node flow rates | A2 §2.1–2.3, §11 | pending (after K9) |
+| K9 | **complex**: topological data structure (nodes/edges/patches + incidence), three-state cover, subdivision/refinement (never rewire), commit-time defect audit, versioning | A2 §1, §11 | **promoted** (`kernel/complex/`) — unblocks C5 placement |
+| K10 | structure_registry: presets+params, content-addressed, promise-backable | A1 §4 (lab B1 candidate, not A2-numbered) | proposed — after C5 |
+| K11 | worldgen_l0: staged terrain pipeline (plates→hydrology→climate→biomes) | A1 §3, game-layer RFC §1 | proposed — **deferred** (user 2026-07-21) |
+| K12 | naming_corpora: curated-corpus hash-seeded naming; **custom simple impl, NOT an Ara lift** | A1 §8, P5 | proposed — **deferred** (user 2026-07-21) |
 | L1 | llm_client | lab spec §3 | **promoted** (`llm/llm_client/`) |
 | L2 | prefix_bench | lab spec §3 | **promoted** (`llm/prefix_bench/`) — §7.5 envelope confirmed |
-| C1 | eventfulness | lab spec §4 | implemented (stacks on L1) |
-| C2 | backfill | lab spec §4 | **promoted** (`capability/backfill/`) — acceptance 50/50 |
+| C1 | eventfulness | lab spec §4 | **promoted** (`capability/eventfulness/`) |
+| C2 | backfill | lab spec §4 | **promoted** (`capability/backfill/`) |
 | C3 | performance | lab spec §4 | pending (stacks on K6, K7, L1) |
 | C4 | orchestrator_core | lab spec §4 | pending (stacks on K5, L1, L2) |
-| C5 | latent_summon | lab spec §4 | pending (stacks on L1; A1 §5 amends its z-schema) |
-| C6 | ecology counters + fauna table | rfc-fauna-generator §4 | **blocked**: RFC not yet adopted; spec unwritten |
-| W1 | fold K2/K3/K5 spec-notes + A1 §17/A2 §11 queues into engine spec v1.2 or A3 | this ledger | pending |
-| W2 | adopt/reject rfc-fauna-generator (unblocks C6) | rfc | pending user decision |
-| W3 | adopt/reject rfc-game-layer (feeds A3) | rfc | pending user decision |
-| W4 | commit specs/ move (staged 2026-07-20) | repo | **done** (commit 03afc0b) |
-| W5 | C2 backfill stress tests: harder prompts (larger k, more dead NPCs, contradictory counter anchors) to make the validator fail live, not just on seeded traps | user 2026-07-20 ("save for later, but not much later") | pending |
+| C5 | latent_summon | lab spec §4; A1 §5 amends z-schema | pending (stacks on L1; **soft-dep on K9** — placement solve targets the complex; do K9 first, user 2026-07-21) |
+| C6 | ecology counters + fauna table | A2 §4, §11; rfc-fauna-generator | **blocked**: RFC not yet adopted (W2) |
+| C7 | item ledger: promotion gates, provenance chains, discovery hazard | A2 §5, §11 (stacks on K5) | pending |
 
-### Addendum-implied candidates (lab addendum B1, not yet registered)
+### Non-experiment items
 
 | id | item | source | status |
 |---|---|---|---|
-| K8 | topo_complex: cells, cover, mobility classes, on-graph traffic (converges with K2 spec-note's patch-graph verdict) | A2 §1–3 | proposed — near-term |
-| K10 | structure_registry: presets+params, content-addressed, promise-backable | A1 §4 | proposed — near-term |
-| K9 | worldgen_l0: staged terrain pipeline (plates→hydrology→climate→biomes) | A1 §3, game-layer RFC §1 | proposed — **deferred** (high-level, per user 2026-07-21) |
-| K11 | naming_corpora: curated-corpus hash-seeded naming. **Custom simple implementation — NOT an Ara lift** (Ara just samples a downloaded name list); details unimportant | A1 §8, P5 | proposed — **deferred** (high-level, per user 2026-07-21) |
+| W1 | fold queues into engine spec v1.2 / A3: spec-notes (K2/K3/K5/L1/L2/C1/C2) + A1 §17 + A2 §11/§13. Notably: A1 §9.1 decay classes, §9.2 `prior` state, §9.3 class-weighted density (K5 extensions); A1 §12 geographic relation vocabulary; game-layer §5 `knows_language`; void-creature trust-undecidable register (K7) | this ledger | pending |
+| W2 | adopt/reject rfc-fauna-generator (unblocks C6) | rfc | pending user decision |
+| W3 | adopt/reject rfc-game-layer (feeds A3) | rfc | pending user decision |
+| W4 | commit specs/ move | repo | **done** (commit 03afc0b) |
+| W5 | C2 backfill stress tests: harder prompts (larger k, more dead NPCs, contradictory counter anchors) — make the validator fail live | user 2026-07-20 | pending |
+
+### Consistency review 2026-07-21 (specs vs. implemented libraries)
+
+- **K3 collapse ↔ A1 §10**: consistent — silhouettes are samples, identity
+  refinement is promotion; refine/coarsen honors §10.3's culling and
+  §10.4's "distant sight commits nothing."
+- **K6 gossip ↔ A1 §11**: consistent — per-node beliefs preserve
+  contradiction structurally ("no silent reconciliation"). Assembly note:
+  contact graph = route graph (A2 §1.1).
+- **K5 ↔ A1 §9**: gaps queued in W1 (decay classes, `prior` state,
+  class-weighted density, geographic relations from §12).
+- **K2 ↔ A2 §2**: consistent — split strategy is the cited empirical
+  basis; merge policy (K2b) is the owed follow-up.
+- **K7 ↔ game-layer §6**: void-creature "trust-undecidable" claims are a
+  new register the current trust scalar doesn't express — queued in W1.
 
 ## 3. Open questions
 
 | id | question | source | owner | state |
 |---|---|---|---|---|
-| Q-drift | affine drift vs. terrain richness | lab spec K2 | K2 | **answered** → spec-note K2 (patch splitting; no continuous drift, no hard walls) |
-| Q-demote | demotion policy (timing, anchor, tier-3 target) | lab spec K3 | K3 | **answered** → spec-note K3 (schedule-snap vs last-position) |
-| Q-vocab | minimal predicate set for politics | lab spec K5 | K5 | **answered** → spec-note K5 (10 kinds + detail extensibility) |
-| Q-counters | who authors counter laws/parameters | design conversations | K4 | **answered** → K4 README (content task at summon time) |
+| Q-drift | affine drift vs. terrain richness | lab spec K2 | K2 | **answered** → spec-note K2 |
+| Q-demote | demotion policy (timing, anchor, tier-3 target) | lab spec K3 | K3 | **answered** → spec-note K3 |
+| Q-vocab | minimal predicate set for politics | lab spec K5 | K5 | **answered** → spec-note K5; extended by A1 §12 + game-layer §5 (W1) |
+| Q-counters | who authors counter laws/parameters | design conversations | K4 | **answered** → K4 README |
 | Q-legible | "archaeologically legible" as checkable property | lab spec C2 | C2 | **answered** → spec-note C2 |
-| Q-A1 | A1 §18 open questions (incl. reference-game constants) | A1 §18 | A3 / game-layer RFC | partially answered by rfc-game-layer; rest open |
-| Q-A2 | A2 §12 open questions | A2 §12 | unassigned | open |
-| Q-fauna | rfc-fauna-generator §7 (5 questions: root cap, mosaic prob, folk labels, re-recognition, promotion trigger) | rfc | C6 / user | open, gated on W2 |
-| Q-game | rfc-game-layer open items | rfc | A3 / user | open, gated on W3 |
+| Q-merge | merge-policy parameters (cap, threshold) | A2 §12 q1 | K2b | open |
+| Q-leaknum | first-passage + leakage numerics exactness | A2 §12 q2 | K8 | open |
+| Q-A1 | A1 §18 open questions | A1 §18 | A3 / game-layer RFC | partially answered by rfc-game-layer; rest open |
+| Q-A2 | A2 §12 open questions (mobility class count, ecology granularity, item promotion UX, sheet count) | A2 §12 | unassigned | open |
+| Q-fauna | rfc-fauna-generator §7 (5 questions) | rfc | C6 / user | open, gated on W2 |
+| Q-game | rfc-game-layer §8 open questions | rfc | A3 / user | open, gated on W3 |
 
 ## 4. Conflict log
 
-Empty. (Any disagreement between normative documents that precedence
-rules can't settle lands here as a dated entry with an owner.)
+| date | conflict | ruling |
+|---|---|---|
+| 2026-07-21 | experiment numbering: ledger proposals (K8 topo_complex, K9 worldgen) vs. A2 §11 (K8 route dynamics, K9 complex) | newer = overwrite → A2 numbering adopted |
