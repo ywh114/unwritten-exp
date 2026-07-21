@@ -54,7 +54,7 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | L1 | llm_client | lab spec §3 | **promoted** (`llm/llm_client/`) |
 | L2 | prefix_bench | lab spec §3 | **promoted** (`llm/prefix_bench/`) — §7.5 envelope confirmed |
 | C1 | eventfulness | lab spec §4 | implemented (stacks on L1) |
-| C2 | backfill | lab spec §4 | pending (stacks on K4, K5, C1, L1) |
+| C2 | backfill | lab spec §4 | **promoted** (`capability/backfill/`) — acceptance 50/50 |
 | C3 | performance | lab spec §4 | pending (stacks on K6, K7, L1) |
 | C4 | orchestrator_core | lab spec §4 | pending (stacks on K5, L1, L2) |
 | C5 | latent_summon | lab spec §4 | pending (stacks on L1; A1 §5 amends its z-schema) |
@@ -62,7 +62,8 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | W1 | fold K2/K3/K5 spec-notes + A1 §17/A2 §11 queues into engine spec v1.2 or A3 | this ledger | pending |
 | W2 | adopt/reject rfc-fauna-generator (unblocks C6) | rfc | pending user decision |
 | W3 | adopt/reject rfc-game-layer (feeds A3) | rfc | pending user decision |
-| W4 | commit specs/ move (staged 2026-07-20) | repo | staged, uncommitted |
+| W4 | commit specs/ move (staged 2026-07-20) | repo | **done** (commit 03afc0b) |
+| W5 | C2 backfill stress tests: harder prompts (larger k, more dead NPCs, contradictory counter anchors) to make the validator fail live, not just on seeded traps | user 2026-07-20 ("save for later, but not much later") | pending |
 
 ### Addendum-implied candidates (lab addendum B1, not yet registered)
 
@@ -81,7 +82,7 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | Q-demote | demotion policy (timing, anchor, tier-3 target) | lab spec K3 | K3 | **answered** → spec-note K3 (schedule-snap vs last-position) |
 | Q-vocab | minimal predicate set for politics | lab spec K5 | K5 | **answered** → spec-note K5 (10 kinds + detail extensibility) |
 | Q-counters | who authors counter laws/parameters | design conversations | K4 | **answered** → K4 README (content task at summon time) |
-| Q-legible | "archaeologically legible" as checkable property | lab spec C2 | C2 | open |
+| Q-legible | "archaeologically legible" as checkable property | lab spec C2 | C2 | **answered** → spec-note C2 |
 | Q-A1 | A1 §18 open questions (incl. reference-game constants) | A1 §18 | A3 / game-layer RFC | partially answered by rfc-game-layer; rest open |
 | Q-A2 | A2 §12 open questions | A2 §12 | unassigned | open |
 | Q-fauna | rfc-fauna-generator §7 (5 questions: root cap, mosaic prob, folk labels, re-recognition, promotion trigger) | rfc | C6 / user | open, gated on W2 |

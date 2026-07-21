@@ -83,6 +83,7 @@ class TestPrompt:
 
 
 class TestChi2:
+    @pytest.mark.slow
     def test_sampler_vs_self_passes(self):
         all_a = []
         all_b = []

@@ -18,3 +18,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["exp", "tests"]
+markers = [
+    "slow: statistical/property tests with heavy numeric loops (1e5 trials, Monte Carlo). Run with: uv run pytest -m slow",
+]
+addopts = "-m 'not slow'"

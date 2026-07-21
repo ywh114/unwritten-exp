@@ -86,6 +86,7 @@ def _em_reference(dist, t0, t1, schedule, dt, n_particles, seed):
     return mean, (d.T @ d) / (n_particles - 1)
 
 
+@pytest.mark.slow
 def test_ou_exactness_vs_monte_carlo():
     n, dt = 20_000, 0.005
     exact = evolve(START, 0.0, 100.0, SCHEDULE)

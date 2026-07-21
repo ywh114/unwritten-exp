@@ -1,0 +1,100 @@
+{
+  "attempts": [
+    {
+      "payload": {
+        "max_tokens": 1024,
+        "messages": [
+          {
+            "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"$defs\": {\"BackfillEvent\": {\"properties\": {\"involves\": {\"items\": {\"type\": \"string\"}, \"title\": \"Involves\", \"type\": \"array\"}, \"kind\": {\"enum\": [\"death\", \"birth\", \"conflict\", \"economic\", \"weather\", \"social\", \"discharge\", \"other\"], \"title\": \"Kind\", \"type\": \"string\"}, \"promise_discharge\": {\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Promise Discharge\"}, \"title\": {\"title\": \"Title\", \"type\": \"string\"}}, \"required\": [\"title\", \"kind\", \"involves\", \"promise_discharge\"], \"title\": \"BackfillEvent\", \"type\": \"object\"}, \"CounterNote\": {\"properties\": {\"counter\": {\"title\": \"Counter\", \"type\": \"string\"}, \"direction\": {\"enum\": [\"up\", \"down\", \"flat\"], \"title\": \"Direction\", \"type\": \"string\"}, \"reason\": {\"title\": \"Reason\", \"type\": \"string\"}}, \"required\": [\"counter\", \"direction\", \"reason\"], \"title\": \"CounterNote\", \"type\": \"object\"}}, \"properties\": {\"counter_notes\": {\"items\": {\"$ref\": \"#/$defs/CounterNote\"}, \"title\": \"Counter Notes\", \"type\": \"array\"}, \"events\": {\"items\": {\"$ref\": \"#/$defs/BackfillEvent\"}, \"title\": \"Events\", \"type\": \"array\"}, \"texture_line\": {\"title\": \"Texture Line\", \"type\": \"string\"}}, \"required\": [\"events\", \"counter_notes\", \"texture_line\"], \"title\": \"SeasonChronicle\", \"type\": \"object\"}",
+            "role": "system"
+          },
+          {
+            "content": "You are the chronicler of a medieval village. A season has passed.\nBelow are the immutable facts. You generate the narrative.\n\n--- VILLAGE CONTEXT ---\n  elder_oswin: Oswin, village elder. aging but respected; holds the high seat\n  miller_tobias: Tobias, miller. grumbling about the broken wheel\n  blacksmith_elara: Elara, blacksmith. forging a ceremonial sword for the duke\n  herbalist_lyra: Lyra, herbalist. worried about blight in the eastern field\n  hunter_kade: Kade, hunter. tracking wolves near the northern ridge\n  carpenter_maeve: Maeve, carpenter. repairing the mill roof after last storm\n  innkeep_bram: Bram, innkeeper. watering down ale; nobody complains\n  shepherd_ciaran: Ciaran, shepherd. lost two sheep to a ridge predator\n  baker_elara: Elara the Younger, baker. selling day-old bread at half price\n  weaver_niamh: Niamh, weaver. dyed the new wool crimson — a bold choice\n  fisher_owen: Owen, fisher. claims he saw a river spirit at dawn\n  tanner_rory: Rory, tanner. foul-smelling but indispensable\n  farmer_eadric: Eadric, farmer. largest grain plot east of the millpond\n  hedge_witch_selene: Selene, hedge-witch. villagers avoid her but pay for remedies\n  minstrel_finn: Finn, minstrel. collecting tales for a song about the duke\n  apothecary_ida: Ida, apothecary. short on feverfew after the last outbreak\n  carter_garrick: Garrick, carter. waiting for the duke's supply train\n  midwife_branna: Branna, midwife. delivered three babes this season alone\n  old_cade: Old Cade, retired guard. died last winter fighting a bear [DEAD]\n  ser_aelin: Ser Aelin, fallen knight. buried under the old oak after the plague [DEAD]\n\n--- COUNTER ANCHORS (immovable) ---\n  garrison: 30.0 → 32.0 (up)\n  grain: 500.0 → 877.0 (up)\n  population: 120.0 → 170.5 (up)\n\n--- DUE PROMISES (must be discharged this season) ---\n  2a0122929de58107: miller_tobias bound [repair the mill wheel by autumn] (due by t=45, provenance=npc:miller_tobias)\n  78bb0733ad7e5ed: duke_envoy located village [arrives at harvest] (due by t=60, provenance=canon)\n\n--- ALL ACTIVE PROMISES (context) ---\n  2a0122929de58107: miller_tobias bound [repair the mill wheel by autumn] (window=0–t=45, provenance=npc:miller_tobias)\n  78bb0733ad7e5ed: duke_envoy located village [arrives at harvest] (window=0–t=60, provenance=canon)\n  fc65bc4daccde2b4: duke owns ceremonial_sword [commissioned from blacksmith] (window=0–t=200, provenance=canon)\n  3f3dd9a3f36bedba: elder_oswin holds chief [hereditary title] (window=0–perpetual, provenance=measurement)\n  363016deba1d4d0f: hunter_kade hostile northern_tribe [wolves driven south] (window=0–perpetual, provenance=npc:hunter_kade)\n  13c958f01ea633b: shepherd_ciaran fealty elder_oswin [annual tithe of wool] (window=0–perpetual, provenance=canon)\n\n--- TASK ---\nΔt = 90 days (one season). k = 2 notable events.\nGenerate EXACTLY k events. Each event:\n- title: one dry sentence\n- kind: one of death/birth/conflict/economic/weather/social/discharge/other\n- involves: list of NPC slugs (from the cards above; may be empty)\n- promise_discharge: null, or the EXACT hex identifier of a DUE promise that this event resolves. Copy it character-for-character from the DUE PROMISES list above — for example \"a8b274ffafb50c79\". Do not invent or shorten the ID.\n\nRules:\n1. Every due promise MUST appear as some event's promise_discharge, using its exact hex ID from the list.\n2. You must produce ONE CounterNote per counter listed above, with the direction matching exactly what is stated (the numbers are fact).\n3. Never involve a DEAD NPC in any event.\n4. The texture_line is a single-sentence atmospheric wrap-up of the season.\n5. Provide exactly the JSON object with fields: events, counter_notes, texture_line.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0.0,
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "response": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "logprobs": null,
+            "message": {
+              "content": "{\n  \"events\": [\n    {\n      \"title\": \"Tobias repairs the mill wheel with Maeve's help, just before autumn.\",\n      \"kind\": \"discharge\",\n      \"involves\": [\"miller_tobias\", \"carpenter_maeve\"],\n      \"promise_discharge\": \"2a0122929de58107\"\n    },\n    {\n      \"title\": \"The duke's envoy arrives at harvest, bringing news and supplies.\",\n      \"kind\": \"social\",\n      \"involves\": [\"carter_garrick\", \"elder_oswin\"],\n      \"promise_discharge\": \"78bb0733ad7e5ed\"\n    }\n  ],\n  \"counter_notes\": [\n    {\n      \"counter\": \"garrison\",\n      \"direction\": \"up\",\n      \"reason\": \"The duke's envoy brought reinforcements, and several young men enlisted.\"\n    },\n    {\n      \"counter\": \"grain\",\n      \"direction\": \"up\",\n      \"reason\": \"Eadric's harvest was bountiful, and the mill wheel repair allowed timely grinding.\"\n    },\n    {\n      \"counter\": \"population\",\n      \"direction\": \"up\",\n      \"reason\": \"Branna delivered three babes, and a few families arrived with the envoy.\"\n    }\n  ],\n  \"texture_line\": \"As the leaves turned gold, the village hummed with the rhythm of repaired millstones and the clatter of the envoy's wagons.\"\n}",
+              "role": "assistant"
+            }
+          }
+        ],
+        "created": 1784665252,
+        "id": "a55fdbc3-65e0-465c-afa4-9faf41266f48",
+        "model": "deepseek-v4-flash",
+        "object": "chat.completion",
+        "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+        "usage": {
+          "completion_tokens": 313,
+          "prompt_cache_hit_tokens": 1408,
+          "prompt_cache_miss_tokens": 102,
+          "prompt_tokens": 1510,
+          "prompt_tokens_details": {
+            "cached_tokens": 1408
+          },
+          "total_tokens": 1823
+        }
+      }
+    }
+  ],
+  "final": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "{\n  \"events\": [\n    {\n      \"title\": \"Tobias repairs the mill wheel with Maeve's help, just before autumn.\",\n      \"kind\": \"discharge\",\n      \"involves\": [\"miller_tobias\", \"carpenter_maeve\"],\n      \"promise_discharge\": \"2a0122929de58107\"\n    },\n    {\n      \"title\": \"The duke's envoy arrives at harvest, bringing news and supplies.\",\n      \"kind\": \"social\",\n      \"involves\": [\"carter_garrick\", \"elder_oswin\"],\n      \"promise_discharge\": \"78bb0733ad7e5ed\"\n    }\n  ],\n  \"counter_notes\": [\n    {\n      \"counter\": \"garrison\",\n      \"direction\": \"up\",\n      \"reason\": \"The duke's envoy brought reinforcements, and several young men enlisted.\"\n    },\n    {\n      \"counter\": \"grain\",\n      \"direction\": \"up\",\n      \"reason\": \"Eadric's harvest was bountiful, and the mill wheel repair allowed timely grinding.\"\n    },\n    {\n      \"counter\": \"population\",\n      \"direction\": \"up\",\n      \"reason\": \"Branna delivered three babes, and a few families arrived with the envoy.\"\n    }\n  ],\n  \"texture_line\": \"As the leaves turned gold, the village hummed with the rhythm of repaired millstones and the clatter of the envoy's wagons.\"\n}",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1784665252,
+    "id": "a55fdbc3-65e0-465c-afa4-9faf41266f48",
+    "model": "deepseek-v4-flash",
+    "object": "chat.completion",
+    "system_fingerprint": "fp_8b330d02d0_prod0820_fp8_kvcache_20260402",
+    "usage": {
+      "completion_tokens": 313,
+      "prompt_cache_hit_tokens": 1408,
+      "prompt_cache_miss_tokens": 102,
+      "prompt_tokens": 1510,
+      "prompt_tokens_details": {
+        "cached_tokens": 1408
+      },
+      "total_tokens": 1823
+    }
+  },
+  "request": {
+    "max_tokens": 1024,
+    "messages": [
+      {
+        "content": "Respond with a single JSON object matching this JSON Schema. No prose, no markdown fences.\n{\"$defs\": {\"BackfillEvent\": {\"properties\": {\"involves\": {\"items\": {\"type\": \"string\"}, \"title\": \"Involves\", \"type\": \"array\"}, \"kind\": {\"enum\": [\"death\", \"birth\", \"conflict\", \"economic\", \"weather\", \"social\", \"discharge\", \"other\"], \"title\": \"Kind\", \"type\": \"string\"}, \"promise_discharge\": {\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"null\"}], \"title\": \"Promise Discharge\"}, \"title\": {\"title\": \"Title\", \"type\": \"string\"}}, \"required\": [\"title\", \"kind\", \"involves\", \"promise_discharge\"], \"title\": \"BackfillEvent\", \"type\": \"object\"}, \"CounterNote\": {\"properties\": {\"counter\": {\"title\": \"Counter\", \"type\": \"string\"}, \"direction\": {\"enum\": [\"up\", \"down\", \"flat\"], \"title\": \"Direction\", \"type\": \"string\"}, \"reason\": {\"title\": \"Reason\", \"type\": \"string\"}}, \"required\": [\"counter\", \"direction\", \"reason\"], \"title\": \"CounterNote\", \"type\": \"object\"}}, \"properties\": {\"counter_notes\": {\"items\": {\"$ref\": \"#/$defs/CounterNote\"}, \"title\": \"Counter Notes\", \"type\": \"array\"}, \"events\": {\"items\": {\"$ref\": \"#/$defs/BackfillEvent\"}, \"title\": \"Events\", \"type\": \"array\"}, \"texture_line\": {\"title\": \"Texture Line\", \"type\": \"string\"}}, \"required\": [\"events\", \"counter_notes\", \"texture_line\"], \"title\": \"SeasonChronicle\", \"type\": \"object\"}",
+        "role": "system"
+      },
+      {
+        "content": "You are the chronicler of a medieval village. A season has passed.\nBelow are the immutable facts. You generate the narrative.\n\n--- VILLAGE CONTEXT ---\n  elder_oswin: Oswin, village elder. aging but respected; holds the high seat\n  miller_tobias: Tobias, miller. grumbling about the broken wheel\n  blacksmith_elara: Elara, blacksmith. forging a ceremonial sword for the duke\n  herbalist_lyra: Lyra, herbalist. worried about blight in the eastern field\n  hunter_kade: Kade, hunter. tracking wolves near the northern ridge\n  carpenter_maeve: Maeve, carpenter. repairing the mill roof after last storm\n  innkeep_bram: Bram, innkeeper. watering down ale; nobody complains\n  shepherd_ciaran: Ciaran, shepherd. lost two sheep to a ridge predator\n  baker_elara: Elara the Younger, baker. selling day-old bread at half price\n  weaver_niamh: Niamh, weaver. dyed the new wool crimson — a bold choice\n  fisher_owen: Owen, fisher. claims he saw a river spirit at dawn\n  tanner_rory: Rory, tanner. foul-smelling but indispensable\n  farmer_eadric: Eadric, farmer. largest grain plot east of the millpond\n  hedge_witch_selene: Selene, hedge-witch. villagers avoid her but pay for remedies\n  minstrel_finn: Finn, minstrel. collecting tales for a song about the duke\n  apothecary_ida: Ida, apothecary. short on feverfew after the last outbreak\n  carter_garrick: Garrick, carter. waiting for the duke's supply train\n  midwife_branna: Branna, midwife. delivered three babes this season alone\n  old_cade: Old Cade, retired guard. died last winter fighting a bear [DEAD]\n  ser_aelin: Ser Aelin, fallen knight. buried under the old oak after the plague [DEAD]\n\n--- COUNTER ANCHORS (immovable) ---\n  garrison: 30.0 → 32.0 (up)\n  grain: 500.0 → 877.0 (up)\n  population: 120.0 → 170.5 (up)\n\n--- DUE PROMISES (must be discharged this season) ---\n  2a0122929de58107: miller_tobias bound [repair the mill wheel by autumn] (due by t=45, provenance=npc:miller_tobias)\n  78bb0733ad7e5ed: duke_envoy located village [arrives at harvest] (due by t=60, provenance=canon)\n\n--- ALL ACTIVE PROMISES (context) ---\n  2a0122929de58107: miller_tobias bound [repair the mill wheel by autumn] (window=0–t=45, provenance=npc:miller_tobias)\n  78bb0733ad7e5ed: duke_envoy located village [arrives at harvest] (window=0–t=60, provenance=canon)\n  fc65bc4daccde2b4: duke owns ceremonial_sword [commissioned from blacksmith] (window=0–t=200, provenance=canon)\n  3f3dd9a3f36bedba: elder_oswin holds chief [hereditary title] (window=0–perpetual, provenance=measurement)\n  363016deba1d4d0f: hunter_kade hostile northern_tribe [wolves driven south] (window=0–perpetual, provenance=npc:hunter_kade)\n  13c958f01ea633b: shepherd_ciaran fealty elder_oswin [annual tithe of wool] (window=0–perpetual, provenance=canon)\n\n--- TASK ---\nΔt = 90 days (one season). k = 2 notable events.\nGenerate EXACTLY k events. Each event:\n- title: one dry sentence\n- kind: one of death/birth/conflict/economic/weather/social/discharge/other\n- involves: list of NPC slugs (from the cards above; may be empty)\n- promise_discharge: null, or the EXACT hex identifier of a DUE promise that this event resolves. Copy it character-for-character from the DUE PROMISES list above — for example \"a8b274ffafb50c79\". Do not invent or shorten the ID.\n\nRules:\n1. Every due promise MUST appear as some event's promise_discharge, using its exact hex ID from the list.\n2. You must produce ONE CounterNote per counter listed above, with the direction matching exactly what is stated (the numbers are fact).\n3. Never involve a DEAD NPC in any event.\n4. The texture_line is a single-sentence atmospheric wrap-up of the season.\n5. Provide exactly the JSON object with fields: events, counter_notes, texture_line.",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-flash",
+    "schema": "SeasonChronicle",
+    "temperature": 0.0,
+    "thinking": false
+  }
+}

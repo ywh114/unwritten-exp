@@ -148,6 +148,7 @@ class TestDeterminism:
 # ---------------------------------------------------------------------------
 
 class TestFiltration:
+    @pytest.mark.slow
     def test_filtration_1e5_trials(self):
         """Filtration invariant: coarse facts always imply fine facts.
         Small synthetic field+roster, 1e5 stream seeds, batched."""
