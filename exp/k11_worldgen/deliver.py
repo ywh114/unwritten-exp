@@ -16,7 +16,8 @@ work; anything relational must be finished before it.
   as a float field, not re-derived.
 - Vector geometry (river network with discharge/Strahler/width, complex
   nodes/edges): resolution-free — coordinates scale, polylines get
-  Chaikin corner smoothing, rasterized on demand.
+  seeded interior-vertex wiggle (against D8 diagonal lock) and Chaikin
+  corner smoothing at rasterization, on demand.
 """
 
 from __future__ import annotations
@@ -45,6 +46,33 @@ def chaikin(points: list[tuple[float, float]], rounds: int = 2) -> list[tuple[fl
     return pts
 
 
+def _jitter(points: list[tuple[float, float]], key: str,
+            mag: float = 1.4) -> list[tuple[float, float]]:
+    """Seeded sub-cell wiggle on INTERIOR vertices (render cosmetic).
+
+    D8 flow paths run in straight diagonals with 90-degree turns — a
+    raster artifact, not terrain. Chaikin softens corners but cannot
+    un-straighten a long diagonal, so interior vertices get a small
+    content-addressed offset (K1, keyed by the edge id + start point:
+    same path -> same wiggle) before corner-cutting. Endpoints never
+    move: they are node cells shared by several edges. This is a
+    RENDER-layer de-gridding; the committed complex keeps grid-true
+    polylines so the K9 audit's nodeless-intersection invariant holds.
+    """
+    import math
+
+    from kernel.hashrng import Stream
+
+    stream = Stream(0, key)
+    out = [points[0]]
+    for i, (px, py) in enumerate(points[1:-1], 1):
+        ang = 2.0 * math.pi * stream.uniform(i, 0)
+        r = mag * stream.uniform(i, 1)
+        out.append((px + r * math.cos(ang), py + r * math.sin(ang)))
+    out.append(points[-1])
+    return out
+
+
 def river_raster(complex_: Complex, shape: tuple[int, int], factor: int) -> np.ndarray:
     """Stamp the river network (scaled, smoothed polylines) onto the
     delivered grid at width-class radius. Returns (width_class, mask)."""
@@ -53,6 +81,7 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int) -> np.n
     for e in complex_.edges.values():
         pts = [(x * factor, y * factor) for x, y in
                ((p[0], p[1]) for p in e.polyline)]
+        pts = _jitter(pts, f"k11.river|{e.id}|{e.polyline[0]}")
         pts = chaikin(pts, rounds=2)
         r = max(0, int(round(e.quality)) - 1)
         for a, b in zip(pts, pts[1:]):
@@ -68,11 +97,23 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int) -> np.n
 
 def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
                   complex_: Complex, sea_level: float,
-                  factor: int = FACTOR) -> dict:
+                  factor: int = FACTOR, seed: int = 0) -> dict:
     """Deliver the anchor world at factor x resolution (1024² @ 1 km)."""
     from exp.k11_worldgen.biomes import classify_streaming
 
     elev_hi = upsample_bicubic(elev, factor)
+    # gentle fine detail at the delivered grid: bicubic patches are only
+    # C1, and their 4x4 block seams read as a grid in flat areas and in
+    # the hillshade. A low-amplitude rotated fbm (K1-seeded, so renders
+    # replay identically) breaks the regularity; masks/biomes re-derive
+    # from the noised field, so coasts and lake edges get organic
+    # sub-cell wiggle too. Sub-cell terrain FORM is still refinement's
+    # job — this is anti-aliasing, not geology (+-30 m).
+    from kernel.hashrng import Stream
+    from exp.k11_worldgen.raster import fbm
+    fine = fbm(Stream(seed, "k11.deliver"), elev_hi.shape, base_cell=12,
+               octaves=3, persistence=0.55)
+    elev_hi = elev_hi + (fine - 0.5) * 0.006
     w_hi = upsample_bicubic(hydro["w"], factor)
     H, W = elev_hi.shape
 

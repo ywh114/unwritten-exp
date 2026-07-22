@@ -195,6 +195,17 @@ class Plates:
         if len(oceanic) > max_oceanic:
             oceanic = {m for _, m in sorted(
                 (u, m) for u, m in draws if m in oceanic)[:max_oceanic]}
+        # area hygiene: the count cap is not enough — one mega-plate can
+        # sink most of the map. Demote the smallest oceanic plates until
+        # oceanic crust covers at most 55% of the cells.
+        counts = np.bincount(self.macro_id[self.macro_id >= 0].ravel(),
+                             minlength=self.n)
+        total = int(counts.sum())
+        while oceanic:
+            share = sum(int(counts[m]) for m in oceanic) / total
+            if share <= 0.55:
+                break
+            oceanic.remove(min(oceanic, key=lambda m: (int(counts[m]), m)))
         self.oceanic = oceanic
         self.plate_base: list[float] = []
         for m in range(self.n):
@@ -427,6 +438,16 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     t = t * t * (3 - 2 * t)
     base = waterline + (base - waterline) * t
 
+    # enclosed below-sea basins (not connected to the border ocean) are
+    # inland seas / dry depressions, not abyss: real inland seas are far
+    # shallower than open ocean (a few hundred meters; Caspian ~1 km max
+    # against 4 km abyssal plains), so their floors are compressed
+    # toward the waterline BEFORE fault signatures — deep rifts inside
+    # them (Baikal/Tanganyika) then keep their full tectonic depth.
+    from exp.k11_worldgen.hydrology import connected_ocean
+    enclosed = (base < sea_level) & ~connected_ocean(base, sea_level)
+    base[enclosed] = sea_level - (sea_level - base[enclosed]) * 0.35
+
     # ---- fault signatures by crustal-type pair ----
     band = max(2.0, min(h, w) / 85.0)
     warp = _z(fbm(stream.child("fault.warp"), shape, base_cell=min(h, w) // 16, octaves=3)) * band * 0.8
@@ -486,13 +507,23 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     rough_amp = 0.45 + 0.275 * np.clip(rough, 0.0, 2.0) ** 2
     smt = _z(fbm(stream.child("seamount"), shape, base_cell=min(h, w) // 8, octaves=3))
     seamount = 0.15 * np.clip(smt - 1.6, 0.0, None) ** 2
-    detail_land = 0.10 + 0.32 * rough_amp * (
+    grain = 0.32 * rough_amp * (
         np.maximum(noise - 0.5, 0.0) + 0.25 * np.minimum(noise - 0.5, 0.0))
+    detail_land = 0.10 + grain
     detail_sea = 0.15 * floor_noise + seamount - 0.04
 
     ramp = 0.08
     mix = np.clip((base - (sea_level - ramp)) / ramp, 0.0, 1.0)
     elev = base + mix * detail_land + (1.0 - mix) * detail_sea
+    # enclosed below-sea basins (not connected to the border ocean) are
+    # continental crust sitting low — lake beds, dry Death-Valley floors
+    # — not abyss. Abyssal texture is several times quieter than land
+    # relief, which leaves such basins reading as un-noised flats; give
+    # them the land grain instead, without the +0.10 emergence offset so
+    # they stay below sea level.
+    from exp.k11_worldgen.hydrology import connected_ocean
+    enclosed = (base < sea_level) & ~connected_ocean(base, sea_level)
+    elev = np.where(enclosed, base + grain, elev)
     # soft compression above the cap: peaks keep relief and never plane
     # off (a hard clip flattens everything above 1.0 into mesas whose
     # edges follow the fault geometry — the polygon artifact)

@@ -60,7 +60,13 @@ def _river_nodes(hydro: dict) -> dict[tuple[int, int], str]:
 
 def derive_complex(hydro: dict, biome_map: np.ndarray, biome_names: list[str]) -> Complex:
     """Extract nodes/edges from the river network and patches from biome
-    connected components. Deterministic (pure function of the raster)."""
+    connected components. Deterministic (pure function of the raster).
+
+    River polylines stay GRID-TRUE here on purpose: the committed
+    complex is the audit-checked artifact, and jittered copies of shared
+    corridor cells would drift apart and read as nodeless intersections.
+    The cosmetic de-gridding (seeded wiggle against D8 diagonal lock)
+    happens at rasterization time — deliver.river_raster."""
     river = hydro["river_mask"]
     direction = hydro["flow_dir"]
     kinds = _river_nodes(hydro)

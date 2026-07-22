@@ -90,12 +90,16 @@ _PROTOTYPES: dict[str, tuple[np.ndarray, np.ndarray]] = {
     "tropical dry forest":        (_curve(26.0, 3.0, 6), _shaped(15.0, [(6.5, 260.0, 2)])),
     # subtropical highland pine-oak: mild, semihumid summer rain
     "tropical conifer forest":    (_curve(17.0, 4.0, 6), _shaped(30.0, [(7, 120.0, 2)])),
-    # W. Europe / E. US: full seasons, even rain
-    "temperate broadleaf forest": (_curve(12.0, 10.0, 6), _curve(75.0, 10.0, 0)),
+    # W. Europe + E. US / Beijing: full seasons, even rain. Winters run
+    # below freezing on the continental side (Beijing Jan ~-4, Chicago
+    # ~-6) — a Jan > 0 prototype would concede every sub-zero-winter
+    # cell to taiga, but real temperate broadleaf spans them.
+    "temperate broadleaf forest": (_curve(11.0, 13.0, 6), _curve(75.0, 10.0, 0)),
     # Pacific NW: cool, very wet (winter-max maritime)
     "temperate conifer forest":   (_curve(8.0, 9.0, 6), _curve(140.0, 50.0, 0)),
-    # Siberia / Canada: brutal winters, brief mild summer, modest rain
-    "boreal taiga":               (_curve(-2.0, 18.0, 6), _curve(40.0, 25.0, 6.5)),
+    # boreal belt centroid (Finland/Sweden/interior Canada), not the
+    # Siberian extreme: Jan ~-15, Jul ~+15, modest summer-max rain
+    "boreal taiga":               (_curve(0.0, 15.0, 6), _curve(40.0, 25.0, 6.5)),
     # Serengeti / cerrado: hot, semiarid, one wet season
     "tropical grassland":         (_curve(25.0, 3.0, 6), _shaped(5.0, [(6.5, 140.0, 2)])),
     # steppe / prairie: continental seasons, low summer-max rain
@@ -195,8 +199,13 @@ def _apply_overrides(biome: np.ndarray, st: dict) -> np.ndarray:
     near_water = _dilate(st["ocean_m"], 2) | _dilate(st["river_m"], 1)
     b[near_water & (st["alt_m"] < 50.0) & (st["P_wet"] >= 150.0) & land] = \
         BIOME_ID["flooded grassland"]
-    # mangrove: frost-free tropical tidal fringe
-    b[_dilate(st["ocean_m"], 1) & (st["alt_m"] < 10.0) & (st["T_cold"] >= 18.0)
+    # mangrove: frost-free tropical tidal fringe — needs SALT water,
+    # which for now means the sea (border-connected ocean; lakes are
+    # fresh until salinity exists). Direct tidal fringe, plus the
+    # estuarine reach: riverbanks within a few cells of the sea.
+    near_sea = _dilate(st["ocean_m"], 1)
+    estuary = _dilate(st["river_m"], 1) & _dilate(st["ocean_m"], 4)
+    b[(near_sea | estuary) & (st["alt_m"] < 10.0) & (st["T_cold"] >= 18.0)
       & land] = BIOME_ID["mangrove"]
     # water masks last
     b[st["ocean_m"]] = BIOME_ID["ocean"]

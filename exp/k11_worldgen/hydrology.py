@@ -214,6 +214,89 @@ def _water_balance_filter(lake: np.ndarray, acc: np.ndarray,
     return out
 
 
+def _cap_inland_seas(w: np.ndarray, h: np.ndarray, ocean_mask: np.ndarray,
+                     sea_level: float) -> np.ndarray:
+    """Inland seas never stand above sea level. A filled basin whose
+    floor dips below sea level floods (priority fill) to its rim sill —
+    a phantom surface potentially hundreds of meters up — but a real
+    enclosed basin fills to ~sea level at most (Caspian −28 m, Death
+    Valley dry). Cap each whole filled component whose floor goes below
+    sea level at sea level — per component, so lake surfaces stay
+    equipotential. Mountain tarns (floor above sea level) are untouched.
+    """
+    cand = (w > h) & ~ocean_mask
+    H, W = cand.shape
+    seen = np.zeros_like(cand)
+    for sy in range(H):
+        for sx in range(W):
+            if cand[sy, sx] and not seen[sy, sx]:
+                comp, stack = [], [(sy, sx)]
+                while stack:
+                    y, x = stack.pop()
+                    if seen[y, x] or not cand[y, x]:
+                        continue
+                    seen[y, x] = True
+                    comp.append((y, x))
+                    for dy, dx in _D8:
+                        ny, nx_ = y + dy, x + dx
+                        if (0 <= ny < H and 0 <= nx_ < W and not seen[ny, nx_]
+                                and cand[ny, nx_]):
+                            stack.append((ny, nx_))
+                if min(float(h[y, x]) for y, x in comp) < sea_level:
+                    for y, x in comp:
+                        w[y, x] = max(float(h[y, x]), sea_level)
+    return w
+
+
+def _submerge_islets(lake: np.ndarray, w: np.ndarray, h: np.ndarray,
+                     ocean_mask: np.ndarray, sea_level: float,
+                     max_cells: int = 8) -> tuple[np.ndarray, np.ndarray]:
+    """Tiny land components fully enclosed by a lake render as blocky
+    one/few-cell artifacts at the anchor grid — and they ARE artifacts:
+    capping an inland sea at sea level strands interior bumps that the
+    rim-sill flood used to drown. Real seas hide such bumps (sandbars,
+    reefs, guyots); submerge islets up to max_cells into the
+    surrounding lake at its surface. Larger islands stay islands."""
+    land = ~lake & ~ocean_mask
+    H, W = lake.shape
+    seen = np.zeros_like(land)
+    for sy in range(H):
+        for sx in range(W):
+            if not (land[sy, sx] and not seen[sy, sx]):
+                continue
+            comp, stack = [], [(sy, sx)]
+            while stack:
+                y, x = stack.pop()
+                if seen[y, x] or not land[y, x]:
+                    continue
+                seen[y, x] = True
+                comp.append((y, x))
+                for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                    ny, nx_ = y + dy, x + dx
+                    if 0 <= ny < H and 0 <= nx_ < W and not seen[ny, nx_]:
+                        stack.append((ny, nx_))
+            if len(comp) > max_cells:
+                continue
+            cells = set(comp)
+            neighbor_ws: list[float] = []
+            enclosed = True
+            for y, x in comp:
+                for dy, dx in _D8:
+                    ny, nx_ = y + dy, x + dx
+                    if not (0 <= ny < H and 0 <= nx_ < W):
+                        enclosed = False
+                    elif lake[ny, nx_]:
+                        neighbor_ws.append(float(w[ny, nx_]))
+                    elif (ny, nx_) not in cells:
+                        enclosed = False  # touches other land or ocean
+            if enclosed and neighbor_ws:
+                surf = min(neighbor_ws)  # the enclosing lake's surface
+                for y, x in comp:
+                    lake[y, x] = True
+                    w[y, x] = surf
+    return lake, w
+
+
 def _absorb_coastal_lakes(lake: np.ndarray, ocean: np.ndarray) -> np.ndarray:
     """Lakes 8-connected to the ocean are absorbed into it: a lake with
     an open connection to the sea is a bay or lagoon, not a lake.
@@ -286,25 +369,40 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     from kernel.hashrng import Stream
 
     w = priority_flood(h, ocean_mask)
-    depth = np.maximum(w - h, 0.0)
-    depth[ocean_mask] = 1.0  # ocean is water by definition
+    w_capped = _cap_inland_seas(w.copy(), h, ocean_mask, sea_level)
+    # the water balance is judged on the CAPPED candidate surface: an
+    # inland sea's true depth is to sea level, not to its rim sill
+    depth_c = np.maximum(w_capped - h, 0.0)
+    depth_c[ocean_mask] = 1.0  # ocean is water by definition
     direction, flat_depth = flow_direction(w)
     acc = flow_accumulation(w, direction, flat_depth)
 
-    lake = (depth > 1e-9) & ~ocean_mask
+    lake = (depth_c > 1e-9) & ~ocean_mask
     # drop only 1-cell puddles; small ponds are the small-lake
     # smattering, not speckle
     lake = _filter_small_components(lake, min_cells=2)
     # water balance + per-basin size cap (K1-drawn, skewed small)
-    lake = _water_balance_filter(lake, acc, depth, Stream(seed, "k11.hydro"), alpha=4.0)
+    lake = _water_balance_filter(lake, acc, depth_c, Stream(seed, "k11.hydro"), alpha=4.0)
     # lakes bordering the ocean are absorbed into it (bays/lagoons)
     absorbed = _absorb_coastal_lakes(lake, ocean_mask)
     if absorbed.any():
         ocean_mask = ocean_mask | absorbed
         lake = lake & ~absorbed
         w[absorbed] = np.maximum(h[absorbed], sea_level)
-        depth = np.maximum(w - h, 0.0)
-        depth[ocean_mask] = 1.0
+        w_capped[absorbed] = w[absorbed]
+    # accepted inland seas keep the capped sea-level surface and become
+    # ENDORHEIC terminals (rivers flow in, nothing flows out — Caspian);
+    # rejected basins keep the flood surface so their wetland flats
+    # still drain through to the ocean. Above-sea-level lakes keep
+    # through-flow (inflow re-emerges at the outlet) as before.
+    w = np.where(lake | ocean_mask, w_capped, w)
+    # submerge speck islets (cap artifacts) before routing
+    lake, w = _submerge_islets(lake, w, h, ocean_mask, sea_level)
+    depth = np.maximum(w - h, 0.0)
+    depth[ocean_mask] = 1.0
+    # re-route on the final surface (capped seas are terminals)
+    direction, flat_depth = flow_direction(w)
+    acc = flow_accumulation(w, direction, flat_depth)
     # elevation-biased threshold: lowlands need ~1.8x the upstream area
     span = max(float(h.max() - h.min()), 1e-9)
     h_norm = (h - h.min()) / span

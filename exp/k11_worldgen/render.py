@@ -77,12 +77,13 @@ def render_world(path: str, delivered: dict, plates, factor: int,
     deep = np.array([8, 16, 44], dtype=float)
     shallow = np.array([46, 98, 175], dtype=float)
     left[ocean] = (deep + (shallow - deep) * depth_t[..., None])[ocean]
-    # lakes: darken with true depth (w - elev)
-    lake_t = np.clip(delivered["depth"] / 0.02, 0.0, 1.0)
+    # lakes: same bathymetric scale as the ocean (bed elevation, not
+    # w - elev — an inland sea bed IS seabed), fresher tint; lakes above
+    # sea level clip to the bright end like tarns should
     lake_shallow = np.array([70, 130, 195], dtype=float)
     lake_deep = np.array([12, 30, 80], dtype=float)
-    left[lake] = (lake_shallow + (lake_deep - lake_shallow)
-                  * lake_t[..., None])[lake]
+    left[lake] = (lake_deep + (lake_shallow - lake_deep)
+                  * depth_t[..., None])[lake]
     left[delivered["river_mask"]] = (235, 210, 90)
     # plate lines: 2 px at the delivered grid (the 4 px kron blocks were
     # too hard); convergent CC/OC segments = mountain
@@ -119,7 +120,7 @@ def render_world(path: str, delivered: dict, plates, factor: int,
     # right: legend panel (two-column sections)
     right = np.full((H, W, 3), (16, 18, 26), dtype=np.uint8)
     draw_text(right, 48, 48, "K11 WORLDGEN", (235, 235, 235), scale=5)
-    draw_text(right, 48, 108, f"SEED {seed}", (180, 200, 235), scale=3)
+    draw_text(right, 48, 108, f"SEED {seed:08d}", (180, 200, 235), scale=3)
     lines = [
         f"PLATES {stats['plates']}",
         f"OCEAN {stats['ocean_fraction'] * 100:.1f}%",
@@ -135,20 +136,25 @@ def render_world(path: str, delivered: dict, plates, factor: int,
         y += 26
     draw_text(right, 48, y + 14, "BIOMES", (235, 235, 235), scale=3)
     y += 56
+    rows = (len(biome_hist) + 1) // 2
     for i, (name, count, color) in enumerate(biome_hist):
         share = count / (H * W) * 100
-        x0 = 48 if i % 2 == 0 else 520
-        yy = y + (i // 2) * 27
+        # column-major fill: read down the left column, then the right
+        col, row = divmod(i, rows)
+        x0 = 48 if col == 0 else 520
+        yy = y + row * 27
         fill_rect(right, x0, yy, 44, 18, color)
         draw_text(right, x0 + 54, yy + 2, f"{name.replace('_', ' ')} {share:.1f}%",
                   (200, 200, 200), scale=2)
-    y += 27 * ((len(biome_hist) + 1) // 2)
+    y += 27 * rows
     draw_text(right, 48, y + 14, "LANDMARKS", (235, 235, 235), scale=3)
     y += 56
     for i, (kind, _, _, text) in enumerate(marks):
         col = KIND_COLOR[kind]
-        x0 = 48 if i % 2 == 0 else 520
-        yy = y + (i // 2) * 26
+        rows = (len(marks) + 1) // 2
+        c, row = divmod(i, rows)
+        x0 = 48 if c == 0 else 520
+        yy = y + row * 26
         fill_rect(right, x0, yy, 18, 18, col)
         draw_text(right, x0 + 28, yy + 2, text, (210, 210, 210), scale=2)
 
@@ -156,44 +162,77 @@ def render_world(path: str, delivered: dict, plates, factor: int,
     write_png_rgb(path, sheet)
 
 
-def render_loading(out_dir: str, world: dict, delivered: dict,
-                   plates, sea_level: float) -> list[str]:
-    """One PNG per pipeline stage, `out/loading/load_NN.png` (zero-
-    padded), all at the delivered 1024² (anchor stages naively upscaled
-    by nearest 4x). Also maintains `out/load.png` -> the newest stage."""
-    import os
-
-    load_dir = f"{out_dir}/loading"
-    os.makedirs(load_dir, exist_ok=True)
-    for stale in os.listdir(load_dir):
-        if stale.startswith("load_") and stale.endswith(".png"):
-            os.remove(f"{load_dir}/{stale}")
-    paths: list[str] = []
-
-    def _w(n, fn, *args):
-        p = f"{load_dir}/load_{n:02d}.png"
-        fn(p, *args)
-        paths.append(p)
-
+def load_stage_draw(n: int, bag: dict):
+    """Draw callable (path -> None) for loading stage n — the single
+    source for what each stage shows, shared by the demo's live writes
+    and the batch re-render. bag keys: "plates", "elev", "hydro",
+    "climate", "biome_map", "delivered" (whichever the stage needs)."""
     def up4(a):
         return np.kron(a, np.ones((4, 4), dtype=a.dtype))
 
-    _w(1, lambda p: render_plates(p, plates, world["elev"], factor=4))
-    _w(2, write_png_gray, up4(normalize_u8(world["elev"], 0.0, 1.0)))
-    _w(3, write_png_gray, up4(normalize_u8(np.log1p(world["hydro"]["depth"] * 20), 0.0, 2.0)))
-    _w(4, write_png_gray, up4(normalize_u8(world["climate"]["P_pass1"], 0.0, 1.0)))
-    _w(5, write_png_gray, up4(normalize_u8(world["climate"]["green"], 0.0, 1.0)))
-    _w(6, write_png_gray, up4(normalize_u8(world["climate"]["P"], 0.0, 1.0)))
-    _w(7, write_png_gray, up4(normalize_u8(world["climate"]["T"], 0.0, 1.0)))
-    _w(8, write_png_palette, up4(world["biome_map"]), PALETTE)
-    _w(9, write_png_gray, normalize_u8(delivered["elev"], 0.0, 1.0))
-    _w(10, write_png_palette, delivered["biome_map"], PALETTE)
+    if n == 1:
+        return lambda p: render_plates(p, bag["plates"], bag["elev"], factor=4)
+    if n == 2:
+        return lambda p: write_png_gray(p, up4(normalize_u8(bag["elev"], 0.0, 1.0)))
+    if n == 3:
+        return lambda p: write_png_gray(p, up4(normalize_u8(np.log1p(bag["hydro"]["depth"] * 20), 0.0, 2.0)))
+    if n == 4:
+        return lambda p: write_png_gray(p, up4(normalize_u8(bag["climate"]["P_pass1"], 0.0, 1.0)))
+    if n == 5:
+        return lambda p: write_png_gray(p, up4(normalize_u8(bag["climate"]["green"], 0.0, 1.0)))
+    if n == 6:
+        return lambda p: write_png_gray(p, up4(normalize_u8(bag["climate"]["P"], 0.0, 1.0)))
+    if n == 7:
+        return lambda p: write_png_gray(p, up4(normalize_u8(bag["climate"]["T"], 0.0, 1.0)))
+    if n == 8:
+        return lambda p: write_png_palette(p, up4(bag["biome_map"]), PALETTE)
+    if n == 9:
+        return lambda p: write_png_gray(p, normalize_u8(bag["delivered"]["elev"], 0.0, 1.0))
+    if n == 10:
+        return lambda p: write_png_palette(p, bag["delivered"]["biome_map"], PALETTE)
+    raise ValueError(n)
 
-    link = f"{out_dir}/load.png"
-    if os.path.lexists(link):
-        os.remove(link)
-    os.symlink(os.path.relpath(paths[-1], out_dir), link)
-    return paths
+
+class LoadingSink:
+    """Live loading-screen writer: writes `loading/load_NN.png` for one
+    pipeline stage and repoints `out/load.png` at it. The demo passes a
+    sink down the build, so each stage's screen lands as the stage
+    completes — a watcher sees the world assemble in real time."""
+
+    def __init__(self, out_dir: str) -> None:
+        import os
+        self._os = os
+        self.out_dir = out_dir
+        self.paths: list[str] = []
+        load_dir = f"{out_dir}/loading"
+        os.makedirs(load_dir, exist_ok=True)
+        for stale in os.listdir(load_dir):
+            if stale.startswith("load_") and stale.endswith(".png"):
+                os.remove(f"{load_dir}/{stale}")
+
+    def write(self, n: int, draw) -> str:
+        os = self._os
+        p = f"{self.out_dir}/loading/load_{n:02d}.png"
+        draw(p)
+        self.paths.append(p)
+        link = f"{self.out_dir}/load.png"
+        if os.path.lexists(link):
+            os.remove(link)
+        os.symlink(os.path.relpath(p, self.out_dir), link)
+        return p
+
+
+def render_loading(out_dir: str, world: dict, delivered: dict,
+                   plates, sea_level: float) -> list[str]:
+    """Batch path: re-write all loading stages from a built world (used
+    by the re-render subcommand; the demo writes them live via
+    LoadingSink as the build progresses). All images at the delivered
+    1024² (anchor stages naively upscaled by nearest 4x)."""
+    sink = LoadingSink(out_dir)
+    bag = {"plates": plates, "elev": world["elev"], "hydro": world["hydro"],
+           "climate": world["climate"], "biome_map": world["biome_map"],
+           "delivered": delivered}
+    return [sink.write(n, load_stage_draw(n, bag)) for n in range(1, 11)]
 
 
 def render_monthly(out_dir: str, climate: dict) -> list[str]:

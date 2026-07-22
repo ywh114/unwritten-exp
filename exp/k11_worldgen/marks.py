@@ -221,7 +221,8 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
         marks.append(("lake", int(round(cy)), int(round(cx)),
                       f"LK{i + 1} {int(area)}KM2"))
 
-    # lowest terrestrial points (below-sea depressions if any)
+    # lowest terrestrial points (below-sea depressions if any) — only
+    # real depressions: a "lowest point" at sea level is no landmark
     if land.any():
         vals = elev[land]
         k = min(400, vals.size)
@@ -229,7 +230,10 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
         ys, xs = np.where(land & (elev <= thr))
         cand = sorted((float(elev[y, x]), int(y), int(x)) for y, x in zip(ys, xs))
         for i, (v, y, x) in enumerate(_greedy_spaced(cand, 64, n_lows)):
-            marks.append(("low", y, x, f"LW{i + 1} {_m_above(v, sea_level)}M"))
+            m = _m_above(v, sea_level)
+            if m > -1:
+                break  # sorted ascending: no deeper candidates follow
+            marks.append(("low", y, x, f"LW{i + 1} {m}M"))
 
     # biggest river mouths: anchor river cells touching the ocean,
     # by upstream basin (cells x 16 km^2 at the 4 km anchor grid)

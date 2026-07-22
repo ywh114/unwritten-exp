@@ -6,6 +6,7 @@ No dependencies beyond numpy + kernel.hashrng. The PNG writer emits
 
 from __future__ import annotations
 
+import math
 import struct
 import zlib
 
@@ -16,15 +17,28 @@ from kernel.hashrng import Stream
 # ---- deterministic value noise -------------------------------------------------
 
 
-def value_noise(stream: Stream, shape: tuple[int, int], cell_size: int) -> np.ndarray:
+def value_noise(stream: Stream, shape: tuple[int, int], cell_size: int,
+                angle: float = 0.0) -> np.ndarray:
     """Bilinearly-interpolated value noise over the grid.
 
     Lattice values are K1 draws keyed by (lattice_x, lattice_y), so the
     field is deterministic and resolution-independent at lattice points.
-    `cell_size` is the lattice spacing in grid cells.
+    `cell_size` is the lattice spacing in grid cells. `angle` rotates the
+    sampling frame around the grid center: separable interpolation
+    streaks along the lattice axes, so a single orientation locks the
+    noise to the gridlines — rotated frames (a different one per octave)
+    decorrelate the axes. Rotated lattice indices go negative at the
+    edges; the batch mixer wraps them two's-complement, which is
+    deterministic.
     """
     h, w = shape
     ly, lx = np.mgrid[0:h, 0:w].astype(float)
+    if angle:
+        ca, sa = math.cos(angle), math.sin(angle)
+        cx, cy = w / 2.0, h / 2.0
+        dx, dy = lx - cx, ly - cy
+        lx = cx + dx * ca - dy * sa
+        ly = cy + dx * sa + dy * ca
     gx, gy = lx / cell_size, ly / cell_size
     x0, y0 = np.floor(gx).astype(int), np.floor(gy).astype(int)
     fx, fy = gx - x0, gy - y0
@@ -59,16 +73,25 @@ def _lattice_values(stream: Stream, ix: np.ndarray, iy: np.ndarray) -> np.ndarra
 
 def fbm(stream: Stream, shape: tuple[int, int], base_cell: int, octaves: int = 4,
         persistence: float = 0.5) -> np.ndarray:
-    """Fractal value noise: sum of octaves, normalized to ~[0, 1]."""
+    """Fractal value noise: sum of octaves, normalized to ~[0, 1].
+
+    Each octave samples in its own rotated frame (golden-angle steps —
+    fixed angles, no draws, so determinism is untouched); same-axis
+    octaves would compound the interpolation's axis-aligned streaking
+    into visible gridlock. The lattice spacing is clamped at 2 cells:
+    tighter lattices exceed the grid's Nyquist limit and alias into
+    per-cell white speckle, which upscales as an ugly 4-px block grid.
+    """
     total = np.zeros(shape)
     amp_sum = 0.0
     amp = 1.0
     cell = base_cell
     for o in range(octaves):
-        total += amp * value_noise(stream, shape, max(1, cell))
+        total += amp * value_noise(stream, shape, max(2, cell),
+                                   angle=o * 2.399963)
         amp_sum += amp
         amp *= persistence
-        cell = max(1, cell // 2)
+        cell = max(2, cell // 2)
     return total / amp_sum
 
 

@@ -42,7 +42,14 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   Surface noise is mixed by position vs sea level (land texture in
   sparse rough patches, textured abyss + seamounts).
 - **`hydrology`** — `priority_flood` (lake surface = outlet-sill height,
-  equipotential by construction), `flow_direction` (D8 + BFS flat
+  equipotential by construction), `_cap_inland_seas` (a filled basin
+  whose floor dips below sea level is capped AT sea level — real inland
+  seas are shallow and never stand at a phantom rim-sill surface;
+  judged by the water balance on the capped surface, accepted ones
+  become ENDORHEIC terminals — rivers flow in, nothing flows out —
+  rejected ones keep the flood surface and drain through),
+  `_submerge_islets` (speck islets stranded by the cap are sandbars,
+  not blocky artifacts), `flow_direction` (D8 + BFS flat
   resolution, returns flat-depth), `flow_accumulation` (sorted by
   descending (w, flat-depth) — exact on flats), `strahler_order`,
   `build_hydrology`: lakes first — 1-cell puddles dropped (small ponds
@@ -56,15 +63,25 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   outlets, sinks ocean or lake inlets.
 - **`climate`** — `WindLibrary` (precomputed wind patterns: latitude
   zonal base + chaotic gyres from stream-function curl + land–sea
-  breeze; mountains DEFLECT and DAMP the sampled flow — momentum sees
-  terrain, not just the moisture accounting), `build_climate(elev,
-  hydro, sea_level, seed, coarse, n_samples)`: temperature first
-  (wind-independent), monsoon strength per month read off the ACTUAL
+  breeze; mountains DEFLECT and DAMP the sampled low-layer flow —
+  momentum sees terrain, not just the moisture accounting; a HIGH layer
+  — zonal-dominant, no terrain, no breeze — advects the seasonally
+  migrating subtropical-high subsidence field, drying the low layer
+  where it descends: subtropical deserts can sit beside warm seas),
+  `build_climate(elev, hydro, sea_level, seed, coarse, n_samples,
+  t_knobs, stage_hook)`: temperature first
+  (wind-independent; profile knobs t_north/t_span/t_pow/t_amp are
+  generation-side variation, tuned against the classifier's real-world
+  prototypes), monsoon strength per month read off the ACTUAL
   land–sea heating anomaly, N chaotic snapshots per month advect
-  moisture on the coarse grid (128², upsampled/smudged), then
+  moisture on the coarse grid (128², upsampled/smudged; ocean recharge
+  scales with water temperature — cold seas barely evaporate), then
   `refine_climate` runs ONE damped conditioning round — snow-albedo
   feedback, evaporative/cloud cooling, cloud swing damping — T
-  conditioned on P, never iterated (see spec-notes). Canonical output
+  conditioned on P, never iterated (see spec-notes). Land-mean
+  precipitation is pinned to ~0.19 normalized (~76 mm/month, the
+  real-world land average) by an adaptive gain with one corrective
+  rescale. Canonical output
   = 12 monthly (T, P) mean curves per cell. Per-day states are a
   gameplay concern and are NOT generated.
 - **`units`** — the FIXED normalized→metric mapping (temperature 0..1 →
@@ -90,24 +107,30 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   biome (see spec-notes).
 - **`complexify`** — `derive_complex(hydro, biome_map, names)`: river
   sources/confluences/outlets → K9 nodes, downstream walks → river edges
-  with polylines (edge `quality` = mean width class), same-biome
+  with GRID-TRUE polylines (edge `quality` = mean width class; the
+  committed geometry stays on the raster so the audit's
+  nodeless-intersection invariant holds — seeded de-gridding wiggle is
+  applied at rasterization, see deliver.river_raster), same-biome
   components ≥ 16 cells → patches.
 - **`render`** — `render_all` writes the 1024² set (elevation / depth /
   temperature / precipitation / biomes / forest_cover / hydrology);
   `render_monthly` writes the unaveraged monthly curves to
   `out/monthly/`; `render_plates` draws the tectonic diagram (plates.png);
   `render_world` draws **world.png** (2048×1024: hillshaded biome map on
-  land — water is NEVER hillshaded, ocean renders as a bathymetric
-  gradient and lakes darken with true depth — plus rivers, RIDGE LINES
+  land — water is NEVER hillshaded, ocean and lakes share one
+  bathymetric gradient on bed elevation (lakes in a fresher tint) —
+  plus rivers, RIDGE LINES
   (1 px black polylines connecting high peaks wherever a high-enough
   ridge path exists — ranges are terrain, not fault lines), 2 px white
   plate lines, and landmark markers on the left; legend with seed /
-  stats / two-column biome key / landmark key on the right —
-  hand-rolled 5×7 bitmap font, stdlib only);
-  `render_loading` writes `out/loading/load_01..10.png` — one image
+  stats / two-column (column-major) biome key / landmark key on the
+  right — hand-rolled 5×7 bitmap font, stdlib only);
+  `LoadingSink` writes `out/loading/load_01..10.png` — one image
   per pipeline stage, including the two-pass climate intermediates
-  (pass-1 precipitation, vegetation prior) — and maintains
-  `seed_N/load.png` -> the newest stage; the demo also links
+  (pass-1 precipitation, vegetation prior) — LIVE as each build stage
+  completes (the demo passes the sink down the pipeline), repointing
+  `seed_N/load.png` at each stage as it lands; `render_loading` is the
+  batch path for the re-render subcommand; the demo also links
   `out/world_<seed>.png` -> the seed's world sheet.
 - **`marks`** — `compute_marks(delivered, hydro, sea_level, factor)`:
   the N highest peaks (spaced regional maxima, meters via units), the
@@ -136,7 +159,8 @@ plates.png, `monthly/`, `loading/`, and the **world dump**
 `uv run python -m exp.k11_worldgen render --seed 1` re-renders all
 PNGs FROM THE DUMP in ~3 s — iterate on draw logic without the ~30 s
 world build (dump format: persist.py). It then runs ten checks:
-determinism (rebuild compare), ranges_exist (high-relief fraction),
+determinism (rebuild compare), ranges_exist (high-relief fraction, or
+one >3.6 km peak — slim arcs fail the area test but are still ranges),
 large_ocean (25% < ocean < 75%), rivers_exist,
 drains_to_ocean_or_lake (flow walk from every river cell),
 rivers_avoid_lakes, lakes_equipotential (w constant per lake component),
@@ -163,7 +187,10 @@ finished before it ("intensive = lower scale", user 2026-07-22):
   Never recomputed after upscaling.
 - **Continuous state fields** (elevation, water surface, monthly T/P):
   bicubic interpolation, inventing no detail (sub-cell detail is L1's
-  explicit job).
+  explicit job). After interpolation the delivered elevation gets ONE
+  gentle fine-noise pass (±30 m, K1-seeded rotated fbm): bicubic patches
+  are only C1 and their 4×4 block seams read as a grid in flat areas and
+  in the hillshade — anti-aliasing, not geology.
 - **Derived/pointwise** (masks, biomes, cover): re-derived at the target
   resolution from the interpolated parents. Never interpolate a mask
   (half-water cells) or a class map (blocky borders). Exception: LAKE
@@ -171,7 +198,8 @@ finished before it ("intensive = lower scale", user 2026-07-22):
   the lake mask is the carried fact, interpolated as a float field.
 - **Vector geometry** (river network with discharge/Strahler/width,
   complex nodes/edges): resolution-free — coordinates scale ×4,
-  polylines get Chaikin smoothing, rasterized on demand. Rivers are
+  polylines get seeded interior-vertex wiggle (against D8 diagonal
+  lock) + Chaikin smoothing, rasterized on demand. Rivers are
   never 4×4 blocks of "water pixels".
 - The test for any future field: does its definition involve neighbors?
   Yes → below the upscale line; no → above it.

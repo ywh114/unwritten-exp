@@ -23,7 +23,10 @@ from exp.k11_worldgen.complexify import derive_complex
 from exp.k11_worldgen.deliver import upscale_world
 from exp.k11_worldgen.hydrology import build_hydrology
 from exp.k11_worldgen.plates import build_elevation
+from exp.k11_worldgen.raster import normalize_u8, write_png_gray
 from exp.k11_worldgen.render import (
+    LoadingSink,
+    load_stage_draw,
     render_all,
     render_loading,
     render_monthly,
@@ -37,16 +40,41 @@ SHAPE = (256, 256)  # L0 anchor grid: one cell = 4 km (map = 1024×1024 km);
 SEA_LEVEL = 0.35
 
 
-def build_world(seed: int, shape: tuple[int, int] = SHAPE) -> dict:
+def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None) -> dict:
     stream = Stream(seed, "k11.worldgen")
     elev, plates = build_elevation(stream, shape, sea_level=SEA_LEVEL)
+    bag = {"plates": plates, "elev": elev}
+    if sink is not None:
+        sink.write(1, load_stage_draw(1, bag))
+        sink.write(2, load_stage_draw(2, bag))
     # ocean = below-sea cells CONNECTED to the border; enclosed
     # below-sea basins are land (lake beds or dry depressions)
     from exp.k11_worldgen.hydrology import connected_ocean
     ocean_mask = connected_ocean(elev, SEA_LEVEL)
     hydro = build_hydrology(elev, ocean_mask, sea_level=SEA_LEVEL, seed=seed)
-    climate = build_climate(elev, hydro, SEA_LEVEL, seed=seed)
+    bag["hydro"] = hydro
+    if sink is not None:
+        sink.write(3, load_stage_draw(3, bag))
+
+    def _hook(n, arr):
+        # coarse climate intermediates, nearest-upsampled for the screen
+        f = 1024 // arr.shape[0]
+
+        def draw(p, a=arr, f=f):
+            write_png_gray(p, np.kron(normalize_u8(a, 0.0, 1.0),
+                                      np.ones((f, f))))
+        sink.write(n, draw)
+
+    climate = build_climate(elev, hydro, SEA_LEVEL, seed=seed,
+                            stage_hook=_hook if sink is not None else None)
+    bag["climate"] = climate
+    if sink is not None:
+        sink.write(6, load_stage_draw(6, bag))
+        sink.write(7, load_stage_draw(7, bag))
     biome_map = classify_biomes(elev, hydro, climate, SEA_LEVEL)
+    bag["biome_map"] = biome_map
+    if sink is not None:
+        sink.write(8, load_stage_draw(8, bag))
     cover = forest_cover(biome_map, growing_season_p(climate))
     biome_names = [b["name"] for b in BIOMES]
     complex_ = derive_complex(hydro, biome_map, biome_names)
@@ -58,12 +86,15 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE) -> dict:
 
 
 def run_demo(seed: int) -> dict:
-    world = build_world(seed)
-    delivered = upscale_world(world["elev"], world["hydro"], world["climate"],
-                              world["complex"], SEA_LEVEL)
     import os
-    out_dir = f"{OUT_DIR}/seed_{seed}"
+    out_dir = f"{OUT_DIR}/seed_{seed:08d}"
     os.makedirs(out_dir, exist_ok=True)
+    sink = LoadingSink(out_dir)
+    world = build_world(seed, sink=sink)
+    delivered = upscale_world(world["elev"], world["hydro"], world["climate"],
+                              world["complex"], SEA_LEVEL, seed=seed)
+    sink.write(9, load_stage_draw(9, {"delivered": delivered}))
+    sink.write(10, load_stage_draw(10, {"delivered": delivered}))
     paths = render_all(out_dir, delivered, world["complex"])
     monthly_paths = render_monthly(out_dir, world["climate"])
 
@@ -148,7 +179,9 @@ def run_demo(seed: int) -> dict:
 
     checks = {
         "determinism": det_ok,
-        "ranges_exist": high_relief > 0.003,
+        # ranges: broad high terrain, or at least one real >3.6 km peak
+        # (slim island arcs fail the area test but are still ranges)
+        "ranges_exist": high_relief > 0.003 or float(elev.max()) > 0.72,
         "large_ocean": 0.25 < ocean_frac < 0.75,
         "rivers_exist": river_cells > 50,
         "drains_to_ocean_or_lake": drains,
@@ -184,10 +217,10 @@ def run_demo(seed: int) -> dict:
     render_world(f"{out_dir}/world.png", delivered, world["plates"], 4,
                  seed, stats_for_legend, delivered_hist, PALETTE, marks)
     render_plates(f"{out_dir}/plates.png", world["plates"], world["elev"])
-    loading_paths = render_loading(out_dir, world, delivered, world["plates"], SEA_LEVEL)
+    loading_paths = sink.paths
 
     # convenience link: out/world_<seed>.png -> this seed's world sheet
-    top_link = f"{OUT_DIR}/world_{seed}.png"
+    top_link = f"{OUT_DIR}/world_{seed:08d}.png"
     if os.path.lexists(top_link):
         os.remove(top_link)
     os.symlink(os.path.relpath(f"{out_dir}/world.png", OUT_DIR), top_link)
@@ -235,7 +268,7 @@ def run_render(seed: int) -> dict:
         render_world,
     )
 
-    out_dir = f"{OUT_DIR}/seed_{seed}"
+    out_dir = f"{OUT_DIR}/seed_{seed:08d}"
     data = load_world(out_dir)
     world, delivered, manifest, marks = (
         data["world"], data["delivered"], data["manifest"], data["marks"])
@@ -271,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "render":
         report = run_render(args.seed)
-        print(f"re-rendered from {OUT_DIR}/seed_{args.seed}/world.json")
+        print(f"re-rendered from {OUT_DIR}/seed_{args.seed:08d}/world.json")
         for p in report["pngs"]:
             print(f"    {Path(p).name}")
         return 0
@@ -291,7 +324,7 @@ def main(argv: list[str] | None = None) -> int:
         c = s["complex"]
         print(f"  complex: {c['nodes']} nodes, {c['edges']} edges, "
               f"{c['patches']} patches, audit={c['audit_defects'] or 'clean'}")
-        print(f"  pngs -> {OUT_DIR}/seed_{report['seed']}/")
+        print(f"  pngs -> {OUT_DIR}/seed_{report['seed']:08d}/")
         for p in report["pngs"]:
             print(f"    {Path(p).name}")
         for name, passed in report["checks"].items():

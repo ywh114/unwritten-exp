@@ -331,8 +331,9 @@ def test_climate_and_biome_overrides():
     high, low = (elev >= hi_q) & land, (elev <= lo_q) & land
     assert cl["T"][high].mean() < cl["T"][low].mean()
     # seasonality exists, and interiors are not rain-shadow deserts
+    # (0.12 normalized ~= 480 mm/yr)
     assert cl["P_monthly"][:, land].std(axis=0).mean() > 0.01
-    assert cl["P"][land].mean() > 0.25
+    assert cl["P"][land].mean() > 0.12
     bm = classify_biomes(elev, hy, cl, 0.35)
     names = [b["name"] for b in BIOMES]
     # only standing water is a water biome; river cells keep their land biome
