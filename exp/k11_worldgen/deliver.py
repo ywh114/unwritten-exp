@@ -12,8 +12,9 @@ work; anything relational must be finished before it.
   target resolution from the interpolated parents (classification is
   pointwise; interpolating a mask or a class map would be wrong).
   Exception: LAKE EXTENT is an anchor-level decision (water balance is
-  relational), so the lake mask is the carried fact and is interpolated
-  as a float field, not re-derived.
+  relational): the lake interior is the carried fact (eroded anchor
+  mask), only the boundary band re-derives from the interpolated
+  fields for a smooth waterline.
 - Vector geometry (river network with discharge/Strahler/width, complex
   nodes/edges): resolution-free — coordinates scale, polylines get
   seeded interior-vertex wiggle (against D8 diagonal lock) and Chaikin
@@ -95,25 +96,54 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int) -> np.n
     return width
 
 
+def _fill_lake_holes(lake: np.ndarray, ocean: np.ndarray,
+                     near_lake: np.ndarray, max_cells: int = 64) -> np.ndarray:
+    """Fill small enclosed land specks inside delivered lakes.
+
+    The delivered waterline is re-derived from interpolated fields,
+    which speckles: shallow bed bumps inside a lake dip below the
+    depth threshold between anchor samples and read as blocky land
+    holes — the same artifact the anchor's islet submersion drowned,
+    reborn at delivery. Same submersion rule: enclosed specks up to
+    max_cells are filled back in (their depth stays 0 — sandbar-
+    shallow)."""
+    land_band = ~lake & ~ocean & near_lake
+    H, W = lake.shape
+    seen = np.zeros(lake.shape, dtype=bool)
+    for sy in range(H):
+        for sx in range(W):
+            if not (land_band[sy, sx] and not seen[sy, sx]):
+                continue
+            comp, stack = [], [(sy, sx)]
+            while stack:
+                y, x = stack.pop()
+                if seen[y, x] or not land_band[y, x]:
+                    continue
+                seen[y, x] = True
+                comp.append((y, x))
+                for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                    ny, nx_ = y + dy, x + dx
+                    if 0 <= ny < H and 0 <= nx_ < W and not seen[ny, nx_]:
+                        stack.append((ny, nx_))
+            if len(comp) > max_cells:
+                continue
+            cells = set(comp)
+            if all(lake[ny, nx_] or (ny, nx_) in cells
+                   for y, x in comp
+                   for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+                   if 0 <= (ny := y + dy) < H and 0 <= (nx_ := x + dx) < W):
+                for y, x in comp:
+                    lake[y, x] = True
+    return lake
+
+
 def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
                   complex_: Complex, sea_level: float,
-                  factor: int = FACTOR, seed: int = 0) -> dict:
+                  factor: int = FACTOR) -> dict:
     """Deliver the anchor world at factor x resolution (1024² @ 1 km)."""
     from exp.k11_worldgen.biomes import classify_streaming
 
     elev_hi = upsample_bicubic(elev, factor)
-    # gentle fine detail at the delivered grid: bicubic patches are only
-    # C1, and their 4x4 block seams read as a grid in flat areas and in
-    # the hillshade. A low-amplitude rotated fbm (K1-seeded, so renders
-    # replay identically) breaks the regularity; masks/biomes re-derive
-    # from the noised field, so coasts and lake edges get organic
-    # sub-cell wiggle too. Sub-cell terrain FORM is still refinement's
-    # job — this is anti-aliasing, not geology (+-30 m).
-    from kernel.hashrng import Stream
-    from exp.k11_worldgen.raster import fbm
-    fine = fbm(Stream(seed, "k11.deliver"), elev_hi.shape, base_cell=12,
-               octaves=3, persistence=0.55)
-    elev_hi = elev_hi + (fine - 0.5) * 0.006
     w_hi = upsample_bicubic(hydro["w"], factor)
     H, W = elev_hi.shape
 
@@ -130,10 +160,15 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     # relational), but its boundary is re-derived from the interpolated
     # FIELDS — w and elev are both bicubic-smooth, so the waterline is a
     # smooth contour that hugs the terrain — confined to anchor-lake
-    # neighborhoods so no interpolation wiggle spawns new ponds.
+    # neighborhoods so no interpolation wiggle spawns new ponds. The
+    # anchor-decided INTERIOR must not flip back to land: between anchor
+    # samples, bed bumps would otherwise resurrect islets the anchor
+    # already drowned (submerge_islets), as blocky land holes.
     lake_anchor_hi = upsample_bicubic(hydro["lake_mask"].astype(float), factor) > 0.5
     near_lake = _dilate(lake_anchor_hi, 2 * factor)
-    lake_hi = (w_hi - elev_hi > 0.004) & ~ocean_hi & near_lake
+    lake_core_hi = ~_dilate(~lake_anchor_hi, factor)
+    lake_hi = ((w_hi - elev_hi > 0.004) | lake_core_hi) & ~ocean_hi & near_lake
+    lake_hi = _fill_lake_holes(lake_hi, ocean_hi, near_lake)
     depth_hi = np.maximum(w_hi - elev_hi, 0.0)
     depth_hi[ocean_hi] = 1.0
 

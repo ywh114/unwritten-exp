@@ -3,7 +3,8 @@
 Computes the interesting points/areas of a delivered world: the N
 highest peaks (spaced regional maxima, meters via the units layer),
 the deepest ocean point, the M largest lakes (km²), the L lowest
-terrestrial points, and the biggest river mouths (by basin area).
+terrestrial points, and the biggest river mouths (by discharge —
+precipitation-weighted accumulation, km³/yr).
 Each mark is (kind, y, x, legend_text) in DELIVERED coordinates;
 render_world draws the markers and the legend rows.
 """
@@ -168,8 +169,8 @@ def compute_range_lines(delivered: dict, sea_level: float,
 
 
 def compute_marks(delivered: dict, hydro: dict, sea_level: float,
-                  factor: int, n_peaks: int = 5, n_lakes: int = 3,
-                  n_lows: int = 2, n_mouths: int = 2) -> list[tuple[str, int, int, str]]:
+                  factor: int, n_peaks: int = 4, n_lakes: int = 2,
+                  n_lows: int = 2, n_mouths: int = 3) -> list[tuple[str, int, int, str]]:
     elev = delivered["elev"]
     ocean = delivered["ocean_mask"]
     lake = delivered["lake_mask"]
@@ -188,12 +189,6 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
         reverse=True)
     for i, (v, y, x) in enumerate(_greedy_spaced(cand, 48, n_peaks)):
         marks.append(("peak", y, x, f"P{i + 1} {_m_above(v, sea_level)}M"))
-
-    # deepest ocean point
-    if ocean.any():
-        y, x = np.unravel_index(int(np.argmin(np.where(ocean, elev, 1e9))), elev.shape)
-        depth = int(round((sea_level - elev[y, x]) / sea_level * 4000.0))
-        marks.append(("deep", int(y), int(x), f"DP {depth}M"))
 
     # largest lakes: 4-connected components, area in km^2 (1 km cells)
     H, W = lake.shape
@@ -221,6 +216,12 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
         marks.append(("lake", int(round(cy)), int(round(cx)),
                       f"LK{i + 1} {int(area)}KM2"))
 
+    # deepest ocean point (reported negative, like LW)
+    if ocean.any():
+        y, x = np.unravel_index(int(np.argmin(np.where(ocean, elev, 1e9))), elev.shape)
+        depth = int(round((sea_level - elev[y, x]) / sea_level * 4000.0))
+        marks.append(("deep", int(y), int(x), f"DP {-depth}M"))
+
     # lowest terrestrial points (below-sea depressions if any) — only
     # real depressions: a "lowest point" at sea level is no landmark
     if land.any():
@@ -235,20 +236,24 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
                 break  # sorted ascending: no deeper candidates follow
             marks.append(("low", y, x, f"LW{i + 1} {m}M"))
 
-    # biggest river mouths: anchor river cells touching the ocean,
-    # by upstream basin (cells x 16 km^2 at the 4 km anchor grid)
-    acc = hydro["accumulation"]
+    # biggest river mouths by DISCHARGE: anchor river cells touching the
+    # ocean, valued by precipitation-weighted accumulation (normalized
+    # units: 1.0 = 400 mm/month over one 16 km^2 cell), reported as
+    # km^3/yr (x 0.0768). Endorheic inflows (inland-sea terminals) are
+    # not mouths — the cell must touch the connected ocean.
+    discharge = hydro.get("discharge", hydro["accumulation"])
     river = hydro["river_mask"]
     oc = hydro["ocean_mask"]
     mouth = np.zeros_like(river)
     for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)):
         mouth |= river & np.roll(np.roll(oc, dy, 0), dx, 1)
     cand = sorted(
-        ((float(acc[y, x]), int(y), int(x)) for y, x in np.argwhere(mouth)),
+        ((float(discharge[y, x]), int(y), int(x)) for y, x in np.argwhere(mouth)),
         reverse=True)
     for i, (v, y, x) in enumerate(_greedy_spaced(cand, 12, n_mouths)):
-        basin = int(v * 16)
+        # 1.0 norm-P = 400 mm/month over 16 km^2 -> 0.0768 km^3/yr
+        km3y = int(round(v * 0.0768))
         marks.append(("mouth", y * factor + factor // 2,
-                      x * factor + factor // 2, f"RV{i + 1} {basin}KM2"))
+                      x * factor + factor // 2, f"RV{i + 1} {km3y}KM3/Y"))
 
     return marks

@@ -71,6 +71,12 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None) -> dict:
     if sink is not None:
         sink.write(6, load_stage_draw(6, bag))
         sink.write(7, load_stage_draw(7, bag))
+    # discharge: precipitation-weighted accumulation (river mouths are
+    # ranked by water volume, not just basin cell count)
+    from exp.k11_worldgen.hydrology import flow_accumulation
+    hydro["discharge"] = flow_accumulation(
+        hydro["w_route"], hydro["flow_dir"], hydro["flat_depth"],
+        weight=climate["P"])
     biome_map = classify_biomes(elev, hydro, climate, SEA_LEVEL)
     bag["biome_map"] = biome_map
     if sink is not None:
@@ -92,7 +98,7 @@ def run_demo(seed: int) -> dict:
     sink = LoadingSink(out_dir)
     world = build_world(seed, sink=sink)
     delivered = upscale_world(world["elev"], world["hydro"], world["climate"],
-                              world["complex"], SEA_LEVEL, seed=seed)
+                              world["complex"], SEA_LEVEL)
     sink.write(9, load_stage_draw(9, {"delivered": delivered}))
     sink.write(10, load_stage_draw(10, {"delivered": delivered}))
     paths = render_all(out_dir, delivered, world["complex"])

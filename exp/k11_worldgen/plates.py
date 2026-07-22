@@ -530,4 +530,19 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     cap = 0.75
     over = elev > cap
     elev = np.where(over, cap + 0.25 * (1.0 - np.exp(-(elev - cap) / 0.25)), elev)
+    # the reserved border ring is the guaranteed ocean buffer: its base
+    # is pinned down and faults may not lift it, but surface detail
+    # (seamounts) could still breach the surface inside it, and islands
+    # in adjacent fine cells can settle within a pixel or two of the
+    # edge — land must never kiss the map edge. Two layers: a smooth
+    # taper pulls the outermost 2 anchor cells below the surface
+    # (absolute void margin), and the whole reserved ring is
+    # hard-submerged against breaching seamounts.
+    floor = sea_level - 0.02
+    gy, gx = np.mgrid[0:h, 0:w]
+    dist = np.minimum(np.minimum(gy, h - 1 - gy), np.minimum(gx, w - 1 - gx))
+    t = np.clip(dist / 2.0, 0.0, 1.0)
+    t = t * t * (3 - 2 * t)
+    elev = np.where(elev > floor, floor + (elev - floor) * t, elev)
+    elev = np.where(plates.is_ocean, np.minimum(elev, floor), elev)
     return np.clip(elev, 0.0, 1.0), plates

@@ -187,15 +187,17 @@ finished before it ("intensive = lower scale", user 2026-07-22):
   Never recomputed after upscaling.
 - **Continuous state fields** (elevation, water surface, monthly T/P):
   bicubic interpolation, inventing no detail (sub-cell detail is L1's
-  explicit job). After interpolation the delivered elevation gets ONE
-  gentle fine-noise pass (±30 m, K1-seeded rotated fbm): bicubic patches
-  are only C1 and their 4×4 block seams read as a grid in flat areas and
-  in the hillshade — anti-aliasing, not geology.
+  explicit job). A gentle fine-noise anti-aliasing pass was tried here
+  and REVERTED (2026-07-23): it did not actually de-grid coastlines,
+  and it re-speckled lake interiors.
 - **Derived/pointwise** (masks, biomes, cover): re-derived at the target
   resolution from the interpolated parents. Never interpolate a mask
   (half-water cells) or a class map (blocky borders). Exception: LAKE
-  EXTENT is an anchor-level decision (water balance is relational), so
-  the lake mask is the carried fact, interpolated as a float field.
+  EXTENT is an anchor-level decision (water balance is relational):
+  the lake interior is the carried fact (eroded anchor mask), only the
+  boundary band re-derives from the interpolated fields, and small
+  enclosed land specks are filled back in (delivery re-speckles what
+  the anchor drowned).
 - **Vector geometry** (river network with discharge/Strahler/width,
   complex nodes/edges): resolution-free — coordinates scale ×4,
   polylines get seeded interior-vertex wiggle (against D8 diagonal

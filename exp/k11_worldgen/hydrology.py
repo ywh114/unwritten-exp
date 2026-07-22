@@ -126,16 +126,20 @@ def _resolve_flats(w: np.ndarray, direction: np.ndarray) -> tuple[np.ndarray, np
 
 
 def flow_accumulation(w: np.ndarray, direction: np.ndarray,
-                      flat_depth: np.ndarray | None = None) -> np.ndarray:
-    """Upstream cell counts, processing downstream-last. Sort key is
+                      flat_depth: np.ndarray | None = None,
+                      weight: np.ndarray | None = None) -> np.ndarray:
+    """Upstream totals, processing downstream-last. Sort key is
     descending (w, flat_depth): on flat surfaces the BFS depth orders
     cells strictly upstream-first, so donations always carry the full
     upstream subtree (plain descending-w order corrupts totals on flats).
+
+    Each cell donates `weight` (default 1.0 — plain upstream cell count;
+    pass monthly-mean precipitation for discharge).
     """
     H, W = w.shape
     if flat_depth is None:
         flat_depth = np.zeros((H, W), dtype=np.int32)
-    acc = np.ones((H, W))
+    acc = np.ones((H, W)) if weight is None else np.array(weight, dtype=float)
     order = sorted(((float(w[y, x]), int(flat_depth[y, x]), y, x)
                     for y in range(H) for x in range(W)), reverse=True)
     for _, _, y, x in order:
@@ -362,7 +366,10 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     accumulation passes through the filled lake surface). The threshold
     rises in the lowlands so rivers tend to start in high ground.
 
-    Returns dict with: w (water surface), depth ((w-h)+), flow_dir,
+    Returns dict with: w (WET surface — lake cells at their lake level,
+    dry cells at terrain; rejected basins are dry land), w_route (the
+    surface flow routes on — rejected basins keep their flood surface
+    so drainage can pass through), depth ((w-h)+), flow_dir,
     accumulation (= discharge), river_mask, order (Strahler), width
     (render width class 1-3 by discharge), lake_mask, ocean_mask.
     """
@@ -398,11 +405,19 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     w = np.where(lake | ocean_mask, w_capped, w)
     # submerge speck islets (cap artifacts) before routing
     lake, w = _submerge_islets(lake, w, h, ocean_mask, sea_level)
-    depth = np.maximum(w - h, 0.0)
-    depth[ocean_mask] = 1.0
     # re-route on the final surface (capped seas are terminals)
     direction, flat_depth = flow_direction(w)
     acc = flow_accumulation(w, direction, flat_depth)
+    # routing surface vs wet surface: on REJECTED basins the flood
+    # surface exists only so flow can drain through — it is a phantom
+    # water body and must never be seen downstream (delivery re-derives
+    # waterlines from w and would re-flood dry basins; the confinement
+    # that prevented that is what made small lakes rectangular).
+    # w = what is actually WET; w_route = what flow routes on.
+    w_route = w
+    w = np.where(lake | ocean_mask, w_route, h)
+    depth = np.maximum(w - h, 0.0)
+    depth[ocean_mask] = 1.0
     # elevation-biased threshold: lowlands need ~1.8x the upstream area
     span = max(float(h.max() - h.min()), 1e-9)
     h_norm = (h - h.min()) / span
@@ -416,8 +431,10 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     width[river & (acc >= river_threshold * 30)] = 3
     return {
         "w": w,
+        "w_route": w_route,
         "depth": depth,
         "flow_dir": direction,
+        "flat_depth": flat_depth,
         "accumulation": acc,
         "discharge": acc,
         "order": order,

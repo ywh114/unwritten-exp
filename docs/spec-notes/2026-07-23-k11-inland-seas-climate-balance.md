@@ -28,6 +28,24 @@ units or classifier thresholds; tune generation).
   anchor-cell artifacts). `_submerge_islets` sinks land components ≤ 8
   cells fully enclosed by a lake into it at its surface (sandbars/
   guyots); larger islands stay.
+- The SAME speckle is reborn at delivery: the waterline re-derivation
+  (interpolated fields + fine noise, 40 m depth threshold) flips
+  shallow bed bumps inside a lake back to land — blocky holes inside
+  LK-class lakes (seed 6 had 24). Fix in `deliver.upscale_world`: the
+  eroded anchor lake interior is always water (the boundary band alone
+  re-derives from fields), and `_fill_lake_holes` fills enclosed land
+  specks ≤ 64 delivered cells — the anchor's submersion rule applied
+  to delivery artifacts. Verified: 0 enclosed holes.
+- RECTANGULAR LAKES (seed 6): rejected basins kept their priority-flood
+  surface w0 (needed for through-drainage), and delivery re-derived
+  waterlines from it — the whole dry basin read as "water", so the
+  near-lake confinement became load-bearing and clipped small lakes to
+  a Chebyshev-square front that ignores terrain. Fix: hydro returns
+  TWO surfaces — `w` (what is actually WET: lake cells at lake level,
+  everything else at terrain) and `w_route` (what flow routes on:
+  rejected basins keep w0). Delivered waterlines now follow the true
+  elevation contour; small lakes are organic ponds instead of
+  rectangles, and no phantom water exists downstream of hydrology.
 
 ## Two-layer wind (Q2)
 - User's prompt: "Middle East has deserts because layers." A single
@@ -56,8 +74,7 @@ units or classifier thresholds; tune generation).
 - Cold-water evaporation steepened to real Clausius–Clapeyron-ish
   ratios: ~0 at −3 °C, ~20% at 0 °C, full by +10 °C (was ~40% at 0 °C).
 
-## Temperature profile and biome balance
-- Taiga prototype was the Siberian extreme (Jan −20, annual −2): it won
+## Temperature profile and biome balance- Taiga prototype was the Siberian extreme (Jan −20, annual −2): it won
   wherever winters dropped below ~−10 °C — unrealistic. Retargeted to
   the boreal-belt centroid (Jan −15, Jul +15). Temperate broadleaf got
   continental winters (Jan −2: Beijing/Chicago are broadleaf too).
@@ -75,14 +92,29 @@ units or classifier thresholds; tune generation).
   by polling the symlink during a build). `render_loading` remains the
   batch path for the re-render subcommand; both share `load_stage_draw`.
 
-## Delivery anti-aliasing (G4)
+## Delivery anti-aliasing (G4) — tried and REVERTED
 - Bicubic delivery patches are only C1; their 4×4 block seams read as a
-  grid in flat areas and in the hillshade. One gentle K1-seeded rotated
-  fbm pass (±30 m, base cell 12 px) on the delivered elevation breaks
-  the regularity; masks/biomes re-derive from the noised field so
-  coasts/lake edges get organic wiggle. Anti-aliasing, not geology:
-  sub-cell terrain FORM remains refinement's job.
+  grid in flat areas and in the hillshade. A gentle K1-seeded fbm pass
+  (±30 m) on the delivered elevation was added to break the regularity
+  — and removed the same day: it did NOT de-grid coastlines (its
+  actual goal), and by flipping shallow lake beds across the waterline
+  it caused/amplified the delivered lake speckle that then needed the
+  ad-hoc `_fill_lake_holes`. The hole fill and the eroded-core interior
+  stay (they are correct against interpolation wiggle alone); the
+  noise is gone. Grid-aligned coasts/elevation at delivery remain an
+  OPEN issue (options: shade-space smoothing, or leave to refinement).
 - fbm octaves also clamp lattice spacing at ≥ 2 cells (Nyquist) — finer
   lattices alias into per-cell white speckle that upscales as a block
   grid — and every octave samples in its own golden-angle-rotated frame
   (separable value noise otherwise streaks along the grid axes).
+
+## Void margin (border-kissing land)
+- The reserved border ring (base pinned down, no fault signatures) was
+  not enough: seamount detail could breach inside it, and islands in
+  adjacent fine cells settled 1-4 px from the map edge.
+- Two layers now: a smooth taper pulls the outermost 2 anchor cells
+  below the surface (guaranteed ocean moat behind the 1 px rock rim),
+  and the whole reserved ring is hard-submerged against breaching
+  seamounts. Land may approach the border but always across water.
+- Landmark legend (user): 4 peaks (not 5), DP moved after the LK
+  entries and reported negative (DP -4058M), matching LW.
