@@ -14,10 +14,12 @@ from kernel.complex.cells import Complex, _segments_cross
 # ---- terminus nodes ----------------------------------------------------------
 
 # Node ids that are legitimate termini (settlements, fords, bridges, cave mouths
-# are allowed to be degree-1; everything else must be degree ≥ 2).
+# are allowed to be degree-1; everything else must be degree ≥ 2). River
+# sources and outlets are termini by construction (K11 worldgen).
 # For the fixture we treat any node whose id contains one of these keywords
 # as a legitimate terminus.
-_TERMINUS_KEYWORDS = ("settlement", "ford", "bridge", "cave", "crossing")
+_TERMINUS_KEYWORDS = ("settlement", "ford", "bridge", "cave", "crossing",
+                      "source", "outlet")
 
 
 def _is_terminus(node_id: str) -> bool:
@@ -48,9 +50,11 @@ def audit(complex: Complex) -> list[str]:
                         f"(edge {eid})"
                     )
 
-    # 2. isolated patches — unreachable from the rest via edge/boundary adjacency
+    # 2. isolated patches — unreachable from the rest via edge/boundary adjacency.
+    # Skipped when no patch commits any boundary edges (e.g. L0 worldgen,
+    # where patch adjacency is raster-derived and not yet edge-committed).
     adj = complex.patch_adjacency()
-    if adj:
+    if any(adj.values()):
         visited: set[str] = set()
         start = next(iter(adj))
         stack = [start]

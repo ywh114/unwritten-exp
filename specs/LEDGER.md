@@ -65,7 +65,7 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | K8 | **route dynamics**: edge first-passage (inverse-Gaussian), bridge sampler, competing leak hazards, node flow rates | A2 §2.1–2.3, §11 | pending (after K9) |
 | K9 | **complex**: topological data structure (nodes/edges/patches + incidence), three-state cover, subdivision/refinement (never rewire), commit-time defect audit, versioning | A2 §1, §11 | **promoted** (`kernel/complex/`) — unblocks C5 placement |
 | K10 | structure_registry: presets+params, content-addressed, promise-backable | A1 §4 (lab B1 candidate, not A2-numbered) | proposed — after C5 |
-| K11 | worldgen_l0: staged terrain pipeline (plates→hydrology→climate→biomes) | A1 §3, game-layer RFC §1 | proposed — **deferred** (user 2026-07-21) |
+| K11 | worldgen_l0: staged terrain pipeline (plates→hydrology→climate→biomes) + complex derivation + PNG renders | A1 §3, game-layer RFC §1 | **implemented** (`exp/k11_worldgen/`, not yet promoted; built by K3 2026-07-22 — PNG visual gate needs multimodality) |
 | K12 | naming_corpora: curated-corpus hash-seeded naming; **custom simple impl, NOT an Ara lift** | A1 §8, P5 | proposed — **deferred** (user 2026-07-21) |
 | L1 | llm_client | lab spec §3 | **promoted** (`llm/llm_client/`) |
 | L2 | prefix_bench | lab spec §3 | **promoted** (`llm/prefix_bench/`) — §7.5 envelope confirmed |
@@ -123,3 +123,5 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | date | conflict | ruling |
 |---|---|---|
 | 2026-07-21 | experiment numbering: ledger proposals (K8 topo_complex, K9 worldgen) vs. A2 §11 (K8 route dynamics, K9 complex) | newer = overwrite → A2 numbering adopted |
+| 2026-07-22 | K9 audit assumed route-network semantics: river sources/outlets flagged as dangling; patches without committed boundary edges flagged isolated | audit amended: `source`/`outlet` added to terminus vocabulary; `isolated_patch` skipped when no patch commits boundary edges (K11 spec-notes) |
+| 2026-07-22 | K1 draws keyed by (clock, index) only — independent fields from the same stream at the same coordinates are identical | kernel/hashrng amended: `Stream.child(context)` derives substreams by extending the context digest; every independent field gets its own child (K11 spec-notes) |

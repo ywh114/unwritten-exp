@@ -16,6 +16,13 @@ digest of (clock, index) keyed by the stream key. BLAKE2b is specified in
 RFC 7693 and is bit-stable across platforms; all integers are packed
 little-endian explicitly, so results do not depend on host endianness,
 word size, or Python version.
+
+Bulk fields: `Stream.u64_batch(clocks, indices)` is a SEPARATE,
+vectorized draw mode for bulk generation (lattice noise etc.) — a keyed
+splitmix64-style numpy mixer over coordinate arrays, since one BLAKE2b
+per coordinate is far too slow for ~1e7-draw fields (measured 50 s of a
+70 s K11 world build). Values do NOT match u64() at the same
+coordinates; never mix the two modes for the same purpose.
 """
 
 from __future__ import annotations
@@ -61,6 +68,37 @@ def _draw_u64(key: bytes, clock: int, index: int) -> int:
     return int.from_bytes(h.digest(), "little")
 
 
+def _draw_u64_batch(key: bytes, clocks, indices):
+    """Vectorized bulk draws over numpy arrays of (clock, index).
+
+    One scalar BLAKE2b call per coordinate is the right thing for
+    random-access single draws, but hopeless for bulk field generation
+    (K11's lattice noise needs ~1e7 draws — measured 50 s of hashing
+    in a 70 s world build). This mixer derives three u64 lane keys
+    from the stream key and runs a splitmix64-style vectorized round
+    over the coordinate arrays: deterministic, platform-stable (uint64
+    wraparound arithmetic), statistically independent per coordinate,
+    and ~1000x faster. It is a SEPARATE draw mode — values do not
+    match u64(); callers must not mix the two for the same purpose.
+    numpy is imported lazily so kernel.hashrng stays dependency-light.
+    """
+    import numpy as np
+
+    k0 = np.uint64(int.from_bytes(key[0:8], "little"))
+    k1 = np.uint64(int.from_bytes(key[8:16], "little"))
+    k2 = np.uint64(int.from_bytes(key[16:24], "little"))
+    c = np.asarray(clocks).astype(np.uint64)   # i64 two's-complement wrap
+    i = np.asarray(indices).astype(np.uint64)  # is deterministic
+    z = (c * np.uint64(0x9E3779B97F4A7C15)
+         + i * np.uint64(0xC2B2AE3D27D4EB4F) + k0)
+    z = (z ^ (z >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+    z = (z ^ (z >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+    z = z ^ (z >> np.uint64(31)) ^ k1
+    z = (z ^ (z >> np.uint64(29))) * np.uint64(0xBF58476D1CE4E5B9)
+    z = z ^ (z >> np.uint64(32)) ^ k2
+    return z
+
+
 class Stream:
     """Random-access deterministic draw stream for one entity+context.
 
@@ -84,9 +122,29 @@ class Stream:
             f"context_digest={self.context_digest!r})"
         )
 
+    def child(self, context: str) -> "Stream":
+        """Derived substream with independent draws, same provenance.
+
+        K1 draws are keyed by (clock, index) only, so two fields drawn
+        from the SAME stream at the same coordinates are identical —
+        every independent random field needs its own context."""
+        joiner = "|" if self.context_digest else ""
+        return Stream(self.world_seed, self.entity_id,
+                      self.context_digest + joiner + context)
+
     def u64(self, clock: int, index: int = 0) -> int:
         """Raw 64-bit unsigned draw."""
         return _draw_u64(self.key, clock, index)
+
+    def u64_batch(self, clocks, indices):
+        """Vectorized bulk draws over numpy (clock, index) arrays.
+
+        Fast path for bulk field generation (lattice noise etc.) — a
+        keyed splitmix64-style mixer rather than per-draw BLAKE2b.
+        SEPARATE draw mode: values do not match u64() at the same
+        coordinates; do not mix the two for the same purpose.
+        """
+        return _draw_u64_batch(self.key, clocks, indices)
 
     def uniform(self, clock: int, index: int = 0) -> float:
         """Uniform float in [0, 1) — 53 bits of entropy."""

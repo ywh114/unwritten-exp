@@ -10,3 +10,6 @@ __pycache__/
 
 # Scratch
 tmp/
+
+# K11 demo outputs (PNGs, world.npz dumps)
+exp/k11_worldgen/out/

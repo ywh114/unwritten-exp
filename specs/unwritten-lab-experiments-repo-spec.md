@@ -159,5 +159,12 @@ Promotion rule: an experiment's code moves from `exp/<name>/` to its permanent p
 - Every experiment: `--seed`, `--json`, and (if LLM) `--replay` with committed cassettes.
 - LLM experiments report tokens-in/cached/out and dollars in their README.
 - Ara-recycled code carries `# ARA: <module>` provenance comments.
+- Tests: run the affected subgraph, not the whole suite —
+  `uv run python tools/testgraph.py k11` (one package) or `--git`
+  (targets from changed files). The runner AST-scans imports to build
+  the package dependency graph and runs the targets' tests plus every
+  transitive dependent's tests (changing `kernel/hashrng` pulls in
+  K11; changing K11 pulls in nothing else). Full suite only before
+  commits.
 - Suggested start order for a solo builder (not a dependency order): K1 → K2 → K5 → L1, then whatever is most interesting — K5 and L1 unblock the most followers.
 - License: GPLv3 (matching the final project).

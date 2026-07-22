@@ -128,3 +128,33 @@ class TestValidation:
         s = Stream(SEED, "e")
         for c in range(10_000):
             assert math.isfinite(s.normal(c))
+
+
+class TestBatchDraws:
+    """u64_batch: the vectorized bulk-draw mode (keyed splitmix mixer).
+
+    Separate draw mode from u64() — same provenance rules: deterministic,
+    context-separated, coordinate-independent."""
+
+    def test_deterministic_and_shaped(self):
+        import numpy as np
+        s = Stream(SEED, "batch")
+        c, i = np.mgrid[0:64, 0:48]
+        a = s.u64_batch(c, i)
+        assert a.shape == (64, 48)
+        assert np.array_equal(a, s.u64_batch(c, i))
+        assert not np.array_equal(a, Stream(SEED, "batch2").u64_batch(c, i))
+        assert not np.array_equal(a, Stream(SEED + 1, "batch").u64_batch(c, i))
+
+    def test_uniformity_and_independence(self):
+        import numpy as np
+        s = Stream(SEED, "batch")
+        c, i = np.mgrid[0:200, 0:200]
+        u = (s.u64_batch(c, i) >> np.uint64(11)) * (1.0 / (1 << 53))
+        assert 0.47 < u.mean() < 0.53
+        assert 0.26 < u.std() < 0.31  # uniform ~ 1/sqrt(12)
+        # no coordinate correlation: row/column means stay near 0.5
+        assert abs(u.mean(axis=0) - 0.5).max() < 0.06
+        assert abs(u.mean(axis=1) - 0.5).max() < 0.06
+        # neighboring coordinates are independent draws
+        assert np.corrcoef(u[:, :-1].ravel(), u[:, 1:].ravel())[0, 1] < 0.02
