@@ -78,9 +78,10 @@ def _simplify(pts: list[tuple[float, float]], tol: float) -> list[tuple[float, f
     """Ramer–Douglas–Peucker polyline simplification (render cosmetic).
 
     The anchor flow path makes 1-cell out-and-back detours on flats
-    (a BFS artifact); magnified to the delivered grid and stamped at
-    width, they read as knots. Collapsing sub-`tol` deviations removes
-    them; endpoints (shared node cells) are preserved by construction."""
+    (a grid-routing artifact); magnified to the delivered grid and
+    stamped at width, they read as knots. Collapsing sub-`tol`
+    deviations removes them; endpoints (shared node cells) are
+    preserved by construction."""
     import math
     if len(pts) < 3:
         return pts
@@ -117,6 +118,27 @@ def _meander(pts: list[tuple[float, float]], wavelength: float,
         n = math.hypot(dx, dy) + 1e-9
         off = amplitude * math.sin(2 * math.pi * (s + phase) / wavelength)
         out.append((bx + (-dy / n) * off, by + (dx / n) * off))
+    out.append(pts[-1])
+    return out
+
+
+def _smooth_centerline(pts: list[tuple[float, float]],
+                       window: int) -> list[tuple[float, float]]:
+    """Pinned-endpoint moving average (render cosmetic). A D8 path
+    approximates the true flow bearing by alternating the two
+    direction ticks bracketing it — a staircase whose bearing still
+    reads as the grid's 45-degree lock. Averaging over a few cells
+    turns the staircase into the true-bearing curve; endpoints (shared
+    node cells) are preserved by construction."""
+    if len(pts) <= 2 or window < 3:
+        return pts
+    k = window // 2
+    out = [pts[0]]
+    for i in range(1, len(pts) - 1):
+        lo, hi = max(0, i - k), min(len(pts), i + k + 1)
+        n = hi - lo
+        out.append((sum(p[0] for p in pts[lo:hi]) / n,
+                    sum(p[1] for p in pts[lo:hi]) / n))
     out.append(pts[-1])
     return out
 
@@ -204,6 +226,9 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
         # collapse 1-cell flat-routing detours BEFORE any cosmetic
         # wiggle — magnified and stamped at width, they read as knots
         base = _simplify(base, 1.25 * factor)
+        # dequantize the D8 bearing: the staircase between the two
+        # ticks bracketing the true flow angle averages to that angle
+        base = _smooth_centerline(base, window=2 * factor + 1)
         # jitter scales DOWN with width class: creeks wiggle, wide
         # rivers are smooth (a fat stamp over tight jitter is a blob)
         wc0 = max(1, int(round(e.quality)))

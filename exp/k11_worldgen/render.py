@@ -277,7 +277,8 @@ _LOAD_STAGE_NAMES = (
     "PRECIP 1",
     "TEMP 1",
     "BIOMES 1",
-    "WETLANDS",         # ---- pass 2: coarse second-order rerun ----
+    "CURRENTS 2",       # ---- pass 2: coarse second-order rerun ----
+    "WETLANDS",
     "PRECIP 2",
     "TEMP 2",
     "BIOMES 2",
@@ -316,6 +317,153 @@ def _hydro_rgb(bag: dict, delta: bool = False) -> np.ndarray:
     return np.clip(rgb, 0, 255).astype(np.uint8)
 
 
+def _flow_lines(base: np.ndarray, cur: dict, factor: int = 4,
+                n_steps: int = 140,
+                uv: tuple[np.ndarray, np.ndarray] | None = None
+                ) -> np.ndarray:
+    """Streamline trails over the current-speed render (cosmetic).
+    Particles seeded on a K1-jittered grid over the ocean are advected
+    along the annual velocity field and plotted at sub-cell
+    resolution. Trail hue carries VERTICAL motion: bright cyan where
+    the water wells up (depth decreasing along the flow), dark violet
+    where it dives (depth increasing) — and the strongest of each get
+    the physics-diagram markers (ring-dot = up, out of the page;
+    ring-cross = down, into it)."""
+    from kernel.hashrng import Stream
+    from exp.k11_worldgen.climate import _grad
+    from exp.k11_worldgen.currents import velocity_field
+
+    u, v = uv if uv is not None else velocity_field(cur, 6)
+    H, W = u.shape
+    Hf, Wf = base.shape[:2]
+    ocean = cur["ocean_mask"]
+    speed = np.hypot(u, v)
+    # visualize TRANSPORT, not velocity: barotropic velocity =
+    # transport/depth, so the shelf jet outruns the deep gyres ~60:1
+    # (physical — real abyssal flow IS cm/s against m/s boundary
+    # currents) and a velocity view renders the interior ocean empty.
+    # Direction is identical; seeding/brightness read the transport.
+    from exp.k11_worldgen.currents import _MIN_DEPTH_M
+    transport = speed * np.clip(cur["depth_m"], _MIN_DEPTH_M, None)
+    tmax = float(transport[ocean].max()) if ocean.any() else 1.0
+    transport = transport / max(tmax, 1e-9)
+    ddx, ddy = _grad(cur["depth_m"])
+    vert = -(u * ddx + v * ddy)          # >0 welling up, <0 diving
+    nz = np.abs(vert[ocean])[np.abs(vert[ocean]) > 1e-9]
+    vscale = float(np.percentile(nz, 95)) if nz.size else 1.0
+
+    out = base.astype(float)
+    st = Stream(0, "k11.render.currents")
+    for y0 in range(2, H - 2, 5):
+        for x0 in range(2, W - 2, 5):
+            if not (ocean[y0, x0] and transport[y0, x0] > 0.01):
+                continue
+            py = y0 + 2.0 * (st.uniform(y0 * W + x0, 0) - 0.5)
+            px = x0 + 2.0 * (st.uniform(y0 * W + x0, 1) - 0.5)
+            for _ in range(n_steps):
+                iy, ix = int(round(py)), int(round(px))
+                if not (0 <= iy < H and 0 <= ix < W and ocean[iy, ix]):
+                    break
+                sp = speed[iy, ix]
+                if sp < 1e-9 or transport[iy, ix] < 0.002:
+                    break
+                # unit-length steps: the trail traces the DIRECTION
+                # field, so slow gyre cores curve as much as fast
+                # rims (speed-scaled steps read as short straight
+                # dashes — nothing long enough to wrap)
+                py += u[iy, ix] / sp * 0.6
+                px += v[iy, ix] / sp * 0.6
+                t = np.clip(vert[iy, ix] / (vscale + 1e-9), -1.0, 1.0)
+                col = (np.array([140, 245, 250]) * (0.50 + 0.50 * t)
+                       if t >= 0.0 else
+                       np.array([120, 90, 190]) * (0.50 - 0.50 * t))
+                # sqrt scale keeps the shelf jet and the deep gyres in
+                # the same picture
+                lum = 0.25 + 0.75 * float(np.sqrt(transport[iy, ix]))
+                Y, X = int(py * factor), int(px * factor)
+                if 0 <= Y < Hf - 1 and 0 <= X < Wf - 1:
+                    pix = col * lum
+                    out[Y, X] = np.maximum(out[Y, X], pix)
+                    out[Y + 1, X] = np.maximum(out[Y + 1, X], pix)
+                    out[Y, X + 1] = np.maximum(out[Y, X + 1], pix)
+                    out[Y + 1, X + 1] = np.maximum(out[Y + 1, X + 1],
+                                                   pix)
+
+    # vertical-motion markers: the strongest well-up (ring-dot) and
+    # dive (ring-cross) spots, greedily spaced like landmark marks
+    def mark(yy: int, xx: int, up: bool) -> None:
+        cy, cx, r = yy * factor + 2, xx * factor + 2, 5
+        col = np.array([150, 245, 250]) if up else np.array([150, 120, 220])
+        for dy in range(-r - 1, r + 2):
+            for dx in range(-r - 1, r + 2):
+                d = (dy * dy + dx * dx) ** 0.5
+                Y, X = cy + dy, cx + dx
+                if not (0 <= Y < Hf and 0 <= X < Wf):
+                    continue
+                ring = r - 1.0 <= d <= r
+                center = up and d <= 1.2
+                cross = (not up and abs(dy) <= 2 and abs(dx) <= 2
+                         and (dy == dx or dy == -dx))
+                if ring or center or cross:
+                    out[Y, X] = col
+
+    cands = sorted(
+        ((float(vert[y, x]), y, x) for y in range(H) for x in range(W)
+         if ocean[y, x]), key=lambda t: -abs(t[0]))
+    picked: list[tuple[int, int]] = []
+    for vm, y, x in cands:
+        if abs(vm) < 0.25 * vscale or len(picked) >= 16:
+            break
+        if all((y - py) ** 2 + (x - px) ** 2 >= 12 ** 2
+               for py, px in picked):
+            picked.append((y, x))
+            mark(y, x, vm > 0)
+    return out
+
+
+def _currents_view(cur: dict, seeds_only: bool = False
+                   ) -> tuple[np.ndarray, np.ndarray]:
+    """The month-6 velocity field; seeds_only reconstructs the
+    pre-wind (absolute vorticity) baseline from the one stored dict."""
+    from exp.k11_worldgen.currents import velocity_field
+    if seeds_only:
+        n = len(cur["gyres"])
+        cur = {**cur, "psi": cur["psi"][:n],
+               "weights": cur["weights"][:n],
+               "vmax": cur.get("vmax_seeds", cur["vmax"])}
+    return velocity_field(cur, 6)
+
+
+def _currents_render(cur: dict, elev: np.ndarray, ocean: np.ndarray,
+                     sea_level: float, seeds_only: bool = False,
+                     delta: bool = False) -> np.ndarray:
+    """Currents loading screen at delivered size: speed as brightness
+    over the bathymetry + flow lines. With delta=True (the pass-2
+    stage), the background is tinted by the NORMALIZED-speed change
+    against the seeds-only baseline (green where the wind correlation
+    sped the flow up, red where it calmed it) — a redistribution
+    view: each field is normalized to its own max."""
+    u, v = _currents_view(cur, seeds_only)
+    speed = np.hypot(u, v)
+    g = normalize_u8(speed, 0.0, 1.0).astype(float)
+    depth_t = np.clip(elev / sea_level, 0.0, 1.0)
+    rgb = np.full((*speed.shape, 3), (28, 30, 34), dtype=float)
+    rgb[ocean, 0] = 15 + 30 * depth_t[ocean]
+    rgb[ocean, 1] = 40 + 70 * depth_t[ocean]
+    rgb[ocean, 2] = 90 + 130 * depth_t[ocean]
+    fast = speed > 0.02
+    rgb[fast] = (rgb[fast] * 0.35
+                 + np.stack([g, g, g], axis=-1)[fast] * 0.65)
+    if delta:
+        d = speed - np.hypot(*_currents_view(cur, seeds_only=True))
+        rgb[d > 0.01] = 0.65 * rgb[d > 0.01] + 0.35 * np.array([80, 230, 120])
+        rgb[d < -0.01] = 0.65 * rgb[d < -0.01] + 0.35 * np.array([235, 100, 90])
+    base = np.kron(np.clip(rgb, 0, 255).astype(np.uint8),
+                   np.ones((4, 4, 1)))
+    return np.clip(_flow_lines(base, cur, factor=4, uv=(u, v)),
+                   0, 255).astype(np.uint8)
+
+
 def load_stage_draw(n: int, bag: dict):
     """Draw callable (path -> None) for loading stage n — the single
     source for what each stage shows, shared by the demo's live writes
@@ -352,26 +500,18 @@ def load_stage_draw(n: int, bag: dict):
             p, _stamp_stage(np.kron(_hydro_rgb(bag),
                                     np.ones((4, 4, 1))), n))
     if n == 5:
-        def draw_currents(p):
-            cur = bag["currents"]
-            speed = np.hypot(cur["u"], cur["v"])
-            g = normalize_u8(speed, 0.0, 1.0).astype(float)
-            ocean = bag["hydro"]["ocean_mask"]
-            # current speed as brightness over the ocean bathymetry;
-            # land dark
-            depth_t = np.clip(bag["elev"] / bag["sea_level"],
-                              0.0, 1.0)
-            rgb = np.full((*speed.shape, 3), (28, 30, 34), dtype=float)
-            rgb[ocean, 0] = 15 + 30 * depth_t[ocean]
-            rgb[ocean, 1] = 40 + 70 * depth_t[ocean]
-            rgb[ocean, 2] = 90 + 130 * depth_t[ocean]
-            fast = speed > 0.02
-            rgb[fast] = (rgb[fast] * 0.35
-                         + np.stack([g, g, g], axis=-1)[fast] * 0.65)
-            write_png_rgb(p, _stamp_stage(
-                np.kron(rgb.astype(np.uint8), np.ones((4, 4, 1))), n))
-        return draw_currents
-    if n in (6, 10):
+        return lambda p: write_png_rgb(p, _stamp_stage(
+            _currents_render(bag["currents"], bag["elev"],
+                             bag["hydro"]["ocean_mask"], bag["sea_level"],
+                             seeds_only=True), n))
+    if n == 9:
+        # pass-2 stage: the wind-correlated field, tinted by the speed
+        # change against the seeds-only baseline
+        return lambda p: write_png_rgb(p, _stamp_stage(
+            _currents_render(bag["currents"], bag["elev"],
+                             bag["hydro"]["ocean_mask"], bag["sea_level"],
+                             delta=True), n))
+    if n in (6, 11):
         def draw_P(p, n=n):
             rgb = _gray_rgb(up4(normalize_u8(bag["climate"]["P"], 0.0, 1.0))).astype(float)
             if n == 10 and "climate1" in bag:
@@ -382,7 +522,7 @@ def load_stage_draw(n: int, bag: dict):
                 rgb[d < -0.01] = 0.65 * rgb[d < -0.01] + 0.35 * np.array([235, 100, 90])
             write_png_rgb(p, _stamp_stage(np.clip(rgb, 0, 255).astype(np.uint8), n))
         return draw_P
-    if n in (7, 11):
+    if n in (7, 12):
         def draw_T(p, n=n):
             rgb = _gray_rgb(up4(normalize_u8(bag["climate"]["T"], 0.0, 1.0))).astype(float)
             if n == 11 and "climate1" in bag:
@@ -391,7 +531,7 @@ def load_stage_draw(n: int, bag: dict):
                 rgb[d < -0.004] = 0.65 * rgb[d < -0.004] + 0.35 * np.array([235, 100, 90])
             write_png_rgb(p, _stamp_stage(np.clip(rgb, 0, 255).astype(np.uint8), n))
         return draw_T
-    if n in (8, 12):
+    if n in (8, 13):
         def draw_biomes(p, n=n):
             rgb = np.array(PALETTE, dtype=np.uint8)[up4(bag["biome_map"])].astype(float)
             if n == 12 and "biome1" in bag:
@@ -400,11 +540,11 @@ def load_stage_draw(n: int, bag: dict):
                 rgb[flip] = rgb[flip] * 0.45 + 140.0
             write_png_rgb(p, _stamp_stage(np.clip(rgb, 0, 255).astype(np.uint8), n))
         return draw_biomes
-    if n == 9:
+    if n == 10:
         return lambda p: write_png_rgb(
             p, _stamp_stage(np.kron(_hydro_rgb(bag, delta=True),
                                     np.ones((4, 4, 1))), n))
-    if n == 13:
+    if n == 14:
         def draw_aquatic(p):
             from exp.k11_worldgen.aquatic import AQUATIC_PALETTE
             aq = bag["aquatic"]
@@ -415,12 +555,12 @@ def load_stage_draw(n: int, bag: dict):
             write_png_rgb(p, _stamp_stage(
                 np.kron(rgb, np.ones((4, 4, 1))), n))
         return draw_aquatic
-    if n == 14:
+    if n == 15:
         def draw_d_elev(p):
             write_png_rgb(p, _stamp_stage(
                 _gray_rgb(normalize_u8(bag["delivered"]["elev"], 0.0, 1.0)), n))
         return draw_d_elev
-    if n == 15:
+    if n == 16:
         def draw_d_biomes(p):
             rgb = np.array(PALETTE, dtype=np.uint8)[bag["delivered"]["biome_map"]]
             write_png_rgb(p, _stamp_stage(rgb, n))
@@ -476,7 +616,7 @@ def render_loading(out_dir: str, world: dict, delivered: dict,
            "currents": world["currents"],
            "sea_level": sea_level,
            "delivered": delivered}
-    stages = [1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15]
+    stages = [1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16]
     return [sink.write(n, load_stage_draw(n, bag)) for n in stages]
 
 
@@ -495,7 +635,8 @@ def render_monthly(out_dir: str, climate: dict) -> list[str]:
     return paths
 
 
-def render_all(out_dir: str, delivered: dict, complex_, factor: int = 4) -> list[str]:
+def render_all(out_dir: str, delivered: dict, complex_, factor: int = 4,
+               currents: dict | None = None) -> list[str]:
     """Write the demo PNG set at the DELIVERED resolution (1024²);
     returns the list of paths."""
     paths: list[str] = []
@@ -536,7 +677,9 @@ def render_all(out_dir: str, delivered: dict, complex_, factor: int = 4) -> list
     _w("hydrology", write_png_rgb, np.clip(rgb, 0, 255).astype(np.uint8))
 
     # aquabiomes.png: the aquatic class layer at delivered resolution —
-    # water cells in their class colors over a dim elevation base
+    # water cells in their class colors over a dim elevation base,
+    # with the current flow lines drawn on top (nutrients ride the
+    # streams; the classes are decided by them)
     if "aquatic" in delivered:
         from exp.k11_worldgen.aquatic import AQUATIC_PALETTE
         aq = delivered["aquatic"]
@@ -545,6 +688,10 @@ def render_all(out_dir: str, delivered: dict, complex_, factor: int = 4) -> list
         base = np.dstack([normalize_u8(elev, 0.0, 1.0) // 3] * 3)
         rgb = base.astype(np.uint8).copy()
         rgb[water] = AQUATIC_PALETTE[aq][water]
+        if currents is not None:
+            rgb = np.clip(_flow_lines(rgb.astype(float), currents,
+                                      factor=factor), 0, 255
+                          ).astype(np.uint8)
         _w("aquabiomes", write_png_rgb, rgb)
 
     return paths

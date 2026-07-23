@@ -74,12 +74,23 @@ def priority_flood(h: np.ndarray, ocean_mask: np.ndarray) -> np.ndarray:
     return w
 
 
-def flow_direction(w: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+# flats routing: penalty per unit of RAW elevation climbed (normalized
+# h) — a 0.01 climb costs as much as a 10-cell detour, so drainage on
+# priority-flood flats winds through the bed's micro-lows instead of
+# crossing micro-ridges on the straight line to the outlet
+_FLAT_CLIMB_PENALTY = 1000.0
+
+
+def flow_direction(w: np.ndarray, h: np.ndarray
+                   ) -> tuple[np.ndarray, np.ndarray]:
     """D8 flow direction to the lowest filled-surface neighbor.
 
-    Returns (direction, flat_depth): direction codes into _D8 (-1 where no
-    lower neighbor exists — ocean terminals), and the BFS depth used by
-    flow_accumulation to process flats strictly upstream-first.
+    `h` is the RAW terrain under the fill: flat regions (where the
+    priority-flood surface hides all relief) route on its
+    micro-gradient — see _resolve_flats. Returns (direction, cost):
+    direction codes into _D8 (-1 where no lower neighbor exists —
+    ocean terminals), and the routing cost used by flow_accumulation
+    to process flats strictly upstream-first.
     """
     H, W = w.shape
     direction = np.full((H, W), -1, dtype=np.int8)
@@ -91,56 +102,68 @@ def flow_direction(w: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
                 if 0 <= ny < H and 0 <= nx_ < W and w[ny, nx_] < best_z:
                     best, best_z = i, w[ny, nx_]
             direction[y, x] = best
-    return _resolve_flats(w, direction)
+    return _resolve_flats(w, h, direction)
 
 
-def _resolve_flats(w: np.ndarray, direction: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Give flat cells (lake surfaces / plateaus) a direction toward their
-    outlet: BFS outward from already-directed cells over equal-height
-    neighbors. Every flat region on a priority-flooded surface touches an
-    outlet cell, so this assigns every non-terminal flat cell exactly once,
-    in O(H*W). Also returns each cell's BFS depth (0 for cells directed on
-    their own) — accumulation must process flats upstream-first, and depth
-    is the tiebreak that makes it exact."""
-    from collections import deque
+def _resolve_flats(w: np.ndarray, h: np.ndarray,
+                   direction: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Give flat cells (lake surfaces / plateaus) a direction toward
+    their outlet: multi-source Dijkstra from already-directed cells
+    over equal-w neighbors, edge cost 1 + penalty * raw-h climb. The
+    fill hides it, but the raw terrain under a flat has real
+    micro-relief — drainage WINDS through the subtle lows instead of
+    following the BFS wavefront, whose fewest-hops paths are geometric
+    beelines to the outlet (the straight-diagonal river bearings).
+    Acyclic and outlet-connected by construction (cost strictly
+    increases away from the outlets, and every flat region on a
+    priority-flooded surface touches one). Returns (direction, cost) —
+    accumulation orders flats upstream-first by DESCENDING cost."""
+    import heapq
 
     H, W = w.shape
-    depth = np.zeros((H, W), dtype=np.int32)
-    queue: deque[tuple[int, int]] = deque()
+    cost = np.full((H, W), np.inf)
+    pq: list[tuple[float, int, int]] = []
     for y in range(H):
         for x in range(W):
             if direction[y, x] != -1:
-                queue.append((y, x))
-    while queue:
-        y, x = queue.popleft()
+                cost[y, x] = 0.0
+                pq.append((0.0, y, x))
+    heapq.heapify(pq)
+    while pq:
+        c, y, x = heapq.heappop(pq)
+        if c > cost[y, x]:
+            continue
         for i, (dy, dx) in enumerate(_D8):
             ny, nx_ = y + dy, x + dx
             if (0 <= ny < H and 0 <= nx_ < W
                     and direction[ny, nx_] == -1
                     and w[ny, nx_] == w[y, x]):
-                # (ny, nx_) drains to (y, x): reverse of the BFS step
-                direction[ny, nx_] = _D8.index((-dy, -dx))
-                depth[ny, nx_] = depth[y, x] + 1
-                queue.append((ny, nx_))
-    return direction, depth
+                nc = c + 1.0 + _FLAT_CLIMB_PENALTY * max(
+                    0.0, float(h[ny, nx_] - h[y, x]))
+                if nc < cost[ny, nx_]:
+                    cost[ny, nx_] = nc
+                    direction[ny, nx_] = _D8.index((-dy, -dx))
+                    heapq.heappush(pq, (nc, ny, nx_))
+    return direction, cost
 
 
 def flow_accumulation(w: np.ndarray, direction: np.ndarray,
                       flat_depth: np.ndarray | None = None,
                       weight: np.ndarray | None = None) -> np.ndarray:
     """Upstream totals, processing downstream-last. Sort key is
-    descending (w, flat_depth): on flat surfaces the BFS depth orders
-    cells strictly upstream-first, so donations always carry the full
-    upstream subtree (plain descending-w order corrupts totals on flats).
+    descending (w, flat_depth): on flat surfaces the routing cost (see
+    _resolve_flats) orders cells strictly upstream-first, so donations
+    always carry the full upstream subtree (plain descending-w order
+    corrupts totals on flats).
 
     Each cell donates `weight` (default 1.0 — plain upstream cell count;
     pass monthly-mean precipitation for discharge).
     """
     H, W = w.shape
     if flat_depth is None:
-        flat_depth = np.zeros((H, W), dtype=np.int32)
+        flat_depth = np.zeros((H, W))
     acc = np.ones((H, W)) if weight is None else np.array(weight, dtype=float)
-    order = sorted(((float(w[y, x]), int(flat_depth[y, x]), y, x)
+    order = sorted(((float(w[y, x]), float(flat_depth[y, x]), y, x)
                     for y in range(H) for x in range(W)), reverse=True)
     for _, _, y, x in order:
         d = direction[y, x]
@@ -393,7 +416,7 @@ def carve_gorges(h: np.ndarray, ocean_mask: np.ndarray,
     H, W = h.shape
     for _ in range(passes):
         w = priority_flood(h, ocean_mask)
-        direction, flat_depth = flow_direction(w)
+        direction, flat_depth = flow_direction(w, h)
         acc = flow_accumulation(w, direction, flat_depth)
         ponded = (w - h) > 1e-9          # standing water: never eroded
         ys, xs = np.where(acc >= carve_threshold)
@@ -569,7 +592,7 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     # inland sea's true depth is to sea level, not to its rim sill
     depth_c = np.maximum(w_capped - h, 0.0)
     depth_c[ocean_mask] = 1.0  # ocean is water by definition
-    direction, flat_depth = flow_direction(w)
+    direction, flat_depth = flow_direction(w, h)
     acc = flow_accumulation(w, direction, flat_depth)
 
     lake = (depth_c > 1e-9) & ~ocean_mask
@@ -594,7 +617,7 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     # submerge speck islets (cap artifacts) before routing
     lake, w = _submerge_islets(lake, w, h, ocean_mask, sea_level)
     # re-route on the final surface (capped seas are terminals)
-    direction, flat_depth = flow_direction(w)
+    direction, flat_depth = flow_direction(w, h)
     acc = flow_accumulation(w, direction, flat_depth)
     # routing surface vs wet surface: on REJECTED basins the flood
     # surface exists only so flow can drain through — it is a phantom

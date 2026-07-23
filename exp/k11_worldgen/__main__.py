@@ -96,15 +96,13 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     bag["hydro"] = hydro
     if sink is not None:
         sink.write(4, load_stage_draw(4, bag))
-    # ocean currents after hydrology: the gyres ride on the mean annual
-    # low-layer wind (surface currents are wind-driven), and the climate
-    # then reads the advected sea-surface temperature over water
-    from exp.k11_worldgen.climate import mean_surface_wind
-    from exp.k11_worldgen.currents import build_currents
-    _step("mean wind + currents")
-    drift = mean_surface_wind(elev, hydro, SEA_LEVEL, seed)
-    currents = build_currents(elev, ocean_mask, SEA_LEVEL, seed=seed,
-                              wind_drift=drift)
+    # ocean currents after hydrology, as an ABSOLUTE vorticity-seeded
+    # feature (pre-wind): the stream-function solve bends the flow
+    # around continents; the wind correlation arrives in the
+    # conditioning pass (refine_currents, after pass-1 climate)
+    from exp.k11_worldgen.currents import build_currents, refine_currents
+    _step("currents (vorticity seeds)")
+    currents = build_currents(elev, ocean_mask, SEA_LEVEL, seed=seed)
     bag["currents"] = currents
     if sink is not None:
         sink.write(5, load_stage_draw(5, bag))
@@ -127,6 +125,17 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
         sink.write(8, load_stage_draw(8, bag))
     cover1 = forest_cover(biome1, growing_season_p(climate1))
 
+    _step("pass 2: currents + wind correlation")
+    # the curl of the world's OWN mean annual wind (the delivered
+    # weather pattern's mean) joins the vorticity sources — surface
+    # currents correlate with the real circulation, and pass-2 climate
+    # reads the refined field for SST
+    currents = refine_currents(currents, elev, ocean_mask, SEA_LEVEL,
+                               climate1)
+    bag["currents"] = currents
+    if sink is not None:
+        sink.write(9, load_stage_draw(9, bag))
+
     from exp.k11_worldgen.hydrology import flow_accumulation, refine_hydrology
     _step("pass 2: hydrology conditioned on climate")
     bag["hydro1_lake"] = hydro["lake_mask"].copy()
@@ -134,7 +143,7 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     hydro = refine_hydrology(hydro, elev, climate1, SEA_LEVEL, seed=seed)
     bag["hydro"] = hydro
     if sink is not None:
-        sink.write(9, load_stage_draw(9, bag))
+        sink.write(10, load_stage_draw(10, bag))
     _step("pass 2: climate (real forests, new water)")
     climate = build_climate(elev, hydro, SEA_LEVEL, seed=seed,
                             realistic=realistic, center_lat=center_lat,
@@ -142,8 +151,8 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
                             gain=climate1["gain"])
     bag["climate"] = climate
     if sink is not None:
-        sink.write(10, load_stage_draw(10, bag))
         sink.write(11, load_stage_draw(11, bag))
+        sink.write(12, load_stage_draw(12, bag))
     # discharge: P-weighted accumulation of the FINAL climate (river
     # mouths are ranked by water volume, not just basin cell count)
     hydro["discharge"] = flow_accumulation(
@@ -153,7 +162,7 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     biome_map = classify_biomes(elev, hydro, climate, SEA_LEVEL)
     bag["biome_map"] = biome_map
     if sink is not None:
-        sink.write(12, load_stage_draw(12, bag))
+        sink.write(13, load_stage_draw(13, bag))
     cover = forest_cover(biome_map, growing_season_p(climate))
     biome_names = [b["name"] for b in BIOMES]
     complex_ = derive_complex(hydro, biome_map, biome_names)
@@ -162,7 +171,7 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
                                currents=currents)
     bag["aquatic"] = aquatic
     if sink is not None:
-        sink.write(13, load_stage_draw(13, bag))
+        sink.write(14, load_stage_draw(14, bag))
     return {
         "elev": elev, "plates": plates, "hydro": hydro, "climate": climate,
         "biome_map": biome_map, "cover": cover, "complex": complex_,
@@ -187,10 +196,11 @@ def run_demo(seed: int, check_determinism: bool = False,
                               world["complex"], SEA_LEVEL,
                               aquatic=world["aquatic"],
                               currents=world["currents"])
-    sink.write(14, load_stage_draw(14, {"delivered": delivered}))
     sink.write(15, load_stage_draw(15, {"delivered": delivered}))
+    sink.write(16, load_stage_draw(16, {"delivered": delivered}))
     _step("render PNGs")
-    paths = render_all(out_dir, delivered, world["complex"])
+    paths = render_all(out_dir, delivered, world["complex"],
+                       currents=world["currents"])
     monthly_paths = render_monthly(out_dir, world["climate"])
 
     elev, hydro, climate = world["elev"], world["hydro"], world["climate"]
@@ -402,7 +412,8 @@ def run_render(seed: int) -> dict:
     sea_level = manifest["sea_level"]
     factor = manifest["factor"]
 
-    paths = render_all(out_dir, delivered, world["complex"])
+    paths = render_all(out_dir, delivered, world["complex"],
+                       currents=world["currents"])
     monthly_paths = render_monthly(out_dir, world["climate"])
     names = [b["name"] for b in BIOMES]
     from exp.k11_worldgen.biomes import PALETTE

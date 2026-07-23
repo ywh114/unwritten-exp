@@ -733,3 +733,88 @@ pass-1 scaffold runs lean at 4.
   offset along the continuous w-gradient inside the D8 corridor —
   dequantizes bearing, zero physics change); (3) inertial tie-band in
   steepest descent on gentle slopes (meander physics, needs care).
+
+- River bearings, both fixes in: (1) _resolve_flats is now a
+  multi-source DIJKSTRA over equal-w cells with edge cost
+  1 + 1000 * raw-h climb — drainage on priority-flood flats winds
+  through the bed's micro-lows instead of BFS beelines to the outlet
+  (a 0.01 climb ~= a 10-cell detour; cost strictly increases upstream
+  so cycles/orphans are impossible, and flow_accumulation's upstream
+  ordering now sorts on the float cost). flow_direction(w) gained a
+  required raw-h argument. Unit test: a micro-ridge across the
+  beeline forces a detour, no orphan pockets. (2) river_raster adds
+  _smooth_centerline (pinned-endpoint moving average, window
+  2*factor+1) after _simplify: a D8 staircase alternating the two
+  ticks bracketing the true flow angle averages to that angle — the
+  45-degree bearing lock disappears without touching the committed
+  (grid-true) complex. Routing change alters rivers/accumulation/
+  discharge downstream — regen all seeds.
+
+- Currents loading screen now draws FLOW LINES over the speed render
+  (_flow_lines, render.py): K1-jittered particle grid advected along
+  the annual velocity_field, plotted at sub-cell resolution. Vertical
+  motion rides as hue — the rise field is mirrored into a sink term
+  (depth increasing along the flow): cyan trails = welling up, violet
+  = diving, and the strongest of each get ring-dot (up, out of the
+  page) / ring-cross (down, into it) markers, greedily spaced like
+  landmark marks. Render-only; works from a dump (render --seed).
+  Straight shelf class edges on seeds 11+ diagnosed as REAL tectonic
+  features (polygonal plate/fault traces stepping bathymetry across
+  the 30 m coral / 200 m shelf thresholds) — user: no fix wanted.
+  Iteration: speed-scaled steps read as short straight dashes (user:
+  "these are just straight lines?") — trails now walk the DIRECTION
+  field at unit speed (0.6 cell x 140 steps) so slow gyre cores curve
+  as much as fast rims; brightness still carries speed, hue vertical
+  motion.
+
+- Currents REBUILT on real fluid dynamics (user: "there is 0 fluid
+  dynamics"): the velocity field is no longer drawn and masked —
+  vorticity is drawn (same K1 gyre blobs, now vorticity sources) and
+  the flow SOLVED: per-source Poisson ∇²ψ = ζ (red-black SOR at 64²,
+  currents are huge), transport = curl ψ upscaled bicubic, velocity =
+  transport / depth at the anchor (shelves and straits ACCELERATE —
+  barotropic continuity, replacing the old depth damping). Land is a
+  streamline by construction; the per-landmass FREE constant (area
+  mean of the unobstructed solve, island-rule style) keeps net
+  transport alive: pinning all land to one value makes Δψ = 0 between
+  boundaries and stagnates every strait (measured: right sub-basin at
+  0.4% of left). Wind correlation per the two-pass philosophy, NOT a
+  stand-in estimate: mean_surface_wind + wind_drift + drift_coeff
+  DELETED (invent-then-discard); refine_currents adds the curl of the
+  world's OWN delivered wind pattern (climate["wind_u"/"wind_v"]
+  means) as a vorticity source after pass-1 climate (Sverdrup), so
+  pass-2 climate/aquatic read the refined field. Slip-wall and
+  lee-shadow hacks removed (cosmetic continuity breakers; the wind
+  lee wake stays — air is different). Persistence: per-source psi
+  arrays + weights replace drift; velocity_field(month) blends psi
+  per gyre phase. Tests: SOR residual, per-landmass streamline
+  constants, strait threading (right basin alive), Venturi
+  acceleration (>2x approach), refine determinism/correlation.
+  Render iteration: the barotropic shelf jet outruns the deep gyres
+  ~60:1 in VELOCITY (physical — abyssal cm/s vs boundary m/s), so the
+  flow-line render now seeds/brightnesses on TRANSPORT (velocity *
+  depth, same direction field) with a sqrt scale; velocity-view left
+  the interior ocean empty. Seed 11 shows closed eddies, coastal
+  upwelling ribbons, and strait threading with markers.
+
+- Loading DAG is 16 stages: CURRENTS 2 (stage 9) shows the
+  wind-correlated field with speed-delta tints against the seeds-only
+  baseline (vmax_seeds kept in the dict/manifest so both stages render
+  from one dump); the rest renumbered. aquabiomes.png now draws the
+  current flow lines on top (nutrients ride the streams).
+- Verification (seed 11): currents mix heat (SST anomaly std ~6 degC
+  vs zonal baseline), wind moderates (interior seasonal swing 28.2 vs
+  coast 25.6 degC), wind->current delta aligns with the wind-source
+  transport. But the upwelling cooling term was UNSTABLE: -0.1*rise
+  goes |1-0.1*rise| > 1 for rise > 20 m/cell (the stream-function
+  field's boundary-current slopes give rise to 200+) — oscillating
+  blowup, masked only by the climate T clip (measured delivered
+  upwelling cooling was -0.1 degC). Fixed as a bounded relaxation:
+  rr = 1-exp(-rise/p95), T += 0.1*rr*(T_deep - T) — upwelling sites
+  now -3.4 degC mean, -12 max, elsewhere -0.5, field finite.
+
+- Marine nutrient store persisted: rise_monthly(currents) — the
+  monthly upwelling field (12, anchor) from the seasonal-breathing
+  velocity — saved as r_rise_m and reconstructed on load (roundtrip
+  asserted, seasonality asserted). Ecology kernels read where deep
+  water surfaces, and that place moves with the seasons.

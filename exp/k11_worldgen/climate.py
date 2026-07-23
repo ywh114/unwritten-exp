@@ -537,34 +537,6 @@ def _coarse_grids(elev: np.ndarray, hydro: dict, sea_level: float,
     return h_c, water_c, land_c, alt_c
 
 
-def mean_surface_wind(elev: np.ndarray, hydro: dict, sea_level: float,
-                      seed: int, coarse: int = 128, n: int = 16
-                      ) -> tuple[np.ndarray, np.ndarray]:
-    """Mean annual low-layer wind at the ANCHOR grid (for the ocean-
-    current drift). Uses the same K1 stream as build_climate, so the
-    WindLibrary (bands, gyres, breeze) is draw-identical to the one the
-    precipitation passes run; sampled N times at the equinox
-    (seasonal = 0, monsoon = 0 — summer/winter cancel on the annual
-    mean) and averaged. Clocks 500+ never collide with the climate
-    passes' 1000+ clocks."""
-    H, W = elev.shape
-    f = max(1, H // coarse)
-    _, _, land_c, alt_c = _coarse_grids(elev, hydro, sea_level, f)
-    stream = Stream(seed, "k11.climate")
-    lib = WindLibrary(stream, land_c.shape, land_c, alt=alt_c)
-    u = np.zeros(land_c.shape)
-    v = np.zeros(land_c.shape)
-    for k in range(n):
-        uk, vk = lib.sample(stream, 500 + k, 0.0, monsoon=0.0)
-        u += uk
-        v += vk
-    u, v = u / n, v / n
-    if f > 1:
-        u = np.kron(u, np.ones((f, f)))
-        v = np.kron(v, np.ones((f, f)))
-    return u, v
-
-
 # temperature advection: semi-Lagrangian transport of the equilibrium
 # field along the snapshot wind with relaxation back to equilibrium.
 # A single 0.3-weighted backtrace step moderates only ~1-2 coarse

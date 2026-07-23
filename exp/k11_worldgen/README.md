@@ -162,12 +162,15 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   plate lines, and landmark markers on the left; legend with seed /
   stats / two-column (column-major) biome key / landmark key on the
   right — hand-rolled 5×7 bitmap font, stdlib only);
-  `LoadingSink` writes `out/loading/load_01..15.png` — one image
+  `LoadingSink` writes `out/loading/load_01..16.png` — one image
   per pipeline stage, each NAMED in the top-left corner, following
   the computation DAG: pass 1 (PLATES, ELEVATION, CARVE — with the
   carved notches tinted, HYDROLOGY — water+rivers composite,
-  CURRENTS, PRECIP 1, TEMP 1, BIOMES 1) then the pass-2 second-order
-  rerun (WETLANDS, PRECIP 2, TEMP 2, BIOMES 2, AQUATIC) and DELIVERY
+  CURRENTS — the absolute vorticity-seeded field, PRECIP 1, TEMP 1,
+  BIOMES 1) then the pass-2 second-order
+  rerun (CURRENTS 2 — the wind-correlated field with speed-delta
+  tints against the seeds-only baseline, WETLANDS, PRECIP 2, TEMP 2,
+  BIOMES 2, AQUATIC) and DELIVERY
   ELEV / DELIVERY BIOMES — LIVE
   as each build stage
   completes (the demo passes the sink down the pipeline), copying each
@@ -193,8 +196,10 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   `seed_N/world.npz` (compressed rasters). The dump is the COMPLETE
   world state: elevation/hydro/climate/biome/cover/aquatic rasters,
   plates arrays, delivered grids, the full ocean-current state
-  (annual velocity, rise, depth, wind drift, gyre parameters, vmax —
-  `velocity_field(month)` works from a loaded dump), and the weather
+  (per-source stream functions + blend weights, annual velocity,
+  upwelling rise, depth, gyre parameters, vmax — `velocity_field(month)`
+  works from a loaded dump — plus `r_rise_m`, the monthly upwelling
+  field: the nutrient-circulation store for downstream kernels), and the weather
   pattern proper — the N chaotic surface-wind snapshots per month
   (`c_wind_u`/`c_wind_v`, (12, n_samples) at the coarse climate grid)
   that the monthly T/P means average over; gameplay interpolates

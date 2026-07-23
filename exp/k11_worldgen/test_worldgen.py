@@ -268,10 +268,38 @@ def test_accumulation_grows_downstream():
     ocean = np.zeros((32, 32), bool)
     ocean[-1, :] = True
     w = priority_flood(h, ocean)
-    direction, depth = flow_direction(w)
+    direction, depth = flow_direction(w, h)
     acc = flow_accumulation(w, direction, depth)
     assert acc[1, 16] < acc[30, 16]
     assert acc.max() >= 32  # a full column drains through the outlet row
+
+
+def test_flats_route_around_micro_ridge():
+    """Priority-flood flats route on the RAW bed's micro-relief, not on
+    fewest-hops beelines to the outlet: a micro-ridge on the straight
+    line must force a detour around its end."""
+    h = 0.50 + 0.01 * (15 - np.arange(16))[:, None] / 15.0 * np.ones((16, 16))
+    ocean = np.zeros((16, 16), bool)
+    ocean[-1, :] = True
+    h[3:13, 3:13] = 0.42           # basin: floods flat at the rim spill
+    h[9, 5:12] = 0.45              # micro-ridge across the beeline
+    w = priority_flood(h, ocean)
+    assert w[6, 8] > h[6, 8]       # the basin really is flooded flat
+    direction, cost = flow_direction(w, h)
+    # walk downstream from a cell north of the ridge: the path must go
+    # AROUND the ridge (climbing it costs 0.03 * penalty = 30 hops)
+    y, x, path = 5, 8, [(5, 8)]
+    for _ in range(256):
+        d = direction[y, x]
+        if d < 0:
+            break
+        y, x = y + _D8[d][0], x + _D8[d][1]
+        path.append((y, x))
+        if w[y, x] <= h[y, x] + 1e-9:
+            break                 # off the flat: directed terrain
+    assert not any(py == 9 and 5 <= px < 12 for py, px in path)
+    # and every flat cell still reached an outlet (no orphan pockets)
+    assert (direction[(w > h) & ~ocean] >= 0).all()
 
 
 def test_salinity_endorheic_vs_exorheic():    # plateau with an ocean column on the left, an open bowl (drains to
@@ -342,20 +370,80 @@ def test_currents_and_sst():
     u0, v0 = velocity_field(c1, 0)
     u6, v6 = velocity_field(c1, 6)
     assert not np.array_equal(u0, u6)
-    # slip wall: the processed field has NO into-land component at
-    # coast cells (streams run along the shore, not into it) — damping
-    # and normalization are scalar per cell, so direction is preserved
-    from exp.k11_worldgen.climate import _grad
-    land = (~ocean).astype(float)
-    for _ in range(2):
-        p = np.pad(land, 1, mode="edge")
-        land = sum(p[dy:dy + 64, dx:dx + 64]
-                   for dy in range(3) for dx in range(3)) / 9.0
-    nx, ny = _grad(land)
-    norm = np.hypot(nx, ny) + 1e-9
-    coast = (norm > 1e-6) & ocean
-    into = (c1["u"] * nx / norm + c1["v"] * ny / norm)[coast]
-    assert (into <= 1e-6).all()
+    # the stream function makes land a streamline BY CONSTRUCTION:
+    # psi is constant (0) across every land cell
+    from exp.k11_worldgen.currents import _blend
+    psi = _blend(c1["psi"], c1["weights"])
+    f = c1["factor"]
+    water_c = ocean if f == 1 else (
+        ocean.astype(float)
+        .reshape(64 // f, f, 64 // f, f).mean(axis=(1, 3)) > 0.5)
+    assert abs(psi[~water_c].max() - psi[~water_c].min()) < 1e-9
+    # conditioning-pass refinement: the world's OWN wind curl joins the
+    # sources — deterministic, changes the field, keeps it stream-driven
+    from exp.k11_worldgen.currents import refine_currents
+    cl = {"wind_u": np.zeros((12, 2, 64, 64), np.float32),
+          "wind_v": np.zeros((12, 2, 64, 64), np.float32)}
+    # shear in y: the wind curl is nonzero (x-only shear is curl-free)
+    cl["wind_u"][:] = np.sin(np.linspace(0.0, 3.0, 64))[:, None]
+    c3 = refine_currents(build_currents(h, ocean, 0.35, seed=SEED),
+                         h, ocean, 0.35, cl)
+    c3b = refine_currents(build_currents(h, ocean, 0.35, seed=SEED),
+                          h, ocean, 0.35, cl)
+    assert np.array_equal(c3["u"], c3b["u"])       # deterministic
+    assert not np.array_equal(c3["u"], c1["u"])    # wind correlation
+    assert len(c3["psi"]) == c1["n_gyres"] + 1     # one wind source
+
+
+def test_current_streamfunction_continuity():
+    """The barotropic solve is real fluid dynamics: the Poisson
+    residual converges, each landmass is a streamline, straits THREAD
+    (pinning all land to one value would suppress net transport —
+    that was the old bug) and ACCELERATE the flow (continuity
+    squeeze). Divergence-freeness is by construction (the velocity is
+    the curl of psi)."""
+    from exp.k11_worldgen.currents import (
+        _land_constants, _poisson_sor, _transport)
+    water = np.ones((48, 48), bool)
+    water[4:44, 20:24] = False          # land wall across the basin...
+    water[22:26, 20:24] = True          # ...with a narrow strait
+
+    # dipole forcing: flow between the poles must thread the gap
+    zeta = np.zeros((48, 48))
+    zeta[24, 8] = 1.0
+    zeta[24, 40] = -1.0
+    psi = _poisson_sor(zeta, water, pin=_land_constants(zeta, water))
+    tu, tv = _transport(psi)
+    sp = np.hypot(tu, tv)
+    # the solve converged: 5-point Laplacian matches the source
+    p = np.pad(psi, 1)
+    lap = (p[:-2, 1:-1] + p[2:, 1:-1] + p[1:-1, :-2] + p[1:-1, 2:]
+           - 4.0 * psi)
+    interior = water.copy()
+    interior[0, :] = interior[-1, :] = False
+    interior[:, 0] = interior[:, -1] = False
+    assert np.abs((lap - zeta)[interior]).max() < 1e-3
+    # every land cell is a streamline (constant psi per landmass; the
+    # gap splits the wall into two bars with two constants)
+    lo = psi[4:22, 20:24]
+    hi = psi[26:44, 20:24]
+    assert np.ptp(lo) < 1e-9 and np.ptp(hi) < 1e-9
+    # the strait is THREADED: the right sub-basin is alive (pinned to
+    # a single value it stagnates)
+    right = sp[4:44, 30][water[4:44, 30]].mean()
+    left = sp[4:44, 12][water[4:44, 12]].mean()
+    assert right > 0.3 * left
+
+    # channel-scale forcing: the same flux squeezed through the gap
+    # accelerates (Venturi continuity), not blocked
+    yy, _ = np.mgrid[0:48, 0:48]
+    zeta_c = yy / 47.0 - 0.5
+    psi_c = _poisson_sor(zeta_c, water,
+                         pin=_land_constants(zeta_c, water))
+    sp_c = np.hypot(*_transport(psi_c))
+    gap = sp_c[22:26, 21:24].mean()
+    approach = sp_c[4:44, 17][water[4:44, 17]].mean()
+    assert gap > 2.0 * approach
 
 
 def test_foehn_suppresses_lee_rain():
@@ -376,28 +464,6 @@ def test_foehn_suppresses_lee_rain():
     down = _advect(u, v, (0.5 + 0.3 * ramp)[None, :] * np.ones(shape),
                    water, lake, T)
     assert up.mean() > down.mean()
-
-
-def test_current_slip_and_lee_shadow():
-    """A stream hitting a land bar: deflected at the face (no into-
-    land flow) and weakened in the lee, not resumed full-strength."""
-    from exp.k11_worldgen.currents import _process
-    ocean = np.ones((32, 48), bool)
-    ocean[8:24, 20:24] = False                  # vertical land bar
-    depth = np.full((32, 48), 1000.0)
-    u = np.full((32, 48), 1.0)                  # uniform eastward flow
-    v = np.zeros((32, 48))
-    u2, v2, _ = _process(u, v, depth, ocean)
-    # deflected at the face: no into-land (eastward) component on the
-    # straight section (near-corner flow legitimately turns diagonal;
-    # the map-wide slip property is covered in test_currents_and_sst)
-    assert (u2[12:20, 19] <= 1e-6).all()
-    speed = np.hypot(u2, v2)
-    up = speed[8:24, 10].mean()                 # upstream of the bar
-    lee = speed[8:24, 30].mean()                # in its lee
-    flank = speed[2:6, 30].mean()               # past the bar's end
-    assert lee < 0.8 * up
-    assert flank > lee                          # the wake is local
 
 
 def test_aquatic_classes():
@@ -704,9 +770,14 @@ def test_persist_roundtrip(tmp_path):
     assert np.array_equal(data["delivered"]["biome_map"], delivered["biome_map"])
     assert np.array_equal(data["world"]["currents"]["u"], cur["u"])
     # the loaded currents are complete: monthly velocity fields work
-    from exp.k11_worldgen.currents import velocity_field
+    from exp.k11_worldgen.currents import rise_monthly, velocity_field
     ul, vl = velocity_field(data["world"]["currents"], 3)
     assert ul.shape == elev.shape and np.isfinite(ul).all()
+    # the nutrient store round-trips: monthly upwelling, seasonal
+    rm = data["world"]["currents"]["rise_monthly"]
+    assert rm.shape == (12, *elev.shape)
+    assert np.array_equal(rm, rise_monthly(cur))
+    assert rm.std(axis=0).max() > 0          # it really breathes
     assert data["world"]["plates"].n == plates.n
     assert len(data["marks"]) == len(marks)
     cx2 = load_complex(str(tmp_path))

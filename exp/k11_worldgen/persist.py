@@ -80,17 +80,25 @@ def save_world(out_dir: str, world: dict, delivered: dict, seed: int,
         arrays[f"p_{k}"] = getattr(p, k)
     arrays["p_plate_base"] = np.array(p.plate_base)
     # ocean currents, complete: annual velocity + upwelling rise +
-    # depth + wind drift as arrays, gyre parameters and vmax in the
-    # manifest — everything velocity_field(month) needs downstream
+    # depth as arrays, the per-source stream functions and blend
+    # weights, gyre parameters and vmax in the manifest — everything
+    # velocity_field(month) needs downstream
     c = world["currents"]
     for k in ("u", "v", "rise", "depth_m"):
         arrays[f"r_{k}"] = c[k]
-    if c.get("drift") is not None:
-        arrays["r_drift_u"], arrays["r_drift_v"] = c["drift"]
+    # the nutrient-circulation store: monthly upwelling, derived from
+    # the stored stream functions at save time
+    from exp.k11_worldgen.currents import rise_monthly
+    arrays["r_rise_m"] = rise_monthly(c)
+    for i, psi in enumerate(c["psi"]):
+        arrays[f"r_psi_{i}"] = psi
+    arrays["r_weights"] = np.array(c["weights"])
     currents_manifest = {
         "vmax": float(c["vmax"]),
         "gyres": [[float(v) for v in g] for g in c["gyres"]],
     }
+    if "vmax_seeds" in c:        # present once wind refinement ran
+        currents_manifest["vmax_seeds"] = float(c["vmax_seeds"])
     for k, v in delivered.items():
         if k != "shape":
             arrays[f"d_{k}"] = v
@@ -135,16 +143,21 @@ def load_world(out_dir: str) -> dict:
     world = {k[2:]: z[k] for k in z.files if k.startswith("w_")}
     world["hydro"] = {k[2:]: z[k] for k in z.files if k.startswith("h_")}
     world["climate"] = {k[2:]: z[k] for k in z.files if k.startswith("c_")}
-    currents = {k[2:]: z[k] for k in z.files if k.startswith("r_")}
+    currents = {k[2:]: z[k] for k in z.files
+                if k.startswith("r_") and not k.startswith("r_psi")}
+    currents["rise_monthly"] = currents.pop("rise_m")
+    currents["psi"] = [z[k] for k in sorted(
+        (k for k in z.files if k.startswith("r_psi")),
+        key=lambda k: int(k.rsplit("_", 1)[1]))]
+    currents["weights"] = list(currents.pop("weights"))
     mc = manifest["currents"]
     currents["vmax"] = mc["vmax"]
+    if "vmax_seeds" in mc:
+        currents["vmax_seeds"] = mc["vmax_seeds"]
     currents["gyres"] = [tuple(g) for g in mc["gyres"]]
     currents["n_gyres"] = len(currents["gyres"])
-    if "drift_u" in currents:
-        currents["drift"] = (currents.pop("drift_u"),
-                             currents.pop("drift_v"))
-    else:
-        currents["drift"] = None
+    currents["factor"] = (world["elev"].shape[0]
+                          // currents["psi"][0].shape[0])
     currents["ocean_mask"] = world["ocean_mask"]
     world["currents"] = currents
     mp = manifest["plates"]
