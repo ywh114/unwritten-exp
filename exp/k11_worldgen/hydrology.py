@@ -620,3 +620,131 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     hydro["hand"] = height_above_drainage(
         h, w_route, direction, ocean_mask | lake | river)
     return hydro
+
+
+def refine_hydrology(hydro: dict, elev: np.ndarray, climate: dict,
+                     sea_level: float, seed: int = 0,
+                     river_threshold: float = 40.0,
+                     alpha: float = 4.0) -> dict:
+    """Second hydrology pass, after climate: precipitation-conditioned
+    small features, ADDITIVE only (nothing pass 1 made is removed).
+
+    The first pass judges the water balance with a uniform assumed
+    wetness, so lush regions and tundra hollows end up with the same
+    drainage density as steppe — unreasonable. Here the actual monthly
+    climate re-judges:
+
+    - ponds: basins the uniform balance rejected (their phantom flood
+      surface still lives in w_route) are accepted when the P-WEIGHTED
+      inflow beats temperature-scaled evaporation (hot basins evaporate
+      more, so the same rain feeds a pond in taiga hollows but not in
+      the tropics' seasonal heat). Accepted ponds join the wet surface:
+      above-sea floors keep their fill level (through-flow), floors
+      below sea level cap AT sea level (the inland-sea rule).
+    - streams: river cells wherever the P-weighted discharge clears the
+      equivalent of the area threshold at mean land wetness — wet
+      basins cross it further upstream, so drainage density follows
+      the rain.
+
+    Routing surfaces (w_route, flow_dir) are untouched — ponds sit on
+    the flow paths they always drained through — so discharge is
+    computed once, before the mask updates. Strahler order, width
+    classes, salinity, and HAND are recomputed afterwards.
+    """
+    from exp.k11_worldgen.units import temp_c
+
+    h = elev
+    w_route = hydro["w_route"]
+    direction, flat_depth = hydro["flow_dir"], hydro["flat_depth"]
+    ocean_mask, lake = hydro["ocean_mask"], hydro["lake_mask"].copy()
+    river = hydro["river_mask"].copy()
+    w, depth = hydro["w"].copy(), hydro["depth"].copy()
+    acc = hydro["accumulation"]
+    P = climate["P"]                      # monthly-mean, normalized
+    land = ~ocean_mask & ~lake
+    discharge = flow_accumulation(w_route, direction, flat_depth, weight=P)
+    hydro["discharge"] = discharge
+
+    # ---- ponds: re-judge rejected basins on P-weighted inflow ----
+    cand = (w_route - h > 1e-9) & ~ocean_mask & ~lake
+    t_ann = temp_c(climate["T_monthly"]).mean(axis=0)
+    H, W = lake.shape
+    seen = np.zeros_like(lake)
+    from exp.k11_worldgen.aquatic import _dilate
+    lake_halo = _dilate(lake, 1)
+    for sy in range(H):
+        for sx in range(W):
+            if not (cand[sy, sx] and not seen[sy, sx]):
+                continue
+            comp, stack = [], [(sy, sx)]
+            while stack:
+                y, x = stack.pop()
+                if seen[y, x] or not cand[y, x]:
+                    continue
+                seen[y, x] = True
+                comp.append((y, x))
+                for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                    ny, nx_ = y + dy, x + dx
+                    if 0 <= ny < H and 0 <= nx_ < W and not seen[ny, nx_]:
+                        stack.append((ny, nx_))
+            cys = tuple(c[0] for c in comp)
+            cxs = tuple(c[1] for c in comp)
+            # a candidate touching an existing lake would merge with it
+            # at a different surface level — skip (one basin, one lake)
+            if lake_halo[cys, cxs].any():
+                continue
+            # evaluate each equipotential fill level SEPARATELY: a
+            # candidate component can span several sub-basins at
+            # different flood levels connected by wetland flats;
+            # judging (or filling) them as one would drown the lower
+            # sub-basins and their streams under the highest level
+            for level in np.unique(w_route[cys, cxs]):
+                sub = np.zeros_like(lake)
+                sub[cys, cxs] = w_route[cys, cxs] == level
+                if lake_halo[sub].any():
+                    continue
+                ys2, xs2 = np.where(sub)
+                inflow_p = float(discharge[ys2, xs2].max())
+                # evaporation scales with heat: ~1 m/yr at 25 degC, a
+                # fraction of that in the cold, more in the hot seasonals
+                evap = float(np.clip(t_ann[ys2, xs2].mean() / 25.0, 0.2, 1.4))
+                if inflow_p < alpha * len(ys2) * evap:
+                    continue
+                surf = float(level)
+                if (h[ys2, xs2] < sea_level).any():
+                    # enclosed below-sea floor: fill to ~sea level at
+                    # most, keep only cells that stay wet at that level
+                    surf = min(surf, sea_level)
+                wet = np.zeros_like(lake)
+                wet[ys2, xs2] = h[ys2, xs2] < surf - 1e-9
+                wet = _filter_small_components(wet, min_cells=2)
+                if not wet.any():
+                    continue
+                lake |= wet
+                w[wet] = surf
+                depth[wet] = surf - h[wet]
+                # new ponds also block neighbors: two adjacent basins
+                # accepted at different levels would read as one lake
+                # with two surfaces
+                lake_halo |= _dilate(wet, 1)
+
+    # ---- streams: P-weighted discharge threshold ----
+    # a basin must gather river_threshold * mean-wetness worth of
+    # precipitation — in lush country that is a fraction of the cells,
+    # in dry country multiples of them
+    p_mean = float(P[land].mean()) if land.any() else 0.0
+    if p_mean > 1e-9:
+        river |= (discharge >= river_threshold * p_mean) & ~ocean_mask & ~lake
+    river &= ~lake                      # ponds swallow their through-river
+
+    order = strahler_order(direction, river, acc)
+    width = np.zeros((h.shape), dtype=np.int16)
+    width[river] = 1
+    width[river & (acc >= river_threshold * 6)] = 2
+    width[river & (acc >= river_threshold * 30)] = 3
+    hydro.update({"w": w, "depth": depth, "river_mask": river,
+                  "lake_mask": lake, "order": order, "width": width})
+    hydro["salinity"] = classify_salinity(hydro)
+    hydro["hand"] = height_above_drainage(
+        h, w_route, direction, ocean_mask | lake | river)
+    return hydro

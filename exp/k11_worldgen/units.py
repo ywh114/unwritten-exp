@@ -19,8 +19,11 @@ T_MIN_C, T_MAX_C = -30.0, 35.0
 # precipitation: 0.0 -> 0 mm/month, 1.0 -> 400 mm/month
 P_MAX_MM = 400.0
 # elevation: sea level -> 0 m, normalized 1.0 -> +6000 m,
-# normalized 0.0 (deepest ocean) -> -4000 m; linear per segment
-ELEV_MAX_M, DEPTH_MAX_M = 6000.0, 4000.0
+# normalized 0.0 (deepest ocean) -> -6000 m; linear per segment.
+# Abyssal plains run 4-5 km, trenches 6-11 km in reality — 6000 m
+# keeps generated trench floors in the Mariana neighborhood instead
+# of capping them shallow.
+ELEV_MAX_M, DEPTH_MAX_M = 6000.0, 6000.0
 
 
 # salinity: grams per kg (practical salinity). Open ocean 35,

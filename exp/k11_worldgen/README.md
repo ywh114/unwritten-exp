@@ -2,10 +2,15 @@
 
 ## Goal
 
-Generate an actual L0 world (game-layer RFC §1, A1 §3): kinematic template
-plates → elevation → hydrology → climate → biomes → derivation into the K9
-complex → forest-cover scatter — and render it to PNGs that a multimodal
-reviewer can read. Deterministic (K1 `Stream` only; no random, uuid, or
+Generate an actual L0 world (game-layer RFC §1, A1 §3), in two passes:
+pass 1 runs the full pipeline in honest dependency order (kinematic
+template plates → elevation → hydrology → currents → climate on bare
+ground → biomes → forest cover); pass 2 is the coarse second-order
+rerun (hydrology conditioned on the pass-1 climate, climate
+conditioned on the REAL pass-1 forest cover and the new water —
+same K1 stream, same weather systems — then biomes/cover/aquatic/
+complex re-derived). The pass-2 states are the delivered world.
+Deterministic (K1 `Stream` only; no random, uuid, or
 wall-clock), numpy allowed, stdlib PNG writer (no Pillow).
 
 Sub-chunk decision (discussed 2026-07-22, specs are blank on sub-chunk
@@ -30,6 +35,10 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   on longest shared borders). Each macro plate draws continental (base
   above sea level) or oceanic (below) — interior seas emerge.
   `build_elevation(...)`: per-plate base + shelf pull-down/push-up +
+  a real continental-shelf profile (below-sea cells reshaped by
+  distance to the provisional coastline: ~15 m at the shore -> 200 m
+  at the break ~46 km out, then a steep rise into the plate base;
+  faults carve AFTER, so active margins keep narrow shelves) +
   fault signatures by CRUSTAL-TYPE PAIR (user 2026-07-23: real fault
   behavior depends on the crust of both sides) — CC: broad uplift/rift;
   OC (Andes-type): trench offshore + coastal range inland; OO
@@ -67,6 +76,16 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   (ENDORHEIC — level falls with the flushing ratio inflow/area, so a
   giant inflow keeps even a terminal lake brackish, Caspian-style).
   Relational, decided at the anchor grid; carried to delivery.
+  `refine_hydrology` (second pass, after climate — user 2026-07-24):
+  precipitation-conditioned small features, ADDITIVE only. Ponds the
+  uniform balance rejected are re-judged on P-weighted inflow vs
+  temperature-scaled evaporation (taiga hollows fill, hot basins
+  don't); streams sprout where the P-weighted discharge clears the
+  area threshold at mean land wetness, so drainage density follows
+  the rain (a wet highland feeds trunk streams through dry country
+  downstream — Nile effect). Also computes the P-weighted discharge
+  the river-mouth marks are ranked by. Order/width/salinity/HAND are
+  recomputed afterwards; routing surfaces are untouched.
 - **`climate`** — `WindLibrary` (precomputed wind patterns: latitude
   zonal base + chaotic gyres from stream-function curl + land–sea
   breeze; mountains DEFLECT and DAMP the sampled low-layer flow —
@@ -75,22 +94,27 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   migrating subtropical-high subsidence field, drying the low layer
   where it descends: subtropical deserts can sit beside warm seas),
   `build_climate(elev, hydro, sea_level, seed, coarse, n_samples,
-  t_knobs, realistic, center_lat, shrink, stage_hook)`: temperature first
+  t_knobs, realistic, center_lat, shrink, currents, green)`: temperature first
   (wind-independent; profile knobs t_north/t_span/t_pow/t_amp are
   generation-side variation, tuned against the classifier's real-world
   prototypes — OR `realistic=True` earth-patch mode: the map is a
   northern-hemisphere patch of the real Earth, row → latitude from
-  `center_lat` (unset = 40°N +
+  `center_lat` (unset = 45°N +
   per-seed wiggle, ±5 leaky) and a planet `shrink`× smaller (4× →
   ~37° span), temperature interpolated from zonal-mean Earth
   anchors (`_lat_profile`, climate.py); winds stay random in both
   modes), monsoon strength per month read off the ACTUAL
   land–sea heating anomaly, N chaotic snapshots per month advect
   moisture on the coarse grid (128², upsampled/smudged; ocean recharge
-  scales with water temperature — cold seas barely evaporate), then
+  scales with water temperature — cold seas barely evaporate;
+  convection rains where the air is hot), then
   `refine_climate` runs ONE damped conditioning round — snow-albedo
   feedback, evaporative/cloud cooling, cloud swing damping — T
-  conditioned on P, never iterated (see spec-notes). Land-mean
+  conditioned on P, never iterated (see spec-notes). `green` is the
+  forest cover the water cycle feels (evapotranspiration,
+  interception, windbreak) — a SECOND-ORDER input, supplied only by
+  the pass-2 rerun from the real pass-1 biomes; pass 1 runs bare.
+  Land-mean
   precipitation is pinned to ~0.19 normalized (~76 mm/month, the
   real-world land average) by an adaptive gain with one corrective
   rescale. Canonical output
@@ -106,17 +130,18 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   from real-world climate normals (Singapore for tropical moist,
   Siberia for taiga, páramo for montane grassland — seasonal phase
   included, so Mediterranean winter-rain and monsoon burst signatures
-  are first-class). The vocabulary is exactly the 15 WWF / Olson &
-  Dinerstein terrestrial classes (14 biomes + "rock and ice");
+  are first-class). The vocabulary is exactly the WWF / Olson &
+  Dinerstein terrestrial classes (14 biomes + the abiotic land zones,
+  split into "rock" and "ice");
   ocean/lake are water masks, not biomes. Nearest-distance in 24-dim
   climate space keeps boundaries organic (a threshold tree draws
   straight isotherm bands — rejected on review, 2026-07-23). The only
   overrides are the geographic classes: flooded grassland (inundation),
-  mangrove (frost-free tidal fringe < 10 m), rock and ice (never above
-  freezing, or nival relief). Earlier extras (montane forest, cloud
-  forest, rock, snow peak) were dropped into the WWF classes. WWF
-  freshwater/marine lists not modelled. River cells keep their land
-  biome (see spec-notes).
+  mangrove (frost-free tidal fringe < 10 m), rock (nival relief above
+  the vegetation line), ice (never above freezing). Earlier extras
+  (montane forest, cloud forest, snow peak) were dropped into the WWF
+  classes. WWF freshwater/marine lists not modelled. River cells keep
+  their land biome (see spec-notes).
 - **`complexify`** — `derive_complex(hydro, biome_map, names)`: river
   sources/confluences/outlets → K9 nodes, downstream walks → river edges
   with GRID-TRUE polylines (edge `quality` = mean width class; the
@@ -137,12 +162,20 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   plate lines, and landmark markers on the left; legend with seed /
   stats / two-column (column-major) biome key / landmark key on the
   right — hand-rolled 5×7 bitmap font, stdlib only);
-  `LoadingSink` writes `out/loading/load_01..10.png` — one image
-  per pipeline stage, including the two-pass climate intermediates
-  (pass-1 precipitation, vegetation prior) — LIVE as each build stage
-  completes (the demo passes the sink down the pipeline), repointing
-  `seed_N/load.png` at each stage as it lands; `render_loading` is the
-  batch path for the re-render subcommand; the demo also links
+  `LoadingSink` writes `out/loading/load_01..15.png` — one image
+  per pipeline stage, each NAMED in the top-left corner, following
+  the computation DAG: pass 1 (PLATES, ELEVATION, CARVE — with the
+  carved notches tinted, HYDROLOGY — water+rivers composite,
+  CURRENTS, PRECIP 1, TEMP 1, BIOMES 1) then the pass-2 second-order
+  rerun (WETLANDS, PRECIP 2, TEMP 2, BIOMES 2, AQUATIC) and DELIVERY
+  ELEV / DELIVERY BIOMES — LIVE
+  as each build stage
+  completes (the demo passes the sink down the pipeline), copying each
+  to `seed_N/load.png` (a real file, not a symlink, so watchers that
+  can't follow symlink swaps still refresh); `render_loading` is the
+  batch path for the re-render subcommand (the dump holds the final
+  world, so the pass-1 scaffold screens 6-8 are demo-live only);
+  the demo also links
   `out/world_<seed>.png` -> the seed's world sheet.
 - **`marks`** — `compute_marks(delivered, hydro, sea_level, factor)`:
   the N highest peaks (spaced regional maxima, meters via units), the
@@ -157,7 +190,11 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
 - **`persist`** — `save_world(out_dir, ...)` dumps a built world to
   `seed_N/world.json` (human-inspectable manifest: params, stats,
   marks, plates metadata, full complex, checks, array inventory) +
-  `seed_N/world.npz` (compressed rasters); `load_world` /
+  `seed_N/world.npz` (compressed rasters). The dump is the COMPLETE
+  world state: elevation/hydro/climate/biome/cover/aquatic rasters,
+  plates arrays, delivered grids, and the full ocean-current state
+  (annual velocity, rise, depth, wind drift, gyre parameters, vmax —
+  `velocity_field(month)` works from a loaded dump). `load_world` /
   `load_complex` read them back. Basis for the `render` subcommand and
   for future kernels that consume world state.
 
@@ -186,8 +223,9 @@ check, determinism (rebuild + byte-compare, doubles runtime), runs only
 with `--check-determinism`.
 ~30 s per seed (was ~90–120 s: the lattice-noise draws go through the
 K1 batch mixer `Stream.u64_batch` — 9e6 scalar BLAKE2b calls were 70%
-of the build; climate pass 2 runs at half samples; biome accumulation
-is float32).
+of the build; the pass-1 climate scaffold runs at half samples while
+the final pass-2 climate keeps the full weather library; biome
+accumulation is float32).
 
 Scale semantics (user, 2026-07-22): the L0 ANCHOR grid is 256² at **4 km
 cells** (map = 1024×1024 km — a continent); DELIVERY is 1024² at **1 km
@@ -296,8 +334,8 @@ Repo-wide: 256 pass, 4 deselected (slow-marked, expected).
   (T, P) curves go through the units layer (°C, mm/month) and match
   prototype 24-dim month-vectors (real-world climate normals per
   biome) by weighted Euclidean distance. The vocabulary is exactly
-  the 15 WWF/Olson terrestrial classes; only the geographic classes
-  (flooded grassland, mangrove, rock and ice) enter as overrides.
+  the WWF/Olson terrestrial classes; only the geographic classes
+  (flooded grassland, mangrove, rock, ice) enter as overrides.
   History: (1) normalized prototype vectors — parameters unmoored;
   (2) Köppen threshold tree in metric — real parameters, but
   axis-aligned thresholds draw straight isotherm/isohyet bands across
@@ -423,7 +461,7 @@ independent random field must use its own context: `Stream.child(ctx)`
   the deep-ocean margin (re-hardened after smoothing — the box smooth
   bled continental base into ring cells and land crept back into the
   reserved zone), and delivery adds the minimal rim: the outermost
-  1 km ring is smooth "rock and ice" ~12 m above sea level — land may
+  1 km ring is smooth "rock" ~12 m above sea level — land may
   approach the border but never gets cut off by it; the map edge is a
   rock wall to the void. A real rim RANGE from the plate pass (the RFC
   justifies it as a boundary plate margin) is a later refinement.
@@ -473,9 +511,10 @@ independent random field must use its own context: `Stream.child(ctx)`
   ≥90% contiguous, which is all the L0 sketch needs.
 - Mountain biomes emerge from the vectors: altitude lapse cools peaks,
   so montane grassland (cold, small swing — páramo-style) caps the
-  ranges, forest classes flank them, and the nival/ice-cap zone is the
-  WWF "rock and ice" class (never above freezing, alt > 5000 m, or
-  alt > 2500 m with warmest month < 4 °C). No separate mountain
+  ranges, forest classes flank them, and the abiotic zones are the
+  split WWF classes: "rock" (barren nival ground — alt > 4500 m, or
+  alt > 2500 m with warmest month < 4 °C) and "ice" (never above
+  freezing at any altitude). No separate mountain
   classes — the old montane/cloud-forest/rock/snow-peak extras were
   dropped (2026-07-23).
 - Historical invariants from the rim frame (still true of priority flood):

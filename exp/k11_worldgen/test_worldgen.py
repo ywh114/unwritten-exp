@@ -446,9 +446,9 @@ def test_resolve_center_lat():
     vals = {resolve_center_lat(s, None) for s in range(20)}
     assert len(vals) > 10                            # seed-varying
     for v in vals:
-        assert abs(v - 40.0) < 7.5                   # leaky cap ~ +-7
+        assert abs(v - 45.0) < 7.5                   # leaky cap ~ +-7
     # user calibration: mean abs deviation ~3 deg
-    devs = [abs(resolve_center_lat(s, None) - 40.0) for s in range(200)]
+    devs = [abs(resolve_center_lat(s, None) - 45.0) for s in range(200)]
     assert 2.5 < sum(devs) / len(devs) < 3.5
 
 def test_lat_profile_realistic():
@@ -575,10 +575,10 @@ def test_deliver_smoke():
     assert not (d["river_mask"] & d["lake_mask"]).any()
     # ocean is always sub-sea (connectivity is carried from the anchor)
     assert not (d["ocean_mask"] & (d["elev"] >= 0.35)).any()
-    # the delivery rim is a 1 km rock-and-ice border, never water
+    # the delivery rim is a 1 km rock border, never water
     from exp.k11_worldgen.biomes import BIOME_ID
-    assert (d["biome_map"][0, :] == BIOME_ID["rock and ice"]).all()
-    assert (d["biome_map"][:, 0] == BIOME_ID["rock and ice"]).all()
+    assert (d["biome_map"][0, :] == BIOME_ID["rock"]).all()
+    assert (d["biome_map"][:, 0] == BIOME_ID["rock"]).all()
     assert not d["ocean_mask"][0, :].any() and not d["lake_mask"][:, -1].any()
     d2 = upscale_world(elev, hy, cl, cx, 0.35, factor=4)
     assert np.array_equal(d["biome_map"], d2["biome_map"])  # deterministic
@@ -603,10 +603,15 @@ def test_persist_roundtrip(tmp_path):
     bm = classify_biomes(elev, hy, cl, 0.35)
     names = [b["name"] for b in BIOMES]
     cx = derive_complex(hy, bm, names)
+    from exp.k11_worldgen.aquatic import classify_aquatic
+    from exp.k11_worldgen.currents import build_currents
+    aq = classify_aquatic(elev, hy, cl, 0.35)
+    cur = build_currents(elev, ocean, 0.35, seed=SEED)
     world = {"elev": elev, "hydro": hy, "climate": cl, "biome_map": bm,
              "cover": forest_cover(bm, cl["P"]), "complex": cx,
-             "plates": plates, "ocean_mask": ocean}
-    delivered = upscale_world(elev, hy, cl, cx, 0.35, factor=4)
+             "plates": plates, "ocean_mask": ocean, "aquatic": aq,
+             "currents": cur}
+    delivered = upscale_world(elev, hy, cl, cx, 0.35, factor=4, aquatic=aq)
     marks = compute_marks(delivered, hy, 0.35, 4)
     save_world(str(tmp_path), world, delivered, SEED, 0.35, 4,
                {"plates": plates.n}, marks, {"determinism": True})
@@ -615,7 +620,85 @@ def test_persist_roundtrip(tmp_path):
     assert np.array_equal(data["world"]["elev"], elev)
     assert np.array_equal(data["world"]["climate"]["T_monthly"], cl["T_monthly"])
     assert np.array_equal(data["delivered"]["biome_map"], delivered["biome_map"])
+    assert np.array_equal(data["world"]["currents"]["u"], cur["u"])
+    # the loaded currents are complete: monthly velocity fields work
+    from exp.k11_worldgen.currents import velocity_field
+    ul, vl = velocity_field(data["world"]["currents"], 3)
+    assert ul.shape == elev.shape and np.isfinite(ul).all()
     assert data["world"]["plates"].n == plates.n
     assert len(data["marks"]) == len(marks)
     cx2 = load_complex(str(tmp_path))
     assert cx == cx2  # Complex.__eq__ compares value-wise incl. DriftFields
+
+
+def _bowl_terrain():
+    """48x48 tilted plane draining north, border ocean ring, and a
+    shallow 4x4 pit near the south edge: small catchment, <180 m deep,
+    so pass 1's uniform water balance rejects it."""
+    H, W = 48, 48
+    h = 0.5 + 0.2 * (np.arange(H)[:, None] / (H - 1)) * np.ones((1, W))
+    h[40:44, 20:24] = 0.65            # pit floor below its ~0.6625 sill
+    h[0, :] = h[-1, :] = h[:, 0] = h[:, -1] = 0.2
+    return h
+
+
+def _flat_climate(shape, p_norm, t_c):
+    from exp.k11_worldgen.units import T_MAX_C, T_MIN_C
+    t_norm = (t_c - T_MIN_C) / (T_MAX_C - T_MIN_C)
+    return {"P": np.full(shape, p_norm),
+            "T_monthly": np.full((12,) + shape, t_norm)}
+
+
+def test_refine_hydrology_lush_ponds():
+    from exp.k11_worldgen.hydrology import (
+        build_hydrology, connected_ocean, refine_hydrology)
+    h = _bowl_terrain()
+    bowl = np.zeros_like(h, bool)
+    bowl[40:44, 20:24] = True
+    ocean = connected_ocean(h, 0.35)
+    hy = build_hydrology(h, ocean, sea_level=0.35, seed=SEED)
+    assert not hy["lake_mask"][bowl].any()       # pass 1 rejects it
+    # wet + cold: the P-weighted inflow beats weak evaporation — pond
+    hy2 = refine_hydrology(hy, h, _flat_climate(h.shape, 0.8, 2.0), 0.35,
+                           seed=SEED)
+    assert hy2["lake_mask"][bowl].all()
+    assert (hy2["w"][bowl] > h[bowl]).all()      # real water surface
+    # hot + dry: nothing sprouts
+    hy = build_hydrology(h, ocean, sea_level=0.35, seed=SEED)
+    hy3 = refine_hydrology(hy, h, _flat_climate(h.shape, 0.05, 30.0), 0.35,
+                           seed=SEED)
+    assert not hy3["lake_mask"][bowl].any()
+    # invariants: rivers never inside lakes, discharge persisted
+    assert not (hy2["river_mask"] & hy2["lake_mask"]).any()
+    assert hy2["discharge"].shape == h.shape
+
+
+def test_refine_hydrology_stream_density_follows_rain():
+    from exp.k11_worldgen.hydrology import (
+        build_hydrology, connected_ocean, refine_hydrology)
+    h = _bowl_terrain()
+    ocean = connected_ocean(h, 0.35)
+    # rain only in the southern (high) half: streams sprout there
+    P = np.full(h.shape, 0.02)
+    P[h.shape[0] // 2:, :] = 0.8
+    cl = _flat_climate(h.shape, 0.0, 15.0)
+    cl["P"] = P
+    wet = refine_hydrology(build_hydrology(h, ocean, sea_level=0.35,
+                                           seed=SEED),
+                           h, cl, 0.35, seed=SEED)
+    dry = refine_hydrology(build_hydrology(h, ocean, sea_level=0.35,
+                                           seed=SEED),
+                           h, _flat_climate(h.shape, 0.02, 15.0), 0.35,
+                           seed=SEED)
+    assert wet["river_mask"].sum() > dry["river_mask"].sum()
+    extra = wet["river_mask"] & ~dry["river_mask"]
+    # new headwater streams sprout in the wet south; the dry north can
+    # only gain trunk cells carrying southern water (Nile effect)
+    assert extra[h.shape[0] // 2:, :].any()
+    north_extra = np.zeros_like(extra)
+    north_extra[:h.shape[0] // 2, :] = extra[:h.shape[0] // 2, :]
+    if north_extra.any():
+        q, acc = wet["discharge"], wet["accumulation"]
+        # discharge far above what the dry northern catchment could
+        # supply on its own — the water is imported from the south
+        assert (q[north_extra] > 2.5 * 0.02 * acc[north_extra]).all()

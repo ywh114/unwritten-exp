@@ -185,23 +185,31 @@ def upsample_bicubic(a: np.ndarray, factor: int = 4) -> np.ndarray:
 
 def distance_to_mask(mask: np.ndarray) -> np.ndarray:
     """Approximate distance (in cells) to the nearest True cell — two-pass
-    chamfer, cheap and good enough for shelf/decay profiles."""
+    8-connected chamfer with sqrt(2) diagonal weights. The diagonal
+    weights matter: a 4-connected (Manhattan) chamfer draws diamond
+    iso-distance contours, which read as square terraced bands in any
+    profile built on top (the blocky-shelf artifact)."""
     H, W = mask.shape
-    INF = float(H + W)
+    INF = float(H + W) * 2.0
+    SQ2 = math.sqrt(2.0)
     d = np.where(mask, 0.0, INF)
     for y in range(H):
         for x in range(W):
             if d[y, x] > 0:
-                d[y, x] = 1 + min(
-                    d[y - 1, x] if y > 0 else INF,
-                    d[y, x - 1] if x > 0 else INF,
+                d[y, x] = min(
+                    d[y - 1, x] + 1.0 if y > 0 else INF,
+                    d[y, x - 1] + 1.0 if x > 0 else INF,
+                    d[y - 1, x - 1] + SQ2 if y > 0 and x > 0 else INF,
+                    d[y - 1, x + 1] + SQ2 if y > 0 and x < W - 1 else INF,
                 )
     for y in range(H - 1, -1, -1):
         for x in range(W - 1, -1, -1):
             if d[y, x] > 0:
-                d[y, x] = min(d[y, x], 1 + min(
-                    d[y + 1, x] if y < H - 1 else INF,
-                    d[y, x + 1] if x < W - 1 else INF,
+                d[y, x] = min(d[y, x], min(
+                    d[y + 1, x] + 1.0 if y < H - 1 else INF,
+                    d[y, x + 1] + 1.0 if x < W - 1 else INF,
+                    d[y + 1, x + 1] + SQ2 if y < H - 1 and x < W - 1 else INF,
+                    d[y + 1, x - 1] + SQ2 if y < H - 1 and x > 0 else INF,
                 ))
     return d
 

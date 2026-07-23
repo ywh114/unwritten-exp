@@ -1,9 +1,12 @@
 """K11 — ocean currents: gyre streams, sea-surface temperature, upwelling.
 
-Spawned right after elevation as an ABSOLUTE geographic feature (K1
+Spawned right after hydrology as an ABSOLUTE geographic feature (K1
 draws, never re-rolled): a few gyres in deep water, rotation and
 strength random (fantasy world — no Earth-clone rule that outer bands
-must run a certain way). The velocity field is the curl of a Gaussian
+must run a certain way), riding on a fraction of the mean annual
+low-layer wind (surface currents are wind-driven — Ekman drift — so
+the streams correlate with the persistent circulation instead of
+ignoring it). The velocity field is the curl of a Gaussian
 stream function per gyre (divergence-free, calm eye, strongest flow at
 the rim), damped over shallow shelf — currents are deep-water streams.
 
@@ -65,6 +68,9 @@ def velocity_field(currents: dict, month: int = 6,
     u, v = _gyre_field([(cy, cx, sigma, amp)
                         for cy, cx, sigma, amp, _ in gyres],
                        currents["u"].shape, strength)
+    if currents.get("drift") is not None:
+        u = u + currents["drift"][0]
+        v = v + currents["drift"][1]
     if depth_m is None:
         depth_m = currents["depth_m"]
     if ocean_mask is None:
@@ -78,11 +84,17 @@ def velocity_field(currents: dict, month: int = 6,
 def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
                    sea_level: float, seed: int = 0,
                    min_center_depth_m: float = 800.0,
-                   min_center_sep: int = 60) -> dict:
+                   min_center_sep: int = 60,
+                   wind_drift: tuple[np.ndarray, np.ndarray] | None = None,
+                   drift_coeff: float = 0.25) -> dict:
     """Gyre velocity field (u, v, ~1 cell/step max) + upwelling rise.
 
     Gyre centers are spaced deep-ocean cells; each gyre's tangential
-    speed peaks at one sigma from the eye. Everything downstream
+    speed peaks at one sigma from the eye. `wind_drift` is the mean
+    annual low-layer wind at this grid: surface currents are
+    wind-driven (Ekman drift — westerlies push drift currents, trades
+    push equatorial ones), so the drawn gyres ride on a fraction of
+    the prevailing wind instead of ignoring it. Everything downstream
     (SST advection, upwelling classes) reads this dict.
     """
     stream = Stream(seed, "k11.currents")
@@ -111,6 +123,11 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
     damp = np.clip(depth_m / 300.0, 0.15, 1.0)
     u, v = _gyre_field([(cy, cx, sigma, amp)
                         for cy, cx, sigma, amp, _ in gyres], (H, W))
+    drift_u = drift_v = 0.0
+    if wind_drift is not None:
+        drift_u, drift_v = wind_drift
+        u = u + drift_coeff * drift_u
+        v = v + drift_coeff * drift_v
     u = u * damp * ocean_mask
     v = v * damp * ocean_mask
     vmax = float(np.hypot(u, v).max())
@@ -121,7 +138,9 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
     rise = np.maximum(0.0, -(u * ddx + v * ddy)) * ocean_mask
     return {"u": u, "v": v, "rise": rise, "n_gyres": len(centers),
             "gyres": gyres, "vmax": vmax, "depth_m": depth_m,
-            "ocean_mask": ocean_mask}
+            "ocean_mask": ocean_mask,
+            "drift": (drift_coeff * drift_u, drift_coeff * drift_v)
+            if wind_drift is not None else None}
 
 
 def advect_sst(t_base_c: np.ndarray, u: np.ndarray, v: np.ndarray,

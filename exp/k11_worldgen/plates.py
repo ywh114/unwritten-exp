@@ -13,7 +13,10 @@ above sea level — or oceanic — below, so marine basins emerge inside
 the map) + fault signatures by crustal-type pair + fbm relief. The
 ocean floor has its own relief. Coasts: the pre-detail base is pulled
 down (land side) and pushed up (sea side) toward the waterline FIRST,
-then land/sea detailing is mixed by elevation relative to sea level —
+and below-sea cells are then reshaped into a real continental-shelf
+profile by distance to the provisional coastline (0 -> ~200 m over the
+shelf width, break, steep rise into the plate base), then land/sea
+detailing is mixed by elevation relative to sea level —
 above-sea cells are always fully land-textured, so island arcs on
 oceanic plates are never flat plateaus.
 
@@ -412,7 +415,17 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     plates = Plates(stream, shape, n_dots=n_dots, n_plates=n_plates)
 
     noise = fbm(stream.child("relief"), shape, base_cell=min(h, w) // 24, octaves=6)
-    floor_noise = fbm(stream.child("abyss"), shape, base_cell=min(h, w) // 12, octaves=6)
+    # the abyss noise is domain-warped: value noise interpolates a
+    # LATTICE, and on a flat seafloor its fundamental octave reads as
+    # soft axis-aligned squares. Offsetting the sample points by a
+    # low-frequency field (~1/3 of a lattice cell) bends the iso-bands.
+    from exp.k11_worldgen.climate import _bilinear
+    floor_raw = fbm(stream.child("abyss"), shape, base_cell=min(h, w) // 12, octaves=6)
+    wamp = (min(h, w) // 12) * 0.7
+    warp_x = (fbm(stream.child("abyss.wx"), shape, base_cell=min(h, w) // 6, octaves=2) - 0.5) * wamp
+    warp_y = (fbm(stream.child("abyss.wy"), shape, base_cell=min(h, w) // 6, octaves=2) - 0.5) * wamp
+    gy, gx = np.mgrid[0:h, 0:w].astype(float)
+    floor_noise = _bilinear(floor_raw, gx + warp_x, gy + warp_y)
 
     # per-plate base heights + per-fine-cell bias (sea pockets, island
     # arcs); the reserved border ring sits at abyssal level regardless of
@@ -438,6 +451,43 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     t = t * t * (3 - 2 * t)
     base = waterline + (base - waterline) * t
 
+    # continental shelf: Earth shelves run 0 -> ~200 m over 40-130 km
+    # before the break plunges to the abyss (shelves are ~7% of ocean
+    # area; the bare converge-to-waterline above starts the coast at
+    # ~460 m and reaches the 2600 m plate base within ~30 km — ~1%).
+    # Reshape every below-sea cell by distance to the provisional
+    # COASTLINE (not the plate boundary — the ramp above drowns some
+    # plate-land cells): 15 m at the shore (stays below sea level, so
+    # ocean connectivity and the rim guarantees are untouched) rising
+    # to 200 m at the break, then blending into the existing deep base
+    # over the rise. Fault signatures come AFTER this, so trenches
+    # still carve narrow active-margin shelves (Peru/Chile style).
+    from exp.k11_worldgen.units import DEPTH_MAX_M
+    shelf_break_w = max(5.0, min(h, w) / 22.0)   # ~46 km shelf proper
+    shelf_rise_w = max(3.0, min(h, w) / 42.0)    # steep break -> rise
+    # shelf width is a FIELD, not a constant: a low-frequency seeded
+    # multiplier so no two coasts match, compressed near active
+    # (convergent OC/OO) margins where the trench crowds the shore
+    shelf_noise = fbm(stream.child("shelf.w"), shape,
+                      base_cell=min(h, w) // 8, octaves=2)
+    width_mult = 0.3 + 1.7 * shelf_noise
+    conv_near = (np.clip(plates.fault_conv / 1.5, -1.0, 1.0)
+                 * np.exp(-0.5 * (plates.fault_dist / 8.0) ** 2))
+    width_mult = width_mult * np.clip(1.0 - 0.8 * np.maximum(conv_near, 0.0),
+                                      0.25, None)
+    landish = base >= sea_level
+    d_coast = distance_to_mask(landish)
+    below = base < sea_level
+    d_shelf = (d_coast - 1.0) / (shelf_break_w * width_mult)
+    shelf_m = 15.0 + 185.0 * np.clip(d_shelf, 0.0, 1.0) ** 0.7
+    t_r = np.clip((d_coast - 1.0 - shelf_break_w * width_mult)
+                  / shelf_rise_w, 0.0, 1.0)
+    t_r = t_r * t_r * (3.0 - 2.0 * t_r)
+    deep_m = (sea_level - base) / sea_level * DEPTH_MAX_M
+    depth_m = shelf_m * (1.0 - t_r) + deep_m * t_r
+    base = np.where(below, sea_level - depth_m * sea_level / DEPTH_MAX_M,
+                    base)
+
     # enclosed below-sea basins (not connected to the border ocean) are
     # inland seas / dry depressions, not abyss: real inland seas are far
     # shallower than open ocean (a few hundred meters; Caspian ~1 km max
@@ -462,25 +512,27 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     g = lambda x, s: np.exp(-0.5 * (x / s) ** 2)
 
     sig = np.zeros((h, w))
-    # continent-continent: broad symmetric uplift on convergence;
+    # continent-continent: broad symmetric uplift on convergence
+    # (strong draws make 5.5-7 km ranges — the asymptotic cap above
+    # 1.0 lets them leak through instead of piling at a ceiling);
     # divergence rifts at 0.35x — a full-strength rift gouges floors to
     # ~-1800 m, far beyond real dry rift basins (Dead Sea ~-430 m);
     # damped, enclosed rift floors land in the shallow-hundreds below
     # sea level (and deep ones become rift LAKES, Baikal-style, via
     # the water balance).
-    sig += (kind == 0) * (0.40 * g(d, band) * np.where(c > 0, c, 0.35 * c))
+    sig += (kind == 0) * (0.55 * g(d, band) * np.where(c > 0, c, 0.35 * c))
     # ocean-ocean convergent: trench on the subducting side, volcanic
     # ISLAND ARC on the overriding side (displaced, segmented by `along`,
     # strong enough for crests to breach — Japan/Aleutians)
     oo_c = (kind == 2) & convergent
-    sig += (oo_c & on_sub) * (-0.18 * g(d, band * 0.7) * c)
+    sig += (oo_c & on_sub) * (-0.22 * g(d, band * 0.7) * c)
     sig += (oo_c & ~on_sub) * (0.24 * g(d - 4.0, band) * c)
     # ocean-ocean divergent: mid-ocean ridge (stays below sea level)
     sig += ((kind == 2) & ~convergent) * (0.12 * g(d, band) * (-c))
     # continent-ocean convergent (Andes): trench just offshore, coastal
     # range displaced inland
     oc_c = (kind == 1) & convergent
-    sig += (oc_c & own_oceanic) * (-0.16 * g(d - 2.0, band * 0.7) * c)
+    sig += (oc_c & own_oceanic) * (-0.20 * g(d - 2.0, band * 0.7) * c)
     sig += (oc_c & ~own_oceanic) * (0.35 * g(d - 5.0, band) * c)
     # continent-ocean divergent: rifted margin, gentle
     sig += ((kind == 1) & ~convergent) * (-0.05 * g(d, band) * (-c))
@@ -510,10 +562,18 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     grain = 0.32 * rough_amp * (
         np.maximum(noise - 0.5, 0.0) + 0.25 * np.minimum(noise - 0.5, 0.0))
     detail_land = 0.10 + grain
-    detail_sea = 0.15 * floor_noise + seamount - 0.04
 
     ramp = 0.08
     mix = np.clip((base - (sea_level - ramp)) / ramp, 0.0, 1.0)
+    # below-sea cells always take the SEA recipe: the shelf profile
+    # sits inside the land-grain ramp, and the land detail's +0.10
+    # emergence offset would push the whole shelf above the waterline.
+    # Sea texture is depth-aware — shelves are wave-swept sediment
+    # flats, the abyss carries the relief.
+    mix = np.where(base < sea_level, 0.0, mix)
+    deep_m = (sea_level - base) / sea_level * DEPTH_MAX_M
+    tex = np.clip(deep_m / 800.0, 0.15, 1.0)
+    detail_sea = (0.15 * floor_noise + seamount - 0.04) * tex
     elev = base + mix * detail_land + (1.0 - mix) * detail_sea
     # enclosed below-sea basins (not connected to the border ocean) are
     # continental crust sitting low — lake beds, dry Death-Valley floors
@@ -525,11 +585,13 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     enclosed = (base < sea_level) & ~connected_ocean(base, sea_level)
     elev = np.where(enclosed, base + grain, elev)
     # soft compression above the cap: peaks keep relief and never plane
-    # off (a hard clip flattens everything above 1.0 into mesas whose
-    # edges follow the fault geometry — the polygon artifact)
-    cap = 0.75
+    # off. The asymptote sits ABOVE the 1.0 normalization (leaky
+    # ceiling, not a hard one — exceptional collision draws push past
+    # 6 km while the median collision stays well below), and the final
+    # clip only trims what leaks past the normalization bound.
+    cap = 0.85
     over = elev > cap
-    elev = np.where(over, cap + 0.25 * (1.0 - np.exp(-(elev - cap) / 0.25)), elev)
+    elev = np.where(over, cap + 0.35 * (1.0 - np.exp(-(elev - cap) / 0.35)), elev)
     # the reserved border ring is the guaranteed ocean buffer: its base
     # is pinned down and faults may not lift it, but surface detail
     # (seamounts) could still breach the surface inside it, and islands
@@ -545,4 +607,15 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     t = t * t * (3 - 2 * t)
     elev = np.where(elev > floor, floor + (elev - floor) * t, elev)
     elev = np.where(plates.is_ocean, np.minimum(elev, floor), elev)
+    # distribution reshape: median LAND sat at ~2.1-2.7 km — a plateau
+    # planet. Compress the above-sea MIDDLE with a monotonic power
+    # curve (t^2): lowlands broaden toward an Earth-like ~1 km median
+    # while the high tail keeps 4-5 km peaks (t^2: 2.4 km -> ~1 km,
+    # 4 km -> 2.7 km, 5.5 km -> 4.9 km). Monotonic, so flow topology,
+    # fill levels and drainage are provably untouched; only gradients
+    # and altitude-dependent downstreams (lapse, biome altitude gates)
+    # shift — which is the point.
+    t_land = np.clip((elev - sea_level) / (1.0 - sea_level), 0.0, 1.0)
+    elev = np.where(elev > sea_level,
+                    sea_level + (1.0 - sea_level) * t_land ** 2.0, elev)
     return np.clip(elev, 0.0, 1.0), plates

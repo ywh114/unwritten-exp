@@ -13,9 +13,11 @@ from exp.k11_worldgen.raster import (
 )
 
 
-def render_plates(path: str, plates, sea_level_elev: np.ndarray, factor: int = 4) -> None:
-    """Tectonic overview at delivered size: macro plates in qualitative
-    colors (oceanic dark), white fault lines, over a dim elevation base."""
+def _plates_rgb(plates, sea_level_elev: np.ndarray,
+                factor: int = 4) -> np.ndarray:
+    """Tectonic overview as an RGB array: macro plates in qualitative
+    colors (oceanic dark), white fault lines, over a dim elevation
+    base."""
     mid = plates.macro_id
     H, W = mid.shape
     base = normalize_u8(sea_level_elev, 0.0, 1.0) // 3
@@ -35,7 +37,12 @@ def render_plates(path: str, plates, sea_level_elev: np.ndarray, factor: int = 4
     rgb[bounds] = (240, 240, 240)
     if factor > 1:
         rgb = np.kron(rgb, np.ones((factor, factor, 1), dtype=np.uint8))
-    write_png_rgb(path, rgb)
+    return rgb
+
+
+def render_plates(path: str, plates, sea_level_elev: np.ndarray, factor: int = 4) -> None:
+    """Tectonic overview at delivered size (see _plates_rgb)."""
+    write_png_rgb(path, _plates_rgb(plates, sea_level_elev, factor))
 
 
 def plate_boundary_mask(plates) -> np.ndarray:
@@ -183,44 +190,67 @@ def render_world(path: str, delivered: dict, plates, factor: int,
     rows = (len(lines) + 1) // 2
     for i, ln in enumerate(lines):
         c, row = divmod(i, rows)
-        draw_text(right, 48 if c == 0 else 520, y + row * 26, ln,
+        draw_text(right, 48 if c == 0 else 520, y + row * 22, ln,
                   (190, 190, 190), scale=2)
-    y += 26 * rows
-    draw_text(right, 48, y + 14, "TERRESTRIAL", (235, 235, 235), scale=3)
-    y += 56
-    rows = (len(biome_hist) + 1) // 2
-    for i, (name, count, color) in enumerate(biome_hist):
-        share = count / (H * W) * 100
+    y += 22 * rows
+    # domain bases for the per-section shares: each section reports
+    # percentages of its own domain, not of the whole map
+    land_cells = int((~ocean & ~lake).sum())
+    fresh_cells = int((lake | delivered["river_mask"]).sum())
+    ocean_cells = int(ocean.sum())
+
+    def _legend_label(name: str, count: int, denom: int) -> str:
+        """`NAME 12.3%` of the section's domain, or `NAME 234` when the
+        share would round to 0.0% — below display precision the cell
+        count says more."""
+        share = count / max(denom, 1) * 100
+        if share < 0.05:
+            return f"{name} {count}"
+        return f"{name} {share:.1f}%"
+
+    draw_text(right, 48, y + 10,
+              f"TERRESTRIAL ({100 * land_cells / (H * W):.0f}% LAND)",
+              (235, 235, 235), scale=3)
+    y += 46
+    # ocean/lake are water masks, not terrestrial classes — they live
+    # in the MARINE/FRESHWATER sections, not here
+    terr = [r for r in biome_hist if r[0] not in ("ocean", "lake")]
+    rows = (len(terr) + 1) // 2
+    for i, (name, count, color) in enumerate(terr):
         # column-major fill: read down the left column, then the right
         col, row = divmod(i, rows)
         x0 = 48 if col == 0 else 520
-        yy = y + row * 27
-        fill_rect(right, x0, yy, 44, 18, color)
-        draw_text(right, x0 + 54, yy + 2, f"{name.replace('_', ' ')} {share:.1f}%",
+        yy = y + row * 24
+        fill_rect(right, x0, yy, 40, 16, color)
+        draw_text(right, x0 + 48, yy + 2,
+                  _legend_label(name.replace('_', ' '), count, land_cells),
                   (200, 200, 200), scale=2)
-    y += 27 * rows
+    y += 24 * rows
     # aquatic layer: FRESHWATER / MARINE sections (compact rows;
     # sub-8-cell classes hidden — the legend must fit)
     if aquatic_hists is not None:
-        for title, rows_h in (("FRESHWATER", aquatic_hists[0]),
-                              ("MARINE", aquatic_hists[1])):
+        for title, denom, rows_h in (
+                (f"FRESHWATER ({100 * fresh_cells / (H * W):.1f}% INLAND WATER)",
+                 fresh_cells, aquatic_hists[0]),
+                (f"MARINE ({100 * ocean_cells / (H * W):.0f}% OCEAN)",
+                 ocean_cells, aquatic_hists[1])):
             present = [r for r in rows_h if r[1] >= 8]
             if not present:
                 continue
-            draw_text(right, 48, y + 10, title, (235, 235, 235), scale=3)
-            y += 46
+            draw_text(right, 48, y + 8, title, (235, 235, 235), scale=3)
+            y += 40
             rows = (len(present) + 1) // 2
             for i, (name, count, color) in enumerate(present):
-                share = count / (H * W) * 100
                 col, row = divmod(i, rows)
                 x0 = 48 if col == 0 else 520
-                yy = y + row * 24
-                fill_rect(right, x0, yy, 44, 16, color)
-                draw_text(right, x0 + 54, yy + 1,
-                          f"{name} {share:.1f}%", (200, 200, 200), scale=2)
-            y += 24 * rows
-    draw_text(right, 48, y + 14, "LANDMARKS", (235, 235, 235), scale=3)
-    y += 56
+                yy = y + row * 20
+                fill_rect(right, x0, yy, 40, 14, color)
+                draw_text(right, x0 + 48, yy + 1,
+                          _legend_label(name, count, denom),
+                          (200, 200, 200), scale=2)
+            y += 20 * rows
+    draw_text(right, 48, y + 10, "LANDMARKS", (235, 235, 235), scale=3)
+    y += 46
     # one representative per kind (the map keeps every marker)
     key = []
     seen_kinds: set[str] = set()
@@ -233,7 +263,7 @@ def render_world(path: str, delivered: dict, plates, factor: int,
         rows = (len(key) + 1) // 2
         c, row = divmod(i, rows)
         x0 = 48 if c == 0 else 520
-        yy = y + row * 26
+        yy = y + row * 24
         fill_rect(right, x0, yy, 18, 18, col)
         draw_text(right, x0 + 28, yy + 2, text, (210, 210, 210), scale=2)
 
@@ -241,42 +271,149 @@ def render_world(path: str, delivered: dict, plates, factor: int,
     write_png_rgb(path, sheet)
 
 
+_LOAD_STAGE_NAMES = (
+    "",                 # stages are 1-indexed
+    "PLATES",           # ---- pass 1: honest dependency order ----
+    "ELEVATION",
+    "CARVE",
+    "HYDROLOGY",
+    "CURRENTS",
+    "PRECIP 1",
+    "TEMP 1",
+    "BIOMES 1",
+    "WETLANDS",         # ---- pass 2: coarse second-order rerun ----
+    "PRECIP 2",
+    "TEMP 2",
+    "BIOMES 2",
+    "AQUATIC",
+    "DELIVERY ELEV",
+    "DELIVERY BIOMES",
+)
+
+
+def _stamp_stage(rgb: np.ndarray, n: int) -> np.ndarray:
+    """Stage name in the top-left corner (black shadow for legibility)."""
+    from exp.k11_worldgen.legend import draw_text
+    rgb = rgb.copy()
+    draw_text(rgb, 10, 10, _LOAD_STAGE_NAMES[n], (0, 0, 0), scale=4)
+    draw_text(rgb, 8, 8, _LOAD_STAGE_NAMES[n], (245, 245, 245), scale=4)
+    return rgb
+
+
+def _gray_rgb(a: np.ndarray) -> np.ndarray:
+    return np.dstack([a] * 3).astype(np.uint8)
+
+
+def _hydro_rgb(bag: dict) -> np.ndarray:
+    """Anchor-grid hydrology composite: dim elevation, blue standing
+    water, yellow rivers (the readable form — a raw depth map is not)."""
+    elev, hydro = bag["elev"], bag["hydro"]
+    rgb = (np.dstack([normalize_u8(elev, 0.0, 1.0)] * 3) * 0.6).astype(float)
+    water = hydro["ocean_mask"] | hydro["lake_mask"]
+    rgb[water] = np.array([40, 90, 180])
+    rgb[hydro["river_mask"]] = np.array([240, 200, 60])
+    return np.clip(rgb, 0, 255).astype(np.uint8)
+
+
 def load_stage_draw(n: int, bag: dict):
     """Draw callable (path -> None) for loading stage n — the single
     source for what each stage shows, shared by the demo's live writes
-    and the batch re-render. bag keys: "plates", "elev", "hydro",
-    "climate", "biome_map", "delivered" (whichever the stage needs)."""
+    and the batch re-render. The stages are the computation DAG: pass 1
+    (1-8) builds the scaffold in dependency order; pass 2 (9-13) is the
+    coarse second-order rerun (hydrology conditioned on climate,
+    climate conditioned on the real forest cover and new water, biomes
+    re-derived); 14-15 deliver. bag keys: "plates", "elev", "elev_raw",
+    "hydro", "currents", "climate", "biome_map", "aquatic",
+    "delivered" (whichever the stage needs)."""
     def up4(a):
         return np.kron(a, np.ones((4, 4), dtype=a.dtype))
 
+    def gray(a):
+        return lambda p: write_png_rgb(p, _stamp_stage(_gray_rgb(up4(a)), n))
+
     if n == 1:
-        return lambda p: render_plates(p, bag["plates"], bag["elev"], factor=4)
+        return lambda p: write_png_rgb(
+            p, _stamp_stage(_plates_rgb(bag["plates"], bag["elev"], 4), n))
     if n == 2:
-        return lambda p: write_png_gray(p, up4(normalize_u8(bag["elev"], 0.0, 1.0)))
+        return gray(normalize_u8(bag["elev"], 0.0, 1.0))
     if n == 3:
-        return lambda p: write_png_gray(p, up4(normalize_u8(np.log1p(bag["hydro"]["depth"] * 20), 0.0, 2.0)))
+        def draw_carve(p):
+            # elevation with the carved notches tinted — a plain
+            # elevation render hides the pass entirely (1-2 cell cuts)
+            rgb = _gray_rgb(up4(normalize_u8(bag["elev"], 0.0, 1.0)))
+            if "elev_raw" in bag:
+                carved = up4(bag["elev_raw"] - bag["elev"] > 1e-9)
+                rgb[carved] = (235, 90, 60)
+            write_png_rgb(p, _stamp_stage(rgb, n))
+        return draw_carve
     if n == 4:
-        return lambda p: write_png_gray(p, up4(normalize_u8(bag["climate"]["P_pass1"], 0.0, 1.0)))
+        return lambda p: write_png_rgb(
+            p, _stamp_stage(np.kron(_hydro_rgb(bag),
+                                    np.ones((4, 4, 1))), n))
     if n == 5:
-        return lambda p: write_png_gray(p, up4(normalize_u8(bag["climate"]["green"], 0.0, 1.0)))
-    if n == 6:
-        return lambda p: write_png_gray(p, up4(normalize_u8(bag["climate"]["P"], 0.0, 1.0)))
-    if n == 7:
-        return lambda p: write_png_gray(p, up4(normalize_u8(bag["climate"]["T"], 0.0, 1.0)))
-    if n == 8:
-        return lambda p: write_png_palette(p, up4(bag["biome_map"]), PALETTE)
+        def draw_currents(p):
+            cur = bag["currents"]
+            speed = np.hypot(cur["u"], cur["v"])
+            g = normalize_u8(speed, 0.0, 1.0).astype(float)
+            ocean = bag["hydro"]["ocean_mask"]
+            # current speed as brightness over the ocean bathymetry;
+            # land dark
+            depth_t = np.clip(bag["elev"] / bag.get("sea_level", 0.35),
+                              0.0, 1.0)
+            rgb = np.full((*speed.shape, 3), (28, 30, 34), dtype=float)
+            rgb[ocean, 0] = 15 + 30 * depth_t[ocean]
+            rgb[ocean, 1] = 40 + 70 * depth_t[ocean]
+            rgb[ocean, 2] = 90 + 130 * depth_t[ocean]
+            fast = speed > 0.02
+            rgb[fast] = (rgb[fast] * 0.35
+                         + np.stack([g, g, g], axis=-1)[fast] * 0.65)
+            write_png_rgb(p, _stamp_stage(
+                np.kron(rgb.astype(np.uint8), np.ones((4, 4, 1))), n))
+        return draw_currents
+    if n in (6, 10):
+        return gray(normalize_u8(bag["climate"]["P"], 0.0, 1.0))
+    if n in (7, 11):
+        return gray(normalize_u8(bag["climate"]["T"], 0.0, 1.0))
+    if n in (8, 12):
+        def draw_biomes(p):
+            rgb = np.array(PALETTE, dtype=np.uint8)[up4(bag["biome_map"])]
+            write_png_rgb(p, _stamp_stage(rgb, n))
+        return draw_biomes
     if n == 9:
-        return lambda p: write_png_gray(p, normalize_u8(bag["delivered"]["elev"], 0.0, 1.0))
-    if n == 10:
-        return lambda p: write_png_palette(p, bag["delivered"]["biome_map"], PALETTE)
+        return lambda p: write_png_rgb(
+            p, _stamp_stage(np.kron(_hydro_rgb(bag),
+                                    np.ones((4, 4, 1))), n))
+    if n == 13:
+        def draw_aquatic(p):
+            from exp.k11_worldgen.aquatic import AQUATIC_PALETTE
+            aq = bag["aquatic"]
+            water = (bag["hydro"]["ocean_mask"] | bag["hydro"]["lake_mask"]
+                     | bag["hydro"]["river_mask"])
+            rgb = np.full((*aq.shape, 3), (28, 30, 34), dtype=np.uint8)
+            rgb[water] = AQUATIC_PALETTE[aq][water]
+            write_png_rgb(p, _stamp_stage(
+                np.kron(rgb, np.ones((4, 4, 1))), n))
+        return draw_aquatic
+    if n == 14:
+        def draw_d_elev(p):
+            write_png_rgb(p, _stamp_stage(
+                _gray_rgb(normalize_u8(bag["delivered"]["elev"], 0.0, 1.0)), n))
+        return draw_d_elev
+    if n == 15:
+        def draw_d_biomes(p):
+            rgb = np.array(PALETTE, dtype=np.uint8)[bag["delivered"]["biome_map"]]
+            write_png_rgb(p, _stamp_stage(rgb, n))
+        return draw_d_biomes
     raise ValueError(n)
 
 
 class LoadingSink:
     """Live loading-screen writer: writes `loading/load_NN.png` for one
-    pipeline stage and repoints `out/load.png` at it. The demo passes a
-    sink down the build, so each stage's screen lands as the stage
-    completes — a watcher sees the world assemble in real time."""
+    pipeline stage and copies it to `out/load.png` (a real file, not a
+    symlink — image viewers that can't follow symlink swaps still
+    refresh). The demo passes a sink down the build, so each stage's
+    screen lands as the stage completes — a watcher sees the world
+    assemble in real time."""
 
     def __init__(self, out_dir: str) -> None:
         import os
@@ -290,28 +427,36 @@ class LoadingSink:
                 os.remove(f"{load_dir}/{stale}")
 
     def write(self, n: int, draw) -> str:
-        os = self._os
+        import shutil
         p = f"{self.out_dir}/loading/load_{n:02d}.png"
         draw(p)
         self.paths.append(p)
-        link = f"{self.out_dir}/load.png"
-        if os.path.lexists(link):
-            os.remove(link)
-        os.symlink(os.path.relpath(p, self.out_dir), link)
+        dst = f"{self.out_dir}/load.png"
+        if self._os.path.lexists(dst):
+            # may be a symlink left by an older build — copying onto a
+            # symlink target can name the very file being copied
+            self._os.remove(dst)
+        shutil.copyfile(p, dst)
         return p
 
 
 def render_loading(out_dir: str, world: dict, delivered: dict,
                    plates, sea_level: float) -> list[str]:
-    """Batch path: re-write all loading stages from a built world (used
+    """Batch path: re-write the loading stages from a built world (used
     by the re-render subcommand; the demo writes them live via
-    LoadingSink as the build progresses). All images at the delivered
-    1024² (anchor stages naively upscaled by nearest 4x)."""
+    LoadingSink as the build progresses). The dump holds the FINAL
+    (pass-2) world, so the pass-1 scaffold screens (6-8) are not
+    re-rendered here. All images at the delivered 1024² (anchor stages
+    naively upscaled by nearest 4x)."""
     sink = LoadingSink(out_dir)
     bag = {"plates": plates, "elev": world["elev"], "hydro": world["hydro"],
            "climate": world["climate"], "biome_map": world["biome_map"],
+           "aquatic": world["aquatic"],
+           "currents": world.get("currents"),
+           "sea_level": sea_level,
            "delivered": delivered}
-    return [sink.write(n, load_stage_draw(n, bag)) for n in range(1, 11)]
+    stages = [1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15]
+    return [sink.write(n, load_stage_draw(n, bag)) for n in stages]
 
 
 def render_monthly(out_dir: str, climate: dict) -> list[str]:
@@ -368,5 +513,17 @@ def render_all(out_dir: str, delivered: dict, complex_, factor: int = 4) -> list
         if 0 <= y < rgb.shape[0] and 0 <= x < rgb.shape[1]:
             rgb[max(0, y - r):y + r + 1, max(0, x - r):x + r + 1] = col
     _w("hydrology", write_png_rgb, np.clip(rgb, 0, 255).astype(np.uint8))
+
+    # aquabiomes.png: the aquatic class layer at delivered resolution —
+    # water cells in their class colors over a dim elevation base
+    if "aquatic" in delivered:
+        from exp.k11_worldgen.aquatic import AQUATIC_PALETTE
+        aq = delivered["aquatic"]
+        water = (delivered["ocean_mask"] | delivered["lake_mask"]
+                 | delivered["river_mask"])
+        base = np.dstack([normalize_u8(elev, 0.0, 1.0) // 3] * 3)
+        rgb = base.astype(np.uint8).copy()
+        rgb[water] = AQUATIC_PALETTE[aq][water]
+        _w("aquabiomes", write_png_rgb, rgb)
 
     return paths

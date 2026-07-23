@@ -390,7 +390,7 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     # biomes: streaming similarity classify at the delivered resolution
     biome_hi, T_hi, P_hi, p_grow_hi = classify_streaming(
         elev_hi, ocean_hi, lake_hi, river_hi, hand_hi,
-        climate, sea_level, factor)
+        climate, sea_level, factor, width_hi=width_hi)
 
     from exp.k11_worldgen.biomes import forest_cover
     cover_hi = forest_cover(biome_hi, p_grow_hi)
@@ -398,7 +398,7 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     # world-edge rim (rfc-game-layer §1: "ocean margins, rim mountain
     # barrier, then void" — the rim is a boundary plate margin all
     # around): the outermost 1 km ring is smooth
-    # "rock and ice" a few meters above sea level — land may approach
+    # "rock" a few meters above sea level — land may approach
     # the border but never gets cut off by it; the map edge is a rock
     # wall to the void. (Minimal form: a real rim RANGE from the plate
     # pass is a later refinement; the guarantee is what matters — no
@@ -413,7 +413,7 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     river_hi[rim] = False
     depth_hi[rim] = 0.0
     sal_hi[rim] = 0.0
-    biome_hi[rim] = BIOME_ID["rock and ice"]
+    biome_hi[rim] = BIOME_ID["rock"]
     cover_hi[rim] = 0.0
 
     return {

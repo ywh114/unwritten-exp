@@ -407,3 +407,170 @@ violet.
   correlation only 0.38 — the swirls visibly shift.
 - advect_sst now takes (u, v, rise) directly; build_currents stores
   the gyre list (center/sigma/amp/phase), vmax, depth_m, ocean_mask.
+
+## Lowland reshape: t^2 remap of above-sea elevation (user, 2026-07-24)
+- Complaint: median land altitude ~2.1-2.7 km (seeds 1/3/11) — a
+  plateau planet; temperate lakes nearly absent (need fresh + <800 m).
+  Goal: lowlands near ~1 km median, peaks still reaching 4-5 km.
+- Fix: a monotonic t^2 remap of the above-sea component at the end of
+  `build_elevation` (after the border taper and the rim-plate pin):
+  2.4 km -> ~1 km, 4 km -> 2.7 km, 5.5 km -> 4.9 km. Monotonic, so
+  flow topology / fill / drainage are unchanged by construction; only
+  gradients and altitude-conditioned downstreams shift (lapse rate,
+  800 m montane lines, 2500/4500 rock-and-ice gates) — intended.
+- Verified (seeds 1/3/11): land median 762/1186/761 m, max
+  4525/5177/4631 m, P1 marks 4531/5203/4679 m. Temperate-lake cells
+  185/193/601 (seed 11 was near-zero). Montane grassland out of the
+  top 3 on seeds 1/11. Full suite 260 passed; all three demos verdict
+  PASS.
+- Note: the deep-basin lake keep rule (mean depth > ~180 m) now sees
+  compressed depths — lake counts can drop slightly; accepted.
+
+## Rock/ice split + domain-relative legend (user, 2026-07-24)
+- The WWF abiotic "rock and ice" class is split into two L0 classes:
+  "rock" (barren nival ground above the vegetation line — alt > 4500 m,
+  or > 2500 m with warmest month < 4 C) and "ice" (permanent ice cap —
+  never above freezing at any altitude). Ice applies after rock so a
+  frozen summit reads as ice-covered, not bare. The delivery rim is
+  "rock" (it sits ~12 m above sea level; it is a rock wall, not an ice
+  sheet).
+- world.png legend: each section now reports shares of its own domain
+  — TERRESTRIAL (% LAND), FRESHWATER (% INLAND WATER = lakes + river
+  cells), MARINE (% OCEAN). The ocean/lake water-mask entries are gone
+  from the terrestrial list. Sub-0.05% classes still fall back to raw
+  cell counts.
+- Legend layout tightened (stats rows 26 -> 22 px, terrestrial 27 ->
+  24, aquatic 24 -> 20, section header advance 56/46 -> 46/40) so all
+  sections + landmarks fit the 1024 px panel on aquatic-heavy seeds.
+
+## Finalize pass: shelves, wind-current coupling, T advection, loading (user, 2026-07-24)
+- Continental shelves are real now. Diagnosis: the coast converged to
+  the waterline at ~460 m and reached the 2600 m plate base within
+  ~30 km, and the detail step then pushed coastal water ~1 km deep —
+  below-sea cells inside the land-grain mix ramp took the LAND recipe
+  (+0.10 emergence offset). Only ~1% of ocean classified as shelf
+  (<200 m); Earth is ~7.5%. Fix (plates.py): below-sea cells always
+  take the sea recipe; the sea detail is depth-aware (shelves are
+  wave-swept sediment flats, abyss carries relief); and a shelf
+  profile reshapes below-sea cells by distance to the provisional
+  coastline (15 m at the shore -> 200 m at the break ~46 km out, then
+  a steep rise into the plate base; faults carve AFTER, so active
+  margins keep narrow shelves). Result: 5-15% shelf, coral and
+  upwelling classes ~10x more area. Coastlines moved a few km seaward
+  (the emergence offset no longer inflates land).
+- Wind-current coupling (currents.py): the drawn gyres now ride on a
+  fraction (0.25) of the mean annual low-layer wind — surface currents
+  are wind-driven (Ekman drift), so the streams correlate with the
+  persistent circulation. Pass order changed: currents moved AFTER
+  hydrology (the wind library needs the hydro masks);
+  climate.mean_surface_wind() reuses the same K1 stream as
+  build_climate, so the wind library is draw-identical (clocks 500+
+  never collide with the passes' 1000+).
+- Air-temperature advection (climate.py): the old one-step 0.3 blend
+  moderated only ~8-12 km of coastline (measured). Replaced by a short
+  semi-Lagrangian transport (4 steps, relax 0.35) — maritime influence
+  reaches ~30-60 km downwind. A 10-step/0.25 run overshot: poleward
+  continents sit near the year-round-freeze threshold, and the extra
+  numerical diffusion flipped seed 1's north to 12.4% ice; 4/0.35
+  lands at ~6% (a real ice cap that keeps its taiga belt).
+- Loading screens: 1 logic pass = 1 png (11 stages: plates, elevation,
+  carve, hydrology, currents, precipitation, temperature, biomes,
+  aquatic, delivered elevation, delivered biomes). The pass-1
+  precipitation and vegetation-prior intermediates are gone from the
+  sequence (and from the climate dict). load.png is now a real file
+  copy, not a symlink (viewers that can't follow symlink swaps).
+  Currents u/v/rise are persisted to the dump for the batch re-render.
+- Pre-existing broken test fixed: test_persist_roundtrip never
+  supplied "aquatic" to save_world (broken since the aquatic-biomes
+  commit); now supplies aquatic + currents and asserts the currents
+  round-trip.
+
+## refine_hydrology + dump completeness + loading names (user, 2026-07-24)
+- Second hydrology pass (hydrology.refine_hydrology, after climate):
+  precipitation-conditioned small features, additive only. Ponds the
+  uniform water balance rejected are re-judged on P-weighted inflow vs
+  temperature-scaled evaporation (taiga hollows fill, hot basins
+  don't); streams sprout where P-weighted discharge clears the area
+  threshold at mean land wetness — drainage density follows the rain,
+  and a wet highland feeds trunk streams through dry country
+  downstream (Nile effect). Routing surfaces untouched; order, width,
+  salinity, HAND recomputed. It also owns the P-weighted discharge
+  now. Rivers +20-35% and lakes +14-41% of cells on seeds 1/11;
+  new ponds concentrate in the wet/cold north (seed 11: polar lakes,
+  temperate lakes up).
+- The world dump is now COMPLETE state: currents persisted in full
+  (u/v/rise/depth_m/drift arrays + gyre params/vmax in the manifest)
+  — velocity_field(month) works from a loaded dump. Everything a
+  downstream kernel needs is in world.json/world.npz; no re-derivation
+  required.
+- Loading screens are named (top-left stamp: PLATES ... WETLANDS ...
+  DELIVERY BIOMES), 12 stages with the wetlands pass included;
+  render_plates refactored to share _plates_rgb with the stage draw.
+- Legend section headers carry the domain's world share:
+  TERRESTRIAL (45% LAND), FRESHWATER (1.8% INLAND WATER),
+  MARINE (53% OCEAN); rows remain shares within the domain.
+
+## Chamfer, center lat 45, aquabiomes.png, convective rain, flooded gate (user, 2026-07-24)
+- Blocky shelves: root cause was the 4-connected (Manhattan) chamfer
+  in raster.distance_to_mask — diamond iso-distance contours became
+  square terraced depth bands. Now an 8-connected chamfer with
+  sqrt(2) diagonal weights; shelf contours are rounded at the source.
+- Realistic-mode default center latitude 40 -> 45 degN (stronger
+  circulation made 40 too tropical); wiggle/cap unchanged.
+- aquabiomes.png joins the main PNG set (delivered-resolution aquatic
+  classes over dim elevation); the demo prints each pipeline step to
+  stderr as it runs.
+- Flooded grassland was too common (~4-5% of land): the rule now
+  requires the ACTIVE FLOODPLAIN of a real river (within ~3 cells of
+  a width-2+ channel, ~8 m of the drainage surface) AND >= 240 mm in
+  the wettest month. Down to 0.1-0.5% — rare, as it should be.
+- Tropical moist forest was ~0%: the climate never produced
+  year-round-wet tropics (driest month < 15 mm everywhere) because
+  rain only came from wind wringing — the Hadley-cell thunderstorm
+  budget was missing. _advect now carries a convective rain term
+  (heat-scaled, kicks in ~20 degC, full ~10 degC hotter; still
+  suppressed by subtropical-high subsidence): the deep tropics rain
+  year-round, mid-latitudes get summer thunderstorms. The moist
+  prototype was also broadened (140 +- 100 mm/month — real moist
+  broadleaf spans a short dry season). Moist forest now appears
+  without orographic forcing (0.1-0.8%, seed-varying).
+- refine_hydrology equipotential fix: pond candidates touching an
+  existing lake (or an earlier new pond) are skipped — adjacent
+  basins accepted at different levels read as one lake with two
+  surfaces (lakes_equipotential check caught it on seeds 1/11).
+
+## Second-order pipeline restructure (user, 2026-07-24)
+The pipeline is now explicitly two-pass. PASS 1 = the full pipeline in
+honest dependency order: plates -> elevation -> carve -> hydrology ->
+currents -> climate (bare ground — forests do not exist yet, and are
+no longer fabricated: _vegetation_prior is gone) -> biomes -> forest
+cover. PASS 2 = the coarse second-order rerun (NOT circular, never
+iterated): hydrology conditioned on the pass-1 climate
+(refine_hydrology's ponds/streams), then climate rerun with the REAL
+pass-1 forest cover (green=) and the new water — same K1 stream, so
+same weather systems under new surface conditions — then discharge
+(P-weighted by the FINAL climate), biomes, cover, aquatic, complex
+re-derived. The pass-2 states are the delivered world. n_samples is
+the weather library itself: pass 2 keeps the full 8/month, the
+pass-1 scaffold runs lean at 4.
+- refine_hydrology pond fix: candidates are evaluated per EQUIPOTENTIAL
+  LEVEL, not per component at max level (a component spanning several
+  sub-basins at different flood levels used to drown the lower ones
+  and their streams under the highest level).
+- Loading screens now follow the computation DAG (15 named stages:
+  pass-1 PLATES..BIOMES 1, pass-2 WETLANDS..AQUATIC, DELIVERY). CARVE
+  draws the delta (notches tinted); HYDROLOGY draws the water+rivers
+  composite. Batch re-render skips the pass-1 scaffold screens (the
+  dump holds the final world only).
+- Blocky shelves/ocean (seed 11/12 "perfect squares"): the abyss fbm's
+  value-noise LATTICE showed on flat seafloor, exposed by the shelf
+  rework's depth-aware texture damping. The abyss noise is now
+  domain-warped (~1/3 lattice cell); iso-bands bend.
+- Shelf width is a field: low-frequency multiplier (0.3-2x),
+  compressed near convergent margins (fault_conv x fault_dist decay).
+- Mountains/trenches, no hard caps: CC uplift 0.40 -> 0.55; the peak
+  soft-cap moved to 0.85 with asymptote 1.2 (leaky — strong draws
+  exceed 6 km; 17 cells hit the 1.0 normalization bound on seed 1);
+  trench amplitudes up (OO -0.18 -> -0.22, OC -0.16 -> -0.20) and
+  DEPTH_MAX_M 4000 -> 6000 (real trenches run 6-11 km; the abyss
+  median moves toward Earth-like depths).

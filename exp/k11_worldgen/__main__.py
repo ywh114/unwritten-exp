@@ -38,14 +38,41 @@ OUT_DIR = str(Path(__file__).parent / "out")
 SHAPE = (256, 256)  # L0 anchor grid: one cell = 4 km (map = 1024×1024 km);
                     # delivery interpolates to 1024² at 1 km cells (deliver.py)
 SEA_LEVEL = 0.35
+# weather samples per month: the FINAL climate (pass 2) is the world's
+# weather pattern — full N. The pass-1 scaffold (its only consumers
+# are the conditioning inputs: forest cover, pond/stream balance) runs
+# lean.
+N_SAMPLES_FINAL = 8
+N_SAMPLES_SCAFFOLD = 4
+
+
+def _step(msg: str) -> None:
+    """Progress line for the demo build (each logic pass, as it starts).
+    Stderr, so `--json` stdout stays machine-readable."""
+    print(f"[k11] {msg}", file=sys.stderr, flush=True)
 
 
 def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
                 realistic: bool = False, center_lat: float | None = None,
                 shrink: float = 4.0) -> dict:
+    """Two-pass pipeline (second order, never circular):
+
+    PASS 1 — the full pipeline in honest dependency order: plates ->
+    elevation -> carve -> hydrology -> currents -> climate (bare
+    ground; forests don't exist yet) -> biomes -> forest cover.
+
+    PASS 2 — a coarse rerun where each stage conditions on the others'
+    pass-1 outputs: hydrology sees the pass-1 climate (lush ponds and
+    streams), climate reruns with the REAL forest cover from the
+    pass-1 biomes and the new water (same K1 stream — same weather
+    systems, new surface conditions), then biomes/cover/aquatic/
+    complex are re-derived from the conditioned fields. The pass-2
+    states are the world; pass 1 is a scaffold.
+    """
     stream = Stream(seed, "k11.worldgen")
+    _step("plates + elevation")
     elev, plates = build_elevation(stream, shape, sea_level=SEA_LEVEL)
-    bag = {"plates": plates, "elev": elev}
+    bag = {"plates": plates, "elev": elev, "sea_level": SEA_LEVEL}
     if sink is not None:
         sink.write(1, load_stage_draw(1, bag))
         sink.write(2, load_stage_draw(2, bag))
@@ -57,51 +84,80 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     # hydrology (reflood-notch-reflood); the carved terrain feeds
     # everything downstream (lapse, biomes, render). Ocean
     # connectivity is re-derived after carving.
+    _step("gorge carve")
+    bag["elev_raw"] = elev
     elev = carve_gorges(elev, ocean_mask)
     ocean_mask = connected_ocean(elev, SEA_LEVEL)
-    # ocean currents right after elevation: gyre streams in deep water
-    # (absolute geographic feature), conducting the sea-surface
-    # temperature the climate then reads over water
-    from exp.k11_worldgen.currents import build_currents
-    currents = build_currents(elev, ocean_mask, SEA_LEVEL, seed=seed)
+    bag["elev"] = elev
+    if sink is not None:
+        sink.write(3, load_stage_draw(3, bag))
+    _step("hydrology")
     hydro = build_hydrology(elev, ocean_mask, sea_level=SEA_LEVEL, seed=seed)
     bag["hydro"] = hydro
     if sink is not None:
-        sink.write(3, load_stage_draw(3, bag))
+        sink.write(4, load_stage_draw(4, bag))
+    # ocean currents after hydrology: the gyres ride on the mean annual
+    # low-layer wind (surface currents are wind-driven), and the climate
+    # then reads the advected sea-surface temperature over water
+    from exp.k11_worldgen.climate import mean_surface_wind
+    from exp.k11_worldgen.currents import build_currents
+    _step("mean wind + currents")
+    drift = mean_surface_wind(elev, hydro, SEA_LEVEL, seed)
+    currents = build_currents(elev, ocean_mask, SEA_LEVEL, seed=seed,
+                              wind_drift=drift)
+    bag["currents"] = currents
+    if sink is not None:
+        sink.write(5, load_stage_draw(5, bag))
 
-    def _hook(n, arr):
-        # coarse climate intermediates, nearest-upsampled for the screen
-        f = 1024 // arr.shape[0]
-
-        def draw(p, a=arr, f=f):
-            write_png_gray(p, np.kron(normalize_u8(a, 0.0, 1.0),
-                                      np.ones((f, f))))
-        sink.write(n, draw)
-
-    climate = build_climate(elev, hydro, SEA_LEVEL, seed=seed,
-                            realistic=realistic, center_lat=center_lat,
-                            shrink=shrink, currents=currents,
-                            stage_hook=_hook if sink is not None else None)
-    bag["climate"] = climate
+    _step("pass 1: climate (bare ground)")
+    climate1 = build_climate(elev, hydro, SEA_LEVEL, seed=seed,
+                             n_samples=N_SAMPLES_SCAFFOLD,
+                             realistic=realistic, center_lat=center_lat,
+                             shrink=shrink, currents=currents)
+    bag["climate"] = climate1
     if sink is not None:
         sink.write(6, load_stage_draw(6, bag))
         sink.write(7, load_stage_draw(7, bag))
-    # discharge: precipitation-weighted accumulation (river mouths are
-    # ranked by water volume, not just basin cell count)
-    from exp.k11_worldgen.hydrology import flow_accumulation
+    _step("pass 1: biomes + forest cover")
+    biome1 = classify_biomes(elev, hydro, climate1, SEA_LEVEL)
+    bag["biome_map"] = biome1
+    if sink is not None:
+        sink.write(8, load_stage_draw(8, bag))
+    cover1 = forest_cover(biome1, growing_season_p(climate1))
+
+    from exp.k11_worldgen.hydrology import flow_accumulation, refine_hydrology
+    _step("pass 2: hydrology conditioned on climate")
+    hydro = refine_hydrology(hydro, elev, climate1, SEA_LEVEL, seed=seed)
+    bag["hydro"] = hydro
+    if sink is not None:
+        sink.write(9, load_stage_draw(9, bag))
+    _step("pass 2: climate (real forests, new water)")
+    climate = build_climate(elev, hydro, SEA_LEVEL, seed=seed,
+                            realistic=realistic, center_lat=center_lat,
+                            shrink=shrink, currents=currents, green=cover1)
+    bag["climate"] = climate
+    if sink is not None:
+        sink.write(10, load_stage_draw(10, bag))
+        sink.write(11, load_stage_draw(11, bag))
+    # discharge: P-weighted accumulation of the FINAL climate (river
+    # mouths are ranked by water volume, not just basin cell count)
     hydro["discharge"] = flow_accumulation(
         hydro["w_route"], hydro["flow_dir"], hydro["flat_depth"],
         weight=climate["P"])
+    _step("pass 2: biomes + aquatic + complex")
     biome_map = classify_biomes(elev, hydro, climate, SEA_LEVEL)
     bag["biome_map"] = biome_map
     if sink is not None:
-        sink.write(8, load_stage_draw(8, bag))
+        sink.write(12, load_stage_draw(12, bag))
     cover = forest_cover(biome_map, growing_season_p(climate))
     biome_names = [b["name"] for b in BIOMES]
     complex_ = derive_complex(hydro, biome_map, biome_names)
     from exp.k11_worldgen.aquatic import classify_aquatic
     aquatic = classify_aquatic(elev, hydro, climate, SEA_LEVEL,
                                currents=currents)
+    bag["aquatic"] = aquatic
+    if sink is not None:
+        sink.write(13, load_stage_draw(13, bag))
     return {
         "elev": elev, "plates": plates, "hydro": hydro, "climate": climate,
         "biome_map": biome_map, "cover": cover, "complex": complex_,
@@ -121,11 +177,13 @@ def run_demo(seed: int, check_determinism: bool = False,
     sink = LoadingSink(out_dir)
     world = build_world(seed, sink=sink, realistic=realistic,
                         center_lat=center_lat, shrink=shrink)
+    _step("delivery (upscale to 1024)")
     delivered = upscale_world(world["elev"], world["hydro"], world["climate"],
                               world["complex"], SEA_LEVEL,
                               aquatic=world["aquatic"])
-    sink.write(9, load_stage_draw(9, {"delivered": delivered}))
-    sink.write(10, load_stage_draw(10, {"delivered": delivered}))
+    sink.write(14, load_stage_draw(14, {"delivered": delivered}))
+    sink.write(15, load_stage_draw(15, {"delivered": delivered}))
+    _step("render PNGs")
     paths = render_all(out_dir, delivered, world["complex"])
     monthly_paths = render_monthly(out_dir, world["climate"])
 
@@ -376,7 +434,7 @@ def main(argv: list[str] | None = None) -> int:
                            "winds stay random")
     demo.add_argument("--center-lat", type=float, default=None,
                       help="realistic mode: patch center latitude, degN "
-                           "(default: 40N + seeded wiggle, mostly +-5 "
+                           "(default: 45N + seeded wiggle, mostly +-5 "
                            "with a leaky cap)")
     demo.add_argument("--shrink", type=float, default=4.0,
                       help="realistic mode: planet shrink factor "

@@ -21,16 +21,18 @@ parks where the low-level flow DIVERGES and dries it where it
 descends — two layers, not one, so subtropical deserts can sit beside
 warm seas; moisture recharges over water (temperature-scaled), rains
 out everywhere (ocean included), wrings out where air gets cold
-(thermodynamic capacity), and concentrates where the flow converges;
+(thermodynamic capacity), concentrates where the flow converges, and
+convects where the air is hot (Hadley-cell thunderstorms);
 the monsoon is driven by the ACTUAL land–sea temperature anomaly per
-month (temperature is computed first and advected once by the
-low-layer wind — maritime moderation); refine_climate() runs damped
-conditioning rounds — snow-albedo feedback and evaporative/cloud
-cooling adjust T given P; and precipitation runs in TWO passes: pass 1
-on bare ground yields a provisional forest cover, pass 2 lets forests
-join the water cycle (evapotranspiration recycling, canopy
-interception, windbreak). Conditioning, not simulation: single rounds,
-no iteration to convergence.
+month (temperature is computed first and transported along the
+low-layer wind — maritime moderation reaches downwind);
+refine_climate() runs damped conditioning rounds — snow-albedo
+feedback and evaporative/cloud cooling adjust T given P. Forest
+feedback (evapotranspiration, interception, windbreak) is a
+SECOND-ORDER input: pass 1 runs bare-ground, and the coarse pipeline
+rerun (pass 2) supplies the real cover from the biome pass.
+Conditioning, not simulation: single rounds, no iteration to
+convergence.
 """
 
 from __future__ import annotations
@@ -58,14 +60,14 @@ _KM_PER_DEG = 111.19
 
 
 def resolve_center_lat(seed: int, center_lat: float | None,
-                       base: float = 40.0, band: float = 5.0,
+                       base: float = 45.0, band: float = 5.0,
                        leak: float = 0.3) -> float:
     """Effective earth-patch center latitude.
 
     None -> seeded wiggle around `base`: a triangular draw in +-12 deg,
     softly compressed beyond +-`band` (LEAKY cap — slope `leak`, never
     a hard clamp): mean abs deviation ~3 deg, most worlds center in
-    35..45 degN, a rare one leaks a little past. Deterministic per
+    40..50 degN, a rare one leaks a little past. Deterministic per
     seed (own substream — does not touch the climate draws).
     """
     if center_lat is not None:
@@ -291,6 +293,18 @@ def _subsidence(u: np.ndarray, v: np.ndarray, band: np.ndarray,
     return S
 
 
+# convection: hot moist air rains regardless of the flow — the
+# Hadley-cell thunderstorm budget the wind-driven terms miss. Scales
+# with heat (same Clausius-Clapeyron curve as evaporation): the deep
+# tropics rain year-round, mid-latitudes only in summer, polar never.
+# Without this term the tropics only rain where the wind wrings
+# moisture out — seasonal and orographic — and moist broadleaf forest
+# can never exist.
+_CONV_T0 = _FREEZE + 0.25      # ~20 degC: convection kicks in
+_CONV_TSPAN = 0.125            # full strength ~10 degC hotter
+_CONV_RAIN = 0.15              # rate budget, vs 0.06 baseline
+
+
 def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
             lake_src: np.ndarray, T: np.ndarray,
             green: np.ndarray | None = None,
@@ -352,9 +366,13 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
         M = M - excess
         # rain-out happens over water too (most real rain falls on the
         # ocean): baseline rate everywhere; orographic lift adds over
-        # land (h is flat over water, so oro ~ 0 there). Genuinely
+        # land (h is flat over water, so oro ~ 0 there); convection
+        # adds where the air is hot. Genuinely
         # depleted air barely rains (lee deserts stay dry)
-        rate = np.clip(0.06 + 3.0 * oro, 0.0, 0.9) * intercept * dry
+        rate = np.clip(0.06 + 3.0 * oro
+                       + _CONV_RAIN * np.clip((T - _CONV_T0) / _CONV_TSPAN,
+                                              0.0, 1.0),
+                       0.0, 0.9) * intercept * dry
         p = M * rate
         P += p
         # rain depletes the parcel EVERYWHERE (water included — ocean
@@ -419,23 +437,73 @@ def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
     return P_m
 
 
+def _coarse_grids(elev: np.ndarray, hydro: dict, sea_level: float,
+                  f: int) -> tuple[np.ndarray, np.ndarray, np.ndarray,
+                                   np.ndarray]:
+    """Coarse terrain + masks shared by build_climate and the mean-wind
+    estimate (identical computation — the wind library must see the
+    same geometry in both)."""
+    # moving air sees the water surface only where standing water
+    # actually exists. w is the priority-flood FILL level (outlet-sill
+    # height) for every basin, including underfed ones that hold no
+    # lake — using it everywhere would show climate a phantom flood
+    # surface over dry basins and wetland flats.
+    h_clim = elev.copy()
+    h_clim[hydro["lake_mask"]] = np.maximum(elev, hydro["w"])[hydro["lake_mask"]]
+    h_clim[hydro["ocean_mask"]] = sea_level
+    h_c = _pool(h_clim, f)
+    water_c = _pool(hydro["ocean_mask"].astype(float), f) > 0.5
+    land_c = ~water_c
+    # altitude may go negative: below-sea basins (dry depressions exist
+    # since ocean is border-connected) are HOT in reality — the lapse
+    # term then warms instead of cools (bounded at -0.3 ≈ -1800 m).
+    alt_c = np.clip((h_c - sea_level) / (1.0 - sea_level), -0.3, 1.0)
+    return h_c, water_c, land_c, alt_c
+
+
+def mean_surface_wind(elev: np.ndarray, hydro: dict, sea_level: float,
+                      seed: int, coarse: int = 128, n: int = 16
+                      ) -> tuple[np.ndarray, np.ndarray]:
+    """Mean annual low-layer wind at the ANCHOR grid (for the ocean-
+    current drift). Uses the same K1 stream as build_climate, so the
+    WindLibrary (bands, gyres, breeze) is draw-identical to the one the
+    precipitation passes run; sampled N times at the equinox
+    (seasonal = 0, monsoon = 0 — summer/winter cancel on the annual
+    mean) and averaged. Clocks 500+ never collide with the climate
+    passes' 1000+ clocks."""
+    H, W = elev.shape
+    f = max(1, H // coarse)
+    _, _, land_c, alt_c = _coarse_grids(elev, hydro, sea_level, f)
+    stream = Stream(seed, "k11.climate")
+    lib = WindLibrary(stream, land_c.shape, land_c, alt=alt_c)
+    u = np.zeros(land_c.shape)
+    v = np.zeros(land_c.shape)
+    for k in range(n):
+        uk, vk = lib.sample(stream, 500 + k, 0.0, monsoon=0.0)
+        u += uk
+        v += vk
+    u, v = u / n, v / n
+    if f > 1:
+        u = np.kron(u, np.ones((f, f)))
+        v = np.kron(v, np.ones((f, f)))
+    return u, v
+
+
+# temperature advection: semi-Lagrangian transport of the equilibrium
+# field along the snapshot wind with relaxation back to equilibrium.
+# A single 0.3-weighted backtrace step moderates only ~1-2 coarse
+# cells (~10 km) of coastline; a 10-step run smears the ocean's coolth
+# so far inland that poleward continents lose their summer entirely
+# (ice cap eats the taiga belt). 4 steps at 0.35 reaches ~30-60 km
+# downwind and leaves continental interiors their seasons.
+_T_ADV_STEPS, _T_ADV_RELAX = 4, 0.35
+
+
 def _scale_precip(P_raw: np.ndarray, gain: float, belt: np.ndarray) -> np.ndarray:
     """Raw advection rates -> normalized precipitation: adaptive gain
     (per world, deterministic) + the subtropical aridity belt (the dry
     belt makes deserts actually appear)."""
     return np.clip(P_raw * gain, 0.0, 1.0) * belt
-
-
-def _vegetation_prior(T_m: np.ndarray, P_m: np.ndarray) -> np.ndarray:
-    """Provisional forest cover (0..1) from a first-pass climate: the
-    biome month-vector match plus forest bases, no overrides. Feeds the
-    forest evapotranspiration boost in the second precipitation pass."""
-    from exp.k11_worldgen.biomes import _Acc, forest_cover
-    from exp.k11_worldgen.units import precip_mm, temp_c
-    acc = _Acc(T_m.shape[1:])
-    for m in range(12):
-        acc.add(temp_c(T_m[m]), precip_mm(P_m[m]), T_m[m], P_m[m], m)
-    return forest_cover(acc.classify(), acc.grow_p / np.maximum(acc.grow_n, 1))
 
 
 def refine_climate(T_m: np.ndarray, P_m: np.ndarray, T_lat: np.ndarray,
@@ -479,7 +547,7 @@ def _lat_profile(lat: np.ndarray, shape_km: float,
     hemisphere. Row -> latitude via `center_lat` and a planet `shrink`
     times smaller (span = shape_km * shrink / 111.19 deg), then the
     zonal-mean anchors above give annual mean and seasonal half-swing.
-    Default center 40 degN at shrink 4 spans ~22..58 degN:
+    Default center 45 degN at shrink 4 spans ~27..63 degN:
     subtropics -> temperate -> taiga -> tundra in one map.
     """
     if realistic:
@@ -504,17 +572,20 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
                   realistic: bool = False, center_lat: float | None = None,
                   shrink: float = 4.0, cell_km: float = 4.0,
                   currents: dict | None = None,
-                  stage_hook=None) -> dict:
+                  green: np.ndarray | None = None) -> dict:
     """Seasonal climate as 12 monthly (T, P) mean curves per cell.
 
-    Temperature first (it is wind-independent), then TWO precipitation
-    passes: bare ground, provisional forest cover, then again with
-    forest feedback (evapotranspiration, interception, windbreak) —
-    each pass reads its monsoon strength off the actual land–sea
-    heating anomaly. A conditioning round (refine_climate) adjusts T
-    after each pass. Monthly means upsampled to the world grid.
-    Deterministic from `seed` (K1 draws are pure hash lookups, so the
-    passes replay identical wind randomness).
+    Temperature first (it is wind-independent), then ONE precipitation
+    pass; a conditioning round (refine_climate) adjusts T given P.
+    `green` is the 0..1 forest cover the water cycle should feel
+    (evapotranspiration recycling, canopy interception, windbreak) —
+    None means bare ground. Forests are a SECOND-ORDER input: they
+    only exist after the biome pass, so an honest pipeline runs this
+    bare in pass 1 and with the real cover in the coarse rerun (pass
+    2). Never fabricate a cover inside climate. Monthly means
+    upsampled to the world grid. Deterministic from `seed` (K1 draws
+    are pure hash lookups, so reruns replay identical wind randomness
+    — same weather systems, new surface conditions).
 
     Temperature profile knobs (generation-side variation — never tune
     units or the classifier): invented mode T_lat = t_north +
@@ -528,22 +599,8 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     ch, cw = H // f, W // f
     stream = Stream(seed, "k11.climate")
 
-    # coarse terrain: moving air sees the water surface only where
-    # standing water actually exists. w is the priority-flood FILL
-    # level (outlet-sill height) for every basin, including underfed
-    # ones that hold no lake — using it everywhere would show climate a
-    # phantom flood surface over dry basins and wetland flats.
-    h_clim = elev.copy()
-    h_clim[hydro["lake_mask"]] = np.maximum(elev, hydro["w"])[hydro["lake_mask"]]
-    h_clim[hydro["ocean_mask"]] = sea_level
-    h_c = _pool(h_clim, f)
-    water_c = _pool(hydro["ocean_mask"].astype(float), f) > 0.5
+    h_c, water_c, land_c, alt_c = _coarse_grids(elev, hydro, sea_level, f)
     lake_c = _pool((hydro["lake_mask"] | (hydro["width"] >= 2)).astype(float), f) > 0.3
-    land_c = ~water_c
-    # altitude may go negative: below-sea basins (dry depressions exist
-    # since ocean is border-connected) are HOT in reality — the lapse
-    # term then warms instead of cools (bounded at -0.3 ≈ -1800 m).
-    alt_c = np.clip((h_c - sea_level) / (1.0 - sea_level), -0.3, 1.0)
 
     lib = WindLibrary(stream, (ch, cw), land_c, alt=alt_c)
 
@@ -597,34 +654,43 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
                         - T_MIN_C) / span_c
 
     # temperature first: it drives the monsoon and evaporation below;
-    # each snapshot's field is blended once with its UPWIND origin —
-    # wind circulates heat (maritime moderation, interiors keep their
-    # extremes). One damped pass, conditioning not simulation.
+    # each snapshot's equilibrium field is transported along its wind —
+    # wind circulates heat (maritime moderation reaches downwind,
+    # interiors keep their extremes). One damped transport per
+    # snapshot, conditioning not simulation.
     T_m = np.zeros((12, ch, cw))
     for m in range(12):
         seasonal = math.cos(2 * math.pi * (m - _SUMMER) / 12)
         for j in range(n_samples):
             clock = 1000 + m * 16 + j
             jitter = 0.04 * (stream.uniform(clock, 15) - 0.5)
-            T = (T_lat + T_amp_lat * seasonal
-                 + land_c * 0.30 * T_amp_lat * seasonal
-                 - 0.45 * alt_c + jitter)
+            T_eq = (T_lat + T_amp_lat * seasonal
+                    + land_c * 0.30 * T_amp_lat * seasonal
+                    - 0.45 * alt_c + jitter)
             if sst_m is not None:
                 # the sea runs its own temperature (advected by the
                 # gyre streams, monthly — swirls breathe seasonally)
-                T = np.where(water_c, sst_m[m] + jitter, T)
+                T_eq = np.where(water_c, sst_m[m] + jitter, T_eq)
             u_t, v_t = lib.sample(stream, clock, seasonal)
-            T = 0.7 * T + 0.3 * _bilinear(T, gx - u_t, gy - v_t)
+            T = T_eq
+            for _ in range(_T_ADV_STEPS):
+                T = _bilinear(T, gx - u_t, gy - v_t)
+                T = T + _T_ADV_RELAX * (T_eq - T)
             T_m[m] += np.clip(T, 0.0, 1.0)
         T_m[m] /= n_samples
 
-    # pass 1: bare-ground precipitation (raw rates). The advection's
-    # absolute scale is free, so the gain is ADAPTIVE per world: pin
-    # the land-mean rain AFTER the aridity belt (deterministic) — the
-    # mm the classifier reads via units then means the same thing in
-    # every world, instead of hand-chasing a fixed gain per layout.
+    # ONE precipitation pass. `green` (forest cover, second-order
+    # input — see the docstring) joins the water cycle here:
+    # evapotranspiration recycling, canopy interception, windbreak.
+    # The advection's absolute scale is free, so the gain is ADAPTIVE
+    # per world: pin the land-mean rain AFTER the aridity belt
+    # (deterministic) — the mm the classifier reads via units then
+    # means the same thing in every world, instead of hand-chasing a
+    # fixed gain per layout.
+    if green is not None and green.shape != (ch, cw):
+        green = _pool(green, f)
     P_raw = _precip_pass(lib, stream, T_m, land_c, water_c, lake_c, h_c,
-                         lat, n_samples)
+                         lat, n_samples, green=green)
     # no static aridity belt: the dry structure comes entirely from the
     # advected subsidence (which parks at the flow's divergence zones);
     # the belt multiplier stays only as the gain-pin interface
@@ -639,24 +705,7 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     if realized > 1e-6:
         gain = float(np.clip(gain * _TARGET_LAND_P / realized, 2.0, 24.0))
         P_m = _scale_precip(P_raw, gain, belt)
-    P_pass1_ann = P_m.mean(axis=0)  # kept for the loading-screen render
-    if stage_hook is not None:
-        stage_hook(4, P_pass1_ann)
-    T_m = refine_climate(T_m, P_m, T_lat)
-    # pass 2: forests join the water cycle —
-    # provisional forest cover from the pass-1 climate boosts
-    # evapotranspiration recycling, intercepts local rain-out (moisture
-    # travels downwind instead), and acts as a windbreak. The prior runs
-    # the biome month-vector match with no water masks, so open-ocean
-    # cells can match terrestrial prototypes (a whole latitude band of
-    # "woodland" on the sea); forests exist on land only — mask it.
-    green = _vegetation_prior(T_m, P_m) * land_c
-    if stage_hook is not None:
-        stage_hook(5, green)
-    P_raw = _precip_pass(lib, stream, T_m, land_c, water_c, lake_c, h_c,
-                         lat, max(1, n_samples // 2), green=green)
-    P_m = _scale_precip(P_raw, gain, belt)
-    # final conditioning round: T adjusted given P and snow cover
+    # conditioning round: T adjusted given P and snow cover
     T_m = refine_climate(T_m, P_m, T_lat)
 
     # upsample the monthly means to the world grid (smudge pass)
@@ -669,7 +718,5 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
         "P_monthly": P_monthly,
         "T": T_monthly.mean(axis=0),
         "P": P_monthly.mean(axis=0),
-        "P_pass1": _upsample(P_pass1_ann, (H, W)),
-        "green": _upsample(green, (H, W)),
         "alt": alt,
     }
