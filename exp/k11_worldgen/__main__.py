@@ -121,12 +121,16 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     _step("pass 1: biomes + forest cover")
     biome1 = classify_biomes(elev, hydro, climate1, SEA_LEVEL)
     bag["biome_map"] = biome1
+    bag["climate1"] = climate1
+    bag["biome1"] = biome1
     if sink is not None:
         sink.write(8, load_stage_draw(8, bag))
     cover1 = forest_cover(biome1, growing_season_p(climate1))
 
     from exp.k11_worldgen.hydrology import flow_accumulation, refine_hydrology
     _step("pass 2: hydrology conditioned on climate")
+    bag["hydro1_lake"] = hydro["lake_mask"].copy()
+    bag["hydro1_river"] = hydro["river_mask"].copy()
     hydro = refine_hydrology(hydro, elev, climate1, SEA_LEVEL, seed=seed)
     bag["hydro"] = hydro
     if sink is not None:
@@ -134,7 +138,8 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     _step("pass 2: climate (real forests, new water)")
     climate = build_climate(elev, hydro, SEA_LEVEL, seed=seed,
                             realistic=realistic, center_lat=center_lat,
-                            shrink=shrink, currents=currents, green=cover1)
+                            shrink=shrink, currents=currents, green=cover1,
+                            gain=climate1["gain"])
     bag["climate"] = climate
     if sink is not None:
         sink.write(10, load_stage_draw(10, bag))
@@ -180,7 +185,8 @@ def run_demo(seed: int, check_determinism: bool = False,
     _step("delivery (upscale to 1024)")
     delivered = upscale_world(world["elev"], world["hydro"], world["climate"],
                               world["complex"], SEA_LEVEL,
-                              aquatic=world["aquatic"])
+                              aquatic=world["aquatic"],
+                              currents=world["currents"])
     sink.write(14, load_stage_draw(14, {"delivered": delivered}))
     sink.write(15, load_stage_draw(15, {"delivered": delivered}))
     _step("render PNGs")

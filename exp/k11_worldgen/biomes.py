@@ -246,8 +246,7 @@ def _apply_overrides(biome: np.ndarray, st: dict) -> np.ndarray:
     # surface) AND a violent wet season (>= 240 mm in the wettest
     # month). The width gate keeps creek gullies and generic riparian
     # strips out.
-    big = st["river_m"] if st.get("width") is None else \
-        st["river_m"] & (st["width"] >= 2)
+    big = st["river_m"] & (st["width"] >= 2)
     b[(st["hand_m"] < 8.0) & (st["P_wet"] >= 240.0)
       & _dilate(big, 3) & land] = BIOME_ID["flooded grassland"]
     # water masks
@@ -328,8 +327,10 @@ def classify_streaming(elev_hi: np.ndarray, ocean_hi: np.ndarray,
     Classification is pointwise (delivery rule), so the monthly curves
     are bicubic-upsampled month by month, converted to metric, and the
     prototype-match accumulators stream — no (12, H, W) hi-res stack is
-    held.  Returns (biome_hi, T_hi, P_hi, p_grow_hi) with T/P as
-    normalized annual means (render input) and p_grow in mm/month.
+    held.  Returns (biome_hi, T_hi, P_hi, p_grow_hi, t_cold_hi) with
+    T/P as normalized annual means (render input), p_grow in mm/month,
+    and t_cold the metric coldest-month temperature (the delivered-res
+    marine classification reads it).
     """
     acc = _Acc(elev_hi.shape)
     for m in range(12):
@@ -344,7 +345,7 @@ def classify_streaming(elev_hi: np.ndarray, ocean_hi: np.ndarray,
     T_hi = acc.t_norm_sum / 12
     P_hi = acc.p_norm_sum / 12
     p_grow_hi = acc.grow_p / np.maximum(acc.grow_n, 1)
-    return b, T_hi, P_hi, p_grow_hi
+    return b, T_hi, P_hi, p_grow_hi, acc.t_min
 
 
 def growing_season_p(climate: dict) -> np.ndarray:

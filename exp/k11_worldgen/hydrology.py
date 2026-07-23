@@ -333,24 +333,39 @@ def _absorb_coastal_lakes(lake: np.ndarray, ocean: np.ndarray) -> np.ndarray:
 
 
 def strahler_order(direction: np.ndarray, river: np.ndarray,
-                   acc: np.ndarray) -> np.ndarray:
+                   acc: np.ndarray, lake: np.ndarray | None = None
+                   ) -> np.ndarray:
     """Strahler stream order over river cells, processed upstream-first
     (ascending accumulation). Headwaters are order 1; a confluence of two
-    equal-order k streams yields k+1, otherwise the max continues."""
+    equal-order k streams yields k+1, otherwise the max continues.
+
+    When `lake` is given, lake cells act as order CONDUITS: they carry
+    the max incoming order through to the outlet (no increment — the
+    lake is one body). Without this, a river's order restarts at 1
+    every time it crosses a lake, so a Strahler-3 river visibly
+    "turns into 1" at the outlet."""
     H, W = river.shape
     order = np.zeros((H, W), dtype=np.int16)
     order[river] = 1
-    ys, xs = np.where(river)
+    path = river if lake is None else river | lake
+    ys, xs = np.where(path)
     for y, x in sorted(zip(ys.tolist(), xs.tolist()), key=lambda c: acc[c]):
         ups = []
         for dy, dx in _D8:
             ny, nx_ = y + dy, x + dx
-            if (0 <= ny < H and 0 <= nx_ < W and river[ny, nx_]):
+            if (0 <= ny < H and 0 <= nx_ < W and path[ny, nx_]):
                 d = direction[ny, nx_]
                 if d >= 0 and (ny + _D8[d][0], nx_ + _D8[d][1]) == (y, x):
                     ups.append(int(order[ny, nx_]))
-        if ups:
-            top = max(ups)
+        # order-0 upstreams are lakes with no river inflow — a stream
+        # leaving such a lake is a headwater, not a continuation
+        ups = [u for u in ups if u > 0]
+        if not ups:
+            continue
+        top = max(ups)
+        if lake is not None and lake[y, x]:
+            order[y, x] = top
+        else:
             order[y, x] = top + 1 if ups.count(top) >= 2 else top
     return order
 
@@ -597,7 +612,7 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     thr_eff = river_threshold * (1.0 + 0.8 * (1.0 - h_norm))
     river = (acc >= thr_eff) & ~ocean_mask & ~lake
 
-    order = strahler_order(direction, river, acc)
+    order = strahler_order(direction, river, acc, lake=lake)
     width = np.zeros((h.shape), dtype=np.int16)
     width[river] = 1
     width[river & (acc >= river_threshold * 6)] = 2
@@ -737,7 +752,7 @@ def refine_hydrology(hydro: dict, elev: np.ndarray, climate: dict,
         river |= (discharge >= river_threshold * p_mean) & ~ocean_mask & ~lake
     river &= ~lake                      # ponds swallow their through-river
 
-    order = strahler_order(direction, river, acc)
+    order = strahler_order(direction, river, acc, lake=lake)
     width = np.zeros((h.shape), dtype=np.int16)
     width[river] = 1
     width[river & (acc >= river_threshold * 6)] = 2

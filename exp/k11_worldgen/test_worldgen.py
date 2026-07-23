@@ -342,6 +342,62 @@ def test_currents_and_sst():
     u0, v0 = velocity_field(c1, 0)
     u6, v6 = velocity_field(c1, 6)
     assert not np.array_equal(u0, u6)
+    # slip wall: the processed field has NO into-land component at
+    # coast cells (streams run along the shore, not into it) — damping
+    # and normalization are scalar per cell, so direction is preserved
+    from exp.k11_worldgen.climate import _grad
+    land = (~ocean).astype(float)
+    for _ in range(2):
+        p = np.pad(land, 1, mode="edge")
+        land = sum(p[dy:dy + 64, dx:dx + 64]
+                   for dy in range(3) for dx in range(3)) / 9.0
+    nx, ny = _grad(land)
+    norm = np.hypot(nx, ny) + 1e-9
+    coast = (norm > 1e-6) & ocean
+    into = (c1["u"] * nx / norm + c1["v"] * ny / norm)[coast]
+    assert (into <= 1e-6).all()
+
+
+def test_foehn_suppresses_lee_rain():
+    """Same flow, same moisture: a downslope (descent, foehn) rains
+    less than the mirror upslope (orographic lift)."""
+    from exp.k11_worldgen.climate import _advect
+    shape = (32, 64)
+    u = np.full(shape, 1.0)                     # uniform eastward flow
+    v = np.zeros(shape)
+    water = np.zeros(shape, bool)
+    lake = np.zeros(shape, bool)
+    T = np.full(shape, 0.5)
+    ramp = np.tanh((32 - np.arange(64)) / 4.0)  # steep x ramp, falls E
+    # eastward flow: h rising eastward = upslope (lift), falling =
+    # downslope (descent, foehn)
+    up = _advect(u, v, (0.5 - 0.3 * ramp)[None, :] * np.ones(shape),
+                 water, lake, T)
+    down = _advect(u, v, (0.5 + 0.3 * ramp)[None, :] * np.ones(shape),
+                   water, lake, T)
+    assert up.mean() > down.mean()
+
+
+def test_current_slip_and_lee_shadow():
+    """A stream hitting a land bar: deflected at the face (no into-
+    land flow) and weakened in the lee, not resumed full-strength."""
+    from exp.k11_worldgen.currents import _process
+    ocean = np.ones((32, 48), bool)
+    ocean[8:24, 20:24] = False                  # vertical land bar
+    depth = np.full((32, 48), 1000.0)
+    u = np.full((32, 48), 1.0)                  # uniform eastward flow
+    v = np.zeros((32, 48))
+    u2, v2, _ = _process(u, v, depth, ocean)
+    # deflected at the face: no into-land (eastward) component on the
+    # straight section (near-corner flow legitimately turns diagonal;
+    # the map-wide slip property is covered in test_currents_and_sst)
+    assert (u2[12:20, 19] <= 1e-6).all()
+    speed = np.hypot(u2, v2)
+    up = speed[8:24, 10].mean()                 # upstream of the bar
+    lee = speed[8:24, 30].mean()                # in its lee
+    flank = speed[2:6, 30].mean()               # past the bar's end
+    assert lee < 0.8 * up
+    assert flank > lee                          # the wake is local
 
 
 def test_aquatic_classes():
@@ -412,6 +468,13 @@ def test_climate_and_biome_overrides():
     assert np.array_equal(cl["P"], cl2["P"])  # deterministic from seed
     assert cl["T_monthly"].shape == (12, *elev.shape)
     assert cl["P_monthly"].shape == (12, *elev.shape)
+    # the weather pattern is delivered with the climate: N surface-wind
+    # snapshots per month at the coarse grid (96 < 128, so uncoarsened
+    # here), deterministic from the seed
+    assert cl["wind_u"].shape == (12, 8, *elev.shape)
+    assert cl["wind_v"].shape == (12, 8, *elev.shape)
+    assert np.array_equal(cl["wind_u"], cl2["wind_u"])
+    assert np.array_equal(cl["wind_v"], cl2["wind_v"])
     assert cl["T"].min() >= 0.0 and cl["T"].max() <= 1.0
     assert cl["P"].min() >= 0.0 and cl["P"].max() <= 1.0
     land = ~ocean
@@ -560,6 +623,7 @@ def test_upsample_bicubic():
 
 @pytest.mark.slow
 def test_deliver_smoke():
+    from exp.k11_worldgen.aquatic import classify_aquatic
     from exp.k11_worldgen.deliver import upscale_world
     elev, ocean = _tiny_world()
     hy = build_hydrology(elev, ocean)
@@ -567,7 +631,8 @@ def test_deliver_smoke():
     names = [b["name"] for b in BIOMES]
     bm = classify_biomes(elev, hy, cl, 0.35)
     cx = derive_complex(hy, bm, names)
-    d = upscale_world(elev, hy, cl, cx, 0.35, factor=4)
+    aq = classify_aquatic(elev, hy, cl, 0.35)
+    d = upscale_world(elev, hy, cl, cx, 0.35, aq, factor=4)
     H, W = elev.shape
     assert d["elev"].shape == (H * 4, W * 4)
     assert d["biome_map"].shape == (H * 4, W * 4)
@@ -580,8 +645,23 @@ def test_deliver_smoke():
     assert (d["biome_map"][0, :] == BIOME_ID["rock"]).all()
     assert (d["biome_map"][:, 0] == BIOME_ID["rock"]).all()
     assert not d["ocean_mask"][0, :].any() and not d["lake_mask"][:, -1].any()
-    d2 = upscale_world(elev, hy, cl, cx, 0.35, factor=4)
+    d2 = upscale_world(elev, hy, cl, cx, 0.35, aq, factor=4)
     assert np.array_equal(d["biome_map"], d2["biome_map"])  # deterministic
+    # marine classes are recomputed pointwise at delivery: every
+    # delivered open-water cell carries a MARINE class (not a stamped
+    # anchor block), lakes and rivers keep their relational families
+    from exp.k11_worldgen.aquatic import AQUATIC_ID
+    marine_ids = {AQUATIC_ID[n] for n in (
+        "open ocean", "polar shelf", "temperate shelf", "tropical shelf",
+        "coral reef", "temperate upwelling", "tropical upwelling")}
+    lake_ids = {AQUATIC_ID[n] for n in (
+        "inland sea", "salt lake", "large lake", "polar lake",
+        "montane lake", "tropical lake", "temperate lake")}
+    river_ids = set(range(len(AQUATIC_ID))) - marine_ids - lake_ids
+    open_water = d["ocean_mask"] & ~d["river_mask"]
+    assert set(np.unique(d["aquatic"][open_water])) <= marine_ids
+    assert set(np.unique(d["aquatic"][d["lake_mask"]])) <= lake_ids
+    assert set(np.unique(d["aquatic"][d["river_mask"]])) <= river_ids
 
 
 @pytest.mark.slow
@@ -619,6 +699,8 @@ def test_persist_roundtrip(tmp_path):
     data = load_world(str(tmp_path))
     assert np.array_equal(data["world"]["elev"], elev)
     assert np.array_equal(data["world"]["climate"]["T_monthly"], cl["T_monthly"])
+    assert np.array_equal(data["world"]["climate"]["wind_u"], cl["wind_u"])
+    assert np.array_equal(data["world"]["climate"]["wind_v"], cl["wind_v"])
     assert np.array_equal(data["delivered"]["biome_map"], delivered["biome_map"])
     assert np.array_equal(data["world"]["currents"]["u"], cur["u"])
     # the loaded currents are complete: monthly velocity fields work
@@ -702,3 +784,34 @@ def test_refine_hydrology_stream_density_follows_rain():
         # discharge far above what the dry northern catchment could
         # supply on its own — the water is imported from the south
         assert (q[north_extra] > 2.5 * 0.02 * acc[north_extra]).all()
+
+
+def test_strahler_carries_through_lakes():
+    from exp.k11_worldgen.hydrology import strahler_order
+    # two order-1 headwaters join into order 2, cross a lake, and must
+    # emerge as order 2 — not restart at 1
+    direction = np.full((5, 5), -1, dtype=int)
+    river = np.zeros((5, 5), dtype=bool)
+    lake = np.zeros((5, 5), dtype=bool)
+    # headwaters at (0,1) and (0,3) join at (1,2), flow to lake at
+    # (2,2)-(3,2), outlet at (4,2)
+    path = [(0, 1), (1, 2), (2, 2), (3, 2), (4, 2)]
+    path2 = [(0, 3), (1, 2)]
+    river[path[0]] = river[path[1]] = river[path2[0]] = river[path[4]] = True
+    lake[2, 2] = lake[3, 2] = True
+    direction[0, 1] = direction[0, 3] = 7  # down-left/down-right... set below
+    from exp.k11_worldgen.hydrology import _D8
+    down = _D8.index((1, 0))
+    dl = _D8.index((1, -1))
+    dr = _D8.index((1, 1))
+    direction[0, 1] = dr          # (0,1) -> (1,2)
+    direction[0, 3] = dl          # (0,3) -> (1,2)
+    direction[1, 2] = down        # (1,2) -> (2,2)
+    direction[2, 2] = down        # (2,2) -> (3,2)
+    direction[3, 2] = down        # (3,2) -> (4,2)
+    acc = np.zeros((5, 5))
+    for i, (y, x) in enumerate([(0, 1), (0, 3), (1, 2), (2, 2), (3, 2), (4, 2)]):
+        acc[y, x] = i + 1
+    order = strahler_order(direction, river, acc, lake=lake)
+    assert order[1, 2] == 2       # confluence of two 1s
+    assert order[4, 2] == 2       # the outlet keeps order 2 past the lake

@@ -196,8 +196,8 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
     # largest lakes: 4-connected components, area in km^2 (1 km cells);
     # per-component salinity (g/kg) and the inland-sea flag come along
     # for the saltiest-lake / sea marks
-    sal = delivered.get("salinity")
-    sea_m = delivered.get("sea_mask")
+    sal = delivered["salinity"]
+    sea_m = delivered["sea_mask"]
     H, W = lake.shape
     seen = np.zeros_like(lake)
     comps: list[tuple[float, float, float, float, bool]] = []
@@ -219,10 +219,8 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
                 cx = float(np.mean([c[1] for c in comp]))
                 cys = tuple(c[0] for c in comp)
                 cxs = tuple(c[1] for c in comp)
-                sv = (float(sal[cys, cxs].mean())
-                      if sal is not None else 0.0)
-                is_sea = (bool((sea_m[cys, cxs].mean()) > 0.5)
-                          if sea_m is not None else False)
+                sv = float(sal[cys, cxs].mean())
+                is_sea = bool((sea_m[cys, cxs].mean()) > 0.5)
                 comps.append((float(len(comp)), cy, cx, sv, is_sea))
     comps.sort(reverse=True)
     n_sea = 0
@@ -286,7 +284,7 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
     # units: 1.0 = 400 mm/month over one 16 km^2 cell), reported as
     # km^3/yr (x 0.0768). Endorheic inflows (inland-sea terminals) are
     # not mouths — the cell must touch the connected ocean.
-    discharge = hydro.get("discharge", hydro["accumulation"])
+    discharge = hydro["discharge"]
     river = hydro["river_mask"]
     oc = hydro["ocean_mask"]
     mouth = np.zeros_like(river)

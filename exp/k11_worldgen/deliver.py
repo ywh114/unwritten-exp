@@ -121,12 +121,33 @@ def _meander(pts: list[tuple[float, float]], wavelength: float,
     return out
 
 
+def _resample(pts: list[tuple[float, float]], step: float) -> list[tuple[float, float]]:
+    """Subdivide segments longer than `step` — an RDP-collapsed straight
+    run is two points, and no downstream wobble can curve two points."""
+    import math
+    if len(pts) < 2:
+        return pts
+    out = [pts[0]]
+    for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+        n = max(1, int(math.hypot(bx - ax, by - ay) / step))
+        for s in range(1, n + 1):
+            out.append((ax + (bx - ax) * s / n, ay + (by - ay) * s / n))
+    return out
+
+
 def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
                  w: np.ndarray | None = None,
                  sea_level: float | None = None,
-                 phantom: np.ndarray | None = None) -> np.ndarray:
+                 phantom: np.ndarray | None = None,
+                 min_edge_cells: int = 6) -> np.ndarray:
     """Stamp the river network (scaled, smoothed polylines) onto the
     delivered grid at width-class radius. Returns (width_class, mask).
+
+    Edges shorter than `min_edge_cells` anchor cells are NOT stamped:
+    at 1 km delivery a 2-4 cell D8 path can only render as a straight
+    diagonal — these are sub-L0 creeks whose actual formation is the
+    refinement layer's job (they still exist in the hydro fields for
+    discharge and HAND).
 
     With the anchor water surface `w` passed, low-gradient edges
     MEANDER (real meanders form below ~2 m/km valley slope, at a
@@ -176,6 +197,8 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
 
     for ei, e in sorted(enumerate(complex_.edges.values()),
                         key=lambda kv: -kv[1].quality):
+        if len(e.polyline) < min_edge_cells:
+            continue
         base = [(x * factor, y * factor) for x, y in
                 ((p[0], p[1]) for p in e.polyline)]
         # collapse 1-cell flat-routing detours BEFORE any cosmetic
@@ -187,7 +210,17 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
         base = _jitter(base, f"k11.river|{e.id}|{e.polyline[0]}",
                        mag=1.4 / wc0)
         base = chaikin(base, rounds=2)
-        pts = base
+        # subdivide long segments so the wobble has interior points —
+        # an RDP-collapsed straight D8 run is two endpoints, and
+        # nothing downstream can curve two endpoints (the long
+        # exact-45-degree diagonal artifact)
+        base = _resample(base, 6.0)
+        # every edge gets a gentle long-wave wobble — D8 centerlines
+        # are axis/diagonal-locked even in steep terrain; low-gradient
+        # reaches then get the real valley meander on top
+        from kernel.hashrng import Stream
+        phase0 = 24.0 * Stream(0, f"k11.meander|{e.id}").uniform(0, 1)
+        pts = _meander(base, max(24.0, 8.0 * wc0), 2.0 * wc0, phase0)
         if w is not None and sea_level is not None:
             ha, wa = w.shape
             ws = [float(w[min(max(int(py), 0), ha - 1),
@@ -208,7 +241,6 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
                              for px, py in e.polyline)
                          / len(e.polyline)) > 0.5
             if not marsh and 0.0 <= slope < 2.0:
-                from kernel.hashrng import Stream
                 wc = max(1, int(round(e.quality)))       # width class ~ km
                 # ~10 channel widths, but never more than half the
                 # edge's own length — a sub-wavelength edge cannot
@@ -216,7 +248,8 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
                 lam = min(10.0 * wc, 0.5 * e.length * factor)
                 amp = min(0.25 * lam, 2.0 * wc)          # belt ~ a few widths
                 phase = lam * Stream(0, f"k11.meander|{e.id}").uniform(0, 0)
-                pts = _meander(base, lam, amp, phase)        # collision-resolved center path, stamped as it grows so each
+                pts = _meander(pts, lam, amp, phase)
+        # collision-resolved center path, stamped as it grows so each
         # new point sees the path so far (self fold-back included);
         # the stamp radius TAPERs from the upstream course's width
         n = len(pts)
@@ -313,8 +346,9 @@ def _fill_lake_holes(lake: np.ndarray, ocean: np.ndarray,
 
 def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
                   complex_: Complex, sea_level: float,
-                  factor: int = FACTOR,
-                  aquatic: np.ndarray | None = None) -> dict:
+                  aquatic: np.ndarray,
+                  currents: dict | None = None,
+                  factor: int = FACTOR) -> dict:
     """Deliver the anchor world at factor x resolution (1024² @ 1 km)."""
     from exp.k11_worldgen.biomes import classify_streaming
 
@@ -366,31 +400,65 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
               > 0.5) & lake_hi
     hand_hi = upsample_bicubic(hydro["hand"], factor)
 
-    # aquatic biome layer (relational, per water body — aquatic.py):
-    # nearest-value spread into the ~2-cell boundary band (covers the
-    # re-derived waterline and river jitter), then nearest upsample
-    aq_hi = None
-    if aquatic is not None:
-        water_a = (hydro["ocean_mask"] | hydro["lake_mask"]
-                   | hydro["river_mask"])
-        fill = np.where(water_a, aquatic.astype(np.int16) + 1, 0)
+    # aquatic biome layer: the RELATIONAL classes are carried per
+    # channel — lakes/seas (per-component decisions) and rivers (anchor
+    # order/width fields) each spread nearest-value across their own
+    # ~2-cell boundary band (covers the re-derived waterline and river
+    # jitter), then nearest upsample. Per-channel because the delivered
+    # lake extent can reach over anchor RIVER cells at inflow sills —
+    # a shared map would class those lake cells as river. The spread is
+    # distance-ordered: a cell takes the mode of its already-filled
+    # neighbors (ties to the lowest id), so no class leaks outward —
+    # the previous max-value spread systematically painted high ids
+    # (upwelling, tropical) past their real extent. The marine classes
+    # are POINTWISE — recomputed below, not carried.
+    aq_anchor = aquatic.astype(np.int16) + 1
+
+    def _spread(seed: np.ndarray) -> np.ndarray:
+        fill = seed
         for _ in range(2):
             m = fill == 0
             if not m.any():
                 break
-            nb = np.zeros_like(fill)
-            for dy in (-1, 0, 1):
-                for dx in (-1, 0, 1):
-                    nb = np.maximum(nb, np.roll(np.roll(fill, dy, 0), dx, 1))
-            fill = np.where(m, nb, fill)
-        aq_hi = np.kron(fill, np.ones((factor, factor), dtype=np.int16)) - 1
-        aq_hi = np.clip(aq_hi, 0, None).astype(np.uint8)
-        aq_hi[~(ocean_hi | lake_hi | river_hi)] = 0
+            neigh = np.stack([np.roll(np.roll(fill, dy, 0), dx, 1)
+                              for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+                              if (dy, dx) != (0, 0)])
+            best = np.zeros_like(fill)
+            score = np.zeros(fill.shape, dtype=np.int16)
+            for v in [v for v in np.unique(neigh) if v > 0]:
+                c = (neigh == v).sum(axis=0)
+                upd = c > score        # ascending v: lowest id wins ties
+                score = np.where(upd, c, score)
+                best = np.where(upd, v, best)
+            fill = np.where(m, best, fill)
+        return np.kron(fill, np.ones((factor, factor), dtype=np.int16)) - 1
+
+    kron_lake = _spread(np.where(hydro["lake_mask"], aq_anchor, 0))
+    kron_river = _spread(
+        np.where(hydro["river_mask"] & ~hydro["lake_mask"], aq_anchor, 0))
+    aq_hi = np.zeros((H, W), dtype=np.uint8)
+    aq_hi[lake_hi] = np.clip(kron_lake, 0, None)[lake_hi]
+    aq_hi[river_hi] = np.clip(kron_river, 0, None)[river_hi]
 
     # biomes: streaming similarity classify at the delivered resolution
-    biome_hi, T_hi, P_hi, p_grow_hi = classify_streaming(
+    biome_hi, T_hi, P_hi, p_grow_hi, t_cold_hi = classify_streaming(
         elev_hi, ocean_hi, lake_hi, river_hi, hand_hi,
         climate, sea_level, factor, width_hi=width_hi)
+
+    # marine classes are POINTWISE (depth / temperature / rise), so per
+    # the delivery rule they are recomputed on the smooth delivered
+    # fields — the kron path is for the relational classes only, and
+    # stamping it up turned threshold speckle into visible squares
+    from exp.k11_worldgen.aquatic import classify_marine
+    from exp.k11_worldgen.units import elev_m, temp_c
+    marine_hi = classify_marine(
+        ocean_hi, river_hi, width_hi, -elev_m(elev_hi, sea_level),
+        temp_c(T_hi), t_cold_hi,
+        rise=(upsample_bicubic(currents["rise"], factor)
+              if currents is not None else None),
+        mouth_band=factor, clear_band=3 * factor)
+    open_water = ocean_hi & ~river_hi
+    aq_hi[open_water] = marine_hi[open_water]
 
     from exp.k11_worldgen.biomes import forest_cover
     cover_hi = forest_cover(biome_hi, p_grow_hi)
@@ -428,7 +496,7 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
         "salinity": sal_hi,
         "sea_mask": sea_hi,
         "hand": hand_hi,
-        **({"aquatic": aq_hi} if aq_hi is not None else {}),
+        "aquatic": aq_hi,
         "T": T_hi,
         "P": P_hi,
         "biome_map": biome_hi,

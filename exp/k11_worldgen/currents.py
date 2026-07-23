@@ -8,7 +8,21 @@ low-layer wind (surface currents are wind-driven — Ekman drift — so
 the streams correlate with the persistent circulation instead of
 ignoring it). The velocity field is the curl of a Gaussian
 stream function per gyre (divergence-free, calm eye, strongest flow at
-the rim), damped over shallow shelf — currents are deep-water streams.
+the rim).
+
+The raw gyre field knows nothing about land, so processing gives it
+the same treatment wind gets over terrain, hardened for water:
+
+- SLIP WALL: at coast cells the into-land momentum component is
+  projected out — the stream bends and runs ALONG the shore (boundary
+  currents) instead of stopping dead at the mask.
+- LEE SHADOW: the removed momentum is transported downstream with the
+  flow and damps it — a stream that struck a peninsula does not resume
+  full strength in the lee. (Same deficit-advection idea as the wind
+  lee wake.)
+- Depth damping (currents are deep-water streams) and the land mask
+  finish the field. Both the annual reference and every monthly
+  (seasonal-breathing) field pass through the SAME pipeline.
 
 The streams CONDUCT temperature: `advect_sst` transports the latitude
 baseline along the flow (semi-Lagrangian backtrace) with a slow
@@ -27,11 +41,69 @@ import numpy as np
 
 from kernel.hashrng import Stream
 
-from exp.k11_worldgen.climate import _bilinear, _grad
+from exp.k11_worldgen.climate import _bilinear, _grad, lee_shadow
 from exp.k11_worldgen.units import elev_m
 
 # deep water mixed up by rising streams
 _T_DEEP_C = 4.0
+
+# land treatment of the raw gyre field (see module docstring)
+_SLIP_SMOOTH = 2        # smoothing passes for a stable coast normal
+_SHADOW_STEPS = 24      # downstream transport of the blocked deficit
+_SHADOW_RECHARGE = 0.25 # the coast keeps feeding its own shadow
+_SHADOW_DECAY = 0.05    # tail ~20 cells — a peninsula's lee, not a sea's
+_SHADOW_DAMP = 0.8      # speed floor inside a full shadow
+
+
+def _slip_boundary(u: np.ndarray, v: np.ndarray,
+                   ocean_mask: np.ndarray
+                   ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Project out the into-land momentum at coast cells (a SLIP wall —
+    water runs along the shore, not through it). Returns the deflected
+    field and the removed component (the blockage source for the lee
+    shadow)."""
+    land = (~ocean_mask).astype(float)
+    H, W = land.shape
+    for _ in range(_SLIP_SMOOTH):
+        p = np.pad(land, 1, mode="edge")
+        land = sum(p[dy:dy + H, dx:dx + W]
+                   for dy in range(3) for dx in range(3)) / 9.0
+    nx, ny = _grad(land)
+    norm = np.hypot(nx, ny) + 1e-9
+    nx, ny = nx / norm, ny / norm
+    into = np.maximum(u * nx + v * ny, 0.0)
+    return u - into * nx, v - into * ny, into
+
+
+def _lee_shadow(u: np.ndarray, v: np.ndarray,
+                source: np.ndarray) -> np.ndarray:
+    """Current-flavored wrapper of the shared deficit advection
+    (climate.lee_shadow) with the current-tuned constants."""
+    return lee_shadow(u, v, source, _SHADOW_STEPS,
+                      _SHADOW_RECHARGE, _SHADOW_DECAY)
+
+
+def _process(u: np.ndarray, v: np.ndarray, depth_m: np.ndarray,
+             ocean_mask: np.ndarray, vmax: float | None = None
+             ) -> tuple[np.ndarray, np.ndarray, float]:
+    """The full land treatment + normalization, shared by the annual
+    reference (vmax=None: compute and return it) and every monthly
+    field (vmax given) so all months see identical land behavior."""
+    u, v, into = _slip_boundary(u, v, ocean_mask)
+    # shadow source relative to the world's own typical current, so a
+    # lazy drift cannot cast as hard a shadow as a real stream
+    ref = max(float(np.percentile(np.hypot(u, v)[ocean_mask], 99)),
+              1e-9) if ocean_mask.any() else 1.0
+    shadow = _lee_shadow(u, v, np.clip(into / ref, 0.0, 1.0))
+    damp = np.clip(depth_m / 300.0, 0.15, 1.0) * (1.0 - _SHADOW_DAMP
+                                                  * shadow)
+    u = u * damp * ocean_mask
+    v = v * damp * ocean_mask
+    if vmax is None:
+        vmax = float(np.hypot(u, v).max())
+    u = u / max(vmax, 1e-9)
+    v = v / max(vmax, 1e-9)
+    return u, v, vmax
 
 
 def _gyre_field(gyres: list[tuple], shape: tuple[int, int],
@@ -58,8 +130,10 @@ def velocity_field(currents: dict, month: int = 6,
                    ocean_mask: np.ndarray | None = None
                    ) -> tuple[np.ndarray, np.ndarray]:
     """Seasonal velocity: each gyre's strength breathes +-30% with a
-    per-gyre phase (K1-drawn at spawn). Month 6 = the annual-mean
-    reference the normalization was computed against."""
+    per-gyre phase (K1-drawn at spawn), then the SAME land treatment
+    the annual reference got (slip wall, lee shadow, depth damping,
+    mask) and normalization by the annual vmax. Month 6 = the
+    annual-mean reference the normalization was computed against."""
     import math
     gyres = currents["gyres"]
     strength = np.array([
@@ -75,9 +149,7 @@ def velocity_field(currents: dict, month: int = 6,
         depth_m = currents["depth_m"]
     if ocean_mask is None:
         ocean_mask = currents["ocean_mask"]
-    damp = np.clip(depth_m / 300.0, 0.15, 1.0)
-    u = u * damp * ocean_mask / max(currents["vmax"], 1e-9)
-    v = v * damp * ocean_mask / max(currents["vmax"], 1e-9)
+    u, v, _ = _process(u, v, depth_m, ocean_mask, vmax=currents["vmax"])
     return u, v
 
 
@@ -90,8 +162,11 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
     """Gyre velocity field (u, v, ~1 cell/step max) + upwelling rise.
 
     Gyre centers are spaced deep-ocean cells; each gyre's tangential
-    speed peaks at one sigma from the eye. `wind_drift` is the mean
-    annual low-layer wind at this grid: surface currents are
+    speed peaks at one sigma from the eye. The raw field is then given
+    the land treatment (`_process`): a slip wall at coasts (streams
+    bend along shores), a lee shadow (streams that struck land stay
+    weakened downstream), depth damping and the mask. `wind_drift` is
+    the mean annual low-layer wind at this grid: surface currents are
     wind-driven (Ekman drift — westerlies push drift currents, trades
     push equatorial ones), so the drawn gyres ride on a fraction of
     the prevailing wind instead of ignoring it. Everything downstream
@@ -120,7 +195,6 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
             1.0 if stream.uniform(2 + k, 2) < 0.5 else -1.0)
         phase = 12.0 * stream.uniform(2 + k, 3)   # seasonal wobble phase
         gyres.append((cy, cx, sigma, amp, phase))
-    damp = np.clip(depth_m / 300.0, 0.15, 1.0)
     u, v = _gyre_field([(cy, cx, sigma, amp)
                         for cy, cx, sigma, amp, _ in gyres], (H, W))
     drift_u = drift_v = 0.0
@@ -128,12 +202,9 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
         drift_u, drift_v = wind_drift
         u = u + drift_coeff * drift_u
         v = v + drift_coeff * drift_v
-    u = u * damp * ocean_mask
-    v = v * damp * ocean_mask
-    vmax = float(np.hypot(u, v).max())
-    if vmax > 1e-9:
-        u, v = u / vmax, v / vmax
-    # upwelling: depth DECREASING along the flow = water rising
+    u, v, vmax = _process(u, v, depth_m, ocean_mask)
+    # upwelling: depth DECREASING along the (deflected, shadowed) flow
+    # = water rising
     ddx, ddy = _grad(depth_m)
     rise = np.maximum(0.0, -(u * ddx + v * ddy)) * ocean_mask
     return {"u": u, "v": v, "rise": rise, "n_gyres": len(centers),

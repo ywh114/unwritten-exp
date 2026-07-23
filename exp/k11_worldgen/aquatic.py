@@ -3,9 +3,13 @@ a SEPARATE layer from the terrestrial biome map.
 
 A water cell has an aquatic class AND sits in a climate zone; the two
 axes are orthogonal, so this is its own map, not extra BIOMES entries.
-Classification is per water BODY (relational — lakes/seas are decided
-component-wise at the anchor grid, rivers cell-wise from anchor
-fields, marine pointwise on the shelf) and carried to delivery.
+The marine (neritic) classes are POINTWISE — pure functions of depth,
+temperature and the gyre rise field — so per the delivery rule they are
+recomputed from the interpolated fields at the delivered grid
+(classify_marine), never stamped up from the anchor. The RELATIONAL
+classes are decided at the anchor grid and carried: lakes/seas
+component-wise, rivers cell-wise from anchor fields (order/width and
+the mouth-plume neighborhoods).
 
 WWF coverage and the pruning choices:
 
@@ -17,9 +21,9 @@ WWF coverage and the pruning choices:
   (headwaters), and polar / montane / xeric variants by climate.
 - Marine, neritic only (shelf shallower than ~200 m; the deep ocean
   stays "open ocean", unclassed): polar / temperate / tropical shelf,
-  and coral reef — the azonal one (warm + shallow + clear, kept away
-  from big-river sediment). Upwelling is DEFERRED: it needs a stored
-  annual-mean wind field that the climate pass does not keep yet.
+  coral reef (the azonal one — warm + shallow + clear, kept away from
+  big-river sediment), and upwelling where the gyre streams climb the
+  shelf (cold nutrient water — no coral there).
 """
 
 from __future__ import annotations
@@ -76,22 +80,19 @@ def _dilate(mask: np.ndarray, n: int) -> np.ndarray:
     return out
 
 
-def classify_aquatic(elev: np.ndarray, hydro: dict, climate: dict,
-                     sea_level: float, cell_km2: float = 16.0,
-                     currents: dict | None = None) -> np.ndarray:
-    """Aquatic class map at the anchor grid (uint8; 0 = open ocean)."""
-    ocean = hydro["ocean_mask"]
-    lake = hydro["lake_mask"]
-    river = hydro["river_mask"]
-    a = np.zeros(elev.shape, dtype=np.uint8)
-
-    t_ann = temp_c(climate["T_monthly"]).mean(axis=0)
-    t_cold = temp_c(climate["T_monthly"]).min(axis=0)
-    p_ann_mm = precip_mm(climate["P_monthly"]).mean(axis=0) * 12.0
-    alt = alt_m(elev, sea_level)
-    depth_m = -elev_m(elev, sea_level)
-
-    # ---- marine (neritic shelf only) ----
+def classify_marine(ocean: np.ndarray, river: np.ndarray,
+                    width: np.ndarray, depth_m: np.ndarray,
+                    t_ann: np.ndarray, t_cold: np.ndarray,
+                    rise: np.ndarray | None = None,
+                    mouth_band: int = 1, clear_band: int = 3) -> np.ndarray:
+    """Pointwise neritic classes (open ocean, shelf zonation, coral,
+    upwelling) at whatever grid the inputs carry. Pure functions of
+    depth / temperature / rise, so delivery recomputes them on the
+    smooth interpolated fields — stamping the anchor map up in nearest
+    blocks turned threshold speckle into visible squares. `mouth_band`
+    / `clear_band` are the sediment-plume radii in CELLS of the input
+    grid (1 / 3 at the 4 km anchor)."""
+    a = np.zeros(ocean.shape, dtype=np.uint8)
     shelf = ocean & (depth_m < _SHELF_MAX_DEPTH_M)
     a[ocean] = AQUATIC_ID["open ocean"]
     a[shelf] = AQUATIC_ID["temperate shelf"]
@@ -100,16 +101,14 @@ def classify_aquatic(elev: np.ndarray, hydro: dict, climate: dict,
     # relative — gyre strength varies) where streams climb the slope.
     # Cold nutrient water: no coral there.
     upw = np.zeros_like(shelf)
-    if currents is not None:
-        rise = currents["rise"]
-        if shelf.any():
-            thr = np.percentile(rise[shelf], 90)
-            if thr > 0:
-                upw = shelf & (rise >= thr)
+    if rise is not None and shelf.any():
+        thr = np.percentile(rise[shelf], 90)
+        if thr > 0:
+            upw = shelf & (rise >= thr)
     # coral: frost-free, very shallow, and CLEAR — not beside the
     # sediment plume of a big river mouth (width class 3 at the sea)
-    big_mouth = river & _dilate(ocean, 1) & (hydro["width"] >= 3)
-    clear = ~_dilate(big_mouth, 3)
+    big_mouth = river & _dilate(ocean, mouth_band) & (width >= 3)
+    clear = ~_dilate(big_mouth, clear_band)
     coral = shelf & (t_cold >= 18.0) & (depth_m < _CORAL_MAX_DEPTH_M) \
         & clear & ~upw
     a[coral] = AQUATIC_ID["coral reef"]
@@ -118,6 +117,32 @@ def classify_aquatic(elev: np.ndarray, hydro: dict, climate: dict,
         AQUATIC_ID["temperate upwelling"]
     tropical_shelf = shelf & (t_cold >= 18.0) & ~coral & ~upw
     a[tropical_shelf] = AQUATIC_ID["tropical shelf"]
+    return a
+
+
+def classify_aquatic(elev: np.ndarray, hydro: dict, climate: dict,
+                     sea_level: float, cell_km2: float = 16.0,
+                     currents: dict | None = None) -> np.ndarray:
+    """Aquatic class map at the anchor grid (uint8; 0 = open ocean).
+    The marine part is the anchor-resolution preview — delivery
+    recomputes it at the fine grid (classify_marine); the carried
+    facts are the relational classes (lakes/seas, rivers)."""
+    ocean = hydro["ocean_mask"]
+    lake = hydro["lake_mask"]
+    river = hydro["river_mask"]
+
+    t_ann = temp_c(climate["T_monthly"]).mean(axis=0)
+    t_cold = temp_c(climate["T_monthly"]).min(axis=0)
+    p_ann_mm = precip_mm(climate["P_monthly"]).mean(axis=0) * 12.0
+    alt = alt_m(elev, sea_level)
+    depth_m = -elev_m(elev, sea_level)
+
+    # ---- marine (neritic shelf only) — pointwise; delivery recomputes
+    # this at the fine grid ----
+    a = classify_marine(ocean, river, hydro["width"], depth_m, t_ann,
+                        t_cold,
+                        rise=currents["rise"] if currents is not None
+                        else None)
 
     # ---- lakes / inland seas (per component, relational) ----
     sal = hydro["salinity"]
@@ -165,6 +190,7 @@ def classify_aquatic(elev: np.ndarray, hydro: dict, climate: dict,
     a[river & (t_ann < 0.0)] = AQUATIC_ID["polar river"]
     coastal = river & _dilate(ocean, 5) & (alt < 10.0)
     a[coastal] = AQUATIC_ID["coastal river"]
+    big_mouth = river & _dilate(ocean, 1) & (hydro["width"] >= 3)
     a[river & _dilate(big_mouth, 2)] = AQUATIC_ID["delta"]
     return a
 

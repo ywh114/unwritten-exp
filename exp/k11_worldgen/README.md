@@ -192,9 +192,13 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   marks, plates metadata, full complex, checks, array inventory) +
   `seed_N/world.npz` (compressed rasters). The dump is the COMPLETE
   world state: elevation/hydro/climate/biome/cover/aquatic rasters,
-  plates arrays, delivered grids, and the full ocean-current state
+  plates arrays, delivered grids, the full ocean-current state
   (annual velocity, rise, depth, wind drift, gyre parameters, vmax —
-  `velocity_field(month)` works from a loaded dump). `load_world` /
+  `velocity_field(month)` works from a loaded dump), and the weather
+  pattern proper — the N chaotic surface-wind snapshots per month
+  (`c_wind_u`/`c_wind_v`, (12, n_samples) at the coarse climate grid)
+  that the monthly T/P means average over; gameplay interpolates
+  between a month's snapshots instead of re-deriving weather. `load_world` /
   `load_complex` read them back. Basis for the `render` subcommand and
   for future kernels that consume world state.
 
@@ -248,7 +252,13 @@ finished before it ("intensive = lower scale", user 2026-07-22):
   and it re-speckled lake interiors.
 - **Derived/pointwise** (masks, biomes, cover): re-derived at the target
   resolution from the interpolated parents. Never interpolate a mask
-  (half-water cells) or a class map (blocky borders). Exception: LAKE
+  (half-water cells) or a class map (blocky borders). The AQUATIC layer
+  splits along the same line: marine classes (shelf zonation, coral,
+  upwelling) are pointwise in depth/temperature/rise and are recomputed
+  at the delivered grid; only the relational classes (lakes/seas per
+  component, rivers from anchor order/width) ride the anchor→kron path,
+  with a distance-ordered nearest spread across the boundary band.
+  Exception: LAKE
   EXTENT is an anchor-level decision (water balance is relational):
   the lake interior is the carried fact (eroded anchor mask), only the
   boundary band re-derives from the interpolated fields, and small

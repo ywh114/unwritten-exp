@@ -82,17 +82,15 @@ def save_world(out_dir: str, world: dict, delivered: dict, seed: int,
     # ocean currents, complete: annual velocity + upwelling rise +
     # depth + wind drift as arrays, gyre parameters and vmax in the
     # manifest — everything velocity_field(month) needs downstream
-    currents_manifest = None
-    if world.get("currents") is not None:
-        c = world["currents"]
-        for k in ("u", "v", "rise", "depth_m"):
-            arrays[f"r_{k}"] = c[k]
-        if c.get("drift") is not None:
-            arrays["r_drift_u"], arrays["r_drift_v"] = c["drift"]
-        currents_manifest = {
-            "vmax": float(c["vmax"]),
-            "gyres": [[float(v) for v in g] for g in c["gyres"]],
-        }
+    c = world["currents"]
+    for k in ("u", "v", "rise", "depth_m"):
+        arrays[f"r_{k}"] = c[k]
+    if c.get("drift") is not None:
+        arrays["r_drift_u"], arrays["r_drift_v"] = c["drift"]
+    currents_manifest = {
+        "vmax": float(c["vmax"]),
+        "gyres": [[float(v) for v in g] for g in c["gyres"]],
+    }
     for k, v in delivered.items():
         if k != "shape":
             arrays[f"d_{k}"] = v
@@ -118,10 +116,9 @@ def save_world(out_dir: str, world: dict, delivered: dict, seed: int,
             "plate_base": [float(b) for b in p.plate_base],
         },
         "complex": _complex_to_dicts(world["complex"]),
+        "currents": currents_manifest,
         "arrays": sorted(arrays),
     }
-    if currents_manifest is not None:
-        manifest["currents"] = currents_manifest
     json_path = out / "world.json"
     json_path.write_text(json.dumps(manifest))
     return str(json_path), str(npz_path)
@@ -139,18 +136,17 @@ def load_world(out_dir: str) -> dict:
     world["hydro"] = {k[2:]: z[k] for k in z.files if k.startswith("h_")}
     world["climate"] = {k[2:]: z[k] for k in z.files if k.startswith("c_")}
     currents = {k[2:]: z[k] for k in z.files if k.startswith("r_")}
-    if currents:
-        mc = manifest.get("currents", {})
-        currents["vmax"] = mc.get("vmax", 1.0)
-        currents["gyres"] = [tuple(g) for g in mc.get("gyres", [])]
-        currents["n_gyres"] = len(currents["gyres"])
-        if "drift_u" in currents:
-            currents["drift"] = (currents.pop("drift_u"),
-                                 currents.pop("drift_v"))
-        else:
-            currents["drift"] = None
-        currents["ocean_mask"] = world["ocean_mask"]
-        world["currents"] = currents
+    mc = manifest["currents"]
+    currents["vmax"] = mc["vmax"]
+    currents["gyres"] = [tuple(g) for g in mc["gyres"]]
+    currents["n_gyres"] = len(currents["gyres"])
+    if "drift_u" in currents:
+        currents["drift"] = (currents.pop("drift_u"),
+                             currents.pop("drift_v"))
+    else:
+        currents["drift"] = None
+    currents["ocean_mask"] = world["ocean_mask"]
+    world["currents"] = currents
     mp = manifest["plates"]
     world["plates"] = SimpleNamespace(
         n=mp["n"], n_fine=mp["n_fine"], oceanic=set(mp["oceanic"]),

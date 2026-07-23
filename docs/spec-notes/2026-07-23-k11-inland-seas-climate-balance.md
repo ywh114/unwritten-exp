@@ -574,3 +574,162 @@ pass-1 scaffold runs lean at 4.
   trench amplitudes up (OO -0.18 -> -0.22, OC -0.16 -> -0.20) and
   DEPTH_MAX_M 4000 -> 6000 (real trenches run 6-11 km; the abyss
   median moves toward Earth-like depths).
+
+## Pass-2 conditioning fixes (user, 2026-07-24)
+- Pass-2 precip was invisible because build_climate re-pinned its own
+  adaptive gain to the same land-mean target, normalizing the forest
+  feedback back out. The gain is now a WORLD CONSTANT: computed in
+  pass 1 (bare ground), reused by the pass-2 rerun (build_climate
+  takes gain= and returns it). Measured on seed 1: land-mean P
+  0.210 -> 0.218, local deltas to 0.17, 21.6% of land changes biome.
+- refine_climate now takes green= (the real pass-1 forest cover):
+  canopy snow-masking (boreal forests lose less heat to the
+  snow-albedo feedback than open tundra) and transpiration cooling of
+  the warm months. Pass-2 T was previously identical to pass 1
+  except via P.
+- refine_hydrology "zero delta" was a measurement artifact (the
+  function mutates the hydro dict in place — both sides of the diff
+  were post-refine). Proper snapshot: lakes 1102 -> 1322, rivers
+  661 -> 928 on seed 1.
+- Straight-diagonal rivers: the refine streams (2-6 cell headwaters)
+  render as raw D8 diagonals because RDP/chaikin/meander all need
+  length to curve anything. river_raster now skips edges shorter
+  than 6 anchor cells (24 km): sub-L0 creeks are the refinement
+  layer's job to draw; they remain in the hydro fields for
+  discharge/HAND.
+
+## River centerline wobble (user, 2026-07-24)
+- Long exact-45-degree diagonals persisted because RDP collapses a
+  straight D8 run to two endpoints, and jitter/chaikin/meander cannot
+  curve two points. river_raster now resamples the simplified path to
+  <= 6 px segments, then gives EVERY edge a gentle long-wave wobble
+  (lam ~ 24+ px, amp ~ 2 px per width class; D8 centerlines are
+  diagonal-locked even in steep terrain), with the slope-gated valley
+  meander still applied on top. The sub-6-anchor-cell edge suppression
+  from the previous note stands (creeks are L1's job).
+- PRECIP 1 vs 2 verification (pixel diff of the loading screens):
+  58% of pixels differ, mean 2.6 gray levels, p99 20, max 245 — the
+  conditioning is real but modest per cell (forest cover is ~12% of
+  land; recycling coefficient 0.25). The macro pattern is identical
+  BY DESIGN: same K1 stream = same weather systems, same world gain.
+
+## Strahler through lakes + loading deltas (user, 2026-07-24)
+- strahler_order treated only river cells as upstreams, so a river's
+  order reset to 1 every time it crossed a lake (a Strahler-3 river
+  visibly "turned into 1" at the outlet). Lake cells now act as order
+  CONDUITS: they carry the max incoming order through without
+  incrementing (the lake is one body); lakes with no river inflow
+  count as no upstream (their outlet is a headwater). Gorge carving
+  was never the right layer for this — it notches terrain sills, the
+  abruptness was a mask/order artifact.
+- Loading pass-2 screens now draw DELTAS over the base render (the
+  pass-1 fields are in the stage bag): WETLANDS tints new ponds cyan
+  and new streams orange; PRECIP 2 / TEMP 2 tint green where the
+  conditioned field rose, red where it fell; BIOMES 2 brightens
+  flipped cells. Batch re-render falls back to the plain render (the
+  dump holds the final world only).
+
+- Backward-compat cleanup: currents/salinity/sea_mask/aquatic/discharge
+  are now mandatory world components — persist and render index them
+  directly instead of `.get(...)` fallback chains, and
+  `upscale_world(aquatic=...)` is a required argument. Dumps from before
+  the currents era are no longer loadable; regenerate instead. Kept the
+  genuinely-optional guards (wind drift may be absent; batch re-render
+  skips pass-1 scaffold stages because the dump holds the final world
+  only — that is a data-availability boundary, not compat).
+
+- Wind snapshots are now DELIVERED: `_precip_pass` returns the
+  per-(month, sample) surface-wind fields alongside the raw rates, and
+  `build_climate` exposes them as `wind_u`/`wind_v` (12, n_samples) at
+  the coarse grid — float32, post-monsoon/terrain/windbreak, i.e. the
+  exact fields that move weather. They ride the generic climate
+  persistence, so every dump now carries the weather pattern the
+  monthly T/P means average over (gameplay interpolates between a
+  month's samples; snapshot (m, j) remains K1-reproducible via clock
+  1000+m*16+j). Pass 1 keeps the reduced scaffold sample count; the
+  delivered pattern is pass 2's full set.
+
+- Colder north (invented mode): t_north 0.12 -> 0.06 — the north-rim
+  annual mean moves from -22 degC to -26 degC. Convection now carries
+  tropical rain on its own, so the global evaporation budget no longer
+  needs a milder Arctic; the latitudinal delta sharpens (more ice and
+  tundra up north, taiga pushed further from the rim). Generation knob
+  only — units and classifier untouched. Realistic mode unaffected
+  (Earth zonal anchors).
+
+- Aquatic squares fix (seed 14 diagnosis): the marine classes were
+  classified at the 256 anchor and kron-stamped to 1024, so single-cell
+  threshold speckle (2 degC polar-shelf line, top-decile upwelling cut)
+  became 4-20 px squares, and the max-id boundary fill leaked high
+  class ids (upwelling > tropical > shelf) further outward. Fix follows
+  the delivery rule the module already states: marine classes are
+  POINTWISE, so classify_marine() recomputes them at the delivered
+  grid from smooth bicubic parents (rise upsampled, plume radii scaled
+  by factor); only lakes/seas (per-component) and rivers (anchor
+  order/width) ride the kron path, and the boundary-band fill is now
+  distance-ordered nearest (mode of filled neighbors, ties to lowest
+  id) instead of max-id. Terrestrial biomes already worked this way
+  (classify_streaming, which now also returns the coldest-month field
+  for the marine pass).
+  Follow-up: the carry is per-CHANNEL (lake channel, river channel,
+  each nearest-spread across its own boundary band) because the
+  delivered lake extent reaches over anchor river cells at inflow
+  sills — a shared kron map classed those delivered lake cells as
+  montane river (caught by the new deliver-smoke family assertions).
+
+- Land friction (WindLibrary, land_friction=0.35): the low layer now
+  slows over land (real over-land surface winds run ~60-70% of
+  over-ocean values at the same pressure gradient — roughness + deeper
+  boundary layer). Lightly smoothed land mask (3 passes, vs the
+  breeze's continental 10): full strength inland, a taste of it on
+  coastal water. High layer untouched — the free troposphere feels no
+  surface. Saved wind snapshots carry the friction, and the T/P
+  advection both see it (drier deep interiors relative to coasts;
+  land-mean P still pinned by the adaptive gain). Rain-shadow status
+  check: shadows exist via orographic wringing + proportional-recovery
+  depletion + momentum blocking; NOT modelled: foehn (no descent
+  drying term) and lee wind wakes (field is pointwise, no downstream
+  memory).
+
+- Foehn, both halves: _advect now suppresses rain on descent
+  (_FOEHN_DRY * sink, floor 0.2 — dry adiabat steeper than the moist
+  one, so descent dries harder than lift wets) and the T loop warms
+  descending parcels (_FOEHN_WARM — lee runs warmer than windward at
+  the same altitude, feeding back into moisture capacity). Rain
+  shadows are now depletion + active drying, not depletion alone.
+
+- Currents land treatment (_process, shared by build_currents and
+  velocity_field so every month sees identical behavior): the raw
+  gyre field was previously just erased on land — streams stopped at
+  shore and resumed full-strength behind peninsulas. Now a SLIP WALL
+  projects out the into-land momentum at coast cells (streams bend
+  along shores — boundary currents), and a LEE SHADOW advects the
+  removed momentum downstream (24 steps, recharge 0.25, decay 0.05,
+  damp floor 0.8) so struck coasts cast a wake. Source is normalized
+  by the world's own p99 current so weak drift casts weak shadows.
+  Upwelling rise derives from the deflected, shadowed field. Unit
+  tests: map-wide no-into-land at coasts, bar deflection + local wake,
+  foehn slope-direction asymmetry.
+
+- Wind lee wake (WindLibrary.sample): the upslope momentum the
+  deflection step strips (cut, previously discarded) is now the source
+  of a wake advected downstream by the SHARED deficit-advection
+  tooling — lee_shadow moved to climate.py, parametrized; currents
+  keeps its own constants via a thin wrapper. Wind constants:
+  12 steps, recharge 0.25, decay 0.20 (1-3 coarse cells — wakes mix
+  out over tens of km), damp 0.6. Saved wind snapshots carry the wake.
+
+- River diagonal-bearing diagnosis (seed 1 dump): 45% of river cells
+  route via the FLATS BFS (only 12% of land does — rivers live on
+  priority-flood fills), and the BFS assigns each flat cell a pointer
+  along its expansion wavefront = geometric BEELINES to the outlet
+  (the "short circuit" the user suspected). The other 55% is steepest-
+  descent D8: greedy lowest-neighbor quantizes bearing to 45 degrees
+  with no inertia. River step bearings: 41.5% diagonal, 58.5%
+  cardinal — the only two flavors D8 allows. Proposals on the table:
+  (1) route flats on raw-h micro-relief instead of BFS hop distance
+  (Garbrecht-Martz-style flat masking — biggest leverage, changes
+  topology); (2) D-infinity geometry at polyline extraction (vertex
+  offset along the continuous w-gradient inside the D8 corridor —
+  dequantizes bearing, zero physics change); (3) inertial tie-band in
+  steepest descent on gentle slopes (meander physics, needs care).

@@ -96,27 +96,23 @@ def render_world(path: str, delivered: dict, plates, factor: int,
     # inland seas are drawn on the OCEAN bathymetric ramp, not the lake
     # one — a Caspian is a piece of ocean that lost its outlet, not a
     # big pond
-    sea = delivered.get("sea_mask")
-    if sea is not None:
-        left[sea] = (deep + (shallow - deep) * depth_t[..., None])[sea]
+    sea = delivered["sea_mask"]
+    left[sea] = (deep + (shallow - deep) * depth_t[..., None])[sea]
     # aquatic biome layer: water recolored toward its class color over
     # the bathymetry (deep open ocean stays pure depth; coral and salt
     # lakes read strongest — they are places, not depths). Rivers draw
     # in their class color.
-    aq = delivered.get("aquatic")
-    if aq is not None:
-        from exp.k11_worldgen.aquatic import AQUATIC_ID, AQUATIC_PALETTE
-        pal_aq = AQUATIC_PALETTE.astype(float)
-        water = ocean | lake
-        blend = np.full((H, W), 0.45)
-        blend[aq == AQUATIC_ID["open ocean"]] = 0.0
-        blend[aq == AQUATIC_ID["coral reef"]] = 0.75
-        blend[aq == AQUATIC_ID["salt lake"]] = 0.75
-        b3 = blend[..., None]
-        left[water] = (left * (1.0 - b3) + pal_aq[aq] * b3)[water]
-        left[delivered["river_mask"]] = pal_aq[aq][delivered["river_mask"]]
-    else:
-        left[delivered["river_mask"]] = (235, 210, 90)
+    aq = delivered["aquatic"]
+    from exp.k11_worldgen.aquatic import AQUATIC_ID, AQUATIC_PALETTE
+    pal_aq = AQUATIC_PALETTE.astype(float)
+    water = ocean | lake
+    blend = np.full((H, W), 0.45)
+    blend[aq == AQUATIC_ID["open ocean"]] = 0.0
+    blend[aq == AQUATIC_ID["coral reef"]] = 0.75
+    blend[aq == AQUATIC_ID["salt lake"]] = 0.75
+    b3 = blend[..., None]
+    left[water] = (left * (1.0 - b3) + pal_aq[aq] * b3)[water]
+    left[delivered["river_mask"]] = pal_aq[aq][delivered["river_mask"]]
     # mangrove stands can sit on very shallow SEA (tidal flats) — repaint
     # them over the bathymetry so they stay visible
     from exp.k11_worldgen.biomes import BIOME_ID
@@ -304,14 +300,19 @@ def _gray_rgb(a: np.ndarray) -> np.ndarray:
     return np.dstack([a] * 3).astype(np.uint8)
 
 
-def _hydro_rgb(bag: dict) -> np.ndarray:
+def _hydro_rgb(bag: dict, delta: bool = False) -> np.ndarray:
     """Anchor-grid hydrology composite: dim elevation, blue standing
-    water, yellow rivers (the readable form — a raw depth map is not)."""
+    water, yellow rivers (the readable form — a raw depth map is not).
+    With delta=True and the pass-1 masks in the bag, the pass-2
+    additions are tinted (new ponds cyan, new streams orange)."""
     elev, hydro = bag["elev"], bag["hydro"]
     rgb = (np.dstack([normalize_u8(elev, 0.0, 1.0)] * 3) * 0.6).astype(float)
     water = hydro["ocean_mask"] | hydro["lake_mask"]
     rgb[water] = np.array([40, 90, 180])
     rgb[hydro["river_mask"]] = np.array([240, 200, 60])
+    if delta and "hydro1_lake" in bag:
+        rgb[hydro["lake_mask"] & ~bag["hydro1_lake"]] = np.array([80, 220, 230])
+        rgb[hydro["river_mask"] & ~bag["hydro1_river"]] = np.array([250, 140, 40])
     return np.clip(rgb, 0, 255).astype(np.uint8)
 
 
@@ -358,7 +359,7 @@ def load_stage_draw(n: int, bag: dict):
             ocean = bag["hydro"]["ocean_mask"]
             # current speed as brightness over the ocean bathymetry;
             # land dark
-            depth_t = np.clip(bag["elev"] / bag.get("sea_level", 0.35),
+            depth_t = np.clip(bag["elev"] / bag["sea_level"],
                               0.0, 1.0)
             rgb = np.full((*speed.shape, 3), (28, 30, 34), dtype=float)
             rgb[ocean, 0] = 15 + 30 * depth_t[ocean]
@@ -371,17 +372,37 @@ def load_stage_draw(n: int, bag: dict):
                 np.kron(rgb.astype(np.uint8), np.ones((4, 4, 1))), n))
         return draw_currents
     if n in (6, 10):
-        return gray(normalize_u8(bag["climate"]["P"], 0.0, 1.0))
+        def draw_P(p, n=n):
+            rgb = _gray_rgb(up4(normalize_u8(bag["climate"]["P"], 0.0, 1.0))).astype(float)
+            if n == 10 and "climate1" in bag:
+                # pass-2 delta: greener where conditioned rain rose,
+                # redder where it fell (interception shadows)
+                d = up4(bag["climate"]["P"] - bag["climate1"]["P"])
+                rgb[d > 0.01] = 0.65 * rgb[d > 0.01] + 0.35 * np.array([80, 230, 120])
+                rgb[d < -0.01] = 0.65 * rgb[d < -0.01] + 0.35 * np.array([235, 100, 90])
+            write_png_rgb(p, _stamp_stage(np.clip(rgb, 0, 255).astype(np.uint8), n))
+        return draw_P
     if n in (7, 11):
-        return gray(normalize_u8(bag["climate"]["T"], 0.0, 1.0))
+        def draw_T(p, n=n):
+            rgb = _gray_rgb(up4(normalize_u8(bag["climate"]["T"], 0.0, 1.0))).astype(float)
+            if n == 11 and "climate1" in bag:
+                d = up4(bag["climate"]["T"] - bag["climate1"]["T"])
+                rgb[d > 0.004] = 0.65 * rgb[d > 0.004] + 0.35 * np.array([80, 230, 120])
+                rgb[d < -0.004] = 0.65 * rgb[d < -0.004] + 0.35 * np.array([235, 100, 90])
+            write_png_rgb(p, _stamp_stage(np.clip(rgb, 0, 255).astype(np.uint8), n))
+        return draw_T
     if n in (8, 12):
-        def draw_biomes(p):
-            rgb = np.array(PALETTE, dtype=np.uint8)[up4(bag["biome_map"])]
-            write_png_rgb(p, _stamp_stage(rgb, n))
+        def draw_biomes(p, n=n):
+            rgb = np.array(PALETTE, dtype=np.uint8)[up4(bag["biome_map"])].astype(float)
+            if n == 12 and "biome1" in bag:
+                # pass-2 delta: cells whose class changed, brightened
+                flip = up4(bag["biome_map"] != bag["biome1"])
+                rgb[flip] = rgb[flip] * 0.45 + 140.0
+            write_png_rgb(p, _stamp_stage(np.clip(rgb, 0, 255).astype(np.uint8), n))
         return draw_biomes
     if n == 9:
         return lambda p: write_png_rgb(
-            p, _stamp_stage(np.kron(_hydro_rgb(bag),
+            p, _stamp_stage(np.kron(_hydro_rgb(bag, delta=True),
                                     np.ones((4, 4, 1))), n))
     if n == 13:
         def draw_aquatic(p):
@@ -452,7 +473,7 @@ def render_loading(out_dir: str, world: dict, delivered: dict,
     bag = {"plates": plates, "elev": world["elev"], "hydro": world["hydro"],
            "climate": world["climate"], "biome_map": world["biome_map"],
            "aquatic": world["aquatic"],
-           "currents": world.get("currents"),
+           "currents": world["currents"],
            "sea_level": sea_level,
            "delivered": delivered}
     stages = [1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15]
