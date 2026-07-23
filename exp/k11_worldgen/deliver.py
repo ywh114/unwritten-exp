@@ -74,25 +74,199 @@ def _jitter(points: list[tuple[float, float]], key: str,
     return out
 
 
-def river_raster(complex_: Complex, shape: tuple[int, int], factor: int) -> np.ndarray:
+def _simplify(pts: list[tuple[float, float]], tol: float) -> list[tuple[float, float]]:
+    """Ramer–Douglas–Peucker polyline simplification (render cosmetic).
+
+    The anchor flow path makes 1-cell out-and-back detours on flats
+    (a BFS artifact); magnified to the delivered grid and stamped at
+    width, they read as knots. Collapsing sub-`tol` deviations removes
+    them; endpoints (shared node cells) are preserved by construction."""
+    import math
+    if len(pts) < 3:
+        return pts
+    (ax, ay), (bx, by) = pts[0], pts[-1]
+    dx, dy = bx - ax, by - ay
+    n = math.hypot(dx, dy) + 1e-9
+    dmax, idx = -1.0, 0
+    for i in range(1, len(pts) - 1):
+        px, py = pts[i]
+        d = abs(dy * px - dx * py + bx * ay - by * ax) / n
+        if d > dmax:
+            dmax, idx = d, i
+    if dmax <= tol:
+        return [pts[0], pts[-1]]
+    return _simplify(pts[:idx + 1], tol)[:-1] + _simplify(pts[idx:], tol)
+
+
+def _meander(pts: list[tuple[float, float]], wavelength: float,
+             amplitude: float, phase: float) -> list[tuple[float, float]]:
+    """Sine meander along a smoothed polyline (render cosmetic).
+    Real meanders run a wavelength of ~10-14 channel widths on low
+    gradients; the caller supplies wavelength/amplitude in cells."""
+    if len(pts) < 3 or wavelength <= 0 or amplitude <= 0:
+        return pts
+    import math
+    out = [pts[0]]
+    s = 0.0
+    for i in range(1, len(pts) - 1):
+        ax, ay = pts[i - 1]
+        bx, by = pts[i]
+        cx, cy = pts[i + 1]
+        s += math.hypot(bx - ax, by - ay)
+        dx, dy = cx - ax, cy - ay
+        n = math.hypot(dx, dy) + 1e-9
+        off = amplitude * math.sin(2 * math.pi * (s + phase) / wavelength)
+        out.append((bx + (-dy / n) * off, by + (dx / n) * off))
+    out.append(pts[-1])
+    return out
+
+
+def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
+                 w: np.ndarray | None = None,
+                 sea_level: float | None = None,
+                 phantom: np.ndarray | None = None) -> np.ndarray:
     """Stamp the river network (scaled, smoothed polylines) onto the
-    delivered grid at width-class radius. Returns (width_class, mask)."""
+    delivered grid at width-class radius. Returns (width_class, mask).
+
+    With the anchor water surface `w` passed, low-gradient edges
+    MEANDER (real meanders form below ~2 m/km valley slope, at a
+    wavelength of ~10 channel widths and a belt a few widths wide);
+    steep reaches keep their jittered-straight mountain look.
+
+    Rivers through PHANTOM-FLOOD cells (rejected-lake wetland flats:
+    the routing surface stands above the wet one) stamp one width
+    class THINNER — in a marsh the discharge spreads over the flat
+    and the channels anastomose (Okavango/Biebrza), they do not run
+    at the nominal river width.
+
+    SELF-AVOIDANCE by design: cells are stamped with an owner (edge
+    id); every candidate center point is collision-checked against
+    already-stamped river — its OWN old path (fold-back) and OTHER
+    edges (braid/spaghetti) are both rejected, and the point falls
+    back toward the un-meandered base path (full, half, quarter, zero
+    offset) until it is free. The final points before an edge's end
+    node are a join zone: they MAY touch another river — that is what
+    a confluence is."""
     H, W = shape
     width = np.zeros((H, W), dtype=np.int16)
-    for e in complex_.edges.values():
-        pts = [(x * factor, y * factor) for x, y in
-               ((p[0], p[1]) for p in e.polyline)]
-        pts = _jitter(pts, f"k11.river|{e.id}|{e.polyline[0]}")
-        pts = chaikin(pts, rounds=2)
-        r = max(0, int(round(e.quality)) - 1)
-        for a, b in zip(pts, pts[1:]):
+    owner = np.full((H, W), -1, dtype=np.int32)
+    own_step = np.full((H, W), -1, dtype=np.int32)
+
+    # max quality of the edges feeding each node — width TAPER: a
+    # river widens ALONG its course, never jumps a class at an edge
+    # boundary (a 1-cell width-3 segment reads as a ball, not a river)
+    feed_q: dict[str, float] = {}
+    for e0 in complex_.edges.values():
+        feed_q[e0.node_b] = max(feed_q.get(e0.node_b, 0.0), e0.quality)
+
+    def free(y: int, x: int, ei: int, step: int, r: int,
+             join: bool) -> bool:
+        y0, y1 = max(0, y - r - 1), min(H, y + r + 2)
+        x0, x1 = max(0, x - r - 1), min(W, x + r + 2)
+        ow = owner[y0:y1, x0:x1]
+        if not (ow >= 0).any():
+            return True
+        if join:
+            return True
+        st = own_step[y0:y1, x0:x1]
+        # blocked by another edge, or by our own path from >8 steps back
+        other = (ow >= 0) & (ow != ei)
+        folded = (ow == ei) & (st >= 0) & (step - st > 8)
+        return not (other | folded).any()
+
+    for ei, e in sorted(enumerate(complex_.edges.values()),
+                        key=lambda kv: -kv[1].quality):
+        base = [(x * factor, y * factor) for x, y in
+                ((p[0], p[1]) for p in e.polyline)]
+        # collapse 1-cell flat-routing detours BEFORE any cosmetic
+        # wiggle — magnified and stamped at width, they read as knots
+        base = _simplify(base, 1.25 * factor)
+        # jitter scales DOWN with width class: creeks wiggle, wide
+        # rivers are smooth (a fat stamp over tight jitter is a blob)
+        wc0 = max(1, int(round(e.quality)))
+        base = _jitter(base, f"k11.river|{e.id}|{e.polyline[0]}",
+                       mag=1.4 / wc0)
+        base = chaikin(base, rounds=2)
+        pts = base
+        if w is not None and sea_level is not None:
+            ha, wa = w.shape
+            ws = [float(w[min(max(int(py), 0), ha - 1),
+                          min(max(int(px), 0), wa - 1)])
+                  for px, py in e.polyline]
+            # valley slope from the path's total drop (endpoint
+            # rounding straddles flats and reads spurious negatives)
+            drop_m = (max(ws) - min(ws)) / (1.0 - sea_level) * 6000.0
+            slope = drop_m / max(e.length * 4.0, 1e-9)   # m per km
+            # marsh edges (mostly phantom-flood cells) do NOT meander:
+            # a wetland flat has no valley for a 10-30 km sine to fit
+            # into — there it reads as a knot, not a meander
+            marsh = False
+            if phantom is not None and e.polyline:
+                ph, pw = phantom.shape
+                marsh = (sum(bool(phantom[min(max(int(py), 0), ph - 1),
+                                          min(max(int(px), 0), pw - 1)])
+                             for px, py in e.polyline)
+                         / len(e.polyline)) > 0.5
+            if not marsh and 0.0 <= slope < 2.0:
+                from kernel.hashrng import Stream
+                wc = max(1, int(round(e.quality)))       # width class ~ km
+                # ~10 channel widths, but never more than half the
+                # edge's own length — a sub-wavelength edge cannot
+                # meander, it can only knot
+                lam = min(10.0 * wc, 0.5 * e.length * factor)
+                amp = min(0.25 * lam, 2.0 * wc)          # belt ~ a few widths
+                phase = lam * Stream(0, f"k11.meander|{e.id}").uniform(0, 0)
+                pts = _meander(base, lam, amp, phase)        # collision-resolved center path, stamped as it grows so each
+        # new point sees the path so far (self fold-back included);
+        # the stamp radius TAPERs from the upstream course's width
+        n = len(pts)
+        q_start = feed_q.get(e.node_a, e.quality)
+
+        def stamp(a: tuple[float, float], b: tuple[float, float],
+                  step: int, r: int) -> None:
             steps = max(1, int(max(abs(b[0] - a[0]), abs(b[1] - a[1]))))
             for s in range(steps + 1):
                 x = int(round(a[0] + (b[0] - a[0]) * s / steps))
                 y = int(round(a[1] + (b[1] - a[1]) * s / steps))
-                y0, y1 = max(0, y - r), min(H, y + r + 1)
-                x0, x1 = max(0, x - r), min(W, x + r + 1)
-                width[y0:y1, x0:x1] = np.maximum(width[y0:y1, x0:x1], r + 1)
+                rr = r
+                if phantom is not None and phantom[
+                        min(y // factor, phantom.shape[0] - 1),
+                        min(x // factor, phantom.shape[1] - 1)]:
+                    rr = 0   # wetland: anastomosing channels are thin
+                             # whatever the nominal class
+                y0, y1 = max(0, y - rr), min(H, y + rr + 1)
+                x0, x1 = max(0, x - rr), min(W, x + rr + 1)
+                width[y0:y1, x0:x1] = np.maximum(width[y0:y1, x0:x1], rr + 1)
+                owner[y0:y1, x0:x1] = ei
+                own_step[y0:y1, x0:x1] = step
+
+        prev = (base[0] if base else pts[0])
+        hold = 0   # clamp hysteresis: after a fallback, keep the
+                   # reduced scale for a few points (no sawtooth)
+        for i in range(1, n):
+            join = i >= n - 4
+            r_i = max(0, int(round(q_start + (e.quality - q_start)
+                                   * (i / max(n - 1, 1)))) - 1)
+            bx, by = base[i]
+            mx, my = pts[i]
+            cur = (bx, by)
+            if hold > 0:
+                hold -= 1
+                for scale in (0.0,):
+                    cand = (bx + (mx - bx) * scale, by + (my - by) * scale)
+                    cur = cand
+            else:
+                for scale in (1.0, 0.5, 0.25, 0.0):
+                    cand = (bx + (mx - bx) * scale, by + (my - by) * scale)
+                    xi = int(round(cand[0]))
+                    yi = int(round(cand[1]))
+                    if free(yi, xi, ei, i, r_i, join):
+                        cur = cand
+                        if scale < 1.0:
+                            hold = 4
+                        break
+            stamp(prev, cur, i, r_i)
+            prev = cur
     return width
 
 
@@ -139,7 +313,8 @@ def _fill_lake_holes(lake: np.ndarray, ocean: np.ndarray,
 
 def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
                   complex_: Complex, sea_level: float,
-                  factor: int = FACTOR) -> dict:
+                  factor: int = FACTOR,
+                  aquatic: np.ndarray | None = None) -> dict:
     """Deliver the anchor world at factor x resolution (1024² @ 1 km)."""
     from exp.k11_worldgen.biomes import classify_streaming
 
@@ -173,14 +348,49 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     depth_hi[ocean_hi] = 1.0
 
     # rivers: vector network stamped at width class (pointwise derive)
-    width_hi = river_raster(complex_, (H, W), factor)
+    width_hi = river_raster(complex_, (H, W), factor, w=hydro["w"],
+                            sea_level=sea_level,
+                            phantom=(hydro["w_route"] - hydro["w"]) > 1e-9)
     # rivers are an overlay; standing water wins where they coincide
     # (lake-outlet polylines start inside the interpolated lake extent)
     river_hi = (width_hi > 0) & ~ocean_hi & ~lake_hi
 
+    # salinity is relational (per water body — see classify_salinity):
+    # CARRY the anchor field, re-mask to the delivered water
+    sal_hi = upsample_bicubic(hydro["salinity"], factor)
+    sal_hi = np.where(ocean_hi | lake_hi | river_hi, sal_hi, 0.0)
+
+    # inland seas (relational, anchor-decided): carried with the lake
+    # extent; HAND is a continuous field, interpolated like elevation
+    sea_hi = (upsample_bicubic(hydro["sea_mask"].astype(float), factor)
+              > 0.5) & lake_hi
+    hand_hi = upsample_bicubic(hydro["hand"], factor)
+
+    # aquatic biome layer (relational, per water body — aquatic.py):
+    # nearest-value spread into the ~2-cell boundary band (covers the
+    # re-derived waterline and river jitter), then nearest upsample
+    aq_hi = None
+    if aquatic is not None:
+        water_a = (hydro["ocean_mask"] | hydro["lake_mask"]
+                   | hydro["river_mask"])
+        fill = np.where(water_a, aquatic.astype(np.int16) + 1, 0)
+        for _ in range(2):
+            m = fill == 0
+            if not m.any():
+                break
+            nb = np.zeros_like(fill)
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    nb = np.maximum(nb, np.roll(np.roll(fill, dy, 0), dx, 1))
+            fill = np.where(m, nb, fill)
+        aq_hi = np.kron(fill, np.ones((factor, factor), dtype=np.int16)) - 1
+        aq_hi = np.clip(aq_hi, 0, None).astype(np.uint8)
+        aq_hi[~(ocean_hi | lake_hi | river_hi)] = 0
+
     # biomes: streaming similarity classify at the delivered resolution
     biome_hi, T_hi, P_hi, p_grow_hi = classify_streaming(
-        elev_hi, ocean_hi, lake_hi, river_hi, climate, sea_level, factor)
+        elev_hi, ocean_hi, lake_hi, river_hi, hand_hi,
+        climate, sea_level, factor)
 
     from exp.k11_worldgen.biomes import forest_cover
     cover_hi = forest_cover(biome_hi, p_grow_hi)
@@ -199,8 +409,10 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     elev_hi[rim] = sea_level + 0.002  # ~12 m of smooth rock
     ocean_hi[rim] = False
     lake_hi[rim] = False
+    sea_hi[rim] = False
     river_hi[rim] = False
     depth_hi[rim] = 0.0
+    sal_hi[rim] = 0.0
     biome_hi[rim] = BIOME_ID["rock and ice"]
     cover_hi[rim] = 0.0
 
@@ -213,6 +425,10 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
         "lake_mask": lake_hi,
         "river_mask": river_hi,
         "width": width_hi,
+        "salinity": sal_hi,
+        "sea_mask": sea_hi,
+        "hand": hand_hi,
+        **({"aquatic": aq_hi} if aq_hi is not None else {}),
         "T": T_hi,
         "P": P_hi,
         "biome_map": biome_hi,

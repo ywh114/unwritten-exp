@@ -118,3 +118,292 @@ units or classifier thresholds; tune generation).
   seamounts. Land may approach the border but always across water.
 - Landmark legend (user): 4 peaks (not 5), DP moved after the LK
   entries and reported negative (DP -4058M), matching LW.
+
+## Meridional circulation reframe (user, same day)
+- The random-bearing zonal jet + bolted-on trades was replaced by a
+  band-organized MERIDIONAL circulation: 2-3 semi-stable bands of
+  north-south flow with random sign/strength/center/width (one-time
+  draws), per-snapshot angle wobble, no zonal jet. Not an Earth clone:
+  convergence/wet belts and divergence/dry belts land wherever the draw
+  puts them. The two OUTERMOST cells are constrained equatorward
+  (polar surface outflow -> dry polar high; trades -> equatorial
+  convergence) — free signs left half of all worlds with a desert
+  equator and the pole as wettest zone.
+- Subsidence highs park at the flow's ACTUAL divergence zones
+  (dvy > 0); the static aridity belt was deleted (multiplier kept as
+  1.0 for the gain-pin interface).
+- Moisture thermodynamics: recharge AND rain capacity scale with
+  temperature (same Clausius-Clapeyron-ish curve) — advected moisture
+  wrings out on entering cold cells (polar-front snow; the frozen rim
+  is no longer the wettest zone). Rain falls over water too (baseline
+  rate everywhere, oro ~ 0 over flat water), and rain depletes the
+  parcel everywhere — ocean rain wrings the flow before landfall.
+- Moisture concentrates under convergence (bounded x0.6-1.8 per step),
+  which is what makes ITCZ-class wet belts emerge; divergence dilutes.
+- Wind circulates heat: one damped advection pass per T snapshot
+  (30% upwind blend) — maritime moderation, interiors keep extremes.
+- T profile: equatorial plateau (soft-min cap ~27 degC, no 35 degC
+  rim); equatorial seasonal swing reduced (big swings drive monsoon
+  reversal and kill year-round rim rain).
+- Moist-forest prototype moved from Singapore-flat-200 (aseasonal
+  extreme) to Amazon/Congo modal (26.5 flat, 160+-70 seasonal).
+- Result (seed 3): bimodal P structure (storm track lat 0.2-0.3 ~120,
+  ITCZ lat 0.9 ~135 mm/mo), pole dried (67), tropical belt present
+  (moist forest token-rare, conifer/dry/savanna solid), deserts park
+  at divergence zones. Rainforest scarcity is now mostly prototype
+  arithmetic (160 mm/mo base vs ~130 deliverable).
+
+## Geographic classes removed from the climate match (user, same day)
+- Root cause of the flooded-grassland plague: it was a climate
+  PROTOTYPE, so any warm cell with a Pantanal-like flood pulse
+  classified as flooded grassland regardless of geography (seed 3:
+  3.4% of the world). Same for the mangrove proto. The vector match is
+  now CLIMATE-ONLY — flooded grassland, mangrove, rock and ice, lake
+  and ocean are excluded from the prototypes and exist purely via
+  geographic overrides / water masks.
+- Flooded grassland override tightened to special-place criteria:
+  directly water-adjacent (dilate 1, not 2), alt < 10 m, wettest month
+  >= 220 mm. Seed 3: 36040 -> 37 cells (0.004% — Pantanal-rare, as it
+  should be).
+- Mangrove: frost-free (T_cold >= 18) AND (tidal land bordering the
+  sea, alt < 10 m) OR (sea fringe next to land, bed above -8 m).
+  Diag showed the bed drops from -3 m straight to abyss (no -3..-15 m
+  cells at all), so a depth window alone could not thin it — the
+  adjacency-to-land clause does. Rivers no longer carry mangroves
+  inland, and the modal filter now runs BEFORE the overrides so it
+  can neither erase them nor grow them past their criteria. Seed 3:
+  173418 -> 1031 cells, all coastal; seed 1: mangrove returned (1824).
+- render_world repaints mangrove cells over the bathymetry so
+  shallow-sea stands stay visible.
+- 254 tests green; seeds 1 and 3 regenerated, verdict PASS.
+
+## Montane/tundra altitude split (user, same day)
+- The two elevation-confused zonal classes are split at the montane
+  altitude line (800 m), matching WWF semantics (WWF lumps ALPINE
+  tundra into montane grasslands):
+  - classified tundra ABOVE the line -> montane grassland (alpine
+    tundra is montane, not arctic)
+  - classified montane grassland BELOW the line -> second-nearest
+    climate prototype (the cold/small-swing montane signature also
+    fits subpolar maritime lowlands, which are not montane anything)
+  - `_Acc.classify2` now returns (nearest, second-nearest) via one
+    argpartition; `classify()` keeps the old interface.
+- Seed 3 polar-lowland diag (pre-fix): mean T -8 degC, swing ~14 —
+  classified 69 rock and ice (polar summer ~-1 => T_warm < 0), 55
+  montane at sea level, 1 tundra. Post-fix tundra is strictly lowland
+  (q95 = 267-764 m both seeds) and montane strictly highland (q05 =
+  ~1000 m).
+- Tundra is now RARE (30-1150 cells): it is squeezed between the ice
+  cap (polar summers sit near/below 0 degC) and taiga. That is the
+  invented-climate temperature regime, not the classifier — deferred.
+
+## FUTURE: earth-patch "realistic mode" (user, same day — NOT NOW)
+- Treat the map as a 1024x1024 km patch of the real Earth (northern
+  hemisphere) and generate TEMPERATURES accordingly (latitude bands,
+  realistic gradients), while winds stay random/semi-stable as now.
+- Must be an OPTIONAL mode alongside the current invented climate,
+  not a replacement.
+
+## Realistic (earth-patch) mode — IMPLEMENTED (user, same day)
+- `build_climate(realistic=True, center_lat=45.0, shrink=4.0)`: the map
+  is a northern-hemisphere patch of the real Earth; row -> latitude
+  from center_lat and a planet shrink x smaller (span = 1024 km *
+  shrink / 111.19 deg), then zonal-mean Earth anchors (annual mean +
+  seasonal half-swing by latitude, interpolated) replace the invented
+  profile (`_lat_profile`, climate.py). Winds stay random in both
+  modes; invented mode is untouched and remains the default. CLI:
+  `demo --realistic [--center-lat D] [--shrink S]`; mode recorded in
+  the dump's `stats.climate_mode`.
+- Default center 45 degN at shrink 4 spans ~27..63 degN: subtropics /
+  temperate / taiga in one map (tundra/ice only on high ground).
+  Started at 53.5, then 50; each step equatorward widened the warm
+  band, which was getting eaten by mid-latitude highlands.
+- Bugs found on first light: (1) map size passed to the latitude
+  mapping used the COARSE grid rows x cell_km (512 km instead of
+  1024), halving the span; (2) the argparse default lagged the
+  function defaults, so a center change silently did nothing.
+- Verified on seeds 11/12: north rim ~-9 degC annual, south rim ~+20;
+  latitude bands read clearly on world.png; seed 11's southern plateau
+  (2000 m) correctly goes montane/taiga (Tibet effect) — warm-biome
+  scarcity on a given seed is terrain, not the profile.
+- Slow-test invariant "only standing water is a water biome" updated:
+  mangrove legitimately stands on shallow sea (tidal flats) since the
+  azonal-biome rework.
+
+## Wikipedia biome palette (user nit, same day)
+- The 15 terrestrial classes now use the Wikipedia / Global-200 legend
+  colors (Olson & Dinerstein scheme, e.g. taiga #2CA05A, montane
+  #C6AFE9, mangrove #D400AA, desert #FFF6D5). Water masks keep the
+  house blues. Palette lives in BIOMES (biomes.py); legend/world.png
+  pick it up automatically.
+
+## Palette reverted + center 40 (user, same day — supersedes the
+## Wikipedia-palette note above)
+- The Wikipedia scheme popped too much; back to the house palette with
+  the rule "lush = dark green, arid = sand, NO BROWNS": montane
+  grassland (180,140,110) -> sage (150,170,115), mediterranean scrub
+  (180,160,85) -> olive (150,170,80). Everything else unchanged.
+- Realistic-mode default center_lat 45 -> 40 degN (span ~22..58 degN):
+  the arctic band leaves the map entirely; alpine (montane / rock and
+  ice) now exists by default only on large mountains, which the user
+  prefers. Result on seeds 11/12: green-dominated worlds, taiga ~20%,
+  montane 5-9%, broadleaf/conifer/grassland all present.
+
+## Salinity classifier + world.png params panel (user, same day)
+- `classify_salinity` (hydrology.py): 0..1 salinity per water cell,
+  decided at the anchor grid (relational — per water body, never
+  recomputed after upscale). Ocean 1.0; rivers 0.0 with a brackish
+  0.25 estuary band 8-adjacent to the sea; lakes EXORHEIC-fresh
+  (drainage walk from the max-accumulation cell reaches the ocean) vs
+  ENDORHEIC-salted (walk terminates in the basin) with the level
+  falling as log of the flushing ratio inflow/area — a Volga-scale
+  inflow keeps a terminal lake brackish (Caspian ~1.2%), underfed
+  terminals go full salt (Aral/GSL). Delivered as `salinity`
+  (carried, re-masked; estuary band re-derived pointwise), persisted
+  as h_/d_salinity. Render: saline lakes tint the bathymetry toward
+  pale salt-pan pink in proportion to salinity.
+- Seed 11: 1163 fresh / 23 brackish / 472 saline lake cells, 37
+  estuary river cells. Synthetic test: open bowl fresh (0.02),
+  below-sea enclosed bowl salted, ocean 1.0.
+- world.png top section now logs generation parameters and climate
+  trivia (climate mode + earth-patch span, land annual T min/max/mean,
+  land P mm/yr) and is TWO-COLUMN for headroom when the freshwater/
+  marine biome classes land. Bitmap font lacks '+' and '[', so the
+  lines avoid them.
+
+## Salinity in real units + landmark key (user, same day)
+- Salinity is g/kg end-to-end (units.SALINITY_OCEAN_GKG = 35):
+  exorheic lakes 0.5, endorheic 220*exp(-flushing/120) with NO hard
+  caps (user design rule: no hard caps, no magic constants) — terminals
+  run saltier than the sea (test asserts > 35), Volga-scale inflows
+  flush toward fresh. Estuary salinity is a mixing ratio on the
+  river's own discharge: 35 * Q_half/(Q_half + Q), Q_half = 50
+  upstream cells — big rivers flush their estuary, tidal creeks stay
+  nearly seawater. Render tint weight 1 - exp(-gkg/60), also unbounded.
+- world.png legend: world type prominent under the seed (EARTH-PATCH
+  40N X4 SPAN 22-58N / INVENTED CLIMATE); stats grouped two-column
+  (geography left, measures + climate trivia right); MAX STREAM ORDER
+  dropped (always 3, uninteresting); LAND T/P labeled AVG; landmarks
+  keyed ONE PER KIND (all markers still drawn).
+- Landmark set finalized at 6 kinds: top 5 peaks (back from 4), 2
+  largest lakes, 2 deepest ocean points (DP1/DP2, spaced, partition of
+  the deepest 2000 candidates), 2 lowest terrestrial points, 3 river
+  mouths, and the new SL1 — saltiest lake by component-mean salinity,
+  only marked when genuinely salt (> 10 g/kg).
+
+## Seeded center-lat wiggle (user, same day)
+- `--center-lat` is now optional: unset means 40N + a per-seed wiggle
+  (`resolve_center_lat`, own K1 substream — climate draws untouched):
+  triangular draw in +-8 deg with a LEAKY cap at +-5 (slope 0.3, no
+  hard clamp), so most worlds center 35..45N and a rare one leaks
+  past. The EFFECTIVE center is what lands in stats.climate_mode and
+  on world.png (seed 11 -> 37.7N, seed 12 -> 39.4N). Explicit values
+  pass through untouched.
+- SALT LAKES line removed from the world.png stats — SL1 covers it.
+
+## Landmark merge + wiggle calibration (user, same day)
+- SL folds into LK when both point at the same component (one marker,
+  e.g. seed 3: "LK1 23217KM2 213 G/KG"); separate SL1 otherwise.
+- Center-lat wiggle rescaled to a +-12 triangular draw (leaky cap at
+  +-5 slope 0.3): measured mean abs deviation 2.98 deg (user target
+  ~3), max leak ~7.
+
+## Inland seas, HAND floodplains, meanders (user, same day)
+- INLAND SEA class: saline (> 10 g/kg) AND >= 5000 km^2 (Aral-scale
+  class line, hydrology.classify_salinity sets sea_mask). Drawn on the
+  OCEAN bathymetric ramp (a Caspian is a piece of ocean that lost its
+  outlet), never salt-tinted; SE landmark kind replaces its LK entry
+  and always carries the salinity ("SE1 23217KM2 213 G/KG", seed 3).
+  Salt-fold rule extended: saltiest-in-LK merges labels (no stacked
+  markers); saltiest-is-sea already has it.
+- HAND (height_above_drainage, hydrology.py): per-cell drop to the
+  water surface its flow path first reaches, downstream-first over the
+  routing surface. Flooded-grassland override now reads the floodplain
+  (HAND < 10 m) instead of a fixed dilate ring — Pantanal is a
+  floodplain, not "land near water". Carried to delivery as `hand`.
+- Dead-end river diagnostic (user observation): VERIFIED CLEAN on
+  seed 11 — all river chains exit to ocean (37) or lake (99), zero
+  dry endings; 26/1356 cells absent from the complex polylines are all
+  isolated single-cell rounding gaps, not missing rivers. Rivers that
+  visually vanish are entering standing water (the line submerges at
+  the waterline by design).
+
+## River rendering system (final form, user-reviewed same day)
+
+The knot saga is consolidated here; the fix-by-fix chronology was
+noise. Root causes, in the order they were actually proven (anchor
+ASCII dump + hydrology.png FIRST, render last):
+
+1. Sine meander applied to edges shorter than one wavelength -> ball
+   of yarn. Gate: meander only when edge length >= 2 lambda.
+2. The corridor clump was NOT meander: a 1-cell out-and-back spur in
+   the anchor flow path (flat-BFS routing artifact), magnified x4 and
+   stamped thick, plus genuinely dense topology (4 edges in a 4-cell
+   confluence pocket). Fixed ONCE by `_simplify` (Ramer-Douglas-Peucker,
+   tol ~1.25 cells) on the render path. The corridor density is real
+   and no render pass should hide it.
+
+The render stack (frozen by the user — "no more fixes"):
+- grid-true complex + K9 audit: the real non-intersection guarantee.
+- `_simplify` (RDP): removes anchor spur artifacts.
+- chaikin + width-scaled jitter (mag 1.4 / width class): de-gridding
+  (the original diagonal-lock complaint); wide rivers stay smooth.
+- width taper: each edge ramps from its upstream course's width
+  (feed_q) — a river widens ALONG its course, never jumps a class at
+  an edge boundary ("no wide rivers from nowhere").
+- meander, gated three ways (length >= 2 lambda, valley slope < 2
+  m/km from path max-min drop, not marsh): lam ~ 10 width-classes
+  (Leopold), belt ~ 2 widths.
+- self-avoidance (user-required "by design"): stamping tracks the
+  owner edge; a candidate center that hits its own old path or
+  another edge falls back toward the base path (1, .5, .25, 0) with
+  4-point hysteresis (no sawtooth); the last 4 points before an
+  edge's end node are a JOIN ZONE — confluences are the only legal
+  contact. Edges stamp wide-first so creeks avoid main stems.
+- phantom-flood cells (rejected-lake wetland flats) stamp width 1:
+  marsh channels anastomose thin (Okavango/Biebrza) and marsh edges
+  do not meander (no valley for the sine to fit into).
+
+hydrology.png is the river-debug view (network at a glance); node
+dots are colored by role: source green, confluence orange, outlet
+violet.
+
+## Gorge carving + aquatic biomes + ocean currents (user, same day)
+- `carve_gorges` (hydrology.py): a river is a VECTOR — it does not
+  climb; when its momentum (largest inflow's arrival direction) points
+  into HIGHER LAND and the flow bends away, that cell is a sill wall.
+  Multi-pass (reflood -> notch -> reflood): erode the wall
+  asymptotically toward the river's own level, 3 passes, accumulation
+  >= the width-2 line. Dry land only — standing water is never
+  eroded. Seed 3: 216 notches (median 32 m, max ~2 km gorges).
+- Aquatic biome LAYER (aquatic.py, separate from the terrestrial map
+  — a water cell has a class AND a climate zone): WWF freshwater
+  (lakes: inland sea / salt / large / polar / montane / tropical /
+  temperate; rivers: delta / coastal / floodplain / upland / polar /
+  montane / xeric) and neritic marine (polar / temperate / tropical
+  shelf, coral, temperate+tropical upwelling). Relational per water
+  body at the anchor, carried to delivery by nearest-value spread.
+  world.png: water recolored toward class colors over the bathymetry,
+  rivers in class colors, legend sections TERRESTRIAL / FRESHWATER /
+  MARINE (compact rows, sub-8-cell classes hidden).
+- Ocean currents (currents.py, spawned right after elevation): 2-3
+  gyres in deep water (random rotation/strength, curl of Gaussian
+  stream functions, shelf-damped). `advect_sst`: the latitude baseline
+  transported semi-Lagrangian along the flow with thermostat
+  relaxation, deep-cold mixing where the stream RISES (upwelling),
+  3 coarse diffusion passes. Climate reads SST over ocean (damped
+  seasonal swing); aquatic reads the rise field — upwelling = top
+  decile of shelf rise (world-relative), coral excluded there.
+- temperature.png now shows swirled SST structure instead of a flat
+  latitude gradient over water.
+
+## Monthly currents (user, same day)
+- SST is now computed PER MONTH: the baseline carries the (maritime-
+  damped) seasonal swing, and each gyre's strength breathes +-30%
+  with a per-gyre K1-drawn phase (`velocity_field(currents, month)`;
+  normalization against the annual-mean max speed so speeds stay
+  comparable). 12 advections ~= +12 s build time. Seed 11: ocean
+  mean T swings 0.63 -> 0.75 (Jan -> Jul), Jan/Jul pattern
+  correlation only 0.38 — the swirls visibly shift.
+- advect_sst now takes (u, v, rise) directly; build_currents stores
+  the gyre list (center/sigma/amp/phase), vmax, depth_m, ocean_mask.

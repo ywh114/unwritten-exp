@@ -355,6 +355,179 @@ def strahler_order(direction: np.ndarray, river: np.ndarray,
     return order
 
 
+def carve_gorges(h: np.ndarray, ocean_mask: np.ndarray,
+                 passes: int = 3, rate: float = 0.5,
+                 carve_threshold: float = 240.0) -> np.ndarray:
+    """Antecedent gorges: a big river whose momentum points into a
+    sill cuts through instead of bending around.
+
+    A river is a vector: it does not climb — when the terrain rises
+    ahead, the flow bends. Multi-pass refinement (reflood -> notch ->
+    reflood), no explicit path carving: for each river cell with
+    accumulation >= carve_threshold (the width-2 discharge line),
+    take the arrival direction of its largest inflow (the river's
+    momentum) and look STRAIGHT AHEAD: if the cell there is HIGHER
+    LAND and the actual flow bends away from it, that cell is a sill
+    wall — erode it asymptotically toward the river's own level
+    (h -= rate * (h - h_river); no clamp, never overshoots). Each
+    pass lets the river run straighter and points it at the next wall
+    cell, walking the gorge through the ridge. Erosion touches DRY
+    LAND only — standing water and its beds are never eroded.
+    """
+    h = h.copy()
+    H, W = h.shape
+    for _ in range(passes):
+        w = priority_flood(h, ocean_mask)
+        direction, flat_depth = flow_direction(w)
+        acc = flow_accumulation(w, direction, flat_depth)
+        ponded = (w - h) > 1e-9          # standing water: never eroded
+        ys, xs = np.where(acc >= carve_threshold)
+        for y, x in zip(ys.tolist(), xs.tolist()):
+            # momentum: arrival direction of the biggest inflow
+            best, bq = None, -1.0
+            for i, (dy, dx) in enumerate(_D8):
+                uy, ux = y - dy, x - dx
+                if not (0 <= uy < H and 0 <= ux < W):
+                    continue
+                ud = direction[uy, ux]
+                if (ud >= 0
+                        and (uy + _D8[ud][0], ux + _D8[ud][1]) == (y, x)
+                        and acc[uy, ux] > bq):
+                    bq, best = acc[uy, ux], i
+            d = direction[y, x]
+            if best is None or d < 0 or best == d:
+                continue                 # source, sink, or no bend
+            ay, ax = y + _D8[best][0], x + _D8[best][1]
+            if not (0 <= ay < H and 0 <= ax < W):
+                continue
+            if ponded[ay, ax] or ocean_mask[ay, ax]:
+                continue                 # never erode water bodies
+            if h[ay, ax] > h[y, x] + 1e-9:
+                h[ay, ax] -= rate * (h[ay, ax] - h[y, x])
+    return h
+
+
+def height_above_drainage(h: np.ndarray, w: np.ndarray,
+                          direction: np.ndarray,
+                          water: np.ndarray) -> np.ndarray:
+    """HAND — Height Above Nearest Drainage, normalized units.
+
+    For every land cell, the elevation drop to the water surface its
+    flow path first reaches (river cell, lake surface, or sea); water
+    cells are 0. Computed downstream-first (ascending w): each land
+    cell inherits the base surface of its downstream neighbor.
+    """
+    H, W = h.shape
+    base = np.where(water, w, np.inf)
+    hand = np.zeros((H, W))
+    order = sorted((float(w[y, x]), y, x) for y in range(H) for x in range(W))
+    for _, y, x in order:
+        if water[y, x]:
+            continue
+        d = direction[y, x]
+        if d >= 0:
+            dy, dx = _D8[d]
+            base[y, x] = base[y + dy, x + dx]
+            hand[y, x] = max(float(h[y, x]) - float(base[y, x]), 0.0)
+    return hand
+
+
+def classify_salinity(hydro: dict, sea_min_area_km2: float = 5000.0,
+                      cell_km2: float = 16.0) -> np.ndarray:
+    """Salinity per water cell in g/kg (see units.SALINITY_OCEAN_GKG),
+    anchor grid. Also sets hydro["sea_mask"]: INLAND SEAS — saline
+    (brackish-and-up) components big enough to be seas, not lakes
+    (Caspian/Aral: large + endorheic + salt is exactly the real-world
+    rule; sea_min_area_km2 is the class line, Aral-scale).
+
+    Relational — decided once at the anchor grid, never after upscale.
+
+    - ocean: 35 g/kg by definition
+    - rivers: 0.0 (flowing water accumulates no salt), except the
+      tidal estuary band 8-adjacent to the ocean: a sea/fresh mixing
+      ratio on the river's own discharge — big rivers flush their
+      estuary toward fresh, tidal creeks stay nearly seawater
+    - lakes: trace the drainage downstream from each component's
+      maximum-accumulation cell. Reaching the ocean means the lake is
+      EXORHEIC — flushed, fresh (0.5). Terminating inside the basin
+      means ENDORHEIC — evaporation concentrates salt, and the level
+      decays exponentially with the flushing ratio (inflow
+      accumulation per lake cell), no hard bounds: an underfed
+      terminal approaches ~220 (Great Salt Lake / Dead Sea range), a
+      Volga-scale inflow flushes it toward fresh (Caspian ~12).
+    """
+    from exp.k11_worldgen.units import SALINITY_OCEAN_GKG
+
+    ocean = hydro["ocean_mask"]
+    lake = hydro["lake_mask"]
+    river = hydro["river_mask"]
+    direction = hydro["flow_dir"]
+    acc = hydro["accumulation"]
+    H, W = lake.shape
+    sal = np.zeros((H, W))
+    sal[ocean] = SALINITY_OCEAN_GKG
+    sea = np.zeros((H, W), dtype=bool)
+
+    seen = np.zeros_like(lake)
+    for sy in range(H):
+        for sx in range(W):
+            if not (lake[sy, sx] and not seen[sy, sx]):
+                continue
+            comp, stack = [], [(sy, sx)]
+            while stack:
+                y, x = stack.pop()
+                if seen[y, x] or not lake[y, x]:
+                    continue
+                seen[y, x] = True
+                comp.append((y, x))
+                for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                    ny, nx_ = y + dy, x + dx
+                    if 0 <= ny < H and 0 <= nx_ < W and not seen[ny, nx_]:
+                        stack.append((ny, nx_))
+            start = max(comp, key=lambda c: acc[c])
+            # walk downstream: ocean -> exorheic; sink/cycle -> endorheic
+            y, x = start
+            path = set()
+            exorheic = False
+            while True:
+                if ocean[y, x]:
+                    exorheic = True
+                    break
+                if (y, x) in path:
+                    break
+                path.add((y, x))
+                d = direction[y, x]
+                if d < 0:
+                    break
+                y, x = y + _D8[d][0], x + _D8[d][1]
+            if exorheic:
+                value = 0.5
+            else:
+                inflow = max(float(acc[y, x]) for y, x in comp)
+                ratio = inflow / max(len(comp), 1)
+                value = float(220.0 * np.exp(-ratio / 120.0))
+            for cy, cx in comp:
+                sal[cy, cx] = value
+            if value > 10.0 and len(comp) * cell_km2 >= sea_min_area_km2:
+                for cy, cx in comp:
+                    sea[cy, cx] = True
+
+    # tidal estuaries: river cells directly on the sea mix seawater
+    # with their own discharge — 35 * Q_half / (Q_half + Q), where
+    # Q_half is the upstream-cell count at which the mix is half sea
+    near_ocean = np.zeros_like(ocean)
+    p = np.pad(ocean, 1, mode="edge")
+    for dy in range(3):
+        for dx in range(3):
+            near_ocean |= p[dy:dy + H, dx:dx + W]
+    estuary = river & near_ocean
+    q_half = 50.0
+    sal[estuary] = (SALINITY_OCEAN_GKG * q_half
+                    / (q_half + acc[estuary]))
+    hydro["sea_mask"] = sea
+    return sal
+
+
 def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
                     sea_level: float = 0.35, river_threshold: float = 40.0,
                     seed: int = 0) -> dict:
@@ -429,7 +602,7 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     width[river] = 1
     width[river & (acc >= river_threshold * 6)] = 2
     width[river & (acc >= river_threshold * 30)] = 3
-    return {
+    hydro = {
         "w": w,
         "w_route": w_route,
         "depth": depth,
@@ -443,3 +616,7 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
         "lake_mask": lake,
         "ocean_mask": ocean_mask,
     }
+    hydro["salinity"] = classify_salinity(hydro)
+    hydro["hand"] = height_above_drainage(
+        h, w_route, direction, ocean_mask | lake | river)
+    return hydro

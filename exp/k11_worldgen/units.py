@@ -23,6 +23,11 @@ P_MAX_MM = 400.0
 ELEV_MAX_M, DEPTH_MAX_M = 6000.0, 4000.0
 
 
+# salinity: grams per kg (practical salinity). Open ocean 35,
+# fresh < 1, brackish 1..30, hypersaline terminals up to ~340 (Dead Sea)
+SALINITY_OCEAN_GKG = 35.0
+
+
 def temp_c(t_norm: np.ndarray) -> np.ndarray:
     return t_norm * (T_MAX_C - T_MIN_C) + T_MIN_C
 
@@ -41,3 +46,8 @@ def elev_m(e_norm: np.ndarray, sea_level: float) -> np.ndarray:
 def alt_m(e_norm: np.ndarray, sea_level: float) -> np.ndarray:
     """Meters above sea level, clipped at 0 (terrain altitude)."""
     return np.maximum(elev_m(e_norm, sea_level), 0.0)
+
+
+def hand_m(hand_norm: np.ndarray, sea_level: float) -> np.ndarray:
+    """Height above nearest drainage, meters."""
+    return hand_norm / (1.0 - sea_level) * ELEV_MAX_M

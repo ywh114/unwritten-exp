@@ -53,10 +53,12 @@ def plate_boundary_mask(plates) -> np.ndarray:
 def render_world(path: str, delivered: dict, plates, factor: int,
                  seed: int, stats: dict, biome_hist: dict,
                  biome_colors: list[tuple[int, int, int]],
-                 marks: list[tuple[str, int, int, str]]) -> None:
+                 marks: list[tuple[str, int, int, str]],
+                 aquatic_hists: tuple[list, list] | None = None) -> None:
     """2048x1024 world sheet: shaded biome map + depth-rendered water +
     rivers + range lines + plate lines + landmarks on the left; legend
-    panel on the right."""
+    panel on the right (TERRESTRIAL / FRESHWATER / MARINE sections when
+    the aquatic layer is present)."""
     from exp.k11_worldgen.legend import draw_text, fill_rect
     from exp.k11_worldgen.marks import KIND_COLOR
 
@@ -84,7 +86,34 @@ def render_world(path: str, delivered: dict, plates, factor: int,
     lake_deep = np.array([12, 30, 80], dtype=float)
     left[lake] = (lake_deep + (lake_shallow - lake_deep)
                   * depth_t[..., None])[lake]
-    left[delivered["river_mask"]] = (235, 210, 90)
+    # inland seas are drawn on the OCEAN bathymetric ramp, not the lake
+    # one — a Caspian is a piece of ocean that lost its outlet, not a
+    # big pond
+    sea = delivered.get("sea_mask")
+    if sea is not None:
+        left[sea] = (deep + (shallow - deep) * depth_t[..., None])[sea]
+    # aquatic biome layer: water recolored toward its class color over
+    # the bathymetry (deep open ocean stays pure depth; coral and salt
+    # lakes read strongest — they are places, not depths). Rivers draw
+    # in their class color.
+    aq = delivered.get("aquatic")
+    if aq is not None:
+        from exp.k11_worldgen.aquatic import AQUATIC_ID, AQUATIC_PALETTE
+        pal_aq = AQUATIC_PALETTE.astype(float)
+        water = ocean | lake
+        blend = np.full((H, W), 0.45)
+        blend[aq == AQUATIC_ID["open ocean"]] = 0.0
+        blend[aq == AQUATIC_ID["coral reef"]] = 0.75
+        blend[aq == AQUATIC_ID["salt lake"]] = 0.75
+        b3 = blend[..., None]
+        left[water] = (left * (1.0 - b3) + pal_aq[aq] * b3)[water]
+        left[delivered["river_mask"]] = pal_aq[aq][delivered["river_mask"]]
+    else:
+        left[delivered["river_mask"]] = (235, 210, 90)
+    # mangrove stands can sit on very shallow SEA (tidal flats) — repaint
+    # them over the bathymetry so they stay visible
+    from exp.k11_worldgen.biomes import BIOME_ID
+    left[biome == BIOME_ID["mangrove"]] = pal[BIOME_ID["mangrove"]]
     # plate lines: 2 px at the delivered grid (the 4 px kron blocks were
     # too hard); convergent CC/OC segments = mountain
     # ranges, drawn thicker in the SAME white (orange was too noisy)
@@ -121,20 +150,43 @@ def render_world(path: str, delivered: dict, plates, factor: int,
     right = np.full((H, W, 3), (16, 18, 26), dtype=np.uint8)
     draw_text(right, 48, 48, "K11 WORLDGEN", (235, 235, 235), scale=5)
     draw_text(right, 48, 108, f"SEED {seed:08d}", (180, 200, 235), scale=3)
+    # world type, prominent, right under the seed
+    cm = stats.get("climate_mode")
+    if cm is not None:
+        if cm.get("realistic"):
+            span = 1024 * cm["shrink"] / 111.19
+            lo = cm["center_lat"] - span / 2
+            hi = cm["center_lat"] + span / 2
+            wtype = (f"EARTH-PATCH {cm['center_lat']:.0f}N "
+                     f"X{cm['shrink']:.0f} SPAN {lo:.0f}-{hi:.0f}N")
+        else:
+            wtype = "INVENTED CLIMATE"
+        draw_text(right, 48, 142, wtype, (150, 220, 180), scale=2)
+    # grouped stats, two columns column-major: geography left,
+    # measures + climate trivia right (headroom for aquatic classes)
     lines = [
         f"PLATES {stats['plates']}",
         f"OCEAN {stats['ocean_fraction'] * 100:.1f}%",
         f"RIVERS {stats['river_cells']} CELLS",
         f"LAKES {stats['lake_cells']} CELLS",
-        f"MAX STREAM ORDER {stats['max_stream_order']}",
         f"HIGH RELIEF {stats['high_relief_fraction'] * 100:.1f}%",
         "CELL 1 KM - MAP 1024 KM",
     ]
-    y = 172
-    for ln in lines:
-        draw_text(right, 48, y, ln, (190, 190, 190), scale=2)
-        y += 26
-    draw_text(right, 48, y + 14, "BIOMES", (235, 235, 235), scale=3)
+    tw = stats.get("climate_trivia")
+    if tw is not None:
+        lines.append(f"LAND T {tw['t_min']:.0f}..{tw['t_max']:.0f}C "
+                     f"AVG {tw['t_mean']:.0f}C")
+        lines.append(f"LAND P AVG {tw['p_mm_yr']:.0f} MM/YR")
+    y = 178
+    # two-column stats (column-major) — headroom for the aquatic
+    # biome classes when they land
+    rows = (len(lines) + 1) // 2
+    for i, ln in enumerate(lines):
+        c, row = divmod(i, rows)
+        draw_text(right, 48 if c == 0 else 520, y + row * 26, ln,
+                  (190, 190, 190), scale=2)
+    y += 26 * rows
+    draw_text(right, 48, y + 14, "TERRESTRIAL", (235, 235, 235), scale=3)
     y += 56
     rows = (len(biome_hist) + 1) // 2
     for i, (name, count, color) in enumerate(biome_hist):
@@ -147,11 +199,38 @@ def render_world(path: str, delivered: dict, plates, factor: int,
         draw_text(right, x0 + 54, yy + 2, f"{name.replace('_', ' ')} {share:.1f}%",
                   (200, 200, 200), scale=2)
     y += 27 * rows
+    # aquatic layer: FRESHWATER / MARINE sections (compact rows;
+    # sub-8-cell classes hidden — the legend must fit)
+    if aquatic_hists is not None:
+        for title, rows_h in (("FRESHWATER", aquatic_hists[0]),
+                              ("MARINE", aquatic_hists[1])):
+            present = [r for r in rows_h if r[1] >= 8]
+            if not present:
+                continue
+            draw_text(right, 48, y + 10, title, (235, 235, 235), scale=3)
+            y += 46
+            rows = (len(present) + 1) // 2
+            for i, (name, count, color) in enumerate(present):
+                share = count / (H * W) * 100
+                col, row = divmod(i, rows)
+                x0 = 48 if col == 0 else 520
+                yy = y + row * 24
+                fill_rect(right, x0, yy, 44, 16, color)
+                draw_text(right, x0 + 54, yy + 1,
+                          f"{name} {share:.1f}%", (200, 200, 200), scale=2)
+            y += 24 * rows
     draw_text(right, 48, y + 14, "LANDMARKS", (235, 235, 235), scale=3)
     y += 56
-    for i, (kind, _, _, text) in enumerate(marks):
+    # one representative per kind (the map keeps every marker)
+    key = []
+    seen_kinds: set[str] = set()
+    for mk in marks:
+        if mk[0] not in seen_kinds:
+            seen_kinds.add(mk[0])
+            key.append(mk)
+    for i, (kind, _, _, text) in enumerate(key):
         col = KIND_COLOR[kind]
-        rows = (len(marks) + 1) // 2
+        rows = (len(key) + 1) // 2
         c, row = divmod(i, rows)
         x0 = 48 if c == 0 else 520
         yy = y + row * 26
@@ -269,19 +348,25 @@ def render_all(out_dir: str, delivered: dict, complex_, factor: int = 4) -> list
     _w("forest_cover", write_png_gray, normalize_u8(delivered["cover"], 0.0, 1.0))
 
     # hydrology.png: elevation hillshade-ish + standing water + river
-    # raster (width-class stamped) + node dots. Rivers are NOT filled as
+    # raster (width-class stamped) + node dots colored by role:
+    # source (start) green, confluence (converge) orange, outlet (end)
+    # violet. Rivers are NOT filled as
     # water: at L0 a river is drainage crossing the cell, an overlay.
     rgb = np.dstack([normalize_u8(elev, 0.0, 1.0)] * 3).astype(float)
     water = delivered["ocean_mask"] | delivered["lake_mask"]
     rgb[water] = np.array([40, 90, 180])
     river = delivered["river_mask"]
     rgb[river] = np.array([240, 200, 60])
+    node_colors = {"source": np.array([80, 210, 100]),
+                   "confluence": np.array([250, 170, 50]),
+                   "outlet": np.array([150, 110, 235])}
     for n in complex_.nodes.values():
         x = int(round(n.pos[0] * factor))
         y = int(round(n.pos[1] * factor))
         r = 2
+        col = node_colors.get(n.id.split(":")[0], np.array([230, 60, 40]))
         if 0 <= y < rgb.shape[0] and 0 <= x < rgb.shape[1]:
-            rgb[max(0, y - r):y + r + 1, max(0, x - r):x + r + 1] = np.array([230, 60, 40])
+            rgb[max(0, y - r):y + r + 1, max(0, x - r):x + r + 1] = col
     _w("hydrology", write_png_rgb, np.clip(rgb, 0, 255).astype(np.uint8))
 
     return paths

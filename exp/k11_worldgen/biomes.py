@@ -30,13 +30,15 @@ from __future__ import annotations
 import numpy as np
 
 from exp.k11_worldgen.raster import upsample_bicubic
-from exp.k11_worldgen.units import alt_m, elev_m, precip_mm, temp_c
+from exp.k11_worldgen.units import alt_m, elev_m, hand_m, precip_mm, temp_c
 
 # Order defines ids; PALETTE aligns with it.  "name" is the display /
 # legend label (uppercased by the legend renderer).  kind="water"
 # entries are masks, not biomes.
 BIOMES: list[dict] = [
     # --- the 15 WWF terrestrial classes (Olson & Dinerstein 1998) ---
+    # house palette: lush reads as dark green, arid as sand; browns are
+    # avoided (montane/med are sage/olive greens, not tan)
     {"name": "tropical moist forest",      "color": (0, 110, 45)},
     {"name": "tropical dry forest",        "color": (140, 190, 80)},
     {"name": "tropical conifer forest",    "color": (30, 140, 110)},
@@ -46,9 +48,9 @@ BIOMES: list[dict] = [
     {"name": "tropical grassland",         "color": (200, 180, 100)},
     {"name": "temperate grassland",        "color": (150, 175, 90)},
     {"name": "flooded grassland",          "color": (90, 140, 160)},
-    {"name": "montane grassland",          "color": (180, 140, 110)},
+    {"name": "montane grassland",          "color": (150, 170, 115)},
     {"name": "tundra",                     "color": (170, 175, 165)},
-    {"name": "mediterranean scrub",        "color": (180, 160, 85)},
+    {"name": "mediterranean scrub",        "color": (150, 170, 80)},
     {"name": "desert xeric shrubland",     "color": (225, 205, 140)},
     {"name": "mangrove",                   "color": (150, 70, 120)},
     {"name": "rock and ice",               "color": (225, 235, 240)},
@@ -84,8 +86,11 @@ def _shaped(base: float, bumps: list[tuple[float, float, float]]) -> np.ndarray:
 # real-world climate normals of each biome (summer solstice at month
 # 6).  Water entries are placeholders — they only enter via override.
 _PROTOTYPES: dict[str, tuple[np.ndarray, np.ndarray]] = {
-    # Singapore / Amazon: hot and wet year-round
-    "tropical moist forest":      (_flat(27.0), _flat(200.0)),
+    # Amazon/Congo modal: hot year-round, heavy but SEASONAL rain —
+    # Singapore-flat-200 is the aseasonal extreme, not the biome
+    # centroid (real moist-forest basins run 100-300 mm/month with a
+    # wet season)
+    "tropical moist forest":      (_flat(26.5), _curve(160.0, 70.0, 1)),
     # monsoon forest: hot, dry winter, violent wet season
     "tropical dry forest":        (_curve(26.0, 3.0, 6), _shaped(15.0, [(6.5, 260.0, 2)])),
     # subtropical highland pine-oak: mild, semihumid summer rain
@@ -126,7 +131,15 @@ _PROTOTYPES: dict[str, tuple[np.ndarray, np.ndarray]] = {
 # distance weights: scale the units so ~12 degC ~ ~100 mm ~ one unit
 _W_T, _W_P = 1.0 / 12.0, 1.0 / 100.0
 
-_PROTO_NAMES = list(_PROTOTYPES)
+# the vector match is CLIMATE-ONLY: classes that are places, not
+# climates (flooded grassland, mangrove, rock and ice, lake, ocean) are
+# excluded from the prototypes and exist purely via geographic
+# overrides / water masks — otherwise a Pantanal-like climate vector
+# would flood-classify any warm seasonal lowland regardless of where it
+# sits
+_GEOGRAPHIC = {"flooded grassland", "mangrove", "rock and ice",
+               "lake", "ocean"}
+_PROTO_NAMES = [k for k in _PROTOTYPES if k not in _GEOGRAPHIC]
 _PROTO_T = np.stack([_PROTOTYPES[k][0] for k in _PROTO_NAMES])  # (P, 12)
 _PROTO_P = np.stack([_PROTOTYPES[k][1] for k in _PROTO_NAMES])
 _PROTO_IDS = np.array([BIOME_ID[k] for k in _PROTO_NAMES], dtype=np.uint8)
@@ -178,12 +191,37 @@ class _Acc:
         self.t_norm_sum += t_norm
         self.p_norm_sum += p_norm
 
-    def classify(self) -> np.ndarray:
+    def classify2(self) -> tuple[np.ndarray, np.ndarray]:
+        """(nearest, second-nearest) prototype ids per cell."""
         d2 = self.s2[None] - 2 * self.dot + _PROTO_C[:, None, None]
-        return _PROTO_IDS[np.argmin(d2, axis=0)]
+        i2 = np.argpartition(d2, 1, axis=0)[:2]
+        return _PROTO_IDS[i2[0]], _PROTO_IDS[i2[1]]
+
+    def classify(self) -> np.ndarray:
+        return self.classify2()[0]
 
 
 # ---- geographic overrides (the classes that are places, not climates) --
+
+_MONTANE_MIN_ALT_M = 800.0
+
+
+def _altitude_swap(first: np.ndarray, second: np.ndarray,
+                   alt_m: np.ndarray) -> np.ndarray:
+    """Montane grassland <-> tundra split along the montane altitude
+    line.  WWF lumps ALPINE tundra into montane grasslands, so tundra
+    high up is really the montane class; and the montane climate
+    signature (cold, small swing) also fits subpolar maritime LOWLANDS
+    (Iceland at sea level), which are not montane anything — those fall
+    back to their second-nearest climate class."""
+    b = first
+    mg, tu = BIOME_ID["montane grassland"], BIOME_ID["tundra"]
+    low = alt_m < _MONTANE_MIN_ALT_M
+    mon_low = (first == mg) & low
+    tun_high = (first == tu) & ~low
+    b[mon_low] = second[mon_low]
+    b[tun_high] = mg
+    return b
 
 def _apply_overrides(biome: np.ndarray, st: dict) -> np.ndarray:
     b = biome.copy()
@@ -195,21 +233,25 @@ def _apply_overrides(biome: np.ndarray, st: dict) -> np.ndarray:
     b[(st["alt_m"] > 4500.0) & land] = BIOME_ID["rock and ice"]
     b[(st["alt_m"] > 2500.0) & (st["T_warm"] < 4.0) & land] = \
         BIOME_ID["rock and ice"]
-    # flooded grassland: low flat near standing/running water, wet season
-    near_water = _dilate(st["ocean_m"], 2) | _dilate(st["river_m"], 1)
-    b[near_water & (st["alt_m"] < 50.0) & (st["P_wet"] >= 150.0) & land] = \
+    # flooded grassland: a SPECIAL place (Pantanal/Okavango), not a
+    # default wet lowland — the FLOODPLAIN (within ~10 m of its own
+    # drainage surface, HAND) AND a violent wet season (>= 220 mm in
+    # the wettest month)
+    b[(st["hand_m"] < 10.0) & (st["P_wet"] >= 220.0) & land] = \
         BIOME_ID["flooded grassland"]
-    # mangrove: frost-free tropical tidal fringe — needs SALT water,
-    # which for now means the sea (border-connected ocean; lakes are
-    # fresh until salinity exists). Direct tidal fringe, plus the
-    # estuarine reach: riverbanks within a few cells of the sea.
-    near_sea = _dilate(st["ocean_m"], 1)
-    estuary = _dilate(st["river_m"], 1) & _dilate(st["ocean_m"], 4)
-    b[(near_sea | estuary) & (st["alt_m"] < 10.0) & (st["T_cold"] >= 18.0)
-      & land] = BIOME_ID["mangrove"]
-    # water masks last
+    # water masks
     b[st["ocean_m"]] = BIOME_ID["ocean"]
     b[st["lake_m"]] = BIOME_ID["lake"]
+    # mangrove (after the water masks so shallow-water stands win):
+    # frost-free, and either tidal LAND directly bordering the sea
+    # (adjacency to the ocean itself — never chained inland via rivers
+    # or other mangrove cells) or the tidal-flat SEA FRINGE next to
+    # land (bed within ~8 m of the surface — real mangroves colonize
+    # the intertidal edge, not the open shelf)
+    frost_free = st["T_cold"] >= 18.0
+    tidal_land = _dilate(st["ocean_m"], 1) & (st["alt_m"] < 10.0) & land
+    shallow_sea = st["ocean_m"] & (st["alt_m"] > -8.0) & _dilate(land, 1)
+    b[(tidal_land | shallow_sea) & frost_free] = BIOME_ID["mangrove"]
     return b
 
 
@@ -229,36 +271,44 @@ def _mode_filter(biome: np.ndarray, passes: int = 2) -> np.ndarray:
 
 
 def _masks_state(elev: np.ndarray, ocean_m: np.ndarray, lake_m: np.ndarray,
-                 river_m: np.ndarray, sea_level: float) -> dict:
+                 river_m: np.ndarray, sea_level: float,
+                 hand: np.ndarray) -> dict:
     return {
         "ocean_m": ocean_m, "lake_m": lake_m, "river_m": river_m,
         "alt_m": alt_m(elev, sea_level),
+        "hand_m": hand_m(hand, sea_level),
     }
 
 
 def classify_biomes(elev: np.ndarray, hydro: dict, climate: dict,
                     sea_level: float) -> np.ndarray:
-    """Anchor-grid biome map: vector match + overrides + modal smoothing."""
+    """Anchor-grid biome map: vector match + modal smoothing + overrides.
+
+    Smoothing runs on the climate-matched classes only; the geographic
+    overrides (rock and ice, flooded grassland, mangrove) apply last so
+    the modal filter can neither erase them nor grow them beyond their
+    geographic criteria."""
     ocean_m = hydro["ocean_mask"]
     acc = _Acc(elev.shape)
     for m in range(12):
         acc.add(temp_c(climate["T_monthly"][m]),
                 precip_mm(climate["P_monthly"][m]),
                 climate["T_monthly"][m], climate["P_monthly"][m], m)
-    b = acc.classify()
+    b = _altitude_swap(*acc.classify2(), alt_m(elev, sea_level))
     st = _masks_state(elev, ocean_m, hydro["lake_mask"], hydro["river_mask"],
-                      sea_level)
+                      sea_level, hydro["hand"])
     st.update(T_warm=acc.t_max, T_cold=acc.t_min, P_wet=acc.p_max)
-    b = _apply_overrides(b, st)
     b = _mode_filter(b, passes=2)
     # smoothing must not move standing water
     b[ocean_m] = BIOME_ID["ocean"]
     b[hydro["lake_mask"]] = BIOME_ID["lake"]
+    b = _apply_overrides(b, st)
     return b
 
 
 def classify_streaming(elev_hi: np.ndarray, ocean_hi: np.ndarray,
                        lake_hi: np.ndarray, river_hi: np.ndarray,
+                       hand_hi: np.ndarray,
                        climate: dict, sea_level: float, factor: int):
     """Biomes at the delivered resolution.
 
@@ -273,8 +323,9 @@ def classify_streaming(elev_hi: np.ndarray, ocean_hi: np.ndarray,
         t_n = upsample_bicubic(climate["T_monthly"][m], factor)
         p_n = upsample_bicubic(climate["P_monthly"][m], factor)
         acc.add(temp_c(t_n), precip_mm(p_n), t_n, p_n, m)
-    b = acc.classify()
-    st = _masks_state(elev_hi, ocean_hi, lake_hi, river_hi, sea_level)
+    b = _altitude_swap(*acc.classify2(), alt_m(elev_hi, sea_level))
+    st = _masks_state(elev_hi, ocean_hi, lake_hi, river_hi, sea_level,
+                      hand_hi)
     st.update(T_warm=acc.t_max, T_cold=acc.t_min, P_wet=acc.p_max)
     b = _apply_overrides(b, st)
     T_hi = acc.t_norm_sum / 12

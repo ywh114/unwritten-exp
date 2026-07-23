@@ -2,9 +2,10 @@
 
 Computes the interesting points/areas of a delivered world: the N
 highest peaks (spaced regional maxima, meters via the units layer),
-the deepest ocean point, the M largest lakes (km²), the L lowest
-terrestrial points, and the biggest river mouths (by discharge —
-precipitation-weighted accumulation, km³/yr).
+the 2 deepest ocean points, the M largest lakes (km²), the saltiest
+lake (g/kg — the salinity layer), the L lowest terrestrial points,
+and the biggest river mouths (by discharge — precipitation-weighted
+accumulation, km³/yr).
 Each mark is (kind, y, x, legend_text) in DELIVERED coordinates;
 render_world draws the markers and the legend rows.
 """
@@ -19,6 +20,8 @@ KIND_COLOR = {
     "peak": (245, 245, 245),
     "deep": (120, 180, 255),
     "lake": (80, 220, 230),
+    "sea": (110, 150, 230),
+    "salt": (240, 170, 190),
     "low": (230, 120, 230),
     "mouth": (250, 220, 120),
 }
@@ -169,7 +172,7 @@ def compute_range_lines(delivered: dict, sea_level: float,
 
 
 def compute_marks(delivered: dict, hydro: dict, sea_level: float,
-                  factor: int, n_peaks: int = 4, n_lakes: int = 2,
+                  factor: int, n_peaks: int = 5, n_lakes: int = 2,
                   n_lows: int = 2, n_mouths: int = 3) -> list[tuple[str, int, int, str]]:
     elev = delivered["elev"]
     ocean = delivered["ocean_mask"]
@@ -190,10 +193,14 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
     for i, (v, y, x) in enumerate(_greedy_spaced(cand, 48, n_peaks)):
         marks.append(("peak", y, x, f"P{i + 1} {_m_above(v, sea_level)}M"))
 
-    # largest lakes: 4-connected components, area in km^2 (1 km cells)
+    # largest lakes: 4-connected components, area in km^2 (1 km cells);
+    # per-component salinity (g/kg) and the inland-sea flag come along
+    # for the saltiest-lake / sea marks
+    sal = delivered.get("salinity")
+    sea_m = delivered.get("sea_mask")
     H, W = lake.shape
     seen = np.zeros_like(lake)
-    comps: list[tuple[int, float, float]] = []
+    comps: list[tuple[float, float, float, float, bool]] = []
     for sy in range(H):
         for sx in range(W):
             if lake[sy, sx] and not seen[sy, sx]:
@@ -210,17 +217,55 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
                             stack.append((ny, nx_))
                 cy = float(np.mean([c[0] for c in comp]))
                 cx = float(np.mean([c[1] for c in comp]))
-                comps.append((float(len(comp)), cy, cx))
+                cys = tuple(c[0] for c in comp)
+                cxs = tuple(c[1] for c in comp)
+                sv = (float(sal[cys, cxs].mean())
+                      if sal is not None else 0.0)
+                is_sea = (bool((sea_m[cys, cxs].mean()) > 0.5)
+                          if sea_m is not None else False)
+                comps.append((float(len(comp)), cy, cx, sv, is_sea))
     comps.sort(reverse=True)
-    for i, (area, cy, cx) in enumerate(comps[:n_lakes]):
-        marks.append(("lake", int(round(cy)), int(round(cx)),
-                      f"LK{i + 1} {int(area)}KM2"))
+    n_sea = 0
+    for i, (area, cy, cx, sv, is_sea) in enumerate(comps[:n_lakes]):
+        if is_sea:
+            n_sea += 1
+            marks.append(("sea", int(round(cy)), int(round(cx)),
+                          f"SE{n_sea} {int(area)}KM2 {int(round(sv))} G/KG"))
+        else:
+            marks.append(("lake", int(round(cy)), int(round(cx)),
+                          f"LK{i + 1 - n_sea} {int(area)}KM2"))
 
-    # deepest ocean point (reported negative, like LW)
+    # saltiest lake (endorheic brine is a place, not a size class) —
+    # only if some lake is genuinely salt (brackish-and-up). When the
+    # saltiest IS one of the LK marks, fold the salinity into that
+    # label instead of stacking two markers on one component; seas
+    # already carry their salinity.
+    if comps:
+        area, cy, cx, sv, is_sea = max(comps, key=lambda c: c[3])
+        if sv > 10.0 and not is_sea:
+            sy, sx = int(round(cy)), int(round(cx))
+            merged = False
+            for j, (kind, y, x, text) in enumerate(marks):
+                if kind == "lake" and (y, x) == (sy, sx):
+                    marks[j] = (kind, y, x,
+                                f"{text} {int(round(sv))} G/KG")
+                    merged = True
+                    break
+            if not merged:
+                marks.append(("salt", sy, sx,
+                              f"SL1 {int(round(sv))} G/KG"))
+
+    # deepest ocean points (reported negative, like LW), spaced
     if ocean.any():
-        y, x = np.unravel_index(int(np.argmin(np.where(ocean, elev, 1e9))), elev.shape)
-        depth = int(round((sea_level - elev[y, x]) / sea_level * 4000.0))
-        marks.append(("deep", int(y), int(x), f"DP {-depth}M"))
+        vals = elev[ocean]
+        k = min(2000, vals.size)
+        idx = np.argpartition(vals, k - 1)[:k]
+        ys, xs = np.where(ocean)
+        cand = sorted((float(vals[i]), int(ys[i]), int(xs[i]))
+                      for i in idx.tolist())
+        for i, (v, y, x) in enumerate(_greedy_spaced(cand, 48, 2)):
+            depth = int(round((sea_level - v) / sea_level * 4000.0))
+            marks.append(("deep", y, x, f"DP{i + 1} {-depth}M"))
 
     # lowest terrestrial points (below-sea depressions if any) — only
     # real depressions: a "lowest point" at sea level is no landmark

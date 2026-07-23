@@ -13,12 +13,18 @@ refinement smudges anyway). The canonical output is the 12 monthly
 Lyapunov horizon, divergent after) and are NOT generated here.
 
 Couplings: mountains DEFLECT and DAMP the (low-layer) wind (air
-goes around, not through); a HIGH layer (zonal-dominant, no terrain,
-no breeze) advects the subtropical-high subsidence field, drying the
-low layer where it descends — two layers, not one, so subtropical
-deserts can sit beside warm seas; the monsoon is driven by the ACTUAL
-land–sea temperature anomaly per month (temperature is computed
-first — it is wind-independent); refine_climate() runs damped
+goes around, not through); the persistent circulation is a few
+meridional bands with random signs (outermost constrained equatorward
+— polar outflow and equatorward trades); a HIGH layer (same bands,
+stronger, no terrain, no breeze) advects the subsidence field, which
+parks where the low-level flow DIVERGES and dries it where it
+descends — two layers, not one, so subtropical deserts can sit beside
+warm seas; moisture recharges over water (temperature-scaled), rains
+out everywhere (ocean included), wrings out where air gets cold
+(thermodynamic capacity), and concentrates where the flow converges;
+the monsoon is driven by the ACTUAL land–sea temperature anomaly per
+month (temperature is computed first and advected once by the
+low-layer wind — maritime moderation); refine_climate() runs damped
 conditioning rounds — snow-albedo feedback and evaporative/cloud
 cooling adjust T given P; and precipitation runs in TWO passes: pass 1
 on bare ground yields a provisional forest cover, pass 2 lets forests
@@ -40,6 +46,36 @@ from exp.k11_worldgen.units import T_MAX_C, T_MIN_C
 
 # months are the canon time period; summer solstice at month 6
 _SUMMER = 6.0
+
+# Earth northern-hemisphere zonal-mean anchors by latitude (degN):
+# annual mean surface temperature and seasonal half-swing (July minus
+# annual), degC. Realistic mode interpolates these instead of using
+# the invented profile; winds stay random in both modes.
+_EARTH_LAT = (0.0, 15.0, 30.0, 45.0, 60.0, 75.0, 90.0)
+_EARTH_T_ANN = (26.5, 25.5, 21.0, 13.0, 2.0, -11.0, -19.0)
+_EARTH_T_AMP = (1.5, 3.5, 7.0, 11.0, 14.0, 14.5, 13.0)
+_KM_PER_DEG = 111.19
+
+
+def resolve_center_lat(seed: int, center_lat: float | None,
+                       base: float = 40.0, band: float = 5.0,
+                       leak: float = 0.3) -> float:
+    """Effective earth-patch center latitude.
+
+    None -> seeded wiggle around `base`: a triangular draw in +-12 deg,
+    softly compressed beyond +-`band` (LEAKY cap — slope `leak`, never
+    a hard clamp): mean abs deviation ~3 deg, most worlds center in
+    35..45 degN, a rare one leaks a little past. Deterministic per
+    seed (own substream — does not touch the climate draws).
+    """
+    if center_lat is not None:
+        return center_lat
+    stream = Stream(seed, "k11.centerlat")
+    w = sum(stream.uniform(0, i) for i in range(3)) - 1.5
+    w = w / 1.5 * 12.0
+    if abs(w) > band:
+        w = math.copysign(band + (abs(w) - band) * leak, w)
+    return base + w
 
 # freezing point in normalized units (0 degC)
 _FREEZE = (0.0 - T_MIN_C) / (T_MAX_C - T_MIN_C)
@@ -107,20 +143,34 @@ class WindLibrary:
         gy, gx = np.mgrid[0:H, 0:W].astype(float)
         lat = gy / (H - 1)  # 0 north (poleward) → 1 south (equatorward)
 
-        # base circulation: RANDOM per world, semi-stable — this is a
-        # fantasy world with no global ocean currents and no
-        # rest-of-world, so there is no justification for hardcoded
-        # westerlies; the bearing/strength/band are drawn once per
-        # world and held stable across months/samples, unlike the
-        # chaotic gyres. The bearing OSCILLATES seasonally
-        # (monsoon-style wind reversal): swing up to ~70° around the
-        # base bearing.
-        self.bearing0 = 2 * math.pi * stream.uniform(5, 0)
-        self.swing = 0.4 + 0.8 * stream.uniform(5, 4)  # radians of seasonal swing
-        strength = 0.6 + 0.6 * stream.uniform(5, 1)
-        band_center = 0.25 + 0.5 * stream.uniform(5, 2)
-        band_width = 0.25 + 0.25 * stream.uniform(5, 3)
-        self.profile = strength * np.exp(-0.5 * ((lat - band_center) / band_width) ** 2)
+        # meridional circulation cells: a few semi-stable bands of
+        # NORTH–SOUTH flow (crossing the parallels), each with a RANDOM
+        # sign (equatorward or poleward), strength, center, and width —
+        # one-time draws, never re-rolled per snapshot. Not an Earth
+        # clone: where adjacent bands oppose, the flow converges (wet
+        # belts, at whatever latitude the draw puts them) or diverges
+        # (dry belts — where the subtropical highs park, see
+        # _precip_pass). Flow tapers to zero at both rims; an
+        # equatorward rim band piles up at the equator (ITCZ analog).
+        self.lat = lat
+        self.angle_jitter = 0.1 + 0.2 * stream.uniform(5, 4)
+        self.bands: list[tuple[float, float, float, float]] = []
+        n_bands = 2 + int(stream.uniform(5, 9) < 0.5)
+        for b in range(n_bands):
+            sgn = 1.0 if stream.uniform(5, 10 + 4 * b) < 0.5 else -1.0
+            strength = 0.4 + 0.8 * stream.uniform(5, 11 + 4 * b)
+            center = 0.15 + 0.7 * stream.uniform(5, 12 + 4 * b)
+            width = 0.10 + 0.08 * stream.uniform(5, 13 + 4 * b)
+            self.bands.append((sgn, strength, center, width))
+        self.bands.sort(key=lambda b: b[2])
+        # the two OUTERMOST cells are constrained equatorward: polar air
+        # drains off the pole at the surface (the rim taper then makes
+        # the pole a divergence zone — a dry polar high), and the trades
+        # converge on the equator (the ITCZ) — otherwise random signs
+        # leave half of all worlds with a desert equator. The variety
+        # lives in the middle cells.
+        self.bands[0] = (1.0,) + self.bands[0][1:]
+        self.bands[-1] = (1.0,) + self.bands[-1][1:]
 
         # chaotic gyres: curl of K1 stream functions (each its own
         # substream — same-stream fields at the same coordinates would
@@ -149,6 +199,27 @@ class WindLibrary:
         if alt is not None:
             self.ahx, self.ahy = _grad(alt)
 
+    def meridional(self, seasonal: float) -> np.ndarray:
+        """The persistent N–S base flow (bands + rim tapers), drifting
+        slightly with the seasons."""
+        v = np.zeros_like(self.lat)
+        for sgn, strength, center, width in self.bands:
+            c = center + 0.03 * seasonal * sgn
+            v = v + sgn * strength * np.exp(
+                -0.5 * ((self.lat - c) / width) ** 2)
+        fall = 0.06
+        v = (v * np.clip((1.0 - self.lat) / fall, 0.0, 1.0)
+             * np.clip(self.lat / fall, 0.0, 1.0))
+        return v
+
+    def _base(self, stream: Stream, clock: int,
+              seasonal: float) -> tuple[np.ndarray, np.ndarray]:
+        """The persistent wind for one snapshot: the meridional bands
+        with a per-snapshot angle wobble (small zonal tilt)."""
+        v = (0.8 + 0.4 * stream.uniform(clock, 0)) * self.meridional(seasonal)
+        j = self.angle_jitter * (stream.uniform(clock, 8) - 0.5)
+        return -v * math.sin(j), v * math.cos(j)
+
     def sample_high(self, stream: Stream, clock: int,
                     seasonal: float) -> tuple[np.ndarray, np.ndarray]:
         """The HIGH layer (free troposphere) for the same snapshot:
@@ -160,9 +231,9 @@ class WindLibrary:
         over seas and coasts (Middle-East-style deserts need the layers
         decoupled, not a single terrain-blocked flow).
         """
-        bearing = self.bearing0 + self.swing * seasonal
-        u = 1.4 * self.profile * math.cos(bearing) * (0.7 + 0.6 * stream.uniform(clock, 0))
-        v = 1.4 * self.profile * math.sin(bearing) * (0.7 + 0.6 * stream.uniform(clock, 0))
+        u, v = self._base(stream, clock, seasonal)
+        u = 1.4 * u
+        v = 1.4 * v
         for k, (gu, gv) in enumerate(self.gyres):
             alpha = stream.uniform(clock, 1 + k) - 0.5
             u = u + 2.4 * alpha * gu
@@ -171,14 +242,12 @@ class WindLibrary:
 
     def sample(self, stream: Stream, clock: int, seasonal: float,
                monsoon: float | None = None) -> tuple[np.ndarray, np.ndarray]:
-        """One chaotic wind field: seasonally-oscillating zonal + random
+        """One chaotic wind field: the meridional band base + random
         gyre blend + monsoon (breeze_u/v scaled by `monsoon` — the
         actual land–sea temperature contrast when the caller passes it,
         else a fixed 0.9 * seasonal). seasonal = +1 midsummer, -1
         midwinter. Terrain deflects/damps the result."""
-        bearing = self.bearing0 + self.swing * seasonal
-        u = self.profile * math.cos(bearing) * (0.7 + 0.6 * stream.uniform(clock, 0))
-        v = self.profile * math.sin(bearing) * (0.7 + 0.6 * stream.uniform(clock, 0))
+        u, v = self._base(stream, clock, seasonal)
         # random gyre phases: interpolate across the precomputed library
         for k, (gu, gv) in enumerate(self.gyres):
             alpha = stream.uniform(clock, 1 + k) - 0.5  # signed blend
@@ -257,25 +326,45 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
     # subsidence suppression factors (1 = no high overhead)
     wet = 1.0 if sub is None else 1.0 - 0.65 * sub
     dry = 1.0 if sub is None else 1.0 - 0.75 * sub
+    # bounded compressibility: convergent flow (trades piling into the
+    # hot zone, flow crammed against a range) CONCENTRATES moisture
+    # instead of just resampling it; divergent flow dilutes. Clipped so
+    # a strong convergence spike cannot blow the budget up — this is a
+    # correction, not a continuity equation.
+    du_dx = _grad(u)[0]
+    dv_dy = _grad(v)[1]
+    conv = np.clip(1.0 - 1.5 * (du_dx + dv_dy), 0.6, 1.8)
 
     M = np.full((H, W), 0.85)
     P = np.zeros((H, W))
     for _ in range(steps):
         M = _bilinear(M, gx - u, gy - v)
+        M = M * conv
         M = np.where(water, np.minimum(1.0, M + 0.30 * evap * wet * (1.0 - M)), M)
         M = np.where(lake_src & ~water, np.minimum(1.0, M + 0.10 * evap * wet * (1.0 - M)), M)
-        # low baseline: genuinely depleted air barely rains (lee deserts
-        # stay dry); orographic lift dominates
-        rate = np.where(water | lake_src, 0.0,
-                        np.clip(0.06 + 3.0 * oro, 0.0, 0.9) * intercept * dry)
+        # thermodynamic capacity: cold air holds little moisture (same
+        # Clausius–Clapeyron curve as evaporation), so advected moisture
+        # WRINGS OUT on entering cold cells — polar-front snow — and
+        # cold interiors then stay dry instead of raining freely off
+        # imported moisture
+        excess = np.maximum(M - evap, 0.0)
+        P += excess
+        M = M - excess
+        # rain-out happens over water too (most real rain falls on the
+        # ocean): baseline rate everywhere; orographic lift adds over
+        # land (h is flat over water, so oro ~ 0 there). Genuinely
+        # depleted air barely rains (lee deserts stay dry)
+        rate = np.clip(0.06 + 3.0 * oro, 0.0, 0.9) * intercept * dry
         p = M * rate
         P += p
-        # evapotranspiration feedback: recycling is proportional to the
-        # moisture already present — wet stays wet, rain-shadow deserts
-        # stay dry (a uniform +const recovery erased shadows in ~10
-        # steps)
-        M = np.where(water | lake_src, M,
-                     np.clip(M - 0.30 * p + recycle * M * (1.0 - p), 0.02, 1.0))
+        # rain depletes the parcel EVERYWHERE (water included — ocean
+        # rain wrings the flow before landfall); recycling is the land
+        # evapotranspiration feedback, proportional to the moisture
+        # already present — wet stays wet, rain-shadow deserts stay dry
+        # (a uniform +const recovery erased shadows in ~10 steps)
+        M = np.clip(M - 0.30 * p
+                    + np.where(water | lake_src, 0.0, recycle * M * (1.0 - p)),
+                    0.02, 1.0)
     return P / steps
 
 
@@ -296,10 +385,13 @@ def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
     T_ann_c = T_m.mean(axis=0)
     for m in range(12):
         seasonal = math.cos(2 * math.pi * (m - _SUMMER) / 12)
-        # subtropical high: parks over the hot-side subtropics, migrates
-        # poleward in summer (real highs do)
-        sub_lat = 0.72 - 0.05 * seasonal
-        band = np.exp(-0.5 * ((lat - sub_lat) / 0.10) ** 2)
+        # subtropical highs park where the persistent meridional flow
+        # DIVERGES (low-level outflow = subsidence aloft) — no fixed
+        # latitude: the dry belts sit wherever this world's circulation
+        # cells pull apart, wet belts where they meet
+        v0 = lib.meridional(seasonal)
+        dvy = np.gradient(v0, axis=0)
+        band = np.clip(dvy / 0.10, 0.0, 1.0)
         # monsoon driven by the ACTUAL land–sea heating ANOMALY (land
         # warming faster than sea in summer -> onshore flow; reverses
         # in winter). Anomaly, not absolute contrast: the constant
@@ -370,11 +462,48 @@ def refine_climate(T_m: np.ndarray, P_m: np.ndarray, T_lat: np.ndarray,
     return np.clip(T_ref, 0.0, 1.0)
 
 
+def _lat_profile(lat: np.ndarray, shape_km: float,
+                 t_north: float, t_span: float, t_pow: float,
+                 t_amp: float, realistic: bool = False,
+                 center_lat: float = 40.0, shrink: float = 4.0
+                 ) -> tuple[np.ndarray, np.ndarray]:
+    """(T_lat, T_amp_lat) normalized base profile fields.
+
+    lat is the grid row fraction (0 = north rim, 1 = south rim).
+
+    INVENTED mode: T_lat = t_north + t_span * lat**t_pow with an
+    equatorial soft-cap (the wide flat hot zone the tropics live in),
+    swing peaking at mid-latitudes and minimal at both rims.
+
+    REALISTIC mode: the grid is a patch of the real Earth's northern
+    hemisphere. Row -> latitude via `center_lat` and a planet `shrink`
+    times smaller (span = shape_km * shrink / 111.19 deg), then the
+    zonal-mean anchors above give annual mean and seasonal half-swing.
+    Default center 40 degN at shrink 4 spans ~22..58 degN:
+    subtropics -> temperate -> taiga -> tundra in one map.
+    """
+    if realistic:
+        span_deg = shape_km * shrink / _KM_PER_DEG
+        lat_deg = np.clip(center_lat + (0.5 - lat) * span_deg, 0.0, 90.0)
+        t_ann = np.interp(lat_deg, _EARTH_LAT, _EARTH_T_ANN)
+        t_amp_lat = np.interp(lat_deg, _EARTH_LAT, _EARTH_T_AMP)
+        return ((t_ann - T_MIN_C) / (T_MAX_C - T_MIN_C),
+                t_amp_lat / (T_MAX_C - T_MIN_C))
+    ramp = lat ** t_pow
+    f_cap = 0.88
+    T_lat = t_north + t_span * ramp * (
+        f_cap ** 8 / (f_cap ** 8 + ramp ** 8)) ** 0.125
+    T_amp_lat = 0.03 + t_amp * np.sin(math.pi * lat)
+    return T_lat, T_amp_lat
+
 def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
                   seed: int = 0, coarse: int = 128,
                   n_samples: int = 8,
-                  t_north: float = 0.12, t_span: float = 0.90,
-                  t_pow: float = 0.40, t_amp: float = 0.09,
+                  t_north: float = 0.12, t_span: float = 0.93,
+                  t_pow: float = 0.40, t_amp: float = 0.12,
+                  realistic: bool = False, center_lat: float | None = None,
+                  shrink: float = 4.0, cell_km: float = 4.0,
+                  currents: dict | None = None,
                   stage_hook=None) -> dict:
     """Seasonal climate as 12 monthly (T, P) mean curves per cell.
 
@@ -388,8 +517,11 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     passes replay identical wind randomness).
 
     Temperature profile knobs (generation-side variation — never tune
-    units or the classifier): T_lat = t_north + t_span * lat**t_pow
-    (lat 0 = north rim), T_amp_lat = 0.05 + t_amp * sin(pi * lat).
+    units or the classifier): invented mode T_lat = t_north +
+    t_span * lat**t_pow (lat 0 = north rim), T_amp_lat = 0.03 +
+    t_amp * sin(pi * lat). REALISTIC mode (earth patch, northern
+    hemisphere) replaces the profile with the zonal-mean Earth anchors
+    — see _lat_profile; the invented knobs are then inert.
     """
     H, W = elev.shape
     f = max(1, H // coarse)
@@ -415,20 +547,59 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
 
     lib = WindLibrary(stream, (ch, cw), land_c, alt=alt_c)
 
-    gy = np.mgrid[0:ch, 0:cw][0].astype(float)
+    gy, gx = np.mgrid[0:ch, 0:cw]
+    gy = gy.astype(float)
+    gx = gx.astype(float)
     lat = gy / (ch - 1)                            # 0 north → 1 south
-    T_lat = t_north + t_span * lat ** t_pow        # cold north rim,
-                                                   # hottest south rim
-    # seasonal swing peaks at MID-LATITUDES and is minimal at both rims
-    #: the north stays frozen year-round, the southern
-    # tropics stay warm year-round (real equatorial swing is a few degC).
-    # Kept moderate — full Illinois-grade continental swings are real
-    # but dominate the map's character. Land contrast
-    # is part of the swing and scales with it, not a fixed extra.
-    T_amp_lat = 0.05 + t_amp * np.sin(math.pi * lat)
+    # equatorial plateau (invented mode): the profile rises through the
+    # mid-latitudes then SOFT-CAPS (soft-min at f_cap) — the hot zone
+    # flattens around 26-28 degC across the equatorward quarter instead
+    # of climbing to a 35 degC rim (no real place averages 35 degC; the
+    # wide flat hot zone is where the tropics live). Mid-latitudes are
+    # untouched by construction (t_span compensates the small cap
+    # suppression there). Seasonal swing peaks at MID-LATITUDES and is
+    # minimal at both rims: the north stays frozen year-round, the
+    # southern tropics stay warm year-round (real equatorial swing is a
+    # few degC — and the swing drives the monsoon reversal, so an
+    # oversized equatorial swing kills year-round rain at the rim).
+    # Land contrast is part of the swing and scales with it, not a
+    # fixed extra. Realistic mode swaps all of this for the Earth
+    # zonal-mean anchors (see _lat_profile).
+    T_lat, T_amp_lat = _lat_profile(
+        lat, H * cell_km, t_north, t_span, t_pow, t_amp,
+        realistic=realistic,
+        center_lat=resolve_center_lat(seed, center_lat), shrink=shrink)
 
-    # temperature first: it is wind-independent, and the monsoon reads
-    # its land–sea contrast below
+    # ocean currents: the sea surface runs its OWN temperature — the
+    # latitude baseline ADVECTED along the gyre streams (warm pools,
+    # cold upwelling tongues), monthly: the baseline carries the
+    # (damped, maritime) seasonal swing and each gyre's strength
+    # breathes with its own seasonal phase, so the swirls visibly
+    # shift over the year. Pooled to the coarse grid; the raw latitude
+    # profile then governs land only.
+    sst_m = None
+    if currents is not None:
+        from exp.k11_worldgen.currents import advect_sst, velocity_field
+        lat_a = (np.arange(H)[:, None] / (H - 1)) * np.ones((H, W))
+        T_lat_a, T_amp_a = _lat_profile(
+            lat_a, H * cell_km, t_north, t_span, t_pow, t_amp,
+            realistic=realistic,
+            center_lat=resolve_center_lat(seed, center_lat), shrink=shrink)
+        span_c = T_MAX_C - T_MIN_C
+        base_c = T_lat_a * span_c + T_MIN_C
+        amp_c = T_amp_a * span_c * 0.5          # ocean swing, damped
+        sst_m = np.zeros((12, ch, cw))
+        for m in range(12):
+            seasonal = math.cos(2 * math.pi * (m - _SUMMER) / 12)
+            um, vm = velocity_field(currents, m)
+            sst_m[m] = (_pool(advect_sst(base_c + amp_c * seasonal,
+                                         um, vm, currents["rise"]), f)
+                        - T_MIN_C) / span_c
+
+    # temperature first: it drives the monsoon and evaporation below;
+    # each snapshot's field is blended once with its UPWIND origin —
+    # wind circulates heat (maritime moderation, interiors keep their
+    # extremes). One damped pass, conditioning not simulation.
     T_m = np.zeros((12, ch, cw))
     for m in range(12):
         seasonal = math.cos(2 * math.pi * (m - _SUMMER) / 12)
@@ -438,6 +609,12 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
             T = (T_lat + T_amp_lat * seasonal
                  + land_c * 0.30 * T_amp_lat * seasonal
                  - 0.45 * alt_c + jitter)
+            if sst_m is not None:
+                # the sea runs its own temperature (advected by the
+                # gyre streams, monthly — swirls breathe seasonally)
+                T = np.where(water_c, sst_m[m] + jitter, T)
+            u_t, v_t = lib.sample(stream, clock, seasonal)
+            T = 0.7 * T + 0.3 * _bilinear(T, gx - u_t, gy - v_t)
             T_m[m] += np.clip(T, 0.0, 1.0)
         T_m[m] /= n_samples
 
@@ -448,10 +625,10 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     # every world, instead of hand-chasing a fixed gain per layout.
     P_raw = _precip_pass(lib, stream, T_m, land_c, water_c, lake_c, h_c,
                          lat, n_samples)
-    # the belt is the mean-state subtropical aridity; the structured
-    # dryness comes from the advected subsidence (Q2 high layer), so the
-    # static term is light
-    belt = 1.0 - 0.20 * np.exp(-0.5 * ((lat - 0.78) / 0.18) ** 2)
+    # no static aridity belt: the dry structure comes entirely from the
+    # advected subsidence (which parks at the flow's divergence zones);
+    # the belt multiplier stays only as the gain-pin interface
+    belt = np.ones_like(lat)
     land_mean = float((P_raw * belt[None])[:, land_c].mean()) if land_c.any() else 0.0
     gain = float(np.clip(_TARGET_LAND_P / max(land_mean, 1e-6), 2.0, 24.0))
     P_m = _scale_precip(P_raw, gain, belt)

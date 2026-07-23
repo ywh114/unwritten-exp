@@ -22,6 +22,7 @@ from exp.k11_worldgen.complexify import derive_complex
 from exp.k11_worldgen.hydrology import (
     _D8,
     build_hydrology,
+    connected_ocean,
     flow_accumulation,
     flow_direction,
     priority_flood,
@@ -273,7 +274,97 @@ def test_accumulation_grows_downstream():
     assert acc.max() >= 32  # a full column drains through the outlet row
 
 
+def test_salinity_endorheic_vs_exorheic():    # plateau with an ocean column on the left, an open bowl (drains to
+    # the sea -> fresh lake) and a below-sea enclosed bowl (terminal ->
+    # salt lake)
+    h = np.full((32, 32), 0.6)
+    h[:, 0] = 0.2
+    ocean = connected_ocean(h, 0.35)
+    h[4:7, 4:7] = 0.55      # open bowl: fills to its sill, drains out
+    h[24:27, 24:27] = 0.30  # enclosed below-sea bowl: endorheic terminal
+    hy = build_hydrology(h, ocean, sea_level=0.35)
+    sal = hy["salinity"]
+    assert (sal[hy["ocean_mask"]] == 35.0).all()
+    fresh = sal[4:7, 4:7][hy["lake_mask"][4:7, 4:7]]
+    salt = sal[24:27, 24:27][hy["lake_mask"][24:27, 24:27]]
+    assert fresh.size > 0 and (fresh == 0.5).all()       # exorheic
+    assert salt.size > 0 and (salt > 35.0).all()
+    # endorheic terminals run SALTIER than the sea (no cap at ocean)
+
+
+def test_carve_gorges_notches_sill():
+    from exp.k11_worldgen.hydrology import carve_gorges
+    # westward tilt + a channel along row 16 that runs a river straight
+    # into a wall across rows 8..24. The river's momentum points INTO
+    # the wall; the flow bends around the wall's ends.
+    h = 0.6 + 0.01 * (np.arange(32)[None, :] / 31)
+    h = np.broadcast_to(h, (32, 32)).copy()
+    h[:, 0] = 0.2
+    h[16, 1:] = 0.55                    # the channel
+    h[8:25, 8] = 0.75                   # the sill wall
+    ocean = connected_ocean(h, 0.35)
+    out = carve_gorges(h, ocean, passes=4, carve_threshold=10.0)
+    assert out[16, 8] < 0.65            # the wall is notched through
+    assert out[12, 8] == 0.75           # ...but only where the river points
+    assert out[5, 20] == h[5, 20]       # open plain untouched
+    assert out[16, 20] == h[16, 20]     # the channel bed itself untouched
+    # threshold gates: with an unreachable threshold nothing changes
+    same = carve_gorges(h, ocean, passes=3, carve_threshold=1e9)
+    assert (same == h).all()
+
+
 # ---- climate / biomes ---------------------------------------------------------
+
+def test_currents_and_sst():
+    from exp.k11_worldgen.currents import advect_sst, build_currents, \
+        velocity_field
+    h = np.full((64, 64), 0.6)
+    h[0:56, 8:56] = 0.2        # deep pool touching the border
+    ocean = connected_ocean(h, 0.35)
+    c1 = build_currents(h, ocean, 0.35, seed=SEED)
+    c2 = build_currents(h, ocean, 0.35, seed=SEED)
+    assert np.array_equal(c1["u"], c2["u"])            # deterministic
+    assert c1["n_gyres"] >= 1
+    assert (c1["u"][~ocean] == 0).all()                # ocean-only flow
+    assert (c1["v"][~ocean] == 0).all()
+    base = np.linspace(-5.0, 25.0, 64)[:, None] * np.ones((1, 64))
+    z64 = np.zeros((64, 64))
+    # zero flow: advection is the identity, SST stays the baseline
+    # (border rows drift by one bilinear clip epsilon per step — the
+    # interior is exact)
+    assert np.allclose(advect_sst(base, z64, z64, z64,
+                                  diffuse_passes=0)[1:-1, 1:-1],
+                       base[1:-1, 1:-1])
+    # a rising stream mixes deep cold water up: SST drops
+    assert advect_sst(base, z64, z64, z64 + 0.5).mean() < base.mean()
+    # seasonal wobble: the velocity field differs month to month but
+    # keeps its mean sign structure
+    u0, v0 = velocity_field(c1, 0)
+    u6, v6 = velocity_field(c1, 6)
+    assert not np.array_equal(u0, u6)
+
+
+def test_aquatic_classes():
+    from exp.k11_worldgen.aquatic import AQUATIC_ID, classify_aquatic
+    h = np.full((32, 32), 0.4)
+    h[:, 0] = 0.349                   # very shallow warm shelf
+    ocean = connected_ocean(h, 0.35)
+    h[4:7, 4:7] = 0.35                # exorheic (fresh) lake
+    h[24:27, 24:27] = 0.30            # endorheic (salt) lake
+    hy = build_hydrology(h, ocean, sea_level=0.35)
+    climate = {"T_monthly": np.full((12, 32, 32), 0.75),   # ~+19 degC
+               "P_monthly": np.full((12, 32, 32), 0.5)}
+    a = classify_aquatic(h, hy, climate, 0.35)
+    t = lambda n: AQUATIC_ID[n]
+    # warm, very shallow, clear of big-river sediment -> coral
+    assert (a[:, 0] == t("coral reef")).all()
+    # frost-free fresh bowl -> tropical lake
+    assert (a[4:7, 4:7][hy["lake_mask"][4:7, 4:7]]
+            == t("tropical lake")).all()
+    # endorheic bowl -> salt lake
+    assert (a[24:27, 24:27][hy["lake_mask"][24:27, 24:27]]
+            == t("salt lake")).all()
+
 
 def test_refine_climate_conditions_on_snow_and_rain():
     from exp.k11_worldgen.climate import refine_climate
@@ -336,12 +427,79 @@ def test_climate_and_biome_overrides():
     assert cl["P"][land].mean() > 0.12
     bm = classify_biomes(elev, hy, cl, 0.35)
     names = [b["name"] for b in BIOMES]
-    # only standing water is a water biome; river cells keep their land biome
+    # only standing water is a water biome — except mangrove, which
+    # legitimately stands on shallow SEA (tidal flats) by override;
+    # river cells keep their land biome
     water = hy["ocean_mask"] | hy["lake_mask"]
-    assert {names[i] for i in np.unique(bm[water])} <= {"ocean", "lake"}
+    assert {names[i] for i in np.unique(bm[water])} <= {"ocean", "lake", "mangrove"}
     assert {names[i] for i in np.unique(bm[hy["river_mask"]])} - {"ocean", "lake"} != set()
     cover = forest_cover(bm, cl["P"])
     assert cover.min() >= 0.0 and cover.max() <= 1.0
+
+
+# ---- realistic (earth-patch) temperature mode ----------------------------
+
+def test_resolve_center_lat():
+    from exp.k11_worldgen.climate import resolve_center_lat
+    assert resolve_center_lat(1, 52.0) == 52.0      # explicit passthrough
+    assert resolve_center_lat(7, None) == resolve_center_lat(7, None)
+    vals = {resolve_center_lat(s, None) for s in range(20)}
+    assert len(vals) > 10                            # seed-varying
+    for v in vals:
+        assert abs(v - 40.0) < 7.5                   # leaky cap ~ +-7
+    # user calibration: mean abs deviation ~3 deg
+    devs = [abs(resolve_center_lat(s, None) - 40.0) for s in range(200)]
+    assert 2.5 < sum(devs) / len(devs) < 3.5
+
+def test_lat_profile_realistic():
+    from exp.k11_worldgen.climate import _lat_profile
+    from exp.k11_worldgen.units import T_MAX_C, T_MIN_C, temp_c
+    lat = np.linspace(0.0, 1.0, 128)[:, None] * np.ones((1, 128))
+    T_lat, T_amp = _lat_profile(lat, 1024.0, 0, 0, 0, 0,
+                                realistic=True, center_lat=53.5,
+                                shrink=4.0)
+    ann_c = temp_c(T_lat)          # annual mean, degC
+    amp_c = T_amp * (T_MAX_C - T_MIN_C)
+    # north rim colder than south rim, monotone-ish gradient
+    assert ann_c[0, 0] < ann_c[-1, 0] - 20.0
+    assert (np.diff(ann_c[:, 0]) > -1e-9).all()
+    # default center/shrink: 1024 km * 4 / 111.19 ~ 36.9 deg of latitude,
+    # spanning ~35 degN (subtropical) to ~72 degN (arctic)
+    assert abs(ann_c[0, 0] - (-11.0)) < 4.0     # ~72 degN ~ -11 degC
+    assert abs(ann_c[-1, 0] - 18.0) < 4.0       # ~35 degN ~ +18 degC
+    # seasonal swing grows poleward (continental north, aseasonal tropics)
+    assert amp_c[-1, 0] < 10.0 < amp_c[0, 0]
+    # shrink halves -> half the latitude span (milder gradient)
+    T_lat2, _ = _lat_profile(lat, 1024.0, 0, 0, 0, 0,
+                             realistic=True, center_lat=53.5, shrink=2.0)
+    assert abs(temp_c(T_lat2)[-1, 0] - temp_c(T_lat2)[0, 0]) < \
+        abs(ann_c[-1, 0] - ann_c[0, 0]) - 5.0
+    # invented mode untouched: default knobs reproduce the legacy shape
+    Ti, Ai = _lat_profile(lat, 512.0, 0.12, 0.93, 0.40, 0.12)
+    assert abs(Ti[0, 0] - 0.12) < 1e-9
+    assert Ti[-1, 0] > 0.8
+    assert Ai.max() <= 0.03 + 0.12 + 1e-9
+
+
+@pytest.mark.slow
+def test_climate_realistic_mode():
+    from exp.k11_worldgen.units import temp_c
+    elev, ocean = _tiny_world()
+    hy = build_hydrology(elev, ocean)
+    cl = build_climate(elev, hy, 0.35, seed=SEED, realistic=True,
+                       center_lat=50.0, shrink=4.0)
+    cl2 = build_climate(elev, hy, 0.35, seed=SEED, realistic=True,
+                        center_lat=50.0, shrink=4.0)
+    assert np.array_equal(cl["T_monthly"], cl2["T_monthly"])
+    ann = temp_c(cl["T"]).mean(axis=1)   # per-row annual mean, degC
+    # the 96x96 tiny map is 384 km ~ 14 deg of latitude at shrink 4;
+    # center 50 -> 57 degN north rim (~+2 degC), 43 degN south rim (~+13)
+    assert ann[0] < 4.0
+    assert ann[-1] > 8.0
+    assert ann[-1] - ann[0] > 6.0
+    # July above freezing even near the north rim (tundra, not ice sheet)
+    jul = temp_c(cl["T_monthly"][6]).mean(axis=1)
+    assert jul[0] > 0.0
 
 
 # ---- complex derivation + full pipeline ---------------------------------------

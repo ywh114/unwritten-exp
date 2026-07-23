@@ -60,7 +60,13 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   ABSORBED into it (bays/lagoons) — then rivers = accumulation above an
   elevation-biased threshold OUTSIDE lakes. Rivers carry discharge,
   Strahler order, width class (1–3); sources are headwaters or lake
-  outlets, sinks ocean or lake inlets.
+  outlets, sinks ocean or lake inlets. `classify_salinity` then grades
+  every water cell 0..1: ocean = 1, rivers = 0 (estuary band on the
+  sea = brackish 0.25), lakes fresh when the drainage walk reaches the
+  ocean (EXORHEIC) or salted when it terminates in the basin
+  (ENDORHEIC — level falls with the flushing ratio inflow/area, so a
+  giant inflow keeps even a terminal lake brackish, Caspian-style).
+  Relational, decided at the anchor grid; carried to delivery.
 - **`climate`** — `WindLibrary` (precomputed wind patterns: latitude
   zonal base + chaotic gyres from stream-function curl + land–sea
   breeze; mountains DEFLECT and DAMP the sampled low-layer flow —
@@ -69,10 +75,16 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   migrating subtropical-high subsidence field, drying the low layer
   where it descends: subtropical deserts can sit beside warm seas),
   `build_climate(elev, hydro, sea_level, seed, coarse, n_samples,
-  t_knobs, stage_hook)`: temperature first
+  t_knobs, realistic, center_lat, shrink, stage_hook)`: temperature first
   (wind-independent; profile knobs t_north/t_span/t_pow/t_amp are
   generation-side variation, tuned against the classifier's real-world
-  prototypes), monsoon strength per month read off the ACTUAL
+  prototypes — OR `realistic=True` earth-patch mode: the map is a
+  northern-hemisphere patch of the real Earth, row → latitude from
+  `center_lat` (unset = 40°N +
+  per-seed wiggle, ±5 leaky) and a planet `shrink`× smaller (4× →
+  ~37° span), temperature interpolated from zonal-mean Earth
+  anchors (`_lat_profile`, climate.py); winds stay random in both
+  modes), monsoon strength per month read off the ACTUAL
   land–sea heating anomaly, N chaotic snapshots per month advect
   moisture on the coarse grid (128², upsampled/smudged; ocean recharge
   scales with water temperature — cold seas barely evaporate), then
@@ -151,21 +163,27 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
 
 ## Demo
 
-`uv run python -m exp.k11_worldgen demo --seed 1 [--json]` builds the
-world and writes everything under `exp/k11_worldgen/out/seed_<seed>/`:
+`uv run python -m exp.k11_worldgen demo --seed 1 [--json]
+[--check-determinism] [--realistic [--center-lat D] [--shrink S]]`
+builds the world and writes everything under
+`exp/k11_worldgen/out/seed_<seed>/`:
 the seven main PNGs plus world.png (2048×1024 sheet with legend),
 plates.png, `monthly/`, `loading/`, and the **world dump**
-(`world.json` manifest + `world.npz` rasters).
+(`world.json` manifest + `world.npz` rasters). `--realistic` switches
+temperature to the earth-patch mode (northern hemisphere; winds stay
+random); the mode is recorded in the dump's `stats.climate_mode`.
 `uv run python -m exp.k11_worldgen render --seed 1` re-renders all
 PNGs FROM THE DUMP in ~3 s — iterate on draw logic without the ~30 s
-world build (dump format: persist.py). It then runs ten checks:
-determinism (rebuild compare), ranges_exist (high-relief fraction, or
+world build (dump format: persist.py). It then runs nine checks:
+ranges_exist (high-relief fraction, or
 one >3.6 km peak — slim arcs fail the area test but are still ranges),
 large_ocean (25% < ocean < 75%), rivers_exist,
 drains_to_ocean_or_lake (flow walk from every river cell),
 rivers_avoid_lakes, lakes_equipotential (w constant per lake component),
 biome_coherent (≥5-of-9 same-biome neighbors), complex_audit_clean (no
-fatal defect classes), complex_nontrivial. Exit 0 iff all pass.
+fatal defect classes), complex_nontrivial. Exit 0 iff all pass. A tenth
+check, determinism (rebuild + byte-compare, doubles runtime), runs only
+with `--check-determinism`.
 ~30 s per seed (was ~90–120 s: the lattice-noise draws go through the
 K1 batch mixer `Stream.u64_batch` — 9e6 scalar BLAKE2b calls were 70%
 of the build; climate pass 2 runs at half samples; biome accumulation

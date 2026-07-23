@@ -40,7 +40,9 @@ SHAPE = (256, 256)  # L0 anchor grid: one cell = 4 km (map = 1024×1024 km);
 SEA_LEVEL = 0.35
 
 
-def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None) -> dict:
+def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
+                realistic: bool = False, center_lat: float | None = None,
+                shrink: float = 4.0) -> dict:
     stream = Stream(seed, "k11.worldgen")
     elev, plates = build_elevation(stream, shape, sea_level=SEA_LEVEL)
     bag = {"plates": plates, "elev": elev}
@@ -49,8 +51,19 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None) -> dict:
         sink.write(2, load_stage_draw(2, bag))
     # ocean = below-sea cells CONNECTED to the border; enclosed
     # below-sea basins are land (lake beds or dry depressions)
-    from exp.k11_worldgen.hydrology import connected_ocean
+    from exp.k11_worldgen.hydrology import carve_gorges, connected_ocean
     ocean_mask = connected_ocean(elev, SEA_LEVEL)
+    # antecedent gorges: big rivers notch their spill sills BEFORE
+    # hydrology (reflood-notch-reflood); the carved terrain feeds
+    # everything downstream (lapse, biomes, render). Ocean
+    # connectivity is re-derived after carving.
+    elev = carve_gorges(elev, ocean_mask)
+    ocean_mask = connected_ocean(elev, SEA_LEVEL)
+    # ocean currents right after elevation: gyre streams in deep water
+    # (absolute geographic feature), conducting the sea-surface
+    # temperature the climate then reads over water
+    from exp.k11_worldgen.currents import build_currents
+    currents = build_currents(elev, ocean_mask, SEA_LEVEL, seed=seed)
     hydro = build_hydrology(elev, ocean_mask, sea_level=SEA_LEVEL, seed=seed)
     bag["hydro"] = hydro
     if sink is not None:
@@ -66,6 +79,8 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None) -> dict:
         sink.write(n, draw)
 
     climate = build_climate(elev, hydro, SEA_LEVEL, seed=seed,
+                            realistic=realistic, center_lat=center_lat,
+                            shrink=shrink, currents=currents,
                             stage_hook=_hook if sink is not None else None)
     bag["climate"] = climate
     if sink is not None:
@@ -84,21 +99,31 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None) -> dict:
     cover = forest_cover(biome_map, growing_season_p(climate))
     biome_names = [b["name"] for b in BIOMES]
     complex_ = derive_complex(hydro, biome_map, biome_names)
+    from exp.k11_worldgen.aquatic import classify_aquatic
+    aquatic = classify_aquatic(elev, hydro, climate, SEA_LEVEL,
+                               currents=currents)
     return {
         "elev": elev, "plates": plates, "hydro": hydro, "climate": climate,
         "biome_map": biome_map, "cover": cover, "complex": complex_,
         "biome_names": biome_names, "ocean_mask": ocean_mask,
+        "aquatic": aquatic, "currents": currents,
     }
 
 
-def run_demo(seed: int) -> dict:
+def run_demo(seed: int, check_determinism: bool = False,
+             realistic: bool = False, center_lat: float | None = None,
+             shrink: float = 4.0) -> dict:
     import os
+    from exp.k11_worldgen.climate import resolve_center_lat
+    center_lat = resolve_center_lat(seed, center_lat)
     out_dir = f"{OUT_DIR}/seed_{seed:08d}"
     os.makedirs(out_dir, exist_ok=True)
     sink = LoadingSink(out_dir)
-    world = build_world(seed, sink=sink)
+    world = build_world(seed, sink=sink, realistic=realistic,
+                        center_lat=center_lat, shrink=shrink)
     delivered = upscale_world(world["elev"], world["hydro"], world["climate"],
-                              world["complex"], SEA_LEVEL)
+                              world["complex"], SEA_LEVEL,
+                              aquatic=world["aquatic"])
     sink.write(9, load_stage_draw(9, {"delivered": delivered}))
     sink.write(10, load_stage_draw(10, {"delivered": delivered}))
     paths = render_all(out_dir, delivered, world["complex"])
@@ -108,10 +133,13 @@ def run_demo(seed: int) -> dict:
     biome_map, complex_ = world["biome_map"], world["complex"]
     names = world["biome_names"]
 
-    # determinism: rebuild and compare
-    world2 = build_world(seed)
-    det_ok = (np.array_equal(world["elev"], world2["elev"])
-              and np.array_equal(world["biome_map"], world2["biome_map"]))
+    # determinism: rebuild and compare (opt-in — it doubles the runtime)
+    det_ok = True
+    if check_determinism:
+        world2 = build_world(seed, realistic=realistic,
+                             center_lat=center_lat, shrink=shrink)
+        det_ok = (np.array_equal(world["elev"], world2["elev"])
+                  and np.array_equal(world["biome_map"], world2["biome_map"]))
 
     # structural checks
     H, W = SHAPE
@@ -184,7 +212,6 @@ def run_demo(seed: int) -> dict:
     biome_hist = {names[i]: int((biome_map == i).sum()) for i in range(len(names))}
 
     checks = {
-        "determinism": det_ok,
         # ranges: broad high terrain, or at least one real >3.6 km peak
         # (slim island arcs fail the area test but are still ranges)
         "ranges_exist": high_relief > 0.003 or float(elev.max()) > 0.72,
@@ -197,10 +224,26 @@ def run_demo(seed: int) -> dict:
         "complex_audit_clean": len(fatal) == 0,
         "complex_nontrivial": len(complex_.nodes) > 2 and len(complex_.patches) > 3,
     }
+    if check_determinism:
+        checks["determinism"] = det_ok
     ok = all(checks.values())
 
     # world sheet (2048x1024) + plates diagram + loading stages
     from exp.k11_worldgen.biomes import PALETTE
+    from exp.k11_worldgen.units import precip_mm, temp_c
+    land_d = ~delivered["ocean_mask"] & ~delivered["lake_mask"]
+    ann_t = temp_c(delivered["T"])[land_d]
+    climate_trivia = {
+        "t_min": float(ann_t.min()), "t_max": float(ann_t.max()),
+        "t_mean": float(ann_t.mean()),
+        "p_mm_yr": float(precip_mm(delivered["P"])[land_d].mean() * 12),
+    }
+    salt_cells = int((hydro["salinity"][hydro["lake_mask"]] > 10.0).sum())
+    salt_max = (float(hydro["salinity"][hydro["lake_mask"]].max())
+                if hydro["lake_mask"].any() else 0.0)
+    climate_mode = ({"realistic": True, "center_lat": center_lat,
+                     "shrink": shrink} if realistic
+                    else {"realistic": False})
     stats_for_legend = {
         "sea_level": SEA_LEVEL,
         "plates": world["plates"].n,
@@ -210,6 +253,10 @@ def run_demo(seed: int) -> dict:
         "lake_cells": lake_cells,
         "max_stream_order": int(hydro["order"].max()),
         "high_relief_fraction": high_relief,
+        "salt_lake_cells": salt_cells,
+        "salt_max_gkg": salt_max,
+        "climate_mode": climate_mode,
+        "climate_trivia": climate_trivia,
     }
     delivered_hist = []
     dm = delivered["biome_map"]
@@ -220,8 +267,14 @@ def run_demo(seed: int) -> dict:
     delivered_hist.sort(key=lambda t: -t[1])
     from exp.k11_worldgen.marks import compute_marks
     marks = compute_marks(delivered, hydro, SEA_LEVEL, 4)
+    from exp.k11_worldgen.aquatic import aquatic_legend_hist
+    aq_hists = aquatic_legend_hist(
+        delivered["aquatic"],
+        delivered["ocean_mask"] | delivered["lake_mask"]
+        | delivered["river_mask"])
     render_world(f"{out_dir}/world.png", delivered, world["plates"], 4,
-                 seed, stats_for_legend, delivered_hist, PALETTE, marks)
+                 seed, stats_for_legend, delivered_hist, PALETTE, marks,
+                 aquatic_hists=aq_hists)
     render_plates(f"{out_dir}/plates.png", world["plates"], world["elev"])
     loading_paths = sink.paths
 
@@ -236,6 +289,10 @@ def run_demo(seed: int) -> dict:
                                      SEA_LEVEL, 4, report_stats := {
         "plates": world["plates"].n,
         "fine_cells": world["plates"].n_fine,
+        "climate_mode": climate_mode,
+        "climate_trivia": climate_trivia,
+        "salt_lake_cells": salt_cells,
+        "salt_max_gkg": round(salt_max, 1),
         "ocean_fraction": round(ocean_frac, 3),
         "high_relief_fraction": round(high_relief, 4),
         "river_cells": river_cells,
@@ -289,8 +346,16 @@ def run_render(seed: int) -> dict:
     hist = [(n, int((dm == i).sum()), PALETTE[i]) for i, n in enumerate(names)]
     hist.sort(key=lambda t: -t[1])
     stats = {**manifest["stats"], "sea_level": sea_level}
+    aq_hists = None
+    if "aquatic" in delivered:
+        from exp.k11_worldgen.aquatic import aquatic_legend_hist
+        aq_hists = aquatic_legend_hist(
+            delivered["aquatic"],
+            delivered["ocean_mask"] | delivered["lake_mask"]
+            | delivered["river_mask"])
     render_world(f"{out_dir}/world.png", delivered, world["plates"],
-                 factor, seed, stats, hist, PALETTE, marks)
+                 factor, seed, stats, hist, PALETTE, marks,
+                 aquatic_hists=aq_hists)
     render_plates(f"{out_dir}/plates.png", world["plates"], world["elev"])
     loading_paths = render_loading(out_dir, world, delivered,
                                    world["plates"], sea_level)
@@ -304,6 +369,18 @@ def main(argv: list[str] | None = None) -> int:
     demo = sub.add_parser("demo", help="generate the demo world")
     demo.add_argument("--seed", type=int, default=1)
     demo.add_argument("--json", action="store_true")
+    demo.add_argument("--check-determinism", action="store_true",
+                      help="rebuild the world and byte-compare (doubles runtime)")
+    demo.add_argument("--realistic", action="store_true",
+                      help="earth-patch temperature (northern hemisphere); "
+                           "winds stay random")
+    demo.add_argument("--center-lat", type=float, default=None,
+                      help="realistic mode: patch center latitude, degN "
+                           "(default: 40N + seeded wiggle, mostly +-5 "
+                           "with a leaky cap)")
+    demo.add_argument("--shrink", type=float, default=4.0,
+                      help="realistic mode: planet shrink factor "
+                           "(map spans 1024 km * shrink / 111 degrees)")
     rend = sub.add_parser("render", help="re-render PNGs from seed_N/world.json")
     rend.add_argument("--seed", type=int, default=1)
     args = parser.parse_args(argv)
@@ -315,7 +392,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"    {Path(p).name}")
         return 0
 
-    report = run_demo(args.seed)
+    report = run_demo(args.seed, check_determinism=args.check_determinism,
+                      realistic=args.realistic, center_lat=args.center_lat,
+                      shrink=args.shrink)
 
     if args.json:
         json.dump(report, sys.stdout, indent=2)

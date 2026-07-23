@@ -69,7 +69,7 @@ def save_world(out_dir: str, world: dict, delivered: dict, seed: int,
                marks: list, checks: dict) -> tuple[str, str]:
     out = Path(out_dir)
     arrays: dict[str, np.ndarray] = {}
-    for k in ("elev", "biome_map", "cover", "ocean_mask"):
+    for k in ("elev", "biome_map", "cover", "ocean_mask", "aquatic"):
         arrays[f"w_{k}"] = world[k]
     for k, v in world["hydro"].items():
         arrays[f"h_{k}"] = v
