@@ -343,6 +343,7 @@ def test_carve_gorges_notches_sill():
 
 # ---- climate / biomes ---------------------------------------------------------
 
+@pytest.mark.slow
 def test_currents_and_sst():
     from exp.k11_worldgen.currents import advect_sst, build_currents, \
         velocity_field
@@ -353,6 +354,8 @@ def test_currents_and_sst():
     c2 = build_currents(h, ocean, 0.35, seed=SEED)
     assert np.array_equal(c1["u"], c2["u"])            # deterministic
     assert c1["n_gyres"] >= 1
+    assert "ramp" in c1                          # through-flow source
+    assert len(c1["psi"]) == c1["n_gyres"] + 2   # gyres + ramp pair
     assert (c1["u"][~ocean] == 0).all()                # ocean-only flow
     assert (c1["v"][~ocean] == 0).all()
     base = np.linspace(-5.0, 25.0, 64)[:, None] * np.ones((1, 64))
@@ -371,13 +374,11 @@ def test_currents_and_sst():
     u6, v6 = velocity_field(c1, 6)
     assert not np.array_equal(u0, u6)
     # the stream function makes land a streamline BY CONSTRUCTION:
-    # psi is constant (0) across every land cell
-    from exp.k11_worldgen.currents import _blend
+    # psi is constant (0) across every land cell. The magic rim is
+    # water in the solve, so compare against the solver's own mask
+    from exp.k11_worldgen.currents import _blend, _coarse_grids
     psi = _blend(c1["psi"], c1["weights"])
-    f = c1["factor"]
-    water_c = ocean if f == 1 else (
-        ocean.astype(float)
-        .reshape(64 // f, f, 64 // f, f).mean(axis=(1, 3)) > 0.5)
+    water_c, _ = _coarse_grids(h, ocean, 0.35, c1["factor"])
     assert abs(psi[~water_c].max() - psi[~water_c].min()) < 1e-9
     # conditioning-pass refinement: the world's OWN wind curl joins the
     # sources — deterministic, changes the field, keeps it stream-driven
@@ -392,7 +393,7 @@ def test_currents_and_sst():
                           h, ocean, 0.35, cl)
     assert np.array_equal(c3["u"], c3b["u"])       # deterministic
     assert not np.array_equal(c3["u"], c1["u"])    # wind correlation
-    assert len(c3["psi"]) == c1["n_gyres"] + 1     # one wind source
+    assert len(c3["psi"]) == c1["n_gyres"] + 3   # ramps + one wind source
 
 
 def test_current_streamfunction_continuity():
@@ -511,18 +512,21 @@ def test_refine_climate_conditions_on_snow_and_rain():
 
 def test_wind_library_terrain_blocking():
     from exp.k11_worldgen.climate import WindLibrary
-    shape = (64, 64)
+    shape = (32, 32)
     land = np.ones(shape, bool)
     alt = np.zeros(shape)
-    alt[:, 32:] = 0.8                   # high range over the east half
+    alt[:, 16:] = 0.8                   # high range over the east half
     lib0 = WindLibrary(Stream(SEED, "t"), shape, land, alt=np.zeros(shape))
     lib1 = WindLibrary(Stream(SEED, "t"), shape, land, alt=alt)
     u0, v0 = lib0.sample(Stream(SEED, "s"), 1000, 1.0)
     u1, v1 = lib1.sample(Stream(SEED, "s"), 1000, 1.0)
-    # same seed -> same base wind; the range only removes momentum
-    assert np.hypot(u1, v1)[:, 40:].mean() < np.hypot(u0, v0)[:, 40:].mean()
-    # and cell-by-cell the blocked wind never exceeds the free wind
-    assert (np.hypot(u1, v1) <= np.hypot(u0, v0) + 1e-9).all()
+    # same seed -> same sources; the solved stream function bends the
+    # flow around the range instead of projecting it off cell-by-cell:
+    # the massif interior is a psi-constant obstacle (no rotational
+    # wind at all), and the flow deflects along the range front
+    assert np.hypot(u1, v1)[:, 20:].mean() < np.hypot(u0, v0)[:, 20:].mean()
+    assert np.hypot(u1, v1)[:, 22:].max() == 0.0
+    assert abs(v1[:, 12:16]).mean() < abs(v0[:, 12:16]).mean()
 
 
 @pytest.mark.slow

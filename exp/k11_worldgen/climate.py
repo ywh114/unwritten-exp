@@ -14,8 +14,10 @@ Lyapunov horizon, divergent after) and are NOT generated here.
 
 Couplings: mountains DEFLECT and DAMP the (low-layer) wind (air
 goes around, not through); the persistent circulation is a few
-meridional bands with random signs (outermost constrained equatorward
-— polar outflow and equatorward trades); a HIGH layer (same bands,
+bands of along-axis flow with random signs along a SEEDED
+prevailing axis — any compass direction, no hardcode (outermost
+prefer an equatorward meridional component — polar outflow and
+equatorward trades); a HIGH layer (same bands,
 stronger, no terrain, no breeze) advects the subsidence field, which
 parks where the low-level flow DIVERGES and dries it where it
 descends — two layers, not one, so subtropical deserts can sit beside
@@ -44,7 +46,7 @@ import numpy as np
 from kernel.hashrng import Stream
 
 from exp.k11_worldgen.raster import fbm
-from exp.k11_worldgen.units import T_MAX_C, T_MIN_C
+from exp.k11_worldgen.units import ELEV_MAX_M, T_MAX_C, T_MIN_C
 
 # months are the canon time period; summer solstice at month 6
 _SUMMER = 6.0
@@ -82,11 +84,49 @@ def resolve_center_lat(seed: int, center_lat: float | None,
 # freezing point in normalized units (0 degC)
 _FREEZE = (0.0 - T_MIN_C) / (T_MAX_C - T_MIN_C)
 
+
+def evap_factor(T: np.ndarray) -> np.ndarray:
+    """Temperature-conditioned evaporation multiplier, ~0.05 at -3 degC
+    to full at +10 degC (normalized-units T): real saturation vapor
+    pressure at 0 degC is ~20% of tropical values, so cold surfaces
+    barely evaporate. Shared by the atmospheric moisture pass and the
+    lake-salinity balance (hydrology) — one Clausius-Clapeyron curve,
+    two consumers."""
+    return np.clip((T - (_FREEZE - 0.05)) / 0.22, 0.05, 1.0)
+
 # adaptive-gain target for land-mean precipitation, normalized: real
 # land averages ~65-80 mm/month (~800-1000 mm/yr) -> ~0.19 of the
 # 0-400 mm units range. A higher pin floods the biome match — every
 # cell reads wet-forest and grassland prototypes never win.
 _TARGET_LAND_P = 0.19
+
+# surface-wind obstacle threshold, meters: real low-level flow is
+# BLOCKED (splits around, not over) once terrain approaches the
+# boundary-layer depth (~1-2 km, Froude < 1) — hills well under a
+# kilometer still ride over. Much lower than the old 2100 m: the user
+# wants wind visibly swirling around ordinary relief, not just the
+# big ranges.
+_BLOCK_ALT_M = 1000.0
+
+# rim porosity for the ATMOSPHERIC stream solve: the sky above the
+# magic rim is open — air exchanges with the world beyond the map
+# more freely than water leaks through the rock (currents use 0.5).
+# Weather systems enter, swirl around the terrain, and leave.
+_RIM_POROSITY_AIR = 0.8
+
+# gyre blend weight against the band stream in each snapshot: cut
+# from 2.4 to 0.6 — with porous rims the standing-whirlpool look
+# should come from terrain deflection, not from the chaotic sources
+# dominating the persistent flow. Six gyres at +-0.5 alpha still sum
+# past the band at ~1.2.
+_GYRE_WEIGHT = 0.6
+
+# drift phases per gyre: each chaotic gyre is precomputed at this
+# many quarter-domain rolls of its fbm texture (re-solved against
+# the terrain per phase) and snapshots draw a random phase angle —
+# the weather systems MOVE, so the annual mean cancels them instead
+# of revealing fixed parked gyres (the mean-field render complaint)
+_GYRE_PHASES = 4
 
 
 def _pool(a: np.ndarray, f: int) -> np.ndarray:
@@ -117,15 +157,6 @@ def _bilinear(field: np.ndarray, bx: np.ndarray, by: np.ndarray) -> np.ndarray:
             + field[y0 + 1, x0 + 1] * fx * fy)
 
 
-def _curl(psi: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Divergence-free wind from a stream function: u = dpsi/dy, v = -dpsi/dx."""
-    u = np.zeros_like(psi)
-    v = np.zeros_like(psi)
-    u[1:-1, :] = (psi[2:, :] - psi[:-2, :]) / 2
-    v[:, 1:-1] = -(psi[:, 2:] - psi[:, :-2]) / 2
-    return u, v
-
-
 def _grad(a: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Central-difference gradients (zeros at the border)."""
     gx = np.zeros_like(a)
@@ -135,55 +166,46 @@ def _grad(a: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return gx, gy
 
 
-def lee_shadow(u: np.ndarray, v: np.ndarray, source: np.ndarray,
-               steps: int, recharge: float, decay: float) -> np.ndarray:
-    """Blocked momentum transported downstream with the (deflected)
-    flow: a barrier — a range, a peninsula — keeps weakening the
-    stream past its lee instead of letting it resume full strength.
-    Recharged at the source, decaying with distance. Shared by the
-    wind lee wake (WindLibrary) and the ocean-current shadow
-    (currents._process). Returns 0..1."""
-    H, W = u.shape
-    gy, gx = np.mgrid[0:H, 0:W].astype(float)
-    S = source.copy()
-    for _ in range(steps):
-        S = _bilinear(S, gx - u, gy - v)
-        S = np.clip(S + recharge * source * (1.0 - S) - decay, 0.0, 1.0)
-    return S
-
-
-# lee wake (wind): the momentum a range strips is transported
-# downstream with the deflected flow — the wind stays weakened a few
-# cells past the lee (real wakes mix out over tens of km, 1-3 coarse
-# cells). Shares the deficit-advection tooling (lee_shadow) with the
-# ocean-current shadow.
-_WAKE_STEPS = 12
-_WAKE_RECHARGE = 0.25
-_WAKE_DECAY = 0.20
-_WAKE_DAMP = 0.6
-
-
 class WindLibrary:
-    """Precomputed wind-pattern components at the coarse grid."""
+    """Precomputed wind-pattern components at the coarse grid.
+
+    The ROTATIONAL (pure-curl) part is fluid dynamics, like the ocean
+    currents: vorticity sources (the persistent bands on their seeded
+    prevailing axis and the chaotic fbm gyres, each in _GYRE_PHASES
+    drift phases) each solve ∇²ψ = ζ at the psi grid (64² —
+    weather systems are synoptic-huge) with high terrain as free-
+    constant obstacles (ranges that already fully blocked flow now
+    SHAPE it — the solved stream bends around massifs instead of
+    being projected off them cell-by-cell). Snapshots blend the
+    per-source stream functions (band wobble, gyre phase angles —
+    the same K1 clocks as before), curl, upscale, and only then meet
+    the DIVERGENT terms (monsoon breeze — a potential flow by
+    construction) and surface friction. The old upslope-projection,
+    terrain damping and lee-wake advection are gone: the solve does
+    the shape, everything else is conditioned on the shape."""
 
     def __init__(self, stream: Stream, shape: tuple[int, int],
                  land: np.ndarray, alt: np.ndarray | None = None,
-                 n_gyres: int = 6, land_friction: float = 0.35) -> None:
+                 n_gyres: int = 6, land_friction: float = 0.35,
+                 block_alt: float = _BLOCK_ALT_M / ELEV_MAX_M,
+                 psi_coarse: int = 64) -> None:
         H, W = shape
         gy, gx = np.mgrid[0:H, 0:W].astype(float)
-        lat = gy / (H - 1)  # 0 north (poleward) → 1 south (equatorward)
 
-        # meridional circulation cells: a few semi-stable bands of
-        # NORTH–SOUTH flow (crossing the parallels), each with a RANDOM
-        # sign (equatorward or poleward), strength, center, and width —
-        # one-time draws, never re-rolled per snapshot. Not an Earth
-        # clone: where adjacent bands oppose, the flow converges (wet
-        # belts, at whatever latitude the draw puts them) or diverges
-        # (dry belts — where the subtropical highs park, see
-        # _precip_pass). Flow tapers to zero at both rims; an
-        # equatorward rim band piles up at the equator (ITCZ analog).
-        self.lat = lat
+        # circulation cells along a SEEDED prevailing axis: a few
+        # semi-stable bands of flow ALONG the axis — entering from one
+        # side of the map, leaving across the porous rim — each with a
+        # RANDOM sign, strength, center, and width, one-time draws,
+        # never re-rolled per snapshot. No hardcoded axis, not an
+        # Earth clone: where adjacent bands oppose, the flow converges
+        # (wet belts) or diverges (dry belts — where the subtropical
+        # highs park, see _precip_pass).
         self.angle_jitter = 0.1 + 0.2 * stream.uniform(5, 4)
+        self.frame = 2.0 * math.pi * stream.uniform(5, 3)   # any side
+        ay, ax = math.cos(self.frame), math.sin(self.frame)
+        self.axis = (ay, ax)
+        s_raw = (gy / (H - 1)) * ay + (gx / (W - 1)) * ax
+        self.s_coord = (s_raw - s_raw.min()) / (s_raw.max() - s_raw.min())
         self.bands: list[tuple[float, float, float, float]] = []
         n_bands = 2 + int(stream.uniform(5, 9) < 0.5)
         for b in range(n_bands):
@@ -193,22 +215,112 @@ class WindLibrary:
             width = 0.10 + 0.08 * stream.uniform(5, 13 + 4 * b)
             self.bands.append((sgn, strength, center, width))
         self.bands.sort(key=lambda b: b[2])
-        # the two OUTERMOST cells are constrained equatorward: polar air
-        # drains off the pole at the surface (the rim taper then makes
-        # the pole a divergence zone — a dry polar high), and the trades
-        # converge on the equator (the ITCZ) — otherwise random signs
-        # leave half of all worlds with a desert equator. The variety
-        # lives in the middle cells.
-        self.bands[0] = (1.0,) + self.bands[0][1:]
-        self.bands[-1] = (1.0,) + self.bands[-1][1:]
+        # the two OUTERMOST cells prefer an EQUATORWARD meridional
+        # component (polar air drains off the pole at the surface, the
+        # trades converge on the equator — otherwise random signs
+        # leave half of all worlds with a desert equator). Projected
+        # onto the frame axis and vacuous when the axis is zonal; the
+        # variety lives in the frame draw and the middle cells.
+        if abs(ay) > 0.2:
+            eq = 1.0 if ay > 0.0 else -1.0
+            self.bands[0] = (eq,) + self.bands[0][1:]
+            self.bands[-1] = (eq,) + self.bands[-1][1:]
 
-        # chaotic gyres: curl of K1 stream functions (each its own
-        # substream — same-stream fields at the same coordinates would
-        # be identical)
-        self.gyres: list[tuple[np.ndarray, np.ndarray]] = []
+        # ---- the fluid-dynamics rotational part ----
+        from exp.k11_worldgen.currents import (
+            _land_constants, _poisson_sor)
+        from exp.k11_worldgen.raster import upsample_bicubic
+        self._upsample = upsample_bicubic
+        self.f_psi = max(1, H // psi_coarse)
+        ph, pw = H // self.f_psi, W // self.f_psi
+        self._psi_shape = (ph, pw)
+        # obstacles: high terrain, free-constant islands — the solved
+        # stream goes AROUND a massif; below the threshold the air is
+        # open (below-threshold hills used to eat a 40% damp; that
+        # whole pretending layer is deleted)
+        if alt is not None:
+            alt_p = _pool(alt, self.f_psi)
+            open_air = alt_p <= block_alt
+        else:
+            open_air = np.ones((ph, pw), bool)
+
+        def solve(zeta):
+            # semi-porous rim, airier than the ocean's: weather
+            # systems arrive from beyond the map and leave it — a
+            # closed rim traps every gyre into a pronounced standing
+            # whirlpool
+            pin = _land_constants(zeta, open_air,
+                                  rim_porosity=_RIM_POROSITY_AIR)
+            return _poisson_sor(zeta, open_air, pin=pin,
+                                rim_porosity=_RIM_POROSITY_AIR)
+
+        def curl(psi):
+            gx_, gy_ = _grad(psi)
+            return gy_, -gx_
+
+        def open_mean_speed(u, v):
+            return float(np.hypot(u, v)[open_air].mean())
+
+        def solve_matched(zeta, target_speed):
+            # the bounded-domain solve reshapes (and on average
+            # weakens) the source's open-domain flow; rescale the
+            # solved stream function so its mean open-air transport
+            # matches the field it replaces
+            psi = solve(zeta)
+            got = open_mean_speed(*curl(psi))
+            return psi * (target_speed / max(got, 1e-9))
+
+        # chaotic gyres: K1 stream functions (each its own substream —
+        # same-stream fields at the same coordinates would be
+        # identical), used RAW aloft (upper air flows over ranges) and
+        # SOLVED at the surface. Each gyre exists in _GYRE_PHASES
+        # drift phases (quarter-domain diagonal rolls of the texture,
+        # each re-solved against the terrain): snapshots draw a random
+        # phase angle, so the weather systems MOVE between snapshots
+        # and largely cancel in the annual mean instead of parking at
+        # fixed spots
+        self.gyre_psi_raw: list[list[np.ndarray]] = []
+        self.gyre_psi: list[list[np.ndarray]] = []
         for k in range(n_gyres):
-            psi = fbm(stream.child(f"gyre.{k}"), shape, base_cell=max(8, W // 3), octaves=3)
-            self.gyres.append(_curl(psi))
+            psi = fbm(stream.child(f"gyre.{k}"), (ph, pw),
+                      base_cell=max(8, pw // 3), octaves=3)
+            target = open_mean_speed(*curl(psi))
+            raws, solved = [], []
+            for q in range(_GYRE_PHASES):
+                rq = np.roll(psi, (q * ph // _GYRE_PHASES,
+                                   q * pw // _GYRE_PHASES), axis=(0, 1))
+                raws.append(rq)
+                p = np.pad(rq, 1)
+                zeta = (p[:-2, 1:-1] + p[2:, 1:-1] + p[1:-1, :-2]
+                        + p[1:-1, 2:] - 4.0 * rq)
+                solved.append(solve_matched(zeta, target))
+            self.gyre_psi_raw.append(raws)
+            self.gyre_psi.append(solved)
+
+        # the bands as a vorticity field (their along-axis flow varying
+        # along the axis IS vorticity) — solved at the two seasonal
+        # extremes and interpolated (the profile is near-linear in
+        # `seasonal`). No rim taper: the rim is porous, the
+        # through-flow EXITS instead of piling up
+        s_p = (self.s_coord[::self.f_psi, ::self.f_psi]
+               if self.f_psi > 1 else self.s_coord)
+
+        def band_v(seasonal, sg):
+            v = np.zeros_like(sg)
+            for sgn, strength, center, width in self.bands:
+                c = center + 0.03 * seasonal * sgn
+                v = v + sgn * strength * np.exp(
+                    -0.5 * ((sg - c) / width) ** 2)
+            return v
+
+        self._band_v = band_v
+        band_psi = {}
+        for s in (-1.0, 1.0):
+            v = band_v(s, s_p)
+            zeta = _grad(v * ax)[1] - _grad(v * ay)[0]
+            band_psi[s] = solve_matched(
+                zeta, float(abs(v)[open_air].mean()))
+        self.band_psi_m, self.band_psi_p = band_psi[-1.0], band_psi[1.0]
 
         # land–sea breeze potential: blows onshore when land is warm.
         # Heavily smoothed land mask → a CONTINENTAL monsoon flow, not
@@ -235,33 +347,51 @@ class WindLibrary:
             fr = sum(p[dy:dy + H, dx:dx + W] for dy in range(3) for dx in range(3)) / 9.0
         self.friction = 1.0 - land_friction * fr
 
-        # terrain interaction: mountains DEFLECT the
-        # flow around them and DAMP it — moisture advection already sees
-        # terrain in its rate/moisture terms; now momentum does too
-        self.alt = alt
-        if alt is not None:
-            self.ahx, self.ahy = _grad(alt)
+    def band_divergence(self, seasonal: float) -> np.ndarray:
+        """Divergence of the persistent band flow on the climate grid:
+        positive where the surface flow pulls apart along the frame
+        axis (low-level outflow = subsidence aloft — the dry-belt
+        sources; the wet belts are where it meets)."""
+        ay, ax = self.axis
+        v = self._band_v(seasonal, self.s_coord)
+        gx_, gy_ = _grad(v)
+        return gx_ * ax + gy_ * ay
 
-    def meridional(self, seasonal: float) -> np.ndarray:
-        """The persistent N–S base flow (bands + rim tapers), drifting
-        slightly with the seasons."""
-        v = np.zeros_like(self.lat)
-        for sgn, strength, center, width in self.bands:
-            c = center + 0.03 * seasonal * sgn
-            v = v + sgn * strength * np.exp(
-                -0.5 * ((self.lat - c) / width) ** 2)
-        fall = 0.06
-        v = (v * np.clip((1.0 - self.lat) / fall, 0.0, 1.0)
-             * np.clip(self.lat / fall, 0.0, 1.0))
-        return v
+    def _band_stream(self, seasonal: float) -> np.ndarray:
+        """The solved band stream function, interpolated in seasonal
+        (the band profile is near-linear in it, and the solve is
+        linear)."""
+        return (0.5 * (self.band_psi_p + self.band_psi_m)
+                + 0.5 * seasonal * (self.band_psi_p - self.band_psi_m))
 
-    def _base(self, stream: Stream, clock: int,
-              seasonal: float) -> tuple[np.ndarray, np.ndarray]:
-        """The persistent wind for one snapshot: the meridional bands
-        with a per-snapshot angle wobble (small zonal tilt)."""
-        v = (0.8 + 0.4 * stream.uniform(clock, 0)) * self.meridional(seasonal)
+    def _rotational(self, stream: Stream, clock: int, seasonal: float,
+                    solved: bool) -> tuple[np.ndarray, np.ndarray]:
+        """Blend the stream functions (band wobble + gyre drift
+        phases, the same K1 clocks as before), curl, tilt by the
+        angle jitter, upscale to the library grid. `solved=False` is
+        the aloft view: raw fbm gyres, no obstacle shaping. Each
+        gyre's phase angle is a per-snapshot K1 draw — the systems
+        drift, so the annual mean keeps no parked whirlpools."""
+        wobble = 0.8 + 0.4 * stream.uniform(clock, 0)
+        psi = wobble * self._band_stream(seasonal)
+        srcs = self.gyre_psi if solved else self.gyre_psi_raw
+        for k, phases in enumerate(srcs):
+            alpha = stream.uniform(clock, 1 + k) - 0.5
+            phi = _GYRE_PHASES * stream.uniform(clock, 20 + k)
+            i0 = int(phi) % _GYRE_PHASES
+            f = phi - int(phi)
+            pg = (1.0 - f) * phases[i0] + f * phases[
+                (i0 + 1) % _GYRE_PHASES]
+            psi = psi + _GYRE_WEIGHT * alpha * pg
+        gy_, gx_ = _grad(psi)
+        u, v = gy_, -gx_
         j = self.angle_jitter * (stream.uniform(clock, 8) - 0.5)
-        return -v * math.sin(j), v * math.cos(j)
+        c, s = math.cos(j), math.sin(j)
+        u, v = c * u - s * v, s * u + c * v
+        if self.f_psi > 1:
+            u = self._upsample(u, self.f_psi)
+            v = self._upsample(v, self.f_psi)
+        return u, v
 
     def sample_high(self, stream: Stream, clock: int,
                     seasonal: float) -> tuple[np.ndarray, np.ndarray]:
@@ -269,62 +399,29 @@ class WindLibrary:
         zonal-dominant (stronger than the low layer), shares the low
         layer's random gyre phases (same weather systems aloft), but no
         land–sea breeze (a boundary-layer phenomenon) and no terrain
-        deflection — upper air flows OVER ranges that block the low
+        shaping — upper air flows OVER ranges that block the low
         layer. This split is what lets subtropical highs park dry air
         over seas and coasts (Middle-East-style deserts need the layers
         decoupled, not a single terrain-blocked flow).
         """
-        u, v = self._base(stream, clock, seasonal)
-        u = 1.4 * u
-        v = 1.4 * v
-        for k, (gu, gv) in enumerate(self.gyres):
-            alpha = stream.uniform(clock, 1 + k) - 0.5
-            u = u + 2.4 * alpha * gu
-            v = v + 2.4 * alpha * gv
-        return u, v
+        u, v = self._rotational(stream, clock, seasonal, solved=False)
+        return 1.4 * u, 1.4 * v
 
     def sample(self, stream: Stream, clock: int, seasonal: float,
                monsoon: float | None = None) -> tuple[np.ndarray, np.ndarray]:
-        """One chaotic wind field: the meridional band base + random
-        gyre blend + monsoon (breeze_u/v scaled by `monsoon` — the
-        actual land–sea temperature contrast when the caller passes it,
-        else a fixed 0.9 * seasonal), slowed over land by surface
-        friction. seasonal = +1 midsummer, -1 midwinter. Terrain
-        deflects/damps the result."""
-        u, v = self._base(stream, clock, seasonal)
-        # random gyre phases: interpolate across the precomputed library
-        for k, (gu, gv) in enumerate(self.gyres):
-            alpha = stream.uniform(clock, 1 + k) - 0.5  # signed blend
-            u = u + 2.4 * alpha * gu
-            v = v + 2.4 * alpha * gv
+        """One chaotic wind field: the SOLVED rotational part (bands +
+        gyres, terrain-shaped by the stream-function solve) + monsoon
+        (breeze_u/v scaled by `monsoon` — the actual land–sea
+        temperature contrast when the caller passes it, else a fixed
+        0.9 * seasonal), slowed over land by surface friction.
+        seasonal = +1 midsummer, -1 midwinter."""
+        u, v = self._rotational(stream, clock, seasonal, solved=True)
         b = monsoon if monsoon is not None else 0.9 * seasonal
         u = u + b * self.breeze_u
         v = v + b * self.breeze_v
         # surface roughness: the low layer slows over land
         u = u * self.friction
         v = v * self.friction
-        if self.alt is not None:
-            # deflect: remove (most of) the upslope component over high
-            # ground — air goes around, not over
-            oro = u * self.ahx + v * self.ahy
-            gn = np.hypot(self.ahx, self.ahy) + 1e-9
-            block = np.clip((self.alt - 0.15) / 0.35, 0.0, 1.0)
-            cut = 0.7 * block * np.maximum(oro, 0.0) / gn
-            u = u - cut * self.ahx
-            v = v - cut * self.ahy
-            # lee wake: the stripped momentum rides the deflected flow
-            # downstream — the lee stays slowed, not just the slope
-            removed = np.clip(cut * gn / (np.hypot(u, v) + 1e-9),
-                              0.0, 1.0)
-            wake = lee_shadow(u, v, removed, _WAKE_STEPS,
-                              _WAKE_RECHARGE, _WAKE_DECAY)
-            wk = 1.0 - _WAKE_DAMP * wake
-            u = u * wk
-            v = v * wk
-            # damp: high terrain slows the flow
-            f = 1.0 - 0.4 * block
-            u = u * f
-            v = v * f
         return u, v
 
 
@@ -400,10 +497,7 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
     sink = np.maximum(0.0, -(u * dhx + v * dhy))   # descent: foehn
     recycle = 0.15 if green is None else 0.15 + 0.25 * green
     intercept = 1.0 if green is None else 1.0 - 0.3 * green
-    # evaporation factor: ~0 at -3 degC, full at +10 degC — real
-    # saturation vapor pressure at 0 degC is ~20% of tropical values,
-    # so cold seas barely humidify the air
-    evap = np.clip((T - (_FREEZE - 0.05)) / 0.22, 0.05, 1.0)
+    evap = evap_factor(T)
     # subsidence suppression factors (1 = no high overhead)
     wet = 1.0 if sub is None else 1.0 - 0.65 * sub
     dry = 1.0 if sub is None else 1.0 - 0.75 * sub
@@ -477,13 +571,12 @@ def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
     T_ann_c = T_m.mean(axis=0)
     for m in range(12):
         seasonal = math.cos(2 * math.pi * (m - _SUMMER) / 12)
-        # subtropical highs park where the persistent meridional flow
-        # DIVERGES (low-level outflow = subsidence aloft) — no fixed
-        # latitude: the dry belts sit wherever this world's circulation
-        # cells pull apart, wet belts where they meet
-        v0 = lib.meridional(seasonal)
-        dvy = np.gradient(v0, axis=0)
-        band = np.clip(dvy / 0.10, 0.0, 1.0)
+        # subtropical highs park where the persistent band flow
+        # DIVERGES along the frame axis (low-level outflow =
+        # subsidence aloft) — no fixed latitude, no fixed axis: the
+        # dry belts sit wherever this world's circulation cells pull
+        # apart, wet belts where they meet
+        band = np.clip(lib.band_divergence(seasonal) / 0.10, 0.0, 1.0)
         # monsoon driven by the ACTUAL land–sea heating ANOMALY (land
         # warming faster than sea in summer -> onshore flow; reverses
         # in winter). Anomaly, not absolute contrast: the constant

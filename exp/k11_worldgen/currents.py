@@ -82,30 +82,87 @@ def _pool(a: np.ndarray, f: int) -> np.ndarray:
     return a.reshape(H // f, f, W // f, f).mean(axis=(1, 3))
 
 
+# the world-edge rock rim is a magic map boundary, not terrain: it
+# leaks water into the void (replenished by the currents that arrive
+# from beyond the map) but still redirects part of the flow back
+# along the edge. A Robin rim condition between wall (0.0 — the rim
+# is a streamline, all flow redirected, meridional boundary currents
+# recirculate and pile heat onto the poleward rim) and open water
+# (1.0 — through-flow unchecked, no along-rim guidance).
+_RIM_POROSITY = 0.5
+
+
 def _poisson_sor(zeta: np.ndarray, water: np.ndarray,
                  pin: np.ndarray | None = None,
-                 iters: int = 600, omega: float = 1.85) -> np.ndarray:
+                 iters: int | None = None, omega: float = 1.85,
+                 rim_porosity: float = 0.0,
+                 rim_values: np.ndarray | None = None) -> np.ndarray:
     """Solve ∇²ψ = ζ with ψ fixed to `pin` values outside `water`
-    (default 0) and 0 on the rim — every landmass is then a
-    streamline. Deterministic red-black SOR."""
+    (default 0). Deterministic red-black SOR.
+
+    Rim boundary condition, parametrized by `rim_porosity` ρ:
+    - ρ = 0 (closed wall): ψ = 0 on the rim, so the rim is a
+      streamline and no transport crosses the domain edge.
+    - ρ = 1 (fully open): zero normal gradient, transport crosses
+      the rim freely.
+    - in between (semi-porous): the ghost cell takes
+      (2ρ − 1)·ψ_rim, interpolating between the Dirichlet
+      reflection (−ψ) and the Neumann mirror (+ψ) — the edge
+      leaks a ρ-share of the through-flow and redirects the rest.
+    With ρ > 0 rim water cells take part in the solve; with ρ = 0
+    they hold their pinned value.
+
+    `iters` defaults to 600 at the production 64² psi grid and
+    scales down with the grid (SOR needs O(diameter) sweeps to
+    converge) so small test grids do not pay for full-size
+    convergence.
+
+    `rim_values` (through-flow sources): full Dirichlet rim — rim
+    cells are FIXED to the given values and excluded from the solve,
+    overriding the porosity machinery. A linear ramp along the rim
+    drives a uniform transport across the domain that bends around
+    the landmasses (the circulation arriving from beyond the map)."""
+    if iters is None:
+        iters = min(600, max(150, 10 * max(zeta.shape)))
     psi = (np.zeros_like(zeta) if pin is None
            else np.where(water, 0.0, pin))
     interior = water.copy()
     interior[0, :] = interior[-1, :] = False
     interior[:, 0] = interior[:, -1] = False
+    if rim_values is not None:
+        rim = np.zeros(zeta.shape, bool)
+        rim[0, :] = rim[-1, :] = True
+        rim[:, 0] = rim[:, -1] = True
+        psi[rim] = rim_values[rim]
+    elif rim_porosity > 0.0:
+        interior = water.copy()
     yy, xx = np.mgrid[0:zeta.shape[0], 0:zeta.shape[1]]
     checker = (yy + xx) % 2
+    # rim cells and how many domain edges they sit on (corners: 2)
+    edge_n = np.zeros(zeta.shape)
+    edge_n[0, :] += 1
+    edge_n[-1, :] += 1
+    edge_n[:, 0] += 1
+    edge_n[:, -1] += 1
+    leak = 2.0 * (1.0 - rim_porosity)
     for _ in range(iters):
         for parity in (0, 1):
-            p = np.pad(psi, 1)                      # rim BC: ψ = 0
+            p = np.pad(psi, 1, mode="edge")
             s = (p[:-2, 1:-1] + p[2:, 1:-1]
                  + p[1:-1, :-2] + p[1:-1, 2:])
+            if rim_porosity > 0.0:
+                # replace the mirrored ghost (+ψ) with (2ρ−1)·ψ on
+                # each domain edge the cell touches
+                s = s - leak * edge_n * psi
             m = interior & (checker == parity)
             psi[m] = (1.0 - omega) * psi[m] + omega * (s[m] - zeta[m]) / 4.0
     return psi
 
 
-def _land_constants(zeta: np.ndarray, water: np.ndarray) -> np.ndarray:
+def _land_constants(zeta: np.ndarray, water: np.ndarray,
+                    rim_porosity: float = 0.0,
+                    psi_open: np.ndarray | None = None,
+                    rim_to_zero: bool = True) -> np.ndarray:
     """Per-landmass streamfunction constants (the multiply-connected
     part of the solve). Pinning every landmass to the SAME value (0)
     makes Δψ = 0 between any two boundaries — no net transport:
@@ -114,9 +171,19 @@ def _land_constants(zeta: np.ndarray, water: np.ndarray) -> np.ndarray:
     at its heart (its area mean of the all-water solve), so the
     blocked flow still threads straits and wraps land at the
     large-scale transport the forcing drives — squeezed by continuity
-    where the path narrows (Godfrey island-rule flavor). Landmasses
-    touching the rim stay pinned to the rim value."""
-    psi_open = _poisson_sor(zeta, np.ones_like(water))
+    where the path narrows (Godfrey island-rule flavor).
+
+    `psi_open` supplies the unobstructed solution directly when it is
+    known analytically (through-flow ramps: the harmonic extension of
+    a linear rim ramp is the ramp itself). `rim_to_zero=False` takes
+    the unobstructed value for rim-touching landmasses too (ramp
+    sources, where the rim is not a ψ ≈ 0 boundary); otherwise
+    landmasses touching the rim stay pinned to 0 (with a porous rim
+    the magic wall ring is water — see _coarse_grids — so no
+    landmass abuts the domain edge and this case does not arise)."""
+    if psi_open is None:
+        psi_open = _poisson_sor(zeta, np.ones_like(water),
+                                rim_porosity=rim_porosity)
     H, W = water.shape
     land = ~water
     lab = np.zeros((H, W), dtype=np.int32)
@@ -138,8 +205,8 @@ def _land_constants(zeta: np.ndarray, water: np.ndarray) -> np.ndarray:
     pin = np.zeros((H, W))
     for i in range(1, n + 1):
         comp = lab == i
-        if comp[0, :].any() or comp[-1, :].any() \
-                or comp[:, 0].any() or comp[:, -1].any():
+        if rim_to_zero and (comp[0, :].any() or comp[-1, :].any()
+                            or comp[:, 0].any() or comp[:, -1].any()):
             continue                    # rim-touching: rim value (0)
         pin[comp] = float(psi_open[comp].mean())
     return pin
@@ -163,6 +230,13 @@ def _coarse_grids(elev: np.ndarray, ocean_mask: np.ndarray,
                   ) -> tuple[np.ndarray, np.ndarray]:
     depth_m = -elev_m(elev, sea_level)
     water_c = _pool(ocean_mask.astype(float), f) > 0.5
+    # the world-edge rock rim is a magic map boundary, not terrain
+    # (_RIM_POROSITY): it must not pin the circulation like a real
+    # continent — the coarse water mask runs to the domain edge, and
+    # the semi-porous rim condition in _poisson_sor decides how much
+    # of the edge flow leaks into the void vs. redirects along it
+    water_c[0, :] = water_c[-1, :] = True
+    water_c[:, 0] = water_c[:, -1] = True
     depth_c = np.maximum(_pool(depth_m, f), _MIN_DEPTH_M)
     return water_c, depth_c
 
@@ -186,8 +260,9 @@ def _solve_sources(sources: list[np.ndarray],
     SOR's arbitrary scale) set the mix."""
     psis = []
     for zeta in sources:
-        pin = _land_constants(zeta, water_c)
-        psi = _poisson_sor(zeta, water_c, pin=pin)
+        pin = _land_constants(zeta, water_c, rim_porosity=_RIM_POROSITY)
+        psi = _poisson_sor(zeta, water_c, pin=pin,
+                           rim_porosity=_RIM_POROSITY)
         tmax = float(np.hypot(*_transport(psi)).max())
         psis.append(psi / max(tmax, 1e-9))
     return psis
@@ -215,7 +290,17 @@ def velocity_field(currents: dict, month: int = 6,
         1.0 + 0.3 * math.cos(2 * math.pi * (month + phase) / 12.0)
         for _, _, _, _, phase in currents["gyres"]]
         + [1.0] * (len(currents["psi"]) - n_gyres))
-    psi = _blend(currents["psi"], currents["weights"], strengths)
+    weights = list(currents["weights"])
+    ramp = currents.get("ramp")
+    if ramp is not None:
+        # seasonal direction jitter: rotate the through-flow around
+        # its seeded prevailing direction (no re-solve — the ramp
+        # pair spans every direction by linearity)
+        th = ramp["theta"] + ramp["jitter"] * math.sin(
+            2.0 * math.pi * (month + ramp["phase"]) / 12.0)
+        weights[ramp["i0"]] = ramp["strength"] * math.cos(th)
+        weights[ramp["i0"] + 1] = ramp["strength"] * math.sin(th)
+    psi = _blend(currents["psi"], weights, strengths)
     if depth_m is None:
         depth_m = currents["depth_m"]
     if ocean_mask is None:
@@ -269,7 +354,7 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
         if all((y - cy) ** 2 + (x - cx) ** 2 >= min_center_sep ** 2
                for cy, cx in centers):
             centers.append((y, x))
-        if len(centers) >= 2 + int(stream.uniform(1, 0) < 0.5):
+        if len(centers) >= 4 + int(3.0 * stream.uniform(1, 0)):
             break
     gyres = []
     sources = []
@@ -283,8 +368,34 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
                                        (H // f, W // f)))
     water_c, _ = _coarse_grids(elev, ocean_mask, sea_level, f)
     psis = _solve_sources(sources, water_c)
-    currents = {"gyres": gyres, "psi": psis,
-                "weights": [1.0] * len(sources),
+
+    # through-flow: the circulation arriving from beyond the map —
+    # enters from a seeded side (ANY direction, no hardcoded axis),
+    # bends around the landmasses, leaves across the porous rim. Two
+    # orthogonal unit Dirichlet-ramp solves; by linearity any
+    # direction is a cos/sin blend of them, so the seeded prevailing
+    # direction AND the seasonal direction jitter cost no re-solve
+    # (velocity_field rotates the pair's weights per month).
+    import math
+    pc, pw = water_c.shape
+    zero = np.zeros_like(water_c, dtype=float)
+    ramp_psis = []
+    for axis, coord in enumerate(np.mgrid[0:pc, 0:pw]):
+        ramp = coord.astype(float) / max(coord.max(), 1.0)
+        pin = _land_constants(zero, water_c, psi_open=ramp,
+                              rim_to_zero=False)
+        psi = _poisson_sor(zero, water_c, pin=pin, rim_values=ramp)
+        tmax = float(np.hypot(*_transport(psi)).max())
+        ramp_psis.append(psi / max(tmax, 1e-9))
+    theta = 2.0 * math.pi * stream.uniform(6, 0)      # any side
+    strength = 0.8 + 0.4 * stream.uniform(6, 1)
+    ramp = {"i0": len(psis), "theta": theta, "strength": strength,
+            "jitter": 0.35, "phase": 12.0 * stream.uniform(6, 2)}
+    currents = {"gyres": gyres, "psi": psis + ramp_psis,
+                "weights": [1.0] * len(sources)
+                + [strength * math.cos(theta),
+                   strength * math.sin(theta)],
+                "ramp": ramp,
                 "factor": f, "n_gyres": len(centers)}
     return _finish(currents, elev, ocean_mask, sea_level)
 
@@ -306,9 +417,10 @@ def refine_currents(currents: dict, elev: np.ndarray,
     # pool the wind curl from the climate grid down to the psi grid
     g = wu.shape[0] // (ocean_mask.shape[0] // f)
     zeta_c = _pool(zeta_w, g) if g > 1 else zeta_w
-    water_c = _pool(ocean_mask.astype(float), f) > 0.5
-    pin = _land_constants(zeta_c, water_c)
-    psi_w = _poisson_sor(zeta_c, water_c, pin=pin)
+    water_c, _ = _coarse_grids(elev, ocean_mask, sea_level, f)
+    pin = _land_constants(zeta_c, water_c, rim_porosity=_RIM_POROSITY)
+    psi_w = _poisson_sor(zeta_c, water_c, pin=pin,
+                         rim_porosity=_RIM_POROSITY)
     tmax = float(np.hypot(*_transport(psi_w)).max())
     # keep the seeds-only normalization around: the loading screen's
     # pass-1/pass-2 current stages both render from the one dict

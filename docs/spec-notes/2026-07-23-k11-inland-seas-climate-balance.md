@@ -818,3 +818,93 @@ pass-1 scaffold runs lean at 4.
   velocity — saved as r_rise_m and reconstructed on load (roundtrip
   asserted, seasonality asserted). Ecology kernels read where deep
   water surfaces, and that place moves with the seasons.
+
+- Wind is fluid dynamics now (same architecture as the currents):
+  the rotational (pure-curl) part of WindLibrary solves ∇²ψ = ζ at a
+  64² psi grid — vorticity sources are the meridional bands (as a
+  vorticity profile, solved at seasonal = ±1 and linearly
+  interpolated) and the K1 fbm gyres (solved at the surface, raw
+  aloft). High terrain is a free-constant obstacle, so the stream
+  bends AROUND ranges (island-rule flavor) instead of the old
+  upslope projection / terrain damp / lee-wake pretending layer
+  (deleted wholesale). Divergent terms (monsoon breeze) and surface
+  friction stay outside the solve. The rim-closed solve weakens the
+  sources, so each solved ψ is rescaled to the mean open-air
+  transport of the field it replaces (seed-1 snapshot speed back to
+  mean 0.52 / max 2.53 vs 0.60 / 2.45 pre-refactor).
+- Magic rim, semi-porous: the world-edge rock ring is not terrain.
+  The coarse water mask runs to the domain edge and the Poisson rim
+  condition is Robin — ghost = (2ρ−1)·ψ_rim, ρ = _RIM_POROSITY = 0.5
+  — interpolating wall (ψ = 0, all flow redirected, boundary
+  currents recirculate and pile heat onto the poleward rim) and open
+  water (zero normal gradient, through-flow free). Motivation: the
+  closed box trapped the N–S boundary currents and overheated the
+  north in winter; the void leaks and replenishes. All four edges
+  (opening only N–S would not fix it).
+- Test updates for the new physics: terrain-blocking asserts the
+  solved-stream semantics (psi-constant massif interior carries no
+  rotational wind, flow deflects along the range front) instead of
+  cellwise momentum removal; the currents streamline test compares
+  psi against the solver's own leaky-rim mask (_coarse_grids).
+
+- biomes.png draws MEAN ANNUAL wind streamlines (_wind_lines in
+  render.py), the wind counterpart of aquabiomes.png's current lines:
+  K1-jittered particles, unit-step direction tracing of the
+  month/sample-mean of the persisted wind store, sqrt speed
+  brightness, luminance-flipped ink (light on dark biomes, dark on
+  ice/desert). render_all takes climate=; the overlay factor derives
+  from the wind-store resolution, palette-only fallback without it.
+- Wind solve gets the same semi-porous rim as the currents
+  (_RIM_POROSITY): weather systems arrive from beyond the map and
+  leave it — a closed rim trapped every gyre into a pronounced
+  standing whirlpool. Interior swirls remain by construction (the
+  fbm gyre SOURCES are vortices; their blend weight is the lever if
+  they should read weaker against the band flow).
+
+- Wind tuning (user: "wind enters, swirls due to terrain, leaves"):
+  _RIM_POROSITY_AIR = 0.8 (the sky over the magic rim is open — air
+  exchanges freer than water leaks); _BLOCK_ALT_M = 1000 m (real
+  low-level flow splits around terrain once it approaches the
+  boundary-layer depth, Froude < 1 — was 2100 m, only big ranges
+  deflected); _GYRE_WEIGHT 2.4 -> 0.6 (six gyres at +-0.5 alpha still
+  summed past the band at 1.2; terrain swirl should dominate the
+  look, not the chaotic sources).
+- Pytest speed: _poisson_sor iters now scale with grid diameter
+  (min(600, max(150, 10*N)) — 64² production grids unchanged at 600,
+  small test grids converge proportionally); the wind-blocking test
+  drops to 32² (13.3s -> 3.7s); test_currents_and_sst marked slow.
+  Fast suite 38s -> ~17-22s.
+
+- Salinity now feels temperature (pass 2 only): the Clausius-Clapeyron
+  evaporation factor is extracted to climate.evap_factor (one curve,
+  two consumers — the moisture pass and the salt balance), and
+  refine_hydrology feeds mean-annual T through it into
+  classify_salinity. Effective flushing = inflow per unit
+  evaporation: cold basins stay fresh on modest inflow (Titicaca),
+  trickle-fed cold terminals still brine (Uyuni). Seed 1: salt cells
+  above 1500 m top out at 187 g/kg (was 219), marginal brines flushed
+  below the salt threshold (773 -> 756 cells). Pass-1 call unchanged
+  (evap=None -> factor 1).
+
+- No hardcoded axes anywhere (user: sources enter from ANY side +
+  rot jitter):
+  - Currents: 4-6 vorticity gyres (was 2-3) plus a THROUGH-FLOW
+    source — two orthogonal unit Dirichlet-ramp solves
+    (_poisson_sor rim_values=; _land_constants learns psi_open= and
+    rim_to_zero= for the analytic open solution); by linearity any
+    direction is a cos/sin blend, so the seeded prevailing direction
+    theta AND its seasonal direction jitter (+-0.35 rad) cost no
+    re-solve — velocity_field rotates the pair's weights per month.
+    Ramp metadata round-trips through persist (manifest "ramp").
+  - Wind: the bands now ride a SEEDED prevailing frame (any angle,
+    own K1 slot) — along-axis flow entering one side and leaving,
+    no rim taper (the porous rim lets it exit); the outermost-band
+    constraint projects to "equatorward meridional component",
+    vacuous for zonal frames. Subsidence sourcing switched from
+    meridional() dvy to band_divergence() (directional derivative
+    along the axis) — dry belts park wherever the frame puts them.
+  - Wind gyres DRIFT: each gyre precomputed at _GYRE_PHASES=4
+    quarter-domain rolls of its fbm texture (re-solved per phase),
+    snapshots draw a random phase angle — weather systems move
+    between snapshots and cancel in the annual mean instead of
+    parking at fixed spots (the mean-field swirls complaint).

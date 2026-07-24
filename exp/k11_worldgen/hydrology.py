@@ -471,7 +471,8 @@ def height_above_drainage(h: np.ndarray, w: np.ndarray,
 
 
 def classify_salinity(hydro: dict, sea_min_area_km2: float = 5000.0,
-                      cell_km2: float = 16.0) -> np.ndarray:
+                      cell_km2: float = 16.0,
+                      evap: np.ndarray | None = None) -> np.ndarray:
     """Salinity per water cell in g/kg (see units.SALINITY_OCEAN_GKG),
     anchor grid. Also sets hydro["sea_mask"]: INLAND SEAS — saline
     (brackish-and-up) components big enough to be seas, not lakes
@@ -493,7 +494,11 @@ def classify_salinity(hydro: dict, sea_min_area_km2: float = 5000.0,
       accumulation per lake cell), no hard bounds: an underfed
       terminal approaches ~220 (Great Salt Lake / Dead Sea range), a
       Volga-scale inflow flushes it toward fresh (Caspian ~12).
-    """
+      `evap` (the climate's Clausius-Clapeyron factor, pass 2 only)
+      scales the flushing threshold DOWN in the cold: with little
+      evaporation a modest inflow keeps the lake fresh (Titicaca),
+      while a trickle-fed terminal still brines up even on a cold
+      plateau (Uyuni)."""
     from exp.k11_worldgen.units import SALINITY_OCEAN_GKG
 
     ocean = hydro["ocean_mask"]
@@ -543,7 +548,12 @@ def classify_salinity(hydro: dict, sea_min_area_km2: float = 5000.0,
             else:
                 inflow = max(float(acc[y, x]) for y, x in comp)
                 ratio = inflow / max(len(comp), 1)
-                value = float(220.0 * np.exp(-ratio / 120.0))
+                # evaporation opposes flushing: the effective flush is
+                # inflow per unit evaporation, so a cold basin needs
+                # far less inflow to stay fresh
+                ev = (float(np.mean([evap[y, x] for y, x in comp]))
+                      if evap is not None else 1.0)
+                value = float(220.0 * np.exp(-ratio / (120.0 * ev)))
             for cy, cx in comp:
                 sal[cy, cx] = value
             if value > 10.0 and len(comp) * cell_km2 >= sea_min_area_km2:
@@ -782,7 +792,12 @@ def refine_hydrology(hydro: dict, elev: np.ndarray, climate: dict,
     width[river & (acc >= river_threshold * 30)] = 3
     hydro.update({"w": w, "depth": depth, "river_mask": river,
                   "lake_mask": lake, "order": order, "width": width})
-    hydro["salinity"] = classify_salinity(hydro)
+    # pass 2 knows the climate: salt concentration now feels the
+    # local evaporation (mean-annual temperature through the shared
+    # Clausius-Clapeyron factor) as well as the flushing ratio
+    from exp.k11_worldgen.climate import evap_factor
+    t_ann = climate["T_monthly"].mean(axis=0)
+    hydro["salinity"] = classify_salinity(hydro, evap=evap_factor(t_ann))
     hydro["hand"] = height_above_drainage(
         h, w_route, direction, ocean_mask | lake | river)
     return hydro

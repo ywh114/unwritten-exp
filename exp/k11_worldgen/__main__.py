@@ -200,7 +200,8 @@ def run_demo(seed: int, check_determinism: bool = False,
     sink.write(16, load_stage_draw(16, {"delivered": delivered}))
     _step("render PNGs")
     paths = render_all(out_dir, delivered, world["complex"],
-                       currents=world["currents"])
+                       currents=world["currents"],
+                       climate=world["climate"])
     monthly_paths = render_monthly(out_dir, world["climate"])
 
     elev, hydro, climate = world["elev"], world["hydro"], world["climate"]
@@ -413,7 +414,8 @@ def run_render(seed: int) -> dict:
     factor = manifest["factor"]
 
     paths = render_all(out_dir, delivered, world["complex"],
-                       currents=world["currents"])
+                       currents=world["currents"],
+                       climate=world["climate"])
     monthly_paths = render_monthly(out_dir, world["climate"])
     names = [b["name"] for b in BIOMES]
     from exp.k11_worldgen.biomes import PALETTE

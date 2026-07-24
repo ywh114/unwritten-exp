@@ -421,13 +421,66 @@ def _flow_lines(base: np.ndarray, cur: dict, factor: int = 4,
     return out
 
 
+def _wind_lines(base: np.ndarray, wu: np.ndarray, wv: np.ndarray,
+                factor: int = 4, n_steps: int = 90) -> np.ndarray:
+    """Streamline trails of the MEAN ANNUAL surface wind over the
+    biome sheet (cosmetic — the wind counterpart of the current flow
+    lines on aquabiomes.png). Particles seeded on a K1-jittered grid
+    over the whole map are advected along the time-mean direction
+    field at sub-cell resolution. Trail brightness carries speed
+    (sqrt scale); the ink flips light/dark against the local biome
+    luminance so it reads on both taiga and desert."""
+    from kernel.hashrng import Stream
+
+    H, W = wu.shape
+    Hf, Wf = base.shape[:2]
+    speed = np.hypot(wu, wv)
+    smax = float(np.percentile(speed, 99))
+    snorm = speed / max(smax, 1e-9)
+
+    out = base.astype(float)
+    st = Stream(0, "k11.render.wind")
+    for y0 in range(2, H - 2, 6):
+        for x0 in range(2, W - 2, 6):
+            if snorm[y0, x0] < 0.01:
+                continue
+            py = y0 + 2.5 * (st.uniform(y0 * W + x0, 0) - 0.5)
+            px = x0 + 2.5 * (st.uniform(y0 * W + x0, 1) - 0.5)
+            for _ in range(n_steps):
+                iy, ix = int(round(py)), int(round(px))
+                if not (0 <= iy < H and 0 <= ix < W):
+                    break
+                sp = speed[iy, ix]
+                if sp < 1e-9 or snorm[iy, ix] < 0.002:
+                    break
+                # unit steps: trace the DIRECTION field (see
+                # _flow_lines for why)
+                py += wu[iy, ix] / sp * 0.6
+                px += wv[iy, ix] / sp * 0.6
+                alpha = 0.20 + 0.35 * float(np.sqrt(snorm[iy, ix]))
+                Y, X = int(py * factor), int(px * factor)
+                if 0 <= Y < Hf - 1 and 0 <= X < Wf - 1:
+                    for dy in (0, 1):
+                        for dx in (0, 1):
+                            lum = float(out[Y + dy, X + dx].mean())
+                            ink = (np.array([245.0, 242.0, 230.0])
+                                   if lum < 130.0 else
+                                   np.array([45.0, 45.0, 60.0]))
+                            px_ = out[Y + dy, X + dx]
+                            out[Y + dy, X + dx] = ((1.0 - alpha) * px_
+                                                   + alpha * ink)
+    return out
+
+
 def _currents_view(cur: dict, seeds_only: bool = False
                    ) -> tuple[np.ndarray, np.ndarray]:
     """The month-6 velocity field; seeds_only reconstructs the
-    pre-wind (absolute vorticity) baseline from the one stored dict."""
+    pre-wind (absolute vorticity + through-flow ramps) baseline from
+    the one stored dict — only the wind-correlation source (last)
+    is dropped."""
     from exp.k11_worldgen.currents import velocity_field
     if seeds_only:
-        n = len(cur["gyres"])
+        n = len(cur["gyres"]) + (2 if "ramp" in cur else 0)
         cur = {**cur, "psi": cur["psi"][:n],
                "weights": cur["weights"][:n],
                "vmax": cur.get("vmax_seeds", cur["vmax"])}
@@ -636,7 +689,8 @@ def render_monthly(out_dir: str, climate: dict) -> list[str]:
 
 
 def render_all(out_dir: str, delivered: dict, complex_, factor: int = 4,
-               currents: dict | None = None) -> list[str]:
+               currents: dict | None = None,
+               climate: dict | None = None) -> list[str]:
     """Write the demo PNG set at the DELIVERED resolution (1024²);
     returns the list of paths."""
     paths: list[str] = []
@@ -651,7 +705,20 @@ def render_all(out_dir: str, delivered: dict, complex_, factor: int = 4,
     _w("depth", write_png_gray, normalize_u8(np.log1p(delivered["depth"] * 20), 0.0, 2.0))
     _w("temperature", write_png_gray, normalize_u8(delivered["T"], 0.0, 1.0))
     _w("precipitation", write_png_gray, normalize_u8(delivered["P"], 0.0, 1.0))
-    _w("biomes", write_png_palette, delivered["biome_map"], PALETTE)
+    # biomes.png: the palette sheet with the MEAN ANNUAL wind
+    # streamlines on top (the wind counterpart of aquabiomes.png's
+    # current lines — the climate the biomes are classified from
+    # rides this flow)
+    if climate is not None and "wind_u" in climate:
+        rgb = PALETTE[delivered["biome_map"]].astype(float)
+        wu = np.asarray(climate["wind_u"], dtype=float).mean(axis=(0, 1))
+        wv = np.asarray(climate["wind_v"], dtype=float).mean(axis=(0, 1))
+        wf = max(1, delivered["biome_map"].shape[0] // wu.shape[0])
+        rgb = np.clip(_wind_lines(rgb, wu, wv, factor=wf),
+                      0, 255).astype(np.uint8)
+        _w("biomes", write_png_rgb, rgb)
+    else:
+        _w("biomes", write_png_palette, delivered["biome_map"], PALETTE)
     _w("forest_cover", write_png_gray, normalize_u8(delivered["cover"], 0.0, 1.0))
 
     # hydrology.png: elevation hillshade-ish + standing water + river
