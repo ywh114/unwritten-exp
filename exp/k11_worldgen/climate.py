@@ -321,12 +321,12 @@ class WindLibrary:
             open_air = relief <= _BLOCK_RISE_M / ELEV_MAX_M
             # over-the-top bleed weight (see _BLEED_MAX): the share of
             # the HIGH-layer flow mixed into the surface wind here
-            self.bleed = _BLEED_MAX * (1.0 - np.exp(
+            self.bleed = (_BLEED_MAX * (1.0 - np.exp(
                 -np.maximum(alt * ELEV_MAX_M - _BLOCK_ALT_M, 0.0)
-                / _BLEED_SCALE_M))
+                / _BLEED_SCALE_M))).astype(np.float32)
         else:
             open_air = np.ones((ph, pw), bool)
-            self.bleed = np.zeros(shape)
+            self.bleed = np.zeros(shape, dtype=np.float32)
 
         def solve_batch(zetas, targets):
             # semi-porous rim, airier than the ocean's: weather
@@ -347,7 +347,8 @@ class WindLibrary:
             # differently at 1 ulp and the blend amplifies it)
             got = np.array([float(np.hypot(gv[k], -gu[k])[open_air].mean())
                             for k in range(len(psis))])
-            return psis * (targets / np.maximum(got, 1e-9))[:, None, None]
+            scale = (targets / np.maximum(got, 1e-9)).astype(np.float32)
+            return psis * scale[:, None, None]
 
         # chaotic gyres: K1 stream functions (each its own substream —
         # same-stream fields at the same coordinates would be
@@ -369,7 +370,7 @@ class WindLibrary:
             for q in range(_GYRE_PHASES):
                 rq = np.roll(psi, (q * ph // _GYRE_PHASES,
                                    q * pw // _GYRE_PHASES), axis=(0, 1))
-                raws.append(rq)
+                raws.append(rq.astype(np.float32))
                 p = np.pad(rq, 1)
                 zeta_all.append(p[:-2, 1:-1] + p[2:, 1:-1]
                                 + p[1:-1, :-2] + p[1:-1, 2:] - 4.0 * rq)
@@ -416,8 +417,8 @@ class WindLibrary:
             ls = sum(p[dy:dy + H, dx:dx + W] for dy in range(3) for dx in range(3)) / 9.0
         bx, by = _grad(ls)
         norm = np.hypot(bx, by) + 1e-9
-        self.breeze_u = bx / norm * np.clip(norm * 8, 0, 1)
-        self.breeze_v = by / norm * np.clip(norm * 8, 0, 1)
+        self.breeze_u = (bx / norm * np.clip(norm * 8, 0, 1)).astype(np.float32)
+        self.breeze_v = (by / norm * np.clip(norm * 8, 0, 1)).astype(np.float32)
 
         # katabatic drainage potential: a DOWNSLOPE unit field (same
         # potential-flow shape as the breeze, gravity-driven). Gated
@@ -428,8 +429,8 @@ class WindLibrary:
         else:
             kx = ky = np.zeros((H, W))
         knorm = np.hypot(kx, ky) + 1e-9
-        self.kat_u = -kx / knorm * np.clip(knorm * 8, 0, 1)
-        self.kat_v = -ky / knorm * np.clip(knorm * 8, 0, 1)
+        self.kat_u = (-kx / knorm * np.clip(knorm * 8, 0, 1)).astype(np.float32)
+        self.kat_v = (-ky / knorm * np.clip(knorm * 8, 0, 1)).astype(np.float32)
 
         # land friction: the surface (low) layer runs weaker over land
         # than over the sea at the same pressure gradient — roughness
@@ -442,7 +443,7 @@ class WindLibrary:
         for _ in range(3):
             p = np.pad(fr, 1, mode="edge")
             fr = sum(p[dy:dy + H, dx:dx + W] for dy in range(3) for dx in range(3)) / 9.0
-        self.friction = 1.0 - land_friction * fr
+        self.friction = (1.0 - land_friction * fr).astype(np.float32)
 
     def band_divergence(self, seasonal: float) -> np.ndarray:
         """Divergence of the persistent band flow on the climate grid:
@@ -545,7 +546,7 @@ class WindLibrary:
 
 
 def _subsidence(u: np.ndarray, v: np.ndarray, band: np.ndarray,
-                steps: int = 24) -> np.ndarray:
+                steps: int = 16) -> np.ndarray:
     """Subsiding (drying) air aloft, advected on the high-layer wind.
 
     The subtropical high band is the source; the dry-air field S is then
@@ -554,10 +555,14 @@ def _subsidence(u: np.ndarray, v: np.ndarray, band: np.ndarray,
     shifting swirls instead of sitting as a static latitude stripe.
     Returns S in [0, 1]: 1 = full subtropical-high suppression.
 
-    u/v may carry a leading batch axis (independent snapshots in one
-    call — identical arithmetic per snapshot)."""
+    float32 working precision (see _poisson_sor). u/v may carry a
+    leading batch axis (independent snapshots in one call — identical
+    arithmetic per snapshot)."""
+    u = np.asarray(u, dtype=np.float32)
+    v = np.asarray(v, dtype=np.float32)
+    band = np.asarray(band, dtype=np.float32)
     H, W = u.shape[-2:]
-    gy, gx = np.mgrid[0:H, 0:W].astype(float)
+    gy, gx = np.mgrid[0:H, 0:W].astype(np.float32)
     S = np.broadcast_to(band, u.shape).copy()
     for _ in range(steps):
         S = _bilinear(S, gx - u, gy - v)
@@ -592,7 +597,7 @@ _FOEHN_WARM = 0.4
 def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
             lake_src: np.ndarray, T: np.ndarray,
             green: np.ndarray | None = None,
-            sub: np.ndarray | None = None, steps: int = 36,
+            sub: np.ndarray | None = None, steps: int = 24,
             soil: np.ndarray | None = None) -> np.ndarray:
     """Semi-Lagrangian moisture advection along a wind field.
 
@@ -611,9 +616,22 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
     the local rain-out rate, so forested cells rain a little less and
     somewhere downwind rains a little more. Returns mean precipitation
     rate per cell over the advection.
-    """
+
+    float32 working precision (bandwidth-bound — see _poisson_sor).
+    u/v may carry a leading batch axis (independent snapshots in one
+    call — identical arithmetic per snapshot)."""
+    u = np.asarray(u, dtype=np.float32)
+    v = np.asarray(v, dtype=np.float32)
+    h = np.asarray(h, dtype=np.float32)
+    T = np.asarray(T, dtype=np.float32)
+    if green is not None:
+        green = np.asarray(green, dtype=np.float32)
+    if sub is not None:
+        sub = np.asarray(sub, dtype=np.float32)
+    if soil is not None:
+        soil = np.asarray(soil, dtype=np.float32)
     H, W = h.shape
-    gy, gx = np.mgrid[0:H, 0:W].astype(float)
+    gy, gx = np.mgrid[0:H, 0:W].astype(np.float32)
     dhx, dhy = _grad(h)
     oro = np.maximum(0.0, u * dhx + v * dhy)
     sink = np.maximum(0.0, -(u * dhx + v * dhy))   # descent: foehn
@@ -760,8 +778,8 @@ def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
         # the ice-cap drainage blows when the surface is deeply
         # sub-zero, and only where the terrain has a slope (the kat
         # potential is flat elsewhere)
-        kata = _KATA_STR * np.clip((_FREEZE - T_m[m]) / _KATA_T_SPAN,
-                                   0.0, 1.0)
+        kata = (_KATA_STR * np.clip((_FREEZE - T_m[m]) / _KATA_T_SPAN,
+                                    0.0, 1.0)).astype(np.float32)
         us, vs, uhs, vhs = [], [], [], []
         for j in range(n_samples):
             clock = 1000 + m * 16 + j
@@ -771,7 +789,7 @@ def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
             if green is not None:
                 # forests are windbreaks: canopy roughness slows the
                 # flow, so moisture transport across forests weakens
-                wb = 1.0 - 0.25 * green
+                wb = (1.0 - 0.25 * green).astype(np.float32)
                 u = u * wb
                 v = v * wb
             wind_u[m, j] = u
@@ -1000,6 +1018,10 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     # interiors keep their extremes). One damped transport per
     # snapshot, conditioning not simulation.
     dhx_c, dhy_c = _grad(h_c)
+    dhx_c32 = dhx_c.astype(np.float32)
+    dhy_c32 = dhy_c.astype(np.float32)
+    gx32 = gx.astype(np.float32)
+    gy32 = gy.astype(np.float32)
     T_m = np.zeros((12, ch, cw))
     for m in range(12):
         seasonal = math.cos(2 * math.pi * (m - _SUMMER) / 12)
@@ -1019,18 +1041,20 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
             us.append(u_t)
             vs.append(v_t)
         # the month's snapshots transport as one batch (independent
-        # fields stacked — identical arithmetic, one Python loop)
-        TE = np.stack(T_eqs)
-        U, V = np.stack(us), np.stack(vs)
+        # fields stacked — identical arithmetic, one Python loop).
+        # float32 working precision (see _poisson_sor)
+        TE = np.stack(T_eqs).astype(np.float32)
+        U = np.stack(us).astype(np.float32)
+        V = np.stack(vs).astype(np.float32)
         T = TE.copy()
         for _ in range(_T_ADV_STEPS):
-            T = _bilinear(T, gx - U, gy - V)
+            T = _bilinear(T, gx32 - U, gy32 - V)
             T = T + _T_ADV_RELAX * (TE - T)
         # foehn warming: air descending a lee slope heats at the
         # dry adiabat, so the lee runs warmer than the windward at
         # the same altitude (also feeds moisture capacity below)
-        T = T + _FOEHN_WARM * np.maximum(0.0, -(U * dhx_c
-                                                + V * dhy_c))
+        T = T + _FOEHN_WARM * np.maximum(
+            0.0, -(U * dhx_c32 + V * dhy_c32)).astype(np.float32)
         # Python-sum keeps the accumulation order of the old loop
         T_m[m] = sum(np.clip(T, 0.0, 1.0)) / n_samples
 

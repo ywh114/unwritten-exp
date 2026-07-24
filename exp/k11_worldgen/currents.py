@@ -126,15 +126,22 @@ def _poisson_sor(zeta: np.ndarray, water: np.ndarray,
     `zeta` may carry leading batch axes — independent solves stacked
     into one Python loop (identical arithmetic per solve, K times
     fewer loop iterations; `pin`/`rim_values` broadcast or stack to
-    match)."""
+    match).
+
+    The solve runs in FLOAT32: it is memory-bandwidth-bound (halving
+    the word size nearly halves the time) and L0 needs no more than
+    ~1e-6 relative accuracy — sketch-layer fields, deterministic
+    run-to-run either way."""
     single = zeta.ndim == 2
-    z3 = zeta[None] if single else zeta
+    z3 = np.asarray(zeta, dtype=np.float32)
+    z3 = z3[None] if single else z3
     H, W = z3.shape[-2:]
     if iters is None:
         iters = min(600, max(150, 10 * max(H, W)))
     psi = (np.zeros_like(z3) if pin is None
-           else np.broadcast_to(np.where(water, 0.0, pin),
-                                z3.shape).copy())
+           else np.broadcast_to(
+               np.where(water, 0.0, np.asarray(pin, dtype=np.float32)),
+               z3.shape).copy())
     interior = water.copy()
     interior[0, :] = interior[-1, :] = False
     interior[:, 0] = interior[:, -1] = False
@@ -149,12 +156,12 @@ def _poisson_sor(zeta: np.ndarray, water: np.ndarray,
     yy, xx = np.mgrid[0:H, 0:W]
     checker = (yy + xx) % 2
     # rim cells and how many domain edges they sit on (corners: 2)
-    edge_n = np.zeros((H, W))
+    edge_n = np.zeros((H, W), dtype=np.float32)
     edge_n[0, :] += 1
     edge_n[-1, :] += 1
     edge_n[:, 0] += 1
     edge_n[:, -1] += 1
-    leak = 2.0 * (1.0 - rim_porosity)
+    leak = np.float32(2.0 * (1.0 - rim_porosity))
     pad_width = ((0, 0), (1, 1), (1, 1))
     for _ in range(iters):
         for parity in (0, 1):
@@ -219,10 +226,10 @@ def _land_constants(zeta: np.ndarray, water: np.ndarray,
                                 and land[ny, nx_] and not lab[ny, nx_]):
                             lab[ny, nx_] = n
                             stack.append((ny, nx_))
-    # float64 pins even for float32 sources (NumPy-2 weak scalars:
-    # np.where(water, 0.0, pin) follows pin's dtype, and a float32
-    # pin would run the whole solve in float32)
-    pin = np.zeros(po3.shape)
+    # pins follow the solve's float32 working precision (see
+    # _poisson_sor); the per-landmass means are scalars, so no
+    # accumulation accuracy is lost
+    pin = np.zeros_like(po3)
     for i in range(1, n + 1):
         comp = lab == i
         if rim_to_zero and (comp[0, :].any() or comp[-1, :].any()
@@ -490,17 +497,22 @@ def rise_monthly(currents: dict) -> np.ndarray:
 
 def advect_sst(t_base_c: np.ndarray, u: np.ndarray, v: np.ndarray,
                rise: np.ndarray,
-               steps: int = 48, relax: float = 0.02,
+               steps: int = 32, relax: float = 0.02,
                diffuse_passes: int = 3) -> np.ndarray:
     """Sea-surface temperature (metric degC) from a latitude baseline.
 
     Semi-Lagrangian advection along the gyre flow with thermostat
     relaxation, upwelling cooling toward the deep-water temperature
     (a bounded relaxation driven by the RELATIVE rise — see _UPW_MIX),
-    and a few coarse diffusion passes at the end.
+    and a few coarse diffusion passes at the end. float32 working
+    precision (see _poisson_sor).
     """
+    t_base_c = np.asarray(t_base_c, dtype=np.float32)
+    u = np.asarray(u, dtype=np.float32)
+    v = np.asarray(v, dtype=np.float32)
+    rise = np.asarray(rise, dtype=np.float32)
     H, W = t_base_c.shape
-    gy, gx = np.mgrid[0:H, 0:W].astype(float)
+    gy, gx = np.mgrid[0:H, 0:W].astype(np.float32)
     nz = rise[rise > 0]
     ref = float(np.percentile(nz, 95)) if nz.size else 1.0
     rr = 1.0 - np.exp(-rise / max(ref, 1e-9))

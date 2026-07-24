@@ -992,3 +992,16 @@ pass-1 scaffold runs lean at 4.
     indexing, so the batch loop wraps the original 2D form.
   - Net: demo ~1m58 -> 1m54, solves ~2x fewer Python iterations.
   - 267 fast + 10 slow pass; seed 1 verdict PASS.
+
+- float32 working precision on the hot blocks (user direction, L0
+  needs no more than ~1e-6 relative): _poisson_sor, _advect,
+  _subsidence, T transport, advect_sst, WindLibrary precomputed
+  fields. NumPy-2 weak scalars keep python-float constants from
+  upcasting; array inputs are cast at function entry. The earlier
+  float64-pin fix is now deliberately reversed (pins follow the
+  solve precision). Output changes by design; deterministic
+  run-to-run. Iteration trims (user direction): _advect 36->24,
+  _subsidence 24->16, advect_sst 48->32 steps. Demo 1m58 (float64)
+  -> 1m37 (float32) -> 1m19 (trims); 267 fast pass, seed 1 verdict
+  PASS, world sheet healthy. Knobs documented for the user in-chat:
+  iters formula, step counts, coarse grids (128/64), n_samples.
