@@ -121,42 +121,54 @@ def _poisson_sor(zeta: np.ndarray, water: np.ndarray,
     cells are FIXED to the given values and excluded from the solve,
     overriding the porosity machinery. A linear ramp along the rim
     drives a uniform transport across the domain that bends around
-    the landmasses (the circulation arriving from beyond the map)."""
+    the landmasses (the circulation arriving from beyond the map).
+
+    `zeta` may carry leading batch axes — independent solves stacked
+    into one Python loop (identical arithmetic per solve, K times
+    fewer loop iterations; `pin`/`rim_values` broadcast or stack to
+    match)."""
+    single = zeta.ndim == 2
+    z3 = zeta[None] if single else zeta
+    H, W = z3.shape[-2:]
     if iters is None:
-        iters = min(600, max(150, 10 * max(zeta.shape)))
-    psi = (np.zeros_like(zeta) if pin is None
-           else np.where(water, 0.0, pin))
+        iters = min(600, max(150, 10 * max(H, W)))
+    psi = (np.zeros_like(z3) if pin is None
+           else np.broadcast_to(np.where(water, 0.0, pin),
+                                z3.shape).copy())
     interior = water.copy()
     interior[0, :] = interior[-1, :] = False
     interior[:, 0] = interior[:, -1] = False
     if rim_values is not None:
-        rim = np.zeros(zeta.shape, bool)
+        rim = np.zeros((H, W), bool)
         rim[0, :] = rim[-1, :] = True
         rim[:, 0] = rim[:, -1] = True
-        psi[rim] = rim_values[rim]
+        psi[:, rim] = (rim_values[rim] if rim_values.ndim == 2
+                       else rim_values[:, rim])
     elif rim_porosity > 0.0:
         interior = water.copy()
-    yy, xx = np.mgrid[0:zeta.shape[0], 0:zeta.shape[1]]
+    yy, xx = np.mgrid[0:H, 0:W]
     checker = (yy + xx) % 2
     # rim cells and how many domain edges they sit on (corners: 2)
-    edge_n = np.zeros(zeta.shape)
+    edge_n = np.zeros((H, W))
     edge_n[0, :] += 1
     edge_n[-1, :] += 1
     edge_n[:, 0] += 1
     edge_n[:, -1] += 1
     leak = 2.0 * (1.0 - rim_porosity)
+    pad_width = ((0, 0), (1, 1), (1, 1))
     for _ in range(iters):
         for parity in (0, 1):
-            p = np.pad(psi, 1, mode="edge")
-            s = (p[:-2, 1:-1] + p[2:, 1:-1]
-                 + p[1:-1, :-2] + p[1:-1, 2:])
+            p = np.pad(psi, pad_width, mode="edge")
+            s = (p[:, :-2, 1:-1] + p[:, 2:, 1:-1]
+                 + p[:, 1:-1, :-2] + p[:, 1:-1, 2:])
             if rim_porosity > 0.0:
                 # replace the mirrored ghost (+ψ) with (2ρ−1)·ψ on
                 # each domain edge the cell touches
                 s = s - leak * edge_n * psi
             m = interior & (checker == parity)
-            psi[m] = (1.0 - omega) * psi[m] + omega * (s[m] - zeta[m]) / 4.0
-    return psi
+            psi[:, m] = ((1.0 - omega) * psi[:, m]
+                         + omega * (s[:, m] - z3[:, m]) / 4.0)
+    return psi[0] if single else psi
 
 
 def _land_constants(zeta: np.ndarray, water: np.ndarray,
@@ -180,10 +192,15 @@ def _land_constants(zeta: np.ndarray, water: np.ndarray,
     sources, where the rim is not a ψ ≈ 0 boundary); otherwise
     landmasses touching the rim stay pinned to 0 (with a porous rim
     the magic wall ring is water — see _coarse_grids — so no
-    landmass abuts the domain edge and this case does not arise)."""
+    landmass abuts the domain edge and this case does not arise).
+
+    Batched `zeta`/`psi_open` (leading axes) solves the landmass
+    labeling ONCE and returns per-source pins."""
     if psi_open is None:
         psi_open = _poisson_sor(zeta, np.ones_like(water),
                                 rim_porosity=rim_porosity)
+    single = psi_open.ndim == 2
+    po3 = psi_open[None] if single else psi_open
     H, W = water.shape
     land = ~water
     lab = np.zeros((H, W), dtype=np.int32)
@@ -202,14 +219,21 @@ def _land_constants(zeta: np.ndarray, water: np.ndarray,
                                 and land[ny, nx_] and not lab[ny, nx_]):
                             lab[ny, nx_] = n
                             stack.append((ny, nx_))
-    pin = np.zeros((H, W))
+    # float64 pins even for float32 sources (NumPy-2 weak scalars:
+    # np.where(water, 0.0, pin) follows pin's dtype, and a float32
+    # pin would run the whole solve in float32)
+    pin = np.zeros(po3.shape)
     for i in range(1, n + 1):
         comp = lab == i
         if rim_to_zero and (comp[0, :].any() or comp[-1, :].any()
                             or comp[:, 0].any() or comp[:, -1].any()):
             continue                    # rim-touching: rim value (0)
-        pin[comp] = float(psi_open[comp].mean())
-    return pin
+        # per-source 1D means: a (K, n) axis-1 reduction rounds
+        # differently at 1 ulp than the 2D path's flat mean, and the
+        # solves amplify it — keep the scalar form
+        for k in range(po3.shape[0]):
+            pin[k][comp] = float(po3[k][comp].mean())
+    return pin[0] if single else pin
 
 
 def _transport(psi: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -257,15 +281,15 @@ def _solve_sources(sources: list[np.ndarray],
                    water_c: np.ndarray) -> list[np.ndarray]:
     """Per-source stream functions (with per-landmass constants),
     normalized to unit-max transport so the blend weights (not the
-    SOR's arbitrary scale) set the mix."""
-    psis = []
-    for zeta in sources:
-        pin = _land_constants(zeta, water_c, rim_porosity=_RIM_POROSITY)
-        psi = _poisson_sor(zeta, water_c, pin=pin,
-                           rim_porosity=_RIM_POROSITY)
-        tmax = float(np.hypot(*_transport(psi)).max())
-        psis.append(psi / max(tmax, 1e-9))
-    return psis
+    SOR's arbitrary scale) set the mix. One STACKED solve: the
+    sources are independent, so they batch into a single SOR loop."""
+    zs = np.stack(sources)
+    pin = _land_constants(zs, water_c, rim_porosity=_RIM_POROSITY)
+    psis = _poisson_sor(zs, water_c, pin=pin,
+                        rim_porosity=_RIM_POROSITY)
+    tmax = np.hypot(*_transport(psis)).max(axis=(-2, -1))
+    return [psis[k] / max(float(tmax[k]), 1e-9)
+            for k in range(len(sources))]
 
 
 def _blend(psis: list[np.ndarray], weights: list[float],
@@ -378,15 +402,14 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
     # (velocity_field rotates the pair's weights per month).
     import math
     pc, pw = water_c.shape
-    zero = np.zeros_like(water_c, dtype=float)
-    ramp_psis = []
-    for axis, coord in enumerate(np.mgrid[0:pc, 0:pw]):
-        ramp = coord.astype(float) / max(coord.max(), 1.0)
-        pin = _land_constants(zero, water_c, psi_open=ramp,
-                              rim_to_zero=False)
-        psi = _poisson_sor(zero, water_c, pin=pin, rim_values=ramp)
-        tmax = float(np.hypot(*_transport(psi)).max())
-        ramp_psis.append(psi / max(tmax, 1e-9))
+    zero = np.zeros((2, pc, pw))
+    ramps = np.stack([coord.astype(float) / max(coord.max(), 1.0)
+                      for coord in np.mgrid[0:pc, 0:pw]])
+    pin = _land_constants(zero, water_c, psi_open=ramps,
+                          rim_to_zero=False)
+    psi_r = _poisson_sor(zero, water_c, pin=pin, rim_values=ramps)
+    tmax = np.hypot(*_transport(psi_r)).max(axis=(-2, -1))
+    ramp_psis = [psi_r[k] / max(float(tmax[k]), 1e-9) for k in range(2)]
     theta = 2.0 * math.pi * stream.uniform(6, 0)      # any side
     strength = 0.8 + 0.4 * stream.uniform(6, 1)
     ramp = {"i0": len(psis), "theta": theta, "strength": strength,

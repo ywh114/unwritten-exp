@@ -972,3 +972,23 @@ pass-1 scaffold runs lean at 4.
   Watch item: snapshot wind max ~65 m/s (chaotic tail of the scaled
   field) — hurricane-force, plausible but hot; revisit if gameplay
   reads extremes.
+
+- Vectorization (numpy batching, BITWISE-IDENTICAL output — A/B
+  verified against a pre-change dump, all 69 arrays equal):
+  - _poisson_sor/_land_constants batch independent sources into one
+    SOR loop (wind: 24 gyre phases + 2 bands in 2 calls; currents:
+    gyres + ramps stacked). Landmass labeling runs once per set.
+  - _precip_pass/_subsidence/_advect and the T-transport loop batch
+    the month's snapshots; accumulation keeps the old loop's
+    association order (Python-sum over the batch).
+  - Traps hit and fixed: (K, n) axis-1 reductions round 1 ulp
+    differently than flat 1D means (kept per-source scalar means);
+    NumPy-2 weak scalars make np.where(water, 0.0, pin) follow pin's
+    dtype — zeros_like(po3) made float32 pins for float32 sources
+    and ran the whole solve in float32 (float64 pins restored);
+    np.stack shape gotchas in pad/broadcast.
+  - _bilinear batch path: batched gathers (take_along_axis, row
+    fancy) benchmark 2.3x SLOWER than per-snapshot 2D fancy
+    indexing, so the batch loop wraps the original 2D form.
+  - Net: demo ~1m58 -> 1m54, solves ~2x fewer Python iterations.
+  - 267 fast + 10 slow pass; seed 1 verdict PASS.

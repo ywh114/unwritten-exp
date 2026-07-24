@@ -195,24 +195,42 @@ def _upsample(a: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
 
 
 def _bilinear(field: np.ndarray, bx: np.ndarray, by: np.ndarray) -> np.ndarray:
-    """Sample field at float coordinates (clipped to the grid)."""
-    H, W = field.shape
+    """Sample field at float coordinates (clipped to the grid). One
+    leading axis is an independent batch (per-batch gather, identical
+    values and arithmetic as the 2D path)."""
+    H, W = field.shape[-2:]
     bx = np.clip(bx, 0.0, W - 1.001)
     by = np.clip(by, 0.0, H - 1.001)
     x0, y0 = bx.astype(int), by.astype(int)
     fx, fy = bx - x0, by - y0
-    return (field[y0, x0] * (1 - fx) * (1 - fy)
-            + field[y0, x0 + 1] * fx * (1 - fy)
-            + field[y0 + 1, x0] * (1 - fx) * fy
-            + field[y0 + 1, x0 + 1] * fx * fy)
+    if field.ndim == 2:
+        return (field[y0, x0] * (1 - fx) * (1 - fy)
+                + field[y0, x0 + 1] * fx * (1 - fy)
+                + field[y0 + 1, x0] * (1 - fx) * fy
+                + field[y0 + 1, x0 + 1] * fx * fy)
+    K = field.shape[0]
+    out = np.empty_like(field)
+    for k in range(K):
+        # per-snapshot 2D fancy indexing — the fastest gather numpy
+        # has (2.3x any batched-gather form), and bitwise the
+        # original arithmetic
+        fk, bxk, byk = field[k], bx[k], by[k]
+        xk, yk = x0[k], y0[k]
+        fxk, fyk = fx[k], fy[k]
+        out[k] = (fk[yk, xk] * (1 - fxk) * (1 - fyk)
+                  + fk[yk, xk + 1] * fxk * (1 - fyk)
+                  + fk[yk + 1, xk] * (1 - fxk) * fyk
+                  + fk[yk + 1, xk + 1] * fxk * fyk)
+    return out
 
 
 def _grad(a: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Central-difference gradients (zeros at the border)."""
+    """Central-difference gradients (zeros at the border), over the
+    last two axes — leading axes are an independent batch."""
     gx = np.zeros_like(a)
     gy = np.zeros_like(a)
-    gx[:, 1:-1] = (a[:, 2:] - a[:, :-2]) / 2
-    gy[1:-1, :] = (a[2:, :] - a[:-2, :]) / 2
+    gx[..., 1:-1] = (a[..., 2:] - a[..., :-2]) / 2
+    gy[..., 1:-1, :] = (a[..., 2:, :] - a[..., :-2, :]) / 2
     return gx, gy
 
 
@@ -310,31 +328,26 @@ class WindLibrary:
             open_air = np.ones((ph, pw), bool)
             self.bleed = np.zeros(shape)
 
-        def solve(zeta):
+        def solve_batch(zetas, targets):
             # semi-porous rim, airier than the ocean's: weather
             # systems arrive from beyond the map and leave it — a
             # closed rim traps every gyre into a pronounced standing
-            # whirlpool
-            pin = _land_constants(zeta, open_air,
+            # whirlpool. One STACKED solve: the sources are
+            # independent, so they batch into a single SOR loop. The
+            # bounded-domain solve reshapes (and on average weakens)
+            # each source's open-domain flow; rescale each solved
+            # stream function so its mean open-air transport matches
+            # the field it replaces
+            pin = _land_constants(zetas, open_air,
                                   rim_porosity=_RIM_POROSITY_AIR)
-            return _poisson_sor(zeta, open_air, pin=pin,
+            psis = _poisson_sor(zetas, open_air, pin=pin,
                                 rim_porosity=_RIM_POROSITY_AIR)
-
-        def curl(psi):
-            gx_, gy_ = _grad(psi)
-            return gy_, -gx_
-
-        def open_mean_speed(u, v):
-            return float(np.hypot(u, v)[open_air].mean())
-
-        def solve_matched(zeta, target_speed):
-            # the bounded-domain solve reshapes (and on average
-            # weakens) the source's open-domain flow; rescale the
-            # solved stream function so its mean open-air transport
-            # matches the field it replaces
-            psi = solve(zeta)
-            got = open_mean_speed(*curl(psi))
-            return psi * (target_speed / max(got, 1e-9))
+            gu, gv = _grad(psis)
+            # per-source 1D means (a batched axis-1 reduction rounds
+            # differently at 1 ulp and the blend amplifies it)
+            got = np.array([float(np.hypot(gv[k], -gu[k])[open_air].mean())
+                            for k in range(len(psis))])
+            return psis * (targets / np.maximum(got, 1e-9))[:, None, None]
 
         # chaotic gyres: K1 stream functions (each its own substream —
         # same-stream fields at the same coordinates would be
@@ -346,22 +359,28 @@ class WindLibrary:
         # and largely cancel in the annual mean instead of parking at
         # fixed spots
         self.gyre_psi_raw: list[list[np.ndarray]] = []
-        self.gyre_psi: list[list[np.ndarray]] = []
+        zeta_all, target_all = [], []
         for k in range(n_gyres):
             psi = fbm(stream.child(f"gyre.{k}"), (ph, pw),
                       base_cell=max(8, pw // 3), octaves=3)
-            target = open_mean_speed(*curl(psi))
-            raws, solved = [], []
+            gu, gv = _grad(psi)
+            target = float(np.hypot(gv, -gu)[open_air].mean())
+            raws = []
             for q in range(_GYRE_PHASES):
                 rq = np.roll(psi, (q * ph // _GYRE_PHASES,
                                    q * pw // _GYRE_PHASES), axis=(0, 1))
                 raws.append(rq)
                 p = np.pad(rq, 1)
-                zeta = (p[:-2, 1:-1] + p[2:, 1:-1] + p[1:-1, :-2]
-                        + p[1:-1, 2:] - 4.0 * rq)
-                solved.append(solve_matched(zeta, target))
+                zeta_all.append(p[:-2, 1:-1] + p[2:, 1:-1]
+                                + p[1:-1, :-2] + p[1:-1, 2:] - 4.0 * rq)
+                target_all.append(target)
             self.gyre_psi_raw.append(raws)
-            self.gyre_psi.append(solved)
+        solved_all = solve_batch(np.stack(zeta_all),
+                                 np.array(target_all))
+        it = iter(list(solved_all))
+        self.gyre_psi: list[list[np.ndarray]] = [
+            [next(it) for _ in range(_GYRE_PHASES)]
+            for _ in range(n_gyres)]
 
         # the bands as a vorticity field (their along-axis flow varying
         # along the axis IS vorticity) — solved at the two seasonal
@@ -380,13 +399,13 @@ class WindLibrary:
             return v
 
         self._band_v = band_v
-        band_psi = {}
+        zb, tb = [], []
         for s in (-1.0, 1.0):
             v = band_v(s, s_p)
-            zeta = _grad(v * ax)[1] - _grad(v * ay)[0]
-            band_psi[s] = solve_matched(
-                zeta, float(abs(v)[open_air].mean()))
-        self.band_psi_m, self.band_psi_p = band_psi[-1.0], band_psi[1.0]
+            zb.append(_grad(v * ax)[1] - _grad(v * ay)[0])
+            tb.append(float(abs(v)[open_air].mean()))
+        band_psi = solve_batch(np.stack(zb), np.array(tb))
+        self.band_psi_m, self.band_psi_p = band_psi[0], band_psi[1]
 
         # land–sea breeze potential: blows onshore when land is warm.
         # Heavily smoothed land mask → a CONTINENTAL monsoon flow, not
@@ -534,10 +553,12 @@ def _subsidence(u: np.ndarray, v: np.ndarray, band: np.ndarray,
     slowly decaying), so subsidence arrives downwind of the band core in
     shifting swirls instead of sitting as a static latitude stripe.
     Returns S in [0, 1]: 1 = full subtropical-high suppression.
-    """
-    H, W = u.shape
+
+    u/v may carry a leading batch axis (independent snapshots in one
+    call — identical arithmetic per snapshot)."""
+    H, W = u.shape[-2:]
     gy, gx = np.mgrid[0:H, 0:W].astype(float)
-    S = band.copy()
+    S = np.broadcast_to(band, u.shape).copy()
     for _ in range(steps):
         S = _bilinear(S, gx - u, gy - v)
         S = np.clip(S + 0.25 * band * (1.0 - S) - 0.012, 0.0, 1.0)
@@ -617,8 +638,8 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
     dv_dy = _grad(v)[1]
     conv = np.clip(1.0 - 1.5 * (du_dx + dv_dy), 0.6, 1.8)
 
-    M = np.full((H, W), 0.85)
-    P = np.zeros((H, W))
+    M = np.full(u.shape, 0.85)
+    P = np.zeros(u.shape)
     for _ in range(steps):
         M = _bilinear(M, gx - u, gy - v)
         M = M * conv
@@ -741,12 +762,12 @@ def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
         # potential is flat elsewhere)
         kata = _KATA_STR * np.clip((_FREEZE - T_m[m]) / _KATA_T_SPAN,
                                    0.0, 1.0)
+        us, vs, uhs, vhs = [], [], [], []
         for j in range(n_samples):
             clock = 1000 + m * 16 + j
             u_h, v_h = lib.sample_high(stream, clock, seasonal)
             u, v = lib.sample(stream, clock, seasonal, monsoon,
                               high=(u_h, v_h), kata=kata)
-            sub = _subsidence(u_h, v_h, band)
             if green is not None:
                 # forests are windbreaks: canopy roughness slows the
                 # flow, so moisture transport across forests weakens
@@ -755,10 +776,18 @@ def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
                 v = v * wb
             wind_u[m, j] = u
             wind_v[m, j] = v
-            P_m[m] += _advect(u, v, h_c, water_c, lake_c, T_m[m],
-                              green=green, sub=sub,
-                              soil=None if soil_m is None else soil_m[m])
-        P_m[m] /= n_samples
+            us.append(u)
+            vs.append(v)
+            uhs.append(u_h)
+            vhs.append(v_h)
+        # the month's snapshots advect as one batch (independent
+        # fields stacked — identical arithmetic, one Python loop;
+        # Python-sum keeps the accumulation order of the old loop)
+        sub = _subsidence(np.stack(uhs), np.stack(vhs), band)
+        P_b = _advect(np.stack(us), np.stack(vs), h_c, water_c,
+                      lake_c, T_m[m], green=green, sub=sub,
+                      soil=None if soil_m is None else soil_m[m])
+        P_m[m] = sum(P_b) / n_samples
     return P_m, wind_u, wind_v
 
 
@@ -974,6 +1003,7 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     T_m = np.zeros((12, ch, cw))
     for m in range(12):
         seasonal = math.cos(2 * math.pi * (m - _SUMMER) / 12)
+        T_eqs, us, vs = [], [], []
         for j in range(n_samples):
             clock = 1000 + m * 16 + j
             jitter = 0.04 * (stream.uniform(clock, 15) - 0.5)
@@ -985,17 +1015,24 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
                 # gyre streams, monthly — swirls breathe seasonally)
                 T_eq = np.where(water_c, sst_m[m] + jitter, T_eq)
             u_t, v_t = lib.sample(stream, clock, seasonal)
-            T = T_eq
-            for _ in range(_T_ADV_STEPS):
-                T = _bilinear(T, gx - u_t, gy - v_t)
-                T = T + _T_ADV_RELAX * (T_eq - T)
-            # foehn warming: air descending a lee slope heats at the
-            # dry adiabat, so the lee runs warmer than the windward at
-            # the same altitude (also feeds moisture capacity below)
-            T = T + _FOEHN_WARM * np.maximum(0.0, -(u_t * dhx_c
-                                                    + v_t * dhy_c))
-            T_m[m] += np.clip(T, 0.0, 1.0)
-        T_m[m] /= n_samples
+            T_eqs.append(T_eq)
+            us.append(u_t)
+            vs.append(v_t)
+        # the month's snapshots transport as one batch (independent
+        # fields stacked — identical arithmetic, one Python loop)
+        TE = np.stack(T_eqs)
+        U, V = np.stack(us), np.stack(vs)
+        T = TE.copy()
+        for _ in range(_T_ADV_STEPS):
+            T = _bilinear(T, gx - U, gy - V)
+            T = T + _T_ADV_RELAX * (TE - T)
+        # foehn warming: air descending a lee slope heats at the
+        # dry adiabat, so the lee runs warmer than the windward at
+        # the same altitude (also feeds moisture capacity below)
+        T = T + _FOEHN_WARM * np.maximum(0.0, -(U * dhx_c
+                                                + V * dhy_c))
+        # Python-sum keeps the accumulation order of the old loop
+        T_m[m] = sum(np.clip(T, 0.0, 1.0)) / n_samples
 
     # thermal inertia: the surface follows the forcing with a LAG —
     # circular filter, the year wraps exactly (see _thermal_lag)
