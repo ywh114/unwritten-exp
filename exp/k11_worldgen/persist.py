@@ -100,6 +100,8 @@ def save_world(out_dir: str, world: dict, delivered: dict, seed: int,
     if "ramp" in c:            # through-flow source (build_currents)
         currents_manifest["ramp"] = {k: float(v) if k != "i0" else int(v)
                                      for k, v in c["ramp"].items()}
+    if "vmax_ms" in c:         # metric scale (units.CURRENT_VMAX_MS)
+        currents_manifest["vmax_ms"] = float(c["vmax_ms"])
     if "vmax_seeds" in c:        # present once wind refinement ran
         currents_manifest["vmax_seeds"] = float(c["vmax_seeds"])
     for k, v in delivered.items():
@@ -160,6 +162,8 @@ def load_world(out_dir: str) -> dict:
     currents["gyres"] = [tuple(g) for g in mc["gyres"]]
     if "ramp" in mc:
         currents["ramp"] = dict(mc["ramp"])
+    if "vmax_ms" in mc:
+        currents["vmax_ms"] = mc["vmax_ms"]
     currents["n_gyres"] = len(currents["gyres"])
     currents["factor"] = (world["elev"].shape[0]
                           // currents["psi"][0].shape[0])

@@ -908,3 +908,67 @@ pass-1 scaffold runs lean at 4.
     snapshots draw a random phase angle — weather systems move
     between snapshots and cancel in the annual mean instead of
     parking at fixed spots (the mean-field swirls complaint).
+
+- Relief obstacles + over-the-top bleed (seed-3 fix: a high
+  continent was one big psi-constant obstacle and the interior got
+  ZERO wind). What blocks low-level flow is the RISE, not the
+  altitude (Mongolia windy at 1500 m, a 500 m escarpment makes a
+  foehn): the obstacle mask is now local relief (_BLOCK_RISE_M =
+  500 m over _RELIEF_WINDOW = 8 psi cells, sliding-window range), so
+  rims/cores deflect and flat plateau interiors stay open. Where
+  terrain IS blocked, sample() blends in the high layer weighted by
+  bleed = _BLEED_MAX(0.5) * (1 - exp(-(alt_m - _BLOCK_ALT_M(1000))+ /
+  _BLEED_SCALE_M(800))) — asymptotic, no cap; Froude < 1 stops the
+  surface flow, not the column above. block_alt param retired.
+  Helmholtz drag considered and rejected (gauge dependence + wide
+  plateaus still windless). Blocking test now asserts the new
+  semantics: collapse at the rise, continued flow in the interior.
+
+- Fauna/flora direction (user, for the future ecology kernel —
+  refines rfc-fauna-generator): CURATED pinned megafauna (horses and
+  kin, livestock, apex) + SEEDED phylogenetic solve for subspecies
+  and critters (many); same two-tier split for flora. Placement is a
+  multi-step lived-in simulation (speciation/dispersal/extinction
+  over the L0 terrain). Game-facing: a critter-dex — plentiful
+  species curated- or LLM-named from phylogenetics, the PLAYER names
+  rare ones. LLM names, never speciates (P5 holds).
+
+- Climate memory terms (all four approved; passes kept clean):
+  - Thermal LAG: circular exponential filter over the year
+    (_thermal_lag; land tau 1 mo, ocean 3) — closed-form periodic
+    steady state, Dec wraps into Jan exactly, no spin-up. Applied to
+    T_m before the precip passes.
+  - SOIL moisture: leaky monthly bucket (_soil_schedule; rain in,
+    C-C demand out, S/(S+half) recycling in _advect), spun up 3x over
+    the year from the annual-mean state. Pipeline: precip pass ->
+    gain pin -> soil schedule -> ONE corrective precip pass with
+    soil (same K1 clocks — delivered wind snapshots identical, only
+    the water cycle shifts), gain reused.
+  - KATABATIC drainage: downslope potential (breeze-shaped) gated by
+    the sub-freezing anomaly (_KATA_STR 0.8, span 0.15 norm) —
+    ice-cap interiors are no longer dead air (the 6000 m cap on seed
+    3 read 0.004 mean wind). Heat-transport loop skips it
+    (second-order there; the delivered snapshots carry it).
+  - HADLEY closure: the high layer's band stream enters anti-phase
+    and weakened (_HIGH_BAND_RETURN -0.5) — subsiding dry air rides
+    the return current, not the surface flow's tailwind.
+
+- Metric wind/current + monthly store (user: no exact pins — preset
+  default average, seeded wiggle, leaky cap). units.wiggle_metric
+  generalizes the resolve_center_lat pattern (triangular draw, leaky
+  band). Wind: build_climate calibrates the delivered snapshots to
+  m/s against a wiggled target around WIND_MEAN_OCEAN_MS = 7 (Earth
+  ocean-mean surface wind); wind_scale kept for provenance;
+  consumers were already scale-invariant (direction/curl). Currents:
+  vmax_ms wiggled around CURRENT_VMAX_MS = 1.5 (boundary-current
+  peak), persisted in the manifest; velocity_ms() is the metric
+  reader for downstream. Precip: the gain pin's target is now a
+  wiggle around _TARGET_LAND_P = 0.19 (own K1 substream, drawn once
+  in pass 1, pass 2 reuses the gain). monthly/ now also writes
+  m##_wind.png and m##_current.png — mean speeds in m/s on fixed
+  physical gray scales (0..15, 0..2) so months/worlds compare.
+  Seed 1: wind ocean-mean 6.7 land 2.7 m/s; current vmax 1.35,
+  ocean-mean 0.037 m/s (abyssal cm/s + boundary m/s, physical).
+  Watch item: snapshot wind max ~65 m/s (chaotic tail of the scaled
+  field) — hurricane-force, plausible but hot; revisit if gameplay
+  reads extremes.

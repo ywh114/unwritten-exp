@@ -33,6 +33,12 @@ feedback and evaporative/cloud cooling adjust T given P. Forest
 feedback (evapotranspiration, interception, windbreak) is a
 SECOND-ORDER input: pass 1 runs bare-ground, and the coarse pipeline
 rerun (pass 2) supplies the real cover from the biome pass.
+Memory terms: the surface follows the forcing with a thermal LAG
+(circular filter, land ~1 month / ocean ~3), soil moisture is a
+leaky monthly bucket felt by land recycling (spun up over the year —
+both wrap December into January exactly), katabatic drainage blows
+downslope off deeply frozen ground, and the high layer's band flow
+returns anti-phase (Hadley closure).
 Conditioning, not simulation: single rounds, no iteration to
 convergence.
 """
@@ -46,7 +52,8 @@ import numpy as np
 from kernel.hashrng import Stream
 
 from exp.k11_worldgen.raster import fbm
-from exp.k11_worldgen.units import ELEV_MAX_M, T_MAX_C, T_MIN_C
+from exp.k11_worldgen.units import (
+    ELEV_MAX_M, T_MAX_C, T_MIN_C, WIND_MEAN_OCEAN_MS, wiggle_metric)
 
 # months are the canon time period; summer solstice at month 6
 _SUMMER = 6.0
@@ -94,19 +101,35 @@ def evap_factor(T: np.ndarray) -> np.ndarray:
     two consumers."""
     return np.clip((T - (_FREEZE - 0.05)) / 0.22, 0.05, 1.0)
 
-# adaptive-gain target for land-mean precipitation, normalized: real
+# adaptive-gain DEFAULT for land-mean precipitation, normalized: real
 # land averages ~65-80 mm/month (~800-1000 mm/yr) -> ~0.19 of the
-# 0-400 mm units range. A higher pin floods the biome match — every
-# cell reads wet-forest and grassland prototypes never win.
+# 0-400 mm units range. Not a hard pin — each world's target wiggles
+# around this (seeded, leaky: see units.wiggle_metric), so worlds run
+# drier and wetter but stay physical. A fixed pin floods the biome
+# match — every cell reads wet-forest and grassland prototypes never
+# win.
 _TARGET_LAND_P = 0.19
 
-# surface-wind obstacle threshold, meters: real low-level flow is
-# BLOCKED (splits around, not over) once terrain approaches the
-# boundary-layer depth (~1-2 km, Froude < 1) — hills well under a
-# kilometer still ride over. Much lower than the old 2100 m: the user
-# wants wind visibly swirling around ordinary relief, not just the
-# big ranges.
+# surface-wind obstacle threshold, meters: what BLOCKS low-level flow
+# is the RISE the air must cross, not the altitude it sits at —
+# Mongolia at 1500 m is windy, a 500 m escarpment makes a foehn. The
+# obstacle mask is local relief of the SMOOTHED terrain: fine
+# ruggedness is surface roughness (friction's job), not blocking —
+# only massifs and escarpments larger than the smoothing scale count.
+# Rims and range cores block; plateau interiors (however high) stay
+# open and the wind hugs the escarpment into the interior.
+_BLOCK_RISE_M = 500.0
+_RELIEF_WINDOW = 3
+_RELIEF_SMOOTH = 6
+
+# over-the-top bleed: where terrain IS blocked, the column above
+# still crosses (Froude < 1 stops the surface flow, not the free
+# troposphere) and turbulent mixing drives a weaker surface wind over
+# the high interior. Asymptotic in altitude (no hard cap), starting
+# at _BLOCK_ALT_M, saturating at _BLEED_MAX of the high-layer flow.
 _BLOCK_ALT_M = 1000.0
+_BLEED_MAX = 0.5
+_BLEED_SCALE_M = 800.0
 
 # rim porosity for the ATMOSPHERIC stream solve: the sky above the
 # magic rim is open — air exchanges with the world beyond the map
@@ -120,6 +143,33 @@ _RIM_POROSITY_AIR = 0.8
 # dominating the persistent flow. Six gyres at +-0.5 alpha still sum
 # past the band at ~1.2.
 _GYRE_WEIGHT = 0.6
+
+# thermal inertia: the surface follows the seasonal forcing with a
+# LAG — interior land ~1 month (soil column + boundary layer), the
+# ocean ~3 (mixed-layer heat capacity). Real lags shift monsoon
+# timing and growing seasons; see _thermal_lag.
+_LAG_TAU_LAND, _LAG_TAU_OCEAN = 1.0, 3.0
+
+# soil-moisture memory: a leaky monthly bucket — rain in, evaporative
+# demand out at the Clausius-Clapeyron rate. Recycling (land
+# evapotranspiration) scales as S/(S + _SOIL_HALF) — asymptotic, no
+# cap. Memory is the point: a wet April makes May moister.
+_SOIL_RAIN, _SOIL_EVAP, _SOIL_HALF = 3.0, 1.0, 1.0
+_SOIL_SPIN = 3
+
+# katabatic drainage: cold dense air over frozen high ground flows
+# DOWNSLOPE under gravity (the ice-cap signature wind — a divergent
+# local circulation the rotational solve cannot produce). Strength
+# comparable to the monsoon breeze; the gate is the sub-freezing
+# anomaly (normalized units).
+_KATA_STR, _KATA_T_SPAN = 0.8, 0.15
+
+# Hadley closure: mass conservation wants the upper flow to RETURN
+# over the surface bands (surface convergence = upper divergence).
+# Aloft the band stream enters anti-phase and weakened — the
+# subsiding dry air then rides a return flow, not the surface flow's
+# own tailwind
+_HIGH_BAND_RETURN = -0.5
 
 # drift phases per gyre: each chaotic gyre is precomputed at this
 # many quarter-domain rolls of its fbm texture (re-solved against
@@ -187,7 +237,6 @@ class WindLibrary:
     def __init__(self, stream: Stream, shape: tuple[int, int],
                  land: np.ndarray, alt: np.ndarray | None = None,
                  n_gyres: int = 6, land_friction: float = 0.35,
-                 block_alt: float = _BLOCK_ALT_M / ELEV_MAX_M,
                  psi_coarse: int = 64) -> None:
         H, W = shape
         gy, gx = np.mgrid[0:H, 0:W].astype(float)
@@ -234,15 +283,32 @@ class WindLibrary:
         self.f_psi = max(1, H // psi_coarse)
         ph, pw = H // self.f_psi, W // self.f_psi
         self._psi_shape = (ph, pw)
-        # obstacles: high terrain, free-constant islands — the solved
-        # stream goes AROUND a massif; below the threshold the air is
-        # open (below-threshold hills used to eat a 40% damp; that
-        # whole pretending layer is deleted)
+        # obstacles: RELIEF of the smoothed terrain, not altitude
+        # (see _BLOCK_RISE_M) — escarpment rims and range cores are
+        # free-constant islands the solved stream goes AROUND; plateau
+        # interiors (however high) are open air, so the wind hugs the
+        # escarpment and continues into the interior
         if alt is not None:
+            from numpy.lib.stride_tricks import sliding_window_view
             alt_p = _pool(alt, self.f_psi)
-            open_air = alt_p <= block_alt
+            sm = alt_p.copy()
+            for _ in range(_RELIEF_SMOOTH):
+                p = np.pad(sm, 1, mode="edge")
+                sm = sum(p[dy:dy + sm.shape[0], dx:dx + sm.shape[1]]
+                         for dy in range(3) for dx in range(3)) / 9.0
+            w = _RELIEF_WINDOW
+            ap = np.pad(sm, w // 2, mode="edge")
+            sw = sliding_window_view(ap, (w, w))[:ph, :pw]
+            relief = sw.max(axis=(-2, -1)) - sw.min(axis=(-2, -1))
+            open_air = relief <= _BLOCK_RISE_M / ELEV_MAX_M
+            # over-the-top bleed weight (see _BLEED_MAX): the share of
+            # the HIGH-layer flow mixed into the surface wind here
+            self.bleed = _BLEED_MAX * (1.0 - np.exp(
+                -np.maximum(alt * ELEV_MAX_M - _BLOCK_ALT_M, 0.0)
+                / _BLEED_SCALE_M))
         else:
             open_air = np.ones((ph, pw), bool)
+            self.bleed = np.zeros(shape)
 
         def solve(zeta):
             # semi-porous rim, airier than the ocean's: weather
@@ -334,6 +400,18 @@ class WindLibrary:
         self.breeze_u = bx / norm * np.clip(norm * 8, 0, 1)
         self.breeze_v = by / norm * np.clip(norm * 8, 0, 1)
 
+        # katabatic drainage potential: a DOWNSLOPE unit field (same
+        # potential-flow shape as the breeze, gravity-driven). Gated
+        # per snapshot by the sub-freezing anomaly — cold dense air
+        # over frozen high ground flows off it
+        if alt is not None:
+            kx, ky = _grad(alt)
+        else:
+            kx = ky = np.zeros((H, W))
+        knorm = np.hypot(kx, ky) + 1e-9
+        self.kat_u = -kx / knorm * np.clip(knorm * 8, 0, 1)
+        self.kat_v = -ky / knorm * np.clip(knorm * 8, 0, 1)
+
         # land friction: the surface (low) layer runs weaker over land
         # than over the sea at the same pressure gradient — roughness
         # plus a deeper turbulent boundary layer; real over-land
@@ -365,15 +443,19 @@ class WindLibrary:
                 + 0.5 * seasonal * (self.band_psi_p - self.band_psi_m))
 
     def _rotational(self, stream: Stream, clock: int, seasonal: float,
-                    solved: bool) -> tuple[np.ndarray, np.ndarray]:
+                    solved: bool, band_sign: float = 1.0
+                    ) -> tuple[np.ndarray, np.ndarray]:
         """Blend the stream functions (band wobble + gyre drift
         phases, the same K1 clocks as before), curl, tilt by the
         angle jitter, upscale to the library grid. `solved=False` is
         the aloft view: raw fbm gyres, no obstacle shaping. Each
         gyre's phase angle is a per-snapshot K1 draw — the systems
-        drift, so the annual mean keeps no parked whirlpools."""
+        drift, so the annual mean keeps no parked whirlpools.
+        `band_sign` scales the band stream: the high layer passes
+        _HIGH_BAND_RETURN (Hadley closure — the upper flow returns
+        over the surface bands)."""
         wobble = 0.8 + 0.4 * stream.uniform(clock, 0)
-        psi = wobble * self._band_stream(seasonal)
+        psi = band_sign * wobble * self._band_stream(seasonal)
         srcs = self.gyre_psi if solved else self.gyre_psi_raw
         for k, phases in enumerate(srcs):
             alpha = stream.uniform(clock, 1 + k) - 0.5
@@ -400,25 +482,43 @@ class WindLibrary:
         layer's random gyre phases (same weather systems aloft), but no
         land–sea breeze (a boundary-layer phenomenon) and no terrain
         shaping — upper air flows OVER ranges that block the low
-        layer. This split is what lets subtropical highs park dry air
-        over seas and coasts (Middle-East-style deserts need the layers
-        decoupled, not a single terrain-blocked flow).
+        layer. The band stream enters ANTI-PHASE and weakened
+        (_HIGH_BAND_RETURN — Hadley closure: the upper flow returns
+        over the surface bands, so subsiding dry air rides a return
+        current). This split is what lets subtropical highs park dry
+        air over seas and coasts (Middle-East-style deserts need the
+        layers decoupled, not a single terrain-blocked flow).
         """
-        u, v = self._rotational(stream, clock, seasonal, solved=False)
+        u, v = self._rotational(stream, clock, seasonal, solved=False,
+                                band_sign=_HIGH_BAND_RETURN)
         return 1.4 * u, 1.4 * v
 
     def sample(self, stream: Stream, clock: int, seasonal: float,
-               monsoon: float | None = None) -> tuple[np.ndarray, np.ndarray]:
+               monsoon: float | None = None,
+               high: tuple[np.ndarray, np.ndarray] | None = None,
+               kata: np.ndarray | None = None
+               ) -> tuple[np.ndarray, np.ndarray]:
         """One chaotic wind field: the SOLVED rotational part (bands +
-        gyres, terrain-shaped by the stream-function solve) + monsoon
-        (breeze_u/v scaled by `monsoon` — the actual land–sea
+        gyres, terrain-shaped by the stream-function solve) + the
+        over-the-top bleed (a `bleed`-weighted share of the high
+        layer, so blocked high ground still carries a weakened wind —
+        computed via sample_high when the caller does not pass one) +
+        monsoon (breeze_u/v scaled by `monsoon` — the actual land–sea
         temperature contrast when the caller passes it, else a fixed
-        0.9 * seasonal), slowed over land by surface friction.
-        seasonal = +1 midsummer, -1 midwinter."""
+        0.9 * seasonal) + katabatic drainage (kat_u/v scaled by
+        `kata`, the caller's sub-freezing gate), slowed over land by
+        surface friction. seasonal = +1 midsummer, -1 midwinter."""
         u, v = self._rotational(stream, clock, seasonal, solved=True)
+        if high is None:
+            high = self.sample_high(stream, clock, seasonal)
+        u = u + self.bleed * high[0]
+        v = v + self.bleed * high[1]
         b = monsoon if monsoon is not None else 0.9 * seasonal
         u = u + b * self.breeze_u
         v = v + b * self.breeze_v
+        if kata is not None:
+            u = u + kata * self.kat_u
+            v = v + kata * self.kat_v
         # surface roughness: the low layer slows over land
         u = u * self.friction
         v = v * self.friction
@@ -471,7 +571,8 @@ _FOEHN_WARM = 0.4
 def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
             lake_src: np.ndarray, T: np.ndarray,
             green: np.ndarray | None = None,
-            sub: np.ndarray | None = None, steps: int = 36) -> np.ndarray:
+            sub: np.ndarray | None = None, steps: int = 36,
+            soil: np.ndarray | None = None) -> np.ndarray:
     """Semi-Lagrangian moisture advection along a wind field.
 
     Parcels backtrace along the wind, inherit moisture, recharge over
@@ -496,6 +597,12 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
     oro = np.maximum(0.0, u * dhx + v * dhy)
     sink = np.maximum(0.0, -(u * dhx + v * dhy))   # descent: foehn
     recycle = 0.15 if green is None else 0.15 + 0.25 * green
+    if soil is not None:
+        # recycling drinks from the soil bucket: wet ground feeds the
+        # airflow, dry ground doesn't (S/(S+half) — asymptotic, no
+        # hard cap). Memory: last month's rain is this month's
+        # evapotranspiration
+        recycle = recycle * soil / (soil + _SOIL_HALF)
     intercept = 1.0 if green is None else 1.0 - 0.3 * green
     evap = evap_factor(T)
     # subsidence suppression factors (1 = no high overhead)
@@ -549,10 +656,51 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
     return P / steps
 
 
+def _thermal_lag(T_m: np.ndarray, water_c: np.ndarray) -> np.ndarray:
+    """Thermal inertia as a CIRCULAR exponential filter over the year:
+    the surface follows the seasonal forcing with a lag (_LAG_TAU_*
+    months, land vs ocean). Relaxation x_m = a*x_{m-1} + (1-a)*eq_m
+    over a periodic eq has a closed-form periodic steady state — a
+    circular convolution — so December wraps into January exactly and
+    there is no spin-up bias. Real lags shift monsoon timing and
+    growing seasons and damp the swing (ocean more than land)."""
+    a = np.where(water_c, math.exp(-1.0 / _LAG_TAU_OCEAN),
+                 math.exp(-1.0 / _LAG_TAU_LAND))
+    out = np.zeros_like(T_m)
+    for k in range(12):
+        out = out + ((1.0 - a) * a ** k)[None] * np.roll(T_m, k, axis=0)
+    return out / (1.0 - a ** 12)[None]
+
+
+def _soil_schedule(P_m: np.ndarray, T_m: np.ndarray) -> np.ndarray:
+    """Monthly soil-moisture schedule, (12, ch, cw): a leaky bucket —
+    rain in, evaporative demand out at the Clausius-Clapeyron rate
+    (the linear decay can never take S negative). Spun up _SOIL_SPIN
+    times over the year from the annual-mean state so the December
+    bucket feeds January (the year is a loop, no cold start), then
+    recorded once more around the loop."""
+    evap_m = evap_factor(T_m)
+    S = (_SOIL_RAIN * P_m.mean(axis=0)
+         / np.maximum(_SOIL_EVAP * evap_m.mean(axis=0), 0.05))
+
+    def step(S, m):
+        return S + _SOIL_RAIN * P_m[m] - _SOIL_EVAP * evap_m[m] * S
+
+    for _ in range(_SOIL_SPIN):
+        for m in range(12):
+            S = step(S, m)
+    out = np.zeros_like(P_m)
+    for m in range(12):
+        S = step(S, m)
+        out[m] = S
+    return out
+
+
 def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
                  land_c: np.ndarray, water_c: np.ndarray, lake_c: np.ndarray,
                  h_c: np.ndarray, lat: np.ndarray, n_samples: int,
-                 green: np.ndarray | None = None
+                 green: np.ndarray | None = None,
+                 soil_m: np.ndarray | None = None
                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """One monthly precipitation pass: monsoon strength from the land–sea
     heating anomaly of the given T field, N chaotic wind snapshots per
@@ -587,10 +735,17 @@ def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
         else:
             contrast = 0.0
         monsoon = float(np.clip(12.0 * contrast, -1.2, 1.2))
+        # katabatic gate: how much colder than freezing this month is —
+        # the ice-cap drainage blows when the surface is deeply
+        # sub-zero, and only where the terrain has a slope (the kat
+        # potential is flat elsewhere)
+        kata = _KATA_STR * np.clip((_FREEZE - T_m[m]) / _KATA_T_SPAN,
+                                   0.0, 1.0)
         for j in range(n_samples):
             clock = 1000 + m * 16 + j
-            u, v = lib.sample(stream, clock, seasonal, monsoon)
             u_h, v_h = lib.sample_high(stream, clock, seasonal)
+            u, v = lib.sample(stream, clock, seasonal, monsoon,
+                              high=(u_h, v_h), kata=kata)
             sub = _subsidence(u_h, v_h, band)
             if green is not None:
                 # forests are windbreaks: canopy roughness slows the
@@ -601,7 +756,8 @@ def _precip_pass(lib: WindLibrary, stream: Stream, T_m: np.ndarray,
             wind_u[m, j] = u
             wind_v[m, j] = v
             P_m[m] += _advect(u, v, h_c, water_c, lake_c, T_m[m],
-                              green=green, sub=sub)
+                              green=green, sub=sub,
+                              soil=None if soil_m is None else soil_m[m])
         P_m[m] /= n_samples
     return P_m, wind_u, wind_v
 
@@ -841,6 +997,10 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
             T_m[m] += np.clip(T, 0.0, 1.0)
         T_m[m] /= n_samples
 
+    # thermal inertia: the surface follows the forcing with a LAG —
+    # circular filter, the year wraps exactly (see _thermal_lag)
+    T_m = _thermal_lag(T_m, water_c)
+
     # ONE precipitation pass. `green` (forest cover, second-order
     # input — see the docstring) joins the water cycle here:
     # evapotranspiration recycling, canopy interception, windbreak.
@@ -862,15 +1022,31 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     # the belt multiplier stays only as the gain-pin interface
     belt = np.ones_like(lat)
     if gain is None:
+        # the world's wetness: seeded wiggle around the Earth-like
+        # default (_TARGET_LAND_P — leaky, not a hard pin; pass 2
+        # reuses this gain, so the wiggle is drawn once)
+        target_p = wiggle_metric(Stream(seed, "k11.pgain"),
+                                 _TARGET_LAND_P, 0.05, 0.03)
         land_mean = float((P_raw * belt[None])[:, land_c].mean()) if land_c.any() else 0.0
-        gain = float(np.clip(_TARGET_LAND_P / max(land_mean, 1e-6), 2.0, 24.0))
+        gain = float(np.clip(target_p / max(land_mean, 1e-6), 2.0, 24.0))
         P_m = _scale_precip(P_raw, gain, belt)
         # corrective step: heavy-tailed cells (windward spikes) saturate
         # the [0, 1] clip in _scale_precip, which drags the REALIZED
-        # land mean below the pin target; rescale once so the pin holds
+        # land mean below the target; rescale once so it holds
         realized = float(P_m[:, land_c].mean()) if land_c.any() else 0.0
         if realized > 1e-6:
-            gain = float(np.clip(gain * _TARGET_LAND_P / realized, 2.0, 24.0))
+            gain = float(np.clip(gain * target_p / realized, 2.0, 24.0))
+    P_m = _scale_precip(P_raw, gain, belt)
+    # soil-moisture memory: spin the bucket over the year from this
+    # first P (see _soil_schedule), then ONE corrective precip pass
+    # with the soil felt in the recycling. Same K1 clocks, so the
+    # delivered wind snapshots are identical between the two passes —
+    # only the water cycle shifts. The pinned gain is reused
+    # (feedback shows as a real delta, same philosophy as `green`).
+    soil_m = _soil_schedule(P_m, T_m)
+    P_raw, wind_u, wind_v = _precip_pass(
+        lib, stream, T_m, land_c, water_c, lake_c, h_c, lat, n_samples,
+        green=green, soil_m=soil_m)
     P_m = _scale_precip(P_raw, gain, belt)
     # conditioning round: T adjusted given P, snow cover, vegetation
     T_m = refine_climate(T_m, P_m, T_lat, green=green)
@@ -878,6 +1054,20 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     # upsample the monthly means to the world grid (smudge pass)
     T_monthly = np.stack([_upsample(np.clip(T_m[m], 0, 1), (H, W)) for m in range(12)])
     P_monthly = np.stack([_upsample(np.clip(P_m[m], 0, 1), (H, W)) for m in range(12)])
+
+    # metric wind: internal advection units -> m/s. Earth's mean
+    # surface wind over ocean is ~7 m/s (WIND_MEAN_OCEAN_MS); the
+    # world's calibration target wiggles around that (seeded, leaky —
+    # see units.wiggle_metric), so worlds vary but stay physical.
+    # Consumers of the snapshots are scale-invariant (direction,
+    # curl); the delivered store is metric.
+    target = wiggle_metric(Stream(seed, "k11.windmetric"),
+                           WIND_MEAN_OCEAN_MS, 2.0, 1.0)
+    speed_oc = (float(np.hypot(wind_u, wind_v)[:, :, water_c].mean())
+                if water_c.any() else 1.0)
+    wscale = target / max(speed_oc, 1e-9)
+    wind_u = (wind_u * wscale).astype(np.float32)
+    wind_v = (wind_v * wscale).astype(np.float32)
 
     alt = np.clip((elev - sea_level) / (1.0 - sea_level), 0.0, 1.0)
     return {
@@ -888,12 +1078,15 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
         "alt": alt,
         "gain": gain,
         # the weather pattern proper: N chaotic surface-wind snapshots
-        # per month at the coarse grid (the monthly means above are
+        # per month at the coarse grid, in M/S (see the calibration
+        # above; `wind_scale` is the internal-units multiplier, kept
+        # for provenance). The monthly means above are
         # their AVERAGE — gameplay interpolates between the samples of
-        # adjacent days, it does not re-derive them). Snapshot (m, j)
+        # adjacent days, it does not re-derive them. Snapshot (m, j)
         # is K1-reproducible: WindLibrary.sample(stream, 1000+m*16+j,
         # seasonal(m), monsoon) with the pipeline's own monsoon/windbreak
         # conditioning already baked in.
         "wind_u": wind_u,
         "wind_v": wind_v,
+        "wind_scale": np.float32(wscale),
     }

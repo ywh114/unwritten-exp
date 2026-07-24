@@ -673,9 +673,13 @@ def render_loading(out_dir: str, world: dict, delivered: dict,
     return [sink.write(n, load_stage_draw(n, bag)) for n in stages]
 
 
-def render_monthly(out_dir: str, climate: dict) -> list[str]:
-    """Write the UNAVERAGED monthly (T, P) curves — the canonical climate
-    store — as grayscale PNGs into `<out_dir>/monthly/` (anchor grid)."""
+def render_monthly(out_dir: str, climate: dict,
+                   currents: dict | None = None) -> list[str]:
+    """Write the UNAVERAGED monthly curves — the canonical climate
+    store — as grayscale PNGs into `<out_dir>/monthly/` (anchor grid):
+    T and P (normalized) plus the monthly mean wind and current speeds
+    in M/S on fixed physical gray scales (0..15 m/s wind, 0..2 m/s
+    current) so months and worlds compare directly."""
     import os
 
     os.makedirs(f"{out_dir}/monthly", exist_ok=True)
@@ -684,6 +688,19 @@ def render_monthly(out_dir: str, climate: dict) -> list[str]:
         for key, tag in (("T_monthly", "T"), ("P_monthly", "P")):
             p = f"{out_dir}/monthly/m{m + 1:02d}_{tag}.png"
             write_png_gray(p, normalize_u8(climate[key][m], 0.0, 1.0))
+            paths.append(p)
+        # monthly mean wind speed (the snapshots are metric — see the
+        # build_climate calibration)
+        sp = np.hypot(climate["wind_u"][m].mean(axis=0),
+                      climate["wind_v"][m].mean(axis=0))
+        p = f"{out_dir}/monthly/m{m + 1:02d}_wind.png"
+        write_png_gray(p, normalize_u8(sp, 0.0, 15.0))
+        paths.append(p)
+        if currents is not None:
+            from exp.k11_worldgen.currents import velocity_ms
+            cu, cv = velocity_ms(currents, m)
+            p = f"{out_dir}/monthly/m{m + 1:02d}_current.png"
+            write_png_gray(p, normalize_u8(np.hypot(cu, cv), 0.0, 2.0))
             paths.append(p)
     return paths
 

@@ -397,7 +397,14 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
                    strength * math.sin(theta)],
                 "ramp": ramp,
                 "factor": f, "n_gyres": len(centers)}
-    return _finish(currents, elev, ocean_mask, sea_level)
+    out = _finish(currents, elev, ocean_mask, sea_level)
+    # metric scale: the world's max current speed in m/s, wiggled
+    # around CURRENT_VMAX_MS (boundary-current peak ~1.5) — seeded,
+    # leaky-capped, so worlds vary but stay physical
+    from exp.k11_worldgen.units import CURRENT_VMAX_MS, wiggle_metric
+    out["vmax_ms"] = wiggle_metric(stream.child("metric"),
+                                   CURRENT_VMAX_MS, 0.5, 0.3)
+    return out
 
 
 def refine_currents(currents: dict, elev: np.ndarray,
@@ -428,6 +435,18 @@ def refine_currents(currents: dict, elev: np.ndarray,
     currents["psi"] = currents["psi"] + [psi_w / max(tmax, 1e-9)]
     currents["weights"] = currents["weights"] + [wind_weight]
     return _finish(currents, elev, ocean_mask, sea_level)
+
+
+def velocity_ms(currents: dict, month: int = 6
+                ) -> tuple[np.ndarray, np.ndarray]:
+    """Surface current velocity in M/S: velocity_field's relative
+    field scaled by the world's seeded max (vmax_ms — around
+    CURRENT_VMAX_MS, see units.wiggle_metric). This is the metric
+    store downstream consumers (ecology, gameplay) should read."""
+    from exp.k11_worldgen.units import CURRENT_VMAX_MS
+    u, v = velocity_field(currents, month)
+    s = currents.get("vmax_ms", CURRENT_VMAX_MS)
+    return u * s, v * s
 
 
 def rise_monthly(currents: dict) -> np.ndarray:

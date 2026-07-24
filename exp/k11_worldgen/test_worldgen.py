@@ -510,23 +510,62 @@ def test_refine_climate_conditions_on_snow_and_rain():
     assert (r3.max(axis=0) - r3.min(axis=0)).mean() < 0.39
 
 
+def test_thermal_lag_wraps_the_year():
+    from exp.k11_worldgen.climate import _thermal_lag
+    water = np.zeros((4, 4), bool)
+    water[:, 2:] = True                       # west land, east ocean
+    T = np.zeros((12, 4, 4))
+    T[7] = 1.0                                # July spike only
+    out = _thermal_lag(T, water)
+    # deterministic, bounded, and the year is a loop: December feels
+    # the July spike too (wrapping), more so over the ocean
+    assert (out >= 0).all() and (out <= 1).all()
+    assert out[0, 0, 0] > 0.0                 # Jan land remembers July
+    # ocean lags more: peak response later and broader than land
+    land_curve = out[:, 0, 0]
+    ocean_curve = out[:, 0, 2]
+    assert ocean_curve.argmax() >= land_curve.argmax()
+    assert ocean_curve[0] > land_curve[0]     # more wrap into January
+    # a constant year is untouched by the filter
+    T1 = np.ones((12, 4, 4)) * 0.5
+    assert np.allclose(_thermal_lag(T1, water), 0.5)
+
+
+def test_soil_schedule_memory():
+    from exp.k11_worldgen.climate import _soil_schedule
+    P = np.full((12, 3, 3), 0.02)             # dry year
+    P[3] = 0.8                                # one wet April
+    T = np.full((12, 3, 3), 0.6)              # warm
+    S = _soil_schedule(P, T)
+    assert (S >= 0).all()
+    # the bucket remembers: May carries April's rain, and December's
+    # bucket feeds January (no cold start)
+    assert S[4].mean() > S[2].mean()
+    assert S[0].mean() > 0.0
+    # a wetter year keeps a wetter bucket
+    S_wet = _soil_schedule(np.full((12, 3, 3), 0.4), T)
+    assert S_wet.mean() > S.mean()
+
+
 def test_wind_library_terrain_blocking():
     from exp.k11_worldgen.climate import WindLibrary
     shape = (32, 32)
     land = np.ones(shape, bool)
     alt = np.zeros(shape)
-    alt[:, 16:] = 0.8                   # high range over the east half
+    alt[:, 16:] = 0.8                   # high plateau over the east half
     lib0 = WindLibrary(Stream(SEED, "t"), shape, land, alt=np.zeros(shape))
     lib1 = WindLibrary(Stream(SEED, "t"), shape, land, alt=alt)
     u0, v0 = lib0.sample(Stream(SEED, "s"), 1000, 1.0)
     u1, v1 = lib1.sample(Stream(SEED, "s"), 1000, 1.0)
-    # same seed -> same sources; the solved stream function bends the
-    # flow around the range instead of projecting it off cell-by-cell:
-    # the massif interior is a psi-constant obstacle (no rotational
-    # wind at all), and the flow deflects along the range front
-    assert np.hypot(u1, v1)[:, 20:].mean() < np.hypot(u0, v0)[:, 20:].mean()
-    assert np.hypot(u1, v1)[:, 22:].max() == 0.0
-    assert abs(v1[:, 12:16]).mean() < abs(v0[:, 12:16]).mean()
+    # same seed -> same sources. The ESCARPMENT (high relief) is the
+    # obstacle: speed and the cross-front component collapse at the
+    # rise. The plateau INTERIOR is high but flat — open air in the
+    # solve, plus the over-the-top bleed — so the wind hugs the rise
+    # and keeps blowing across the interior
+    s0, s1 = np.hypot(u0, v0), np.hypot(u1, v1)
+    assert s1[:, 12:16].mean() < 0.5 * s0[:, 12:16].mean()
+    assert abs(v1[:, 12:16]).mean() < 0.3 * abs(v0[:, 12:16]).mean()
+    assert s1[:, 24:30].mean() > 0.5 * s0[:, 24:30].mean()
 
 
 @pytest.mark.slow

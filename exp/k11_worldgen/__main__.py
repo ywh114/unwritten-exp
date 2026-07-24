@@ -202,7 +202,7 @@ def run_demo(seed: int, check_determinism: bool = False,
     paths = render_all(out_dir, delivered, world["complex"],
                        currents=world["currents"],
                        climate=world["climate"])
-    monthly_paths = render_monthly(out_dir, world["climate"])
+    monthly_paths = render_monthly(out_dir, world["climate"], currents=world["currents"])
 
     elev, hydro, climate = world["elev"], world["hydro"], world["climate"]
     biome_map, complex_ = world["biome_map"], world["complex"]
@@ -416,7 +416,7 @@ def run_render(seed: int) -> dict:
     paths = render_all(out_dir, delivered, world["complex"],
                        currents=world["currents"],
                        climate=world["climate"])
-    monthly_paths = render_monthly(out_dir, world["climate"])
+    monthly_paths = render_monthly(out_dir, world["climate"], currents=world["currents"])
     names = [b["name"] for b in BIOMES]
     from exp.k11_worldgen.biomes import PALETTE
     dm = delivered["biome_map"]

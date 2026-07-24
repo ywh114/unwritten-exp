@@ -12,6 +12,8 @@ gradients/variation, never the units.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
 # temperature: 0.0 -> -30 degC, 1.0 -> +35 degC (per-month values)
@@ -29,6 +31,30 @@ ELEV_MAX_M, DEPTH_MAX_M = 6000.0, 6000.0
 # salinity: grams per kg (practical salinity). Open ocean 35,
 # fresh < 1, brackish 1..30, hypersaline terminals up to ~340 (Dead Sea)
 SALINITY_OCEAN_GKG = 35.0
+
+# wind speed: m/s. Earth's mean SURFACE wind over ocean is ~7 m/s
+# (land runs ~60-70% of that); used as the DEFAULT average each
+# world's calibration wiggles around (seeded, leaky-capped — not a
+# pin, so worlds vary but stay physical)
+WIND_MEAN_OCEAN_MS = 7.0
+
+# ocean current speed: m/s. Western boundary currents (Gulf Stream,
+# Kuroshio) peak at 1-2.5 m/s; the world max is drawn around 1.5,
+# seeded wiggle with a leaky cap
+CURRENT_VMAX_MS = 1.5
+
+
+def wiggle_metric(stream, base: float, spread: float, band: float,
+                  leak: float = 0.3) -> float:
+    """Seeded draw around `base`: triangular in +-spread, softly
+    compressed beyond +-band (LEAKY cap — slope `leak`, never a hard
+    clamp). The resolve_center_lat pattern, generalized to the metric
+    calibrations: a preset default average, wiggled per world."""
+    w = sum(stream.uniform(0, i) for i in range(3)) - 1.5
+    w = w / 1.5 * spread
+    if abs(w) > band:
+        w = math.copysign(band + (abs(w) - band) * leak, w)
+    return base + w
 
 
 def temp_c(t_norm: np.ndarray) -> np.ndarray:
