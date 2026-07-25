@@ -338,7 +338,7 @@ class WindModel:
                 u[self.rim] = bc[self.rim]
 
     def snapshot(self, stream: Stream, clock: int, T_anom: np.ndarray,
-                 n_steps: int = 16) -> dict:
+                 n_steps: int = 8) -> dict:
         """Advance n_steps and return the surface wind + the
         vertical-motion field. The state carries over between
         snapshots (a continuous trajectory — the weather pattern).

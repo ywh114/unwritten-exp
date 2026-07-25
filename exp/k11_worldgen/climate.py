@@ -637,7 +637,7 @@ def _lat_profile(lat: np.ndarray, shape_km: float,
     return T_lat, T_amp_lat
 
 def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
-                  seed: int = 0, coarse: int = 128,
+                  seed: int = 0, coarse: int = 64,
                   n_samples: int = 8,
                   t_north: float = 0.06, t_span: float = 0.93,
                   t_pow: float = 0.40, t_amp: float = 0.12,
