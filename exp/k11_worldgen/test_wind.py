@@ -65,11 +65,15 @@ def test_ridge_deflection():
     upstream = float(m.u_s[24, 6])
     ahead = float(m.u_s[24, 18])
     assert ahead < 0.7 * upstream
-    # cross-flow develops (deflection), not a pure stop
-    assert abs(m.v_s[10:38, 14:22]).max() > 0.02
-    # the ends stay open: flow past the segment's tip keeps its speed
+    # cross-flow develops (deflection), not a pure stop — relative to
+    # the slowed upstream speed (stronger drag slows everything, so
+    # the meaningful measure is the deflection RATIO)
+    assert abs(m.v_s[10:38, 14:22]).max() > 0.3 * upstream
+    # the ends stay more open than the core: flow past the segment's
+    # tip keeps more of its speed (the strong drag's halo bleeds some
+    # drag onto the tip too, so the margin is modest)
     tip = float(m.u_s[6, 18])
-    assert tip > 1.5 * ahead
+    assert tip > 1.2 * ahead
     # the middle layer feels no terrain: it crosses at ~inflow speed
     mid_core = float(m.u_m[24, 26])
     assert mid_core > 0.5 * 0.3

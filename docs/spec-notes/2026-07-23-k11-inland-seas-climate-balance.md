@@ -1519,3 +1519,37 @@ structured subsidence now, and the fluid distributes moisture
 efficiently). Demo runtime roughly doubled (fluid at 128^2 + 4x
 advect cost). Seed 2 ranges_exist marginal-fail is terrain-side
 (max peak 0.709 vs 0.72 bar), not wind.
+
+## 2026-07-25 (final): resolution layout, volcanoes, K11 sealed
+
+Resolution split after the blockiness review (marine classes read
+coarse-field threshold contours directly as class edges; terrestrial
+biomes classify nearest-distance and escape it):
+
+- 64^2: wind fluid, moisture advect, subsidence transport
+- 128^2: T transport, gain pin, soil, delivered monthly T/P
+- 256^2: anchor world, currents fields
+- 1024^2: delivery/biomes/render
+Demo ~60s (was 2m27 at the fluid's first integration).
+
+Volcanoes: build_volcanoes (plates.py) stamps 4-7 seeded cones
+(2.2-4.5 km, crater dip) on convergent faults right after elevation,
+before carve/hydrology — rivers route around them for free. Metadata
+in world.json ("volcanoes"), tallest marked VO1 on world.png, rest
+textless red dots; new WT1 (wettest point) landmark evens the legend.
+
+End of K11.
+
+## 2026-07-25 (addendum): parked circulation pair + gain-pin loosening
+
+Deserts and moist tropical forest now exist by MECHANISM: a parked
+ITCZ low (seeded among the hottest coastline cells) and 1-2 parked
+subtropical highs (seeded on warm-half coasts) enter the fluid as
+permanent divergence features (WindModel.parked, D units) — the low's
+convergence rains, the high's anticyclone exports moisture, the
+rigid-lid closure + highway carry the spent air between them.
+Seed 1: desert 10.8%, moist tropical forest 0.15%. The seasonal
+sub-swap is gone (the parked component anchors the field).
+Air mass conserved by the rigid-lid closure (physics tests); water
+redistributed, not created. Gain-pin bounds loosened [2,24] ->
+_GAIN_LO/_GAIN_HI [1,64] (the clamp left paired worlds dry).

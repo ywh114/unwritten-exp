@@ -619,3 +619,75 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     elev = np.where(elev > sea_level,
                     sea_level + (1.0 - sea_level) * t_land ** 2.0, elev)
     return np.clip(elev, 0.0, 1.0), plates
+
+
+# -- volcanoes --------------------------------------------------------------
+# Cones sit on convergent faults, their density scaled by LOCAL fault
+# activity (convergence normalized per world): busy subduction zones
+# sprout arcs, quiet margins stay quiet. Sizes draw small-heavy —
+# tiny undersea cones included, most never breach; a deep wide crater
+# on a small sea cone reads as a caldera ring-island. No kind labels:
+# the forms emerge from the draws.
+_VOLC_RATE = 0.03           # cone probability per fault cell at full activity
+_VOLC_MIN_SEP = 12          # cells (~50 km at 4 km/cell)
+_VOLC_H_M = (300.0, 4500.0)     # summit height above the LOCAL base, meters
+_VOLC_R_CELLS = (1.5, 6.0)      # cone sigma, cells (~6-24 km)
+
+
+def build_volcanoes(stream: Stream, plates: "Plates", elev: np.ndarray,
+                    sea_level: float,
+                    cell_km: float = 4.0) -> tuple[np.ndarray, list]:
+    """Stamp volcanic cones on convergent faults. Runs right after
+    build_elevation, BEFORE carve/hydrology, so rivers route around the
+    cones and crater depressions can pond. Returns the modified
+    elevation and the metadata list [(y, x, height_m)]."""
+    from exp.k11_worldgen.units import ELEV_MAX_M
+    H, W = elev.shape
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    conv = plates.fault_conv
+    cand = ((plates.fault_dist <= 2) & (conv > 0)
+            # the border ring's fine cells are RESERVED for ocean (the
+            # only guaranteed buffer) — a cone there would stamp land
+            # into the forbidden rim
+            & ~plates.is_ocean)
+    if not cand.any():
+        return elev, []
+    ys, xs = np.where(cand)
+    n_c = len(ys)
+    c90 = float(np.percentile(conv[cand], 90.0)) + 1e-9
+    act = np.clip(conv[ys, xs] / c90, 0.0, 1.0)
+    u_act = np.array([stream.uniform(0, 300 + i) for i in range(n_c)])
+    sel = np.where(u_act < _VOLC_RATE * act)[0]
+    # busiest faults first, greedy spacing
+    sel = sel[np.argsort(-act[sel])]
+    picked: list[tuple[int, int]] = []
+    for k in sel:
+        y, x = int(ys[k]), int(xs[k])
+        if all((y - py) ** 2 + (x - px) ** 2 >= _VOLC_MIN_SEP ** 2
+               for py, px in picked):
+            picked.append((y, x))
+    elev = elev.copy()
+    volcanoes = []
+    for i, (y, x) in enumerate(picked):
+        u1 = stream.uniform(0, 400 + 4 * i)
+        u2 = stream.uniform(0, 401 + 4 * i)
+        u3 = stream.uniform(0, 402 + 4 * i)
+        u4 = stream.uniform(0, 403 + 4 * i)
+        # small-heavy sizes: tiny cones are common, 4 km giants rare
+        h_m = _VOLC_H_M[0] + (_VOLC_H_M[1] - _VOLC_H_M[0]) * u1 ** 2
+        sigma = (_VOLC_R_CELLS[0] + (_VOLC_R_CELLS[1] - _VOLC_R_CELLS[0])
+                 * u2)
+        # crater: shallow dip on big shields, deep wide caldera on some
+        # (on a tiny sea cone the rim breaches and the flooded center
+        # reads as a ring island)
+        crater_f = 0.15 + 0.55 * u3
+        crater_w = 0.2 + 0.3 * u4
+        # meters -> normalized elevation units (see marks._m_above)
+        dh = h_m / ELEV_MAX_M * (1.0 - sea_level)
+        r2 = (yy - y) ** 2 + (xx - x) ** 2
+        cone = dh * np.exp(-0.5 * r2 / sigma ** 2)
+        crater = (crater_f * dh
+                  * np.exp(-0.5 * r2 / (crater_w * sigma) ** 2))
+        elev = elev + cone - crater
+        volcanoes.append((y, x, float(h_m)))
+    return np.clip(elev, 0.0, 1.0), volcanoes

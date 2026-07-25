@@ -24,6 +24,9 @@ KIND_COLOR = {
     "salt": (240, 170, 190),
     "low": (230, 120, 230),
     "mouth": (250, 220, 120),
+    "volcano": (255, 70, 50),
+    "volcano_dot": (255, 70, 50),
+    "wet": (170, 130, 255),
 }
 
 
@@ -173,7 +176,9 @@ def compute_range_lines(delivered: dict, sea_level: float,
 
 def compute_marks(delivered: dict, hydro: dict, sea_level: float,
                   factor: int, n_peaks: int = 5, n_lakes: int = 2,
-                  n_lows: int = 2, n_mouths: int = 3) -> list[tuple[str, int, int, str]]:
+                  n_lows: int = 2, n_mouths: int = 3,
+                  volcanoes: list | None = None
+                  ) -> list[tuple[str, int, int, str]]:
     elev = delivered["elev"]
     ocean = delivered["ocean_mask"]
     lake = delivered["lake_mask"]
@@ -298,5 +303,24 @@ def compute_marks(delivered: dict, hydro: dict, sea_level: float,
         km3y = int(round(v * 0.0768))
         marks.append(("mouth", y * factor + factor // 2,
                       x * factor + factor // 2, f"RV{i + 1} {km3y}KM3/Y"))
+
+    # volcanoes: from the elevation pipeline's metadata (world-grid
+    # coords -> delivered). Only the TALLEST carries a legend label;
+    # the rest are textless dots
+    volc = sorted(volcanoes or [], key=lambda t: -t[2])
+    for i, (vy, vx, h_m) in enumerate(volc):
+        if i == 0:
+            marks.append(("volcano", vy * factor + factor // 2,
+                          vx * factor + factor // 2,
+                          f"VO1 {int(round(h_m))}M"))
+        else:
+            marks.append(("volcano_dot", vy * factor + factor // 2,
+                          vx * factor + factor // 2, ""))
+
+    # wettest point on land (the Cherrapunji mark)
+    wet_p = np.where(land, delivered["P"], 0.0)
+    wy, wx = np.unravel_index(int(np.argmax(wet_p)), wet_p.shape)
+    mm_y = int(round(float(wet_p[wy, wx]) * 400.0 * 12.0))
+    marks.append(("wet", int(wy), int(wx), f"WT1 {mm_y}MM/Y"))
 
     return marks

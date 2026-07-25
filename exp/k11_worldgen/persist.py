@@ -130,6 +130,8 @@ def save_world(out_dir: str, world: dict, delivered: dict, seed: int,
         },
         "complex": _complex_to_dicts(world["complex"]),
         "currents": currents_manifest,
+        "volcanoes": [[int(y), int(x), float(h)]
+                      for y, x, h in world.get("volcanoes", [])],
         "arrays": sorted(arrays),
     }
     json_path = out / "world.json"

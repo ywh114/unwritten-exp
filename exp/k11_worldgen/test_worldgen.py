@@ -908,3 +908,32 @@ def test_strahler_carries_through_lakes():
     order = strahler_order(direction, river, acc, lake=lake)
     assert order[1, 2] == 2       # confluence of two 1s
     assert order[4, 2] == 2       # the outlet keeps order 2 past the lake
+
+
+def test_volcanoes():
+    """Volcanic cones: seeded on convergent faults, deterministic,
+    elevation raised at the summit with a crater dip, metadata sane."""
+    from exp.k11_worldgen.plates import build_elevation, build_volcanoes
+    from kernel.hashrng import Stream
+    stream = Stream(SEED, "t.volc")
+    elev, plates = build_elevation(stream, (128, 128), sea_level=0.35)
+    e1, v1 = build_volcanoes(Stream(SEED, "t.volc").child("volcanoes"),
+                             plates, elev, 0.35)
+    e2, v2 = build_volcanoes(Stream(SEED, "t.volc").child("volcanoes"),
+                             plates, elev, 0.35)
+    assert v1 == v2 and np.array_equal(e1, e2)        # deterministic
+    if not v1:
+        return                                        # fault-poor world
+    for y, x, h_m in v1:
+        assert 200.0 <= h_m <= 5000.0
+        # near a convergent fault by construction
+        assert plates.fault_dist[y, x] <= 2
+        assert plates.fault_conv[y, x] > 0
+        # the cone raised the terrain, and the crater dips the summit
+        assert e1[y, x] > elev[y, x] - 0.01
+        ring = e1[max(0, y - 3):y + 4, max(0, x - 3):x + 4]
+        assert ring.max() > e1[y, x]
+    # spacing respected
+    for i, (y1, x1, *_a) in enumerate(v1):
+        for y2, x2, *_b in v1[i + 1:]:
+            assert (y1 - y2) ** 2 + (x1 - x2) ** 2 >= 12 ** 2

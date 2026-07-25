@@ -46,6 +46,15 @@ N_SAMPLES_FINAL = 8
 N_SAMPLES_SCAFFOLD = 4
 
 
+def _compass_from(mu: float, mv: float) -> str:
+    """8-point compass name for the direction a (mu, mv) wind vector
+    blows FROM (meteorological convention; v is south-positive)."""
+    import math
+    deg = math.degrees(math.atan2(-mv, -mu)) % 360.0
+    return ("E", "SE", "S", "SW", "W", "NW", "N", "NE")[
+        int((deg + 22.5) // 45) % 8]
+
+
 def _step(msg: str) -> None:
     """Progress line for the demo build (each logic pass, as it starts).
     Stderr, so `--json` stdout stays machine-readable."""
@@ -72,6 +81,10 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     stream = Stream(seed, "k11.worldgen")
     _step("plates + elevation")
     elev, plates = build_elevation(stream, shape, sea_level=SEA_LEVEL)
+    _step("volcanoes")
+    from exp.k11_worldgen.plates import build_volcanoes
+    elev, volcanoes = build_volcanoes(stream.child("volcanoes"), plates,
+                                      elev, SEA_LEVEL)
     bag = {"plates": plates, "elev": elev, "sea_level": SEA_LEVEL}
     if sink is not None:
         sink.write(1, load_stage_draw(1, bag))
@@ -176,7 +189,7 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
         "elev": elev, "plates": plates, "hydro": hydro, "climate": climate,
         "biome_map": biome_map, "cover": cover, "complex": complex_,
         "biome_names": biome_names, "ocean_mask": ocean_mask,
-        "aquatic": aquatic, "currents": currents,
+        "aquatic": aquatic, "currents": currents, "volcanoes": volcanoes,
     }
 
 
@@ -332,6 +345,10 @@ def run_demo(seed: int, check_determinism: bool = False,
         "salt_max_gkg": salt_max,
         "climate_mode": climate_mode,
         "climate_trivia": climate_trivia,
+        # the emergent prevailing surface wind (annual mean of the
+        # delivered snapshots), as a meteorological FROM direction
+        "prev_wind": _compass_from(float(world["climate"]["wind_u"].mean()),
+                                   float(world["climate"]["wind_v"].mean())),
     }
     delivered_hist = []
     dm = delivered["biome_map"]
@@ -341,7 +358,8 @@ def run_demo(seed: int, check_determinism: bool = False,
         delivered_hist.append((n, int((dm == i).sum()), PALETTE[i]))
     delivered_hist.sort(key=lambda t: -t[1])
     from exp.k11_worldgen.marks import compute_marks
-    marks = compute_marks(delivered, hydro, SEA_LEVEL, 4)
+    marks = compute_marks(delivered, hydro, SEA_LEVEL, 4,
+                          volcanoes=world["volcanoes"])
     from exp.k11_worldgen.aquatic import aquatic_legend_hist
     aq_hists = aquatic_legend_hist(
         delivered["aquatic"],

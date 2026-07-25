@@ -63,16 +63,16 @@ _NU_WATER = 0.01      # open water: nearly free
 _NU_LAND = 0.05       # lowland roughness
 # relief drag: full local relief (ELEV range within the relief
 # window) adds _NU_RELIEF — an escarpment core (relief ~half the
-# world span inside one window) gets nu ~ 4 (momentum dies in a few
-# steps, near-solid), a mid-slope gets ~1 (strong deflection), a
-# foothill ~0.1 (felt, crossed)
-_NU_RELIEF = 8.0
+# drag span inside one window) gets nu ~ 8 (momentum dies in a step
+# or two, effectively solid), a mid-slope gets ~2 (strong
+# deflection), a foothill ~0.2 (felt, crossed)
+_NU_RELIEF = 16.0
 # the relief amplitude (as a fraction of the world's height range)
 # that earns full relief drag — ABSOLUTE, not normalized per world:
-# ~a quarter of the range (~1.5 km) of local relief inside the
-# window is a serious barrier; a 100 m hill is not, whatever the
-# world's tallest mountain is
-_RELIEF_DRAG_SPAN = 0.25
+# ~a fifth of the range (~1.2 km) of local relief inside the window
+# is a serious barrier; a 100 m hill is not, whatever the world's
+# tallest mountain is
+_RELIEF_DRAG_SPAN = 0.2
 _NU_FOREST = 0.5      # canopy: a strong windbreak, not a wall
 _NU_MID = 0.005       # middle layer: slow spin-down only
 # terrain-lifting depth: the slope length over which forced ascent
@@ -195,6 +195,7 @@ class WindModel:
                  green: np.ndarray | None = None,
                  coriolis: float | None = None,
                  drive: tuple[float, float] = (0.0, 0.0),
+                 parked: np.ndarray | None = None,
                  bc_u: np.ndarray | None = None,
                  bc_v: np.ndarray | None = None) -> None:
         h = np.asarray(h, dtype=np.float32)
@@ -214,6 +215,12 @@ class WindModel:
             coriolis = sgn * _CORIOLIS * (0.7 + 0.6 * stream.uniform(0, 61))
         self.f = float(coriolis)
         self.fx, self.fy = float(drive[0]), float(drive[1])
+        # parked divergence (D units, >0 = descent): a semi-permanent
+        # subtropical high — see build_climate. Permanent anticyclone:
+        # the surface flow genuinely diverges around it, exporting
+        # moisture, not merely damping rain rates
+        self.parked = (np.zeros(h.shape, dtype=np.float32) if parked is None
+                       else np.asarray(parked, dtype=np.float32))
 
         # Brinkman drag field (surface): water/land base + continuous
         # relief amplitude (local max-min over the relief window of
@@ -322,7 +329,8 @@ class WindModel:
         # spots is balanced by broad weak descent everywhere else (the
         # Hadley cell closes — net vertical motion over the map is 0)
         lift = (self.u_s * self.dhx + self.v_s * self.dhy) / _H_EFF
-        D = (-lift - _BUOY_D * (T - float(T.mean()))).astype(np.float32)
+        D = (-lift - _BUOY_D * (T - float(T.mean())) + self.parked
+             ).astype(np.float32)
         # project surface to div = D, middle to the rigid-lid
         # compensation div = -(H_S/H_M) D
         self.u_s, self.v_s = self._project(self.u_s, self.v_s, D)

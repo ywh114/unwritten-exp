@@ -51,7 +51,7 @@ import numpy as np
 
 from kernel.hashrng import Stream
 
-from exp.k11_worldgen.raster import fbm
+from exp.k11_worldgen.raster import fbm, upsample_bicubic
 from exp.k11_worldgen.wind import Highway, WindModel
 from exp.k11_worldgen.units import (
     ELEV_MAX_M, T_MAX_C, T_MIN_C, WIND_MEAN_OCEAN_MS, wiggle_metric)
@@ -110,6 +110,11 @@ def evap_factor(T: np.ndarray) -> np.ndarray:
 # match — every cell reads wet-forest and grassland prototypes never
 # win.
 _TARGET_LAND_P = 0.19
+# gain-pin bounds: the pin should only stop absurd gains, not veto
+# real redistribution — the parked circulation pair (ITCZ low +
+# subtropical highs) moves a lot of water legitimately, and the old
+# [2, 24] clamp left paired worlds systematically dry
+_GAIN_LO, _GAIN_HI = 1.0, 64.0
 
 # surface-wind obstacle threshold, meters: what BLOCKS low-level flow
 # is the RISE the air must cross, not the altitude it sits at —
@@ -161,6 +166,11 @@ _SOIL_SPIN = 3
 # strength per step — 24 steps at 0.98 leaves ~0.6 at the plume's
 # end (belt-scale descent a thousand km from the rain core)
 _SUB_DECAY = 0.98
+# subsidence-seed memory (see _precip_pass): trailing-mean decay per
+# snapshot along the wind trajectory — 0.85 keeps ~6 snapshots (a
+# month) of descent history, so only PARKED highs seed plumes while
+# the slow seasonal migration still passes
+_SUB_MEM = 0.85
 # seed gain before injection: the plume dilutes along the path
 # (decay + spreading), and the drying response needs strong zones,
 # not a haze — cores must enter the transport saturated
@@ -464,8 +474,15 @@ def _wind_ensemble(model: WindModel, highway: Highway, stream: Stream,
     the same ensemble drives the temperature transport and both
     precipitation passes, so those passes differ only in the water
     cycle, never in the wind. The high layer (the non-interacting
-    highway) is sampled alongside for the subsidence transport."""
+    highway) is sampled alongside for the subsidence transport.
+
+    T_eq_m may be finer than the wind grid (the products grid); it is
+    pooled down for the forcing. Snapshots come back at the wind's
+    own grid — consumers upscale if they need finer."""
     ch, cw = model.shape
+    f_in = max(1, T_eq_m.shape[-1] // cw)
+    if f_in > 1:
+        T_eq_m = np.stack([_pool(T_eq_m[m], f_in) for m in range(12)])
     T_ann = T_eq_m.mean(axis=0)
     out = {k: np.zeros((12, n_samples, ch, cw), dtype=np.float32)
            for k in ("u_s", "v_s", "u_h", "v_h", "D")}
@@ -499,22 +516,31 @@ def _precip_pass(ens: dict[str, np.ndarray], T_m: np.ndarray,
     ch, cw = h_c.shape
     P_m = np.zeros((12, ch, cw))
     sub_m = np.zeros((12, ch, cw))
+    # subsidence seeds from a TRAILING MEAN of the vertical-motion
+    # field along the snapshot trajectory: subtropical highs are slow
+    # features (weeks of radiative sinking) — instantaneous D wobbles
+    # per snapshot and migrates with the season's first harmonic, so
+    # raw-D seeds never park. The trailing mean (_SUB_MEM decay per
+    # snapshot, memory ~ a month) keeps only descent that PERSISTS;
+    # the slow seasonal migration still comes through. The seed is
+    # then the ANOMALY above mean + 1 std (cores only — the broad
+    # seasonal blanket dries nothing), one light box pass,
+    # p90-normalized
+    seeds: list[np.ndarray] = []
+    D_run = None
     for m in range(12):
-        # subsidence seed: the descent (D > 0) half of the vertical
-        # motion, but only its ANOMALY above mean + 1 std — the broad
-        # seasonal descent blanket dries nothing (the gain pin just
-        # absorbs it), the descent CORES are what park as subtropical
-        # highs. One light box pass against speckle, p90-normalized
-        # (adaptive — the fluid's D scale varies with world/season)
-        seeds = []
         for j in range(n_samples):
             D = ens["D"][m, j]
+            D_run = D if D_run is None else _SUB_MEM * D_run + (1.0 - _SUB_MEM) * D
             a = _box3(np.clip(
-                D - (float(D.mean()) + float(D.std())), 0.0, None), 1)
+                D_run - (float(D_run.mean()) + float(D_run.std())),
+                0.0, None), 1)
             pos = a[a > 0.0]
             scale = float(np.percentile(pos, 90.0)) if pos.size else 1.0
             seeds.append(np.clip(a / max(scale, 1e-9), 0.0, 1.0))
-        sub = _subsidence(ens["u_h"][m], ens["v_h"][m], np.stack(seeds))
+    for m in range(12):
+        sub = _subsidence(ens["u_h"][m], ens["v_h"][m],
+                          np.stack(seeds[m * n_samples:(m + 1) * n_samples]))
         P_b = _advect(ens["u_s"][m], ens["v_s"][m], h_c, water_c,
                       lake_c, T_m[m], green=green, sub=sub,
                       soil=None if soil_m is None else soil_m[m])
@@ -637,7 +663,8 @@ def _lat_profile(lat: np.ndarray, shape_km: float,
     return T_lat, T_amp_lat
 
 def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
-                  seed: int = 0, coarse: int = 64,
+                  seed: int = 0, coarse: int = 128,
+                  wind_coarse: int = 64,
                   n_samples: int = 8,
                   t_north: float = 0.06, t_span: float = 0.93,
                   t_pow: float = 0.40, t_amp: float = 0.12,
@@ -755,16 +782,77 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     # emerge from the momentum equation, nothing is prescribed but
     # the seeded prevailing drive and Coriolis sign. ONE trajectory
     # through the year: the same ensemble drives the temperature
-    # transport and both precipitation passes
+    # transport and both precipitation passes. The fluid runs on its
+    # own cheaper grid (wind_coarse) — everything else (T, P, soil,
+    # the delivered products) lives at `coarse`
     if green is not None and green.shape != (ch, cw):
         green = _pool(green, f)
+    fw = max(1, H // wind_coarse)
+    h_w, water_w, _, _ = _coarse_grids(elev, hydro, sea_level, fw)
+    green_w = _pool(green, fw // f) if green is not None else None
     d_ang = 2.0 * math.pi * stream.uniform(0, 70)
     d_mag = 0.012 + 0.008 * stream.uniform(0, 71)
-    model = WindModel(stream, h_c, water_c, green=green,
+    # the parked circulation pair: on Earth the ITCZ and the
+    # subtropical highs are semi-permanent (Hadley-cell anchoring +
+    # cold eastern-boundary currents — structure the non-interacting
+    # highway cannot produce). Anchor BOTH ends: a deep-tropics LOW
+    # (ascent — seeded among the hottest coastline cells; its
+    # convergence rains, the rigid-lid closure and the highway carry
+    # the spent air away) and 1-2 warm-half-coast HIGHs (descent —
+    # where that air comes down). Permanent through the year, seeded
+    # strength/extent; the emergent descent (the trailing-D seed)
+    # adds on top
+    anchor = None
+    land_w = ~water_w
+    dil = np.zeros_like(water_w)
+    for _dy in (-1, 0, 1):
+        for _dx in (-1, 0, 1):
+            dil |= np.roll(np.roll(water_w, _dy, 0), _dx, 1)
+    chw, cww = h_w.shape
+    gyw, gxw = np.mgrid[0:chw, 0:cww].astype(np.float32)
+    latw = (np.arange(chw)[:, None] + 0.5) / chw * np.ones((chw, cww))
+    coast = land_w & dil
+    anchor = np.zeros((chw, cww), dtype=np.float32)
+
+    def _stamp(mask: np.ndarray, sign: float, k0: int,
+               sig_lo: float = 8.0) -> None:
+        ys, xs = np.where(mask)
+        if not len(ys):
+            return
+        i = int(stream.uniform(0, 91 + k0) * len(ys)) % len(ys)
+        sig = sig_lo + 8.0 * stream.uniform(0, 93 + k0)
+        amp = sign * (0.06 + 0.12 * stream.uniform(0, 95 + k0))
+        anchor.__iadd__(amp * np.exp(-0.5 * ((gyw - ys[i]) ** 2
+                                             + (gxw - xs[i]) ** 2)
+                                     / sig ** 2))
+
+    # the ITCZ low: hottest coastline cells (the thermal equator —
+    # seeded among the top-decile T, not a fixed latitude)
+    Th = _pool(T_eq_m.mean(axis=0), fw // f) if fw > f else T_eq_m.mean(axis=0)
+    t90 = float(np.percentile(Th[coast], 90.0)) if coast.any() else 1.0
+    _stamp(coast & (Th >= t90), -1.0, 0, sig_lo=10.0)
+    # the subtropical high(s): warm-half coast
+    for k in range(1 + int(stream.uniform(0, 90) < 0.5)):
+        _stamp(coast & (latw > 0.55), +1.0, 1 + k)
+    model = WindModel(stream, h_w, water_w, green=green_w, parked=anchor,
                       drive=(d_mag * math.cos(d_ang),
                              d_mag * math.sin(d_ang)))
-    highway = Highway(stream, (ch, cw))
+    highway = Highway(stream, h_w.shape)
     ens = _wind_ensemble(model, highway, stream, T_eq_m, n_samples)
+    # the surface snapshots drive the temperature transport and are
+    # the delivered weather pattern — bicubic-upscaled to the
+    # products grid. D and the highway fields stay on the wind grid:
+    # only the precipitation passes read them, and those RUN on the
+    # wind grid too (the advect and subsidence sweeps are the
+    # next-heaviest cost after the fluid — no need for 128^2 there)
+    pf = max(1, ch // model.shape[0])
+    ens_hi = ens
+    if pf > 1:
+        ens_hi = {k: (np.stack([[upsample_bicubic(ens[k][m, j], pf)
+                                 for j in range(n_samples)]
+                                for m in range(12)]).astype(np.float32)
+                      if k in ("u_s", "v_s") else ens[k])
+                  for k in ens}
 
     # temperature: each snapshot's equilibrium field is transported
     # along its wind — wind circulates heat (maritime moderation
@@ -786,8 +874,8 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
         # fields stacked — identical arithmetic, one Python loop).
         # float32 working precision
         TE = np.stack(T_eqs).astype(np.float32)
-        U = ens["u_s"][m]
-        V = ens["v_s"][m]
+        U = ens_hi["u_s"][m]
+        V = ens_hi["v_s"][m]
         T = TE.copy()
         for _ in range(_T_ADV_STEPS):
             T = _bilinear(T, gx32 - U, gy32 - V)
@@ -815,8 +903,26 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     # the second-order rerun takes the pass-1 gain so feedback
     # (forest recycling, new water) shows as a real delta instead of
     # being normalized away by a fresh pin.
+    # precipitation runs on the wind grid (see the ensemble block);
+    # raw rates upscale back to the products grid for the gain pin,
+    # soil and delivery
+    if pf > 1:
+        h_p = _pool(h_c, pf)
+        water_p = _pool(water_c.astype(float), pf) > 0.5
+        land_p = ~water_p
+        lake_p = _pool(lake_c.astype(float), pf) > 0.3
+        T_p = np.stack([_pool(T_m[m], pf) for m in range(12)])
+    else:
+        h_p, water_p, land_p, lake_p, T_p = (h_c, water_c, land_c,
+                                             lake_c, T_m)
+
+    def _hi(P: np.ndarray) -> np.ndarray:
+        return (np.stack([upsample_bicubic(P[m], pf) for m in range(12)])
+                if pf > 1 else P)
+
     P_raw, _ = _precip_pass(
-        ens, T_m, land_c, water_c, lake_c, h_c, n_samples, green=green)
+        ens, T_p, land_p, water_p, lake_p, h_p, n_samples, green=green_w)
+    P_raw = _hi(P_raw)
     # no static aridity belt: the dry structure comes entirely from the
     # advected subsidence (which parks at the flow's divergence zones);
     # the belt multiplier stays only as the gain-pin interface
@@ -828,14 +934,16 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
         target_p = wiggle_metric(Stream(seed, "k11.pgain"),
                                  _TARGET_LAND_P, 0.05, 0.03)
         land_mean = float((P_raw * belt[None])[:, land_c].mean()) if land_c.any() else 0.0
-        gain = float(np.clip(target_p / max(land_mean, 1e-6), 2.0, 24.0))
+        gain = float(np.clip(target_p / max(land_mean, 1e-6),
+                             _GAIN_LO, _GAIN_HI))
         P_m = _scale_precip(P_raw, gain, belt)
         # corrective step: heavy-tailed cells (windward spikes) saturate
         # the [0, 1] clip in _scale_precip, which drags the REALIZED
         # land mean below the target; rescale once so it holds
         realized = float(P_m[:, land_c].mean()) if land_c.any() else 0.0
         if realized > 1e-6:
-            gain = float(np.clip(gain * target_p / realized, 2.0, 24.0))
+            gain = float(np.clip(gain * target_p / realized,
+                                 _GAIN_LO, _GAIN_HI))
     P_m = _scale_precip(P_raw, gain, belt)
     # soil-moisture memory: spin the bucket over the year from this
     # first P (see _soil_schedule), then ONE corrective precip pass
@@ -844,9 +952,12 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     # only the water cycle shifts. The pinned gain is reused
     # (feedback shows as a real delta, same philosophy as `green`).
     soil_m = _soil_schedule(P_m, T_m)
+    soil_p = (np.stack([_pool(soil_m[m], pf) for m in range(12)])
+              if pf > 1 else soil_m)
     P_raw, sub_m = _precip_pass(
-        ens, T_m, land_c, water_c, lake_c, h_c, n_samples,
-        green=green, soil_m=soil_m)
+        ens, T_p, land_p, water_p, lake_p, h_p, n_samples,
+        green=green_w, soil_m=soil_p)
+    P_raw = _hi(P_raw)
     P_m = _scale_precip(P_raw, gain, belt)
     # conditioning round: T adjusted given P, snow cover, vegetation
     T_m = refine_climate(T_m, P_m, T_lat, green=green)
@@ -863,8 +974,8 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     # curl); the delivered store is metric.
     target = wiggle_metric(Stream(seed, "k11.windmetric"),
                            WIND_MEAN_OCEAN_MS, 2.0, 1.0)
-    wind_u = ens["u_s"]
-    wind_v = ens["v_s"]
+    wind_u = ens_hi["u_s"]
+    wind_v = ens_hi["v_s"]
     speed_oc = (float(np.hypot(wind_u, wind_v)[:, :, water_c].mean())
                 if water_c.any() else 1.0)
     wscale = target / max(speed_oc, 1e-9)

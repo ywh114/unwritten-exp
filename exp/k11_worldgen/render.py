@@ -146,8 +146,46 @@ def render_world(path: str, delivered: dict, plates, factor: int,
             if 0 <= yy < H and 0 <= xx < W:
                 left[yy, xx] = col
         tag = text.split(" ")[0]
-        draw_text(left, x + 7, y - 5, tag, (0, 0, 0), scale=2)
-        draw_text(left, x + 6, y - 6, tag, col, scale=2)
+        if tag:
+            draw_text(left, x + 7, y - 5, tag, (0, 0, 0), scale=2)
+            draw_text(left, x + 6, y - 6, tag, col, scale=2)
+
+    # compass rose: on the most oceanic corner (drawn regardless if no
+    # corner is clean), thin light ink
+    import math as _math
+    m0, box = 28, 120
+    corners = [(m0, m0), (m0, W - m0 - box),
+               (H - m0 - box, m0), (H - m0 - box, W - m0 - box)]
+    cy, cx = max(corners,
+                 key=lambda c: float(ocean[c[0]:c[0] + box,
+                                           c[1]:c[1] + box].mean()))
+    cy += box // 2
+    cx += box // 2
+    rose_c = (200, 210, 225)
+
+    def _put(y: int, x: int, c=rose_c) -> None:
+        if 0 <= y < H and 0 <= x < W:
+            left[y, x] = c
+
+    r = 44
+    for a in range(360):
+        t = _math.radians(a)
+        _put(int(cy + r * _math.sin(t)), int(cx + r * _math.cos(t)))
+    for ang, ln in ((-90, r), (0, r), (90, r), (180, r),
+                    (-45, r // 2), (45, r // 2), (135, r // 2),
+                    (-135, r // 2)):
+        t = _math.radians(ang)
+        for s in range(ln - 8, ln + 1):
+            _put(int(cy + s * _math.sin(t)), int(cx + s * _math.cos(t)))
+    # north arrow (filled head)
+    for s in range(10, r - 10):
+        wdt = max(0, (r - 10 - s) // 8)
+        for dx in range(-wdt, wdt + 1):
+            _put(cy - s, cx + dx)
+    draw_text(left, cx - 5, cy - r - 22, "N", rose_c, scale=2)
+    draw_text(left, cx - 5, cy + r + 8, "S", rose_c, scale=2)
+    draw_text(left, cx + r + 8, cy - 6, "E", rose_c, scale=2)
+    draw_text(left, cx - r - 16, cy - 6, "W", rose_c, scale=2)
 
     # right: legend panel (two-column sections)
     right = np.full((H, W, 3), (16, 18, 26), dtype=np.uint8)
@@ -169,7 +207,7 @@ def render_world(path: str, delivered: dict, plates, factor: int,
     # measures + climate trivia right (headroom for aquatic classes)
     lines = [
         f"PLATES {stats['plates']}",
-        f"OCEAN {stats['ocean_fraction'] * 100:.1f}%",
+        f"PREV WIND FROM {stats['prev_wind']}",
         f"RIVERS {stats['river_cells']} CELLS",
         f"LAKES {stats['lake_cells']} CELLS",
         f"HIGH RELIEF {stats['high_relief_fraction'] * 100:.1f}%",
@@ -251,11 +289,12 @@ def render_world(path: str, delivered: dict, plates, factor: int,
             y += 20 * rows
     draw_text(right, 48, y + 10, "LANDMARKS", (235, 235, 235), scale=3)
     y += 46
-    # one representative per kind (the map keeps every marker)
+    # one representative per kind (the map keeps every marker);
+    # textless markers (volcano dots) stay off the legend
     key = []
     seen_kinds: set[str] = set()
     for mk in marks:
-        if mk[0] not in seen_kinds:
+        if mk[0] not in seen_kinds and mk[3]:
             seen_kinds.add(mk[0])
             key.append(mk)
     for i, (kind, _, _, text) in enumerate(key):
