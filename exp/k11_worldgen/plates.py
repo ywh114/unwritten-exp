@@ -559,7 +559,7 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     rough_amp = 0.45 + 0.275 * np.clip(rough, 0.0, 2.0) ** 2
     smt = _z(fbm(stream.child("seamount"), shape, base_cell=min(h, w) // 8, octaves=3))
     seamount = 0.15 * np.clip(smt - 1.6, 0.0, None) ** 2
-    grain = 0.32 * rough_amp * (
+    grain = 0.45 * rough_amp * (
         np.maximum(noise - 0.5, 0.0) + 0.25 * np.minimum(noise - 0.5, 0.0))
     detail_land = 0.10 + grain
 

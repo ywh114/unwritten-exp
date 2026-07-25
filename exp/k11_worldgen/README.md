@@ -86,13 +86,24 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   downstream — Nile effect). Also computes the P-weighted discharge
   the river-mouth marks are ranked by. Order/width/salinity/HAND are
   recomputed afterwards; routing surfaces are untouched.
-- **`climate`** — `WindLibrary` (precomputed wind patterns: latitude
-  zonal base + chaotic gyres from stream-function curl + land–sea
-  breeze; mountains DEFLECT and DAMP the sampled low-layer flow —
+- **`climate`** — `WindLibrary` (precomputed wind patterns: the
+  prevailing flow is a chaotic through-flow — the rim
+  streamfunction is a few seeded low harmonics around the
+  perimeter, so air enters and leaves at several broad arcs: no
+  single prevailing direction, no sources/sinks, divergence-free;
+  k=1 dominant and persistent, higher modes drift faster. The LOW
+  layer is GROUND-RELATIVE (_terrain_flow): the free stream
+  propagated through the terrain with kinetic-energy accounting —
+  climbing costs, descending returns, unclimbable rises rotate
+  parcels onto the contour (routing around massifs, ridge winds)
+  — slope in the path, never absolute altitude — plus
+  chaotic gyres from stream-function curl + land–sea breeze;
+  mountains DEFLECT and DAMP the sampled low-layer flow —
   momentum sees terrain, not just the moisture accounting; a HIGH layer
-  — zonal-dominant, no terrain, no breeze — advects the seasonally
-  migrating subtropical-high subsidence field, drying the low layer
-  where it descends: subtropical deserts can sit beside warm seas),
+  — through-flow inverted, no terrain, no breeze — advects the
+  subsidence field seeded by the mean surface wind's divergence,
+  drying the low layer where it descends: subtropical deserts can
+  sit beside warm seas),
   `build_climate(elev, hydro, sea_level, seed, coarse, n_samples,
   t_knobs, realistic, center_lat, shrink, currents, green)`: temperature first
   (wind-independent; profile knobs t_north/t_span/t_pow/t_amp are
@@ -100,12 +111,12 @@ Experiment home: `exp/k11_worldgen` (not yet promoted).
   prototypes — OR `realistic=True` earth-patch mode: the map is a
   northern-hemisphere patch of the real Earth, row → latitude from
   `center_lat` (unset = 45°N +
-  per-seed wiggle, ±5 leaky) and a planet `shrink`× smaller (4× →
-  ~37° span), temperature interpolated from zonal-mean Earth
+  per-seed wiggle, ±5 leaky) and a planet `shrink`× smaller (6× →
+  ~55° span), temperature interpolated from zonal-mean Earth
   anchors (`_lat_profile`, climate.py); winds stay random in both
   modes), monsoon strength per month read off the ACTUAL
   land–sea heating anomaly, N chaotic snapshots per month advect
-  moisture on the coarse grid (128², upsampled/smudged; ocean recharge
+  moisture on the coarse grid (64², upsampled/smudged; ocean recharge
   scales with water temperature — cold seas barely evaporate;
   convection rains where the air is hot), then
   `refine_climate` runs ONE damped conditioning round — snow-albedo
@@ -248,7 +259,7 @@ An upscale step may only do MECHANICAL work; anything relational must be
 finished before it ("intensive = lower scale", user 2026-07-22):
 - **Relational/intensive** (plates, faults, flood, accumulation, water
   balance, advection, Strahler): computed ONCE at the anchor grid
-  (climate even coarser, 128² — weather systems are synoptic-scale).
+  (climate even coarser, 64² — weather systems are synoptic-scale).
   Never recomputed after upscaling.
 - **Continuous state fields** (elevation, water surface, monthly T/P):
   bicubic interpolation, inventing no detail (sub-cell detail is L1's
@@ -359,7 +370,7 @@ Repo-wide: 256 pass, 4 deselected (slow-marked, expected).
   boundaries. The biome MIX is never calibrated: an absent biome is an
   honest statement about the world's climate, fixed via climate
   GRADIENTS/VARIATION, never via units, thresholds, or prototypes.
-- Wind/advection run at 128² (upsampled — refinement smudges anyway);
+- Wind/advection run at 64² (upsampled — refinement smudges anyway);
   more samples per month are affordable at coarse granularity.
 - **Base circulation is randomized per world, semi-stable** (user note
   2026-07-22): fantasy world — no ocean streams, no rest-of-world, so
@@ -368,7 +379,8 @@ Repo-wide: 256 pass, 4 deselected (slow-marked, expected).
   vary per sample. This removed the systematic west-coast wet bands.
 - Main PNGs (`temperature.png`, `precipitation.png`) render the ANNUAL
   means; the unaveraged monthly curves (the canonical store) render to
-  `out/monthly/m{01..12}_{T,P}.png`.
+  `out/monthly/m{01..12}_{T,P}.png`, the monthly subsidence (drying)
+  field to `out/monthly/m{01..12}_sub.png`.
 - Seasonal surface states (winter snow on tundra/seasonal forests) are
   runtime decoration on the monthly curves — game-side, not K11.
 - River seasonal metadata (size change / dry-out / flood by weather) is

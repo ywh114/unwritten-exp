@@ -92,11 +92,16 @@ def _pool(a: np.ndarray, f: int) -> np.ndarray:
 _RIM_POROSITY = 0.5
 
 
-def _poisson_sor(zeta: np.ndarray, water: np.ndarray,
-                 pin: np.ndarray | None = None,
-                 iters: int | None = None, omega: float = 1.85,
-                 rim_porosity: float = 0.0,
-                 rim_values: np.ndarray | None = None) -> np.ndarray:
+def _poisson_sor(
+    zeta: np.ndarray,
+    water: np.ndarray,
+    pin: np.ndarray | None = None,
+    iters: int | None = None,
+    omega: float = 1.85,
+    rim_porosity: float = 0.0,
+    rim_values: np.ndarray | None = None,
+    ghost: str = 'mirror',
+) -> np.ndarray:
     """Solve ∇²ψ = ζ with ψ fixed to `pin` values outside `water`
     (default 0). Deterministic red-black SOR.
 
@@ -112,7 +117,15 @@ def _poisson_sor(zeta: np.ndarray, water: np.ndarray,
     With ρ > 0 rim water cells take part in the solve; with ρ = 0
     they hold their pinned value.
 
-    `iters` defaults to 600 at the production 64² psi grid and
+    `ghost="linear"` (the atmosphere): the ghost ring is a
+    LINEAR EXTRAPOLATION of the two innermost rings (zero curvature)
+    on every side — no damping of either velocity component at the
+    border; the rim cells take part in the solve like any interior
+    cell. Boundary behavior is then applied in velocity space
+    afterwards (climate._rim_bc), not by the solve. Overrides the
+    porosity machinery; `rim_values` still wins if given.
+
+    `iters` defaults to 400 at the production 64² psi grid and
     scales down with the grid (SOR needs O(diameter) sweeps to
     converge) so small test grids do not pay for full-size
     convergence.
@@ -137,11 +150,14 @@ def _poisson_sor(zeta: np.ndarray, water: np.ndarray,
     z3 = z3[None] if single else z3
     H, W = z3.shape[-2:]
     if iters is None:
-        iters = min(600, max(150, 10 * max(H, W)))
-    psi = (np.zeros_like(z3) if pin is None
-           else np.broadcast_to(
-               np.where(water, 0.0, np.asarray(pin, dtype=np.float32)),
-               z3.shape).copy())
+        iters = min(400, max(150, 10 * max(H, W)))
+    psi = (
+        np.zeros_like(z3)
+        if pin is None
+        else np.broadcast_to(
+            np.where(water, 0.0, np.asarray(pin, dtype=np.float32)), z3.shape
+        ).copy()
+    )
     interior = water.copy()
     interior[0, :] = interior[-1, :] = False
     interior[:, 0] = interior[:, -1] = False
@@ -149,9 +165,10 @@ def _poisson_sor(zeta: np.ndarray, water: np.ndarray,
         rim = np.zeros((H, W), bool)
         rim[0, :] = rim[-1, :] = True
         rim[:, 0] = rim[:, -1] = True
-        psi[:, rim] = (rim_values[rim] if rim_values.ndim == 2
-                       else rim_values[:, rim])
-    elif rim_porosity > 0.0:
+        psi[:, rim] = (
+            rim_values[rim] if rim_values.ndim == 2 else rim_values[:, rim]
+        )
+    elif ghost == 'linear' or rim_porosity > 0.0:
         interior = water.copy()
     yy, xx = np.mgrid[0:H, 0:W]
     checker = (yy + xx) % 2
@@ -162,26 +179,47 @@ def _poisson_sor(zeta: np.ndarray, water: np.ndarray,
     edge_n[:, 0] += 1
     edge_n[:, -1] += 1
     leak = np.float32(2.0 * (1.0 - rim_porosity))
+    linear = ghost == 'linear' and rim_values is None
     pad_width = ((0, 0), (1, 1), (1, 1))
     for _ in range(iters):
         for parity in (0, 1):
-            p = np.pad(psi, pad_width, mode="edge")
-            s = (p[:, :-2, 1:-1] + p[:, 2:, 1:-1]
-                 + p[:, 1:-1, :-2] + p[:, 1:-1, 2:])
+            p = np.pad(psi, pad_width, mode='edge')
+            if linear:
+                # zero-curvature ghost: linear extrapolation of the
+                # two innermost rings (corners diagonal)
+                p[:, 0, 1:-1] = 2.0 * psi[:, 0, :] - psi[:, 1, :]
+                p[:, -1, 1:-1] = 2.0 * psi[:, -1, :] - psi[:, -2, :]
+                p[:, 1:-1, 0] = 2.0 * psi[:, :, 0] - psi[:, :, 1]
+                p[:, 1:-1, -1] = 2.0 * psi[:, :, -1] - psi[:, :, -2]
+                p[:, 0, 0] = 2.0 * psi[:, 0, 0] - psi[:, 1, 1]
+                p[:, 0, -1] = 2.0 * psi[:, 0, -1] - psi[:, 1, -2]
+                p[:, -1, 0] = 2.0 * psi[:, -1, 0] - psi[:, -2, 1]
+                p[:, -1, -1] = 2.0 * psi[:, -1, -1] - psi[:, -2, -2]
+            s = (
+                p[:, :-2, 1:-1]
+                + p[:, 2:, 1:-1]
+                + p[:, 1:-1, :-2]
+                + p[:, 1:-1, 2:]
+            )
             if rim_porosity > 0.0:
                 # replace the mirrored ghost (+ψ) with (2ρ−1)·ψ on
                 # each domain edge the cell touches
                 s = s - leak * edge_n * psi
             m = interior & (checker == parity)
-            psi[:, m] = ((1.0 - omega) * psi[:, m]
-                         + omega * (s[:, m] - z3[:, m]) / 4.0)
+            psi[:, m] = (1.0 - omega) * psi[:, m] + omega * (
+                s[:, m] - z3[:, m]
+            ) / 4.0
     return psi[0] if single else psi
 
 
-def _land_constants(zeta: np.ndarray, water: np.ndarray,
-                    rim_porosity: float = 0.0,
-                    psi_open: np.ndarray | None = None,
-                    rim_to_zero: bool = True) -> np.ndarray:
+def _land_constants(
+    zeta: np.ndarray,
+    water: np.ndarray,
+    rim_porosity: float = 0.0,
+    psi_open: np.ndarray | None = None,
+    rim_to_zero: bool = True,
+    ghost: str = 'mirror',
+) -> np.ndarray:
     """Per-landmass streamfunction constants (the multiply-connected
     part of the solve). Pinning every landmass to the SAME value (0)
     makes Δψ = 0 between any two boundaries — no net transport:
@@ -204,8 +242,10 @@ def _land_constants(zeta: np.ndarray, water: np.ndarray,
     Batched `zeta`/`psi_open` (leading axes) solves the landmass
     labeling ONCE and returns per-source pins."""
     if psi_open is None:
-        psi_open = _poisson_sor(zeta, np.ones_like(water),
-                                rim_porosity=rim_porosity)
+        psi_open = _poisson_sor(
+            zeta, np.ones_like(water), rim_porosity=rim_porosity,
+            ghost=ghost,
+        )
     single = psi_open.ndim == 2
     po3 = psi_open[None] if single else psi_open
     H, W = water.shape
@@ -222,8 +262,12 @@ def _land_constants(zeta: np.ndarray, water: np.ndarray,
                     y, x = stack.pop()
                     for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
                         ny, nx_ = y + dy, x + dx
-                        if (0 <= ny < H and 0 <= nx_ < W
-                                and land[ny, nx_] and not lab[ny, nx_]):
+                        if (
+                            0 <= ny < H
+                            and 0 <= nx_ < W
+                            and land[ny, nx_]
+                            and not lab[ny, nx_]
+                        ):
                             lab[ny, nx_] = n
                             stack.append((ny, nx_))
     # pins follow the solve's float32 working precision (see
@@ -232,9 +276,13 @@ def _land_constants(zeta: np.ndarray, water: np.ndarray,
     pin = np.zeros_like(po3)
     for i in range(1, n + 1):
         comp = lab == i
-        if rim_to_zero and (comp[0, :].any() or comp[-1, :].any()
-                            or comp[:, 0].any() or comp[:, -1].any()):
-            continue                    # rim-touching: rim value (0)
+        if rim_to_zero and (
+            comp[0, :].any()
+            or comp[-1, :].any()
+            or comp[:, 0].any()
+            or comp[:, -1].any()
+        ):
+            continue  # rim-touching: rim value (0)
         # per-source 1D means: a (K, n) axis-1 reduction rounds
         # differently at 1 ulp than the 2D path's flat mean, and the
         # solves amplify it — keep the scalar form
@@ -244,21 +292,26 @@ def _land_constants(zeta: np.ndarray, water: np.ndarray,
 
 
 def _transport(psi: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Divergence-free transport from a stream function."""
-    gy_, gx_ = _grad(psi)
-    return gy_, -gx_
+    """Divergence-free transport from a stream function: the PROPER
+    curl, u = ∂ψ/∂y (x-component), v = −∂ψ/∂x (y-component). A
+    landmass holds ψ constant, so its coast is a streamline — flow
+    HUGS coastlines, it never crosses them. (The wind library in
+    climate.py uses a different, matched zeta/extraction pair — do
+    not unify them; see WindLibrary._rotational.)"""
+    gx, gy = _grad(psi)
+    return gy, -gx
 
 
-def _vorticity_blob(cy: float, cx: float, sigma: float, amp: float,
-                    shape: tuple[int, int]) -> np.ndarray:
-    gy, gx = np.mgrid[0:shape[0], 0:shape[1]].astype(float)
-    return amp * np.exp(-((gy - cy) ** 2 + (gx - cx) ** 2)
-                        / (2.0 * sigma ** 2))
+def _vorticity_blob(
+    cy: float, cx: float, sigma: float, amp: float, shape: tuple[int, int]
+) -> np.ndarray:
+    gy, gx = np.mgrid[0 : shape[0], 0 : shape[1]].astype(float)
+    return amp * np.exp(-((gy - cy) ** 2 + (gx - cx) ** 2) / (2.0 * sigma**2))
 
 
-def _coarse_grids(elev: np.ndarray, ocean_mask: np.ndarray,
-                  sea_level: float, f: int
-                  ) -> tuple[np.ndarray, np.ndarray]:
+def _coarse_grids(
+    elev: np.ndarray, ocean_mask: np.ndarray, sea_level: float, f: int
+) -> tuple[np.ndarray, np.ndarray]:
     depth_m = -elev_m(elev, sea_level)
     water_c = _pool(ocean_mask.astype(float), f) > 0.5
     # the world-edge rock rim is a magic map boundary, not terrain
@@ -272,9 +325,9 @@ def _coarse_grids(elev: np.ndarray, ocean_mask: np.ndarray,
     return water_c, depth_c
 
 
-def _anchor_velocity(psi_blend: np.ndarray, f: int, depth_m: np.ndarray,
-                     ocean_mask: np.ndarray
-                     ) -> tuple[np.ndarray, np.ndarray]:
+def _anchor_velocity(
+    psi_blend: np.ndarray, f: int, depth_m: np.ndarray, ocean_mask: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
     """Coarse blended stream function → anchor velocity: curl,
     upscale, divide by depth (continuity — shelves and straits
     accelerate the flow)."""
@@ -284,23 +337,25 @@ def _anchor_velocity(psi_blend: np.ndarray, f: int, depth_m: np.ndarray,
     return tu * ocean_mask, tv * ocean_mask
 
 
-def _solve_sources(sources: list[np.ndarray],
-                   water_c: np.ndarray) -> list[np.ndarray]:
+def _solve_sources(
+    sources: list[np.ndarray], water_c: np.ndarray
+) -> list[np.ndarray]:
     """Per-source stream functions (with per-landmass constants),
     normalized to unit-max transport so the blend weights (not the
     SOR's arbitrary scale) set the mix. One STACKED solve: the
     sources are independent, so they batch into a single SOR loop."""
     zs = np.stack(sources)
     pin = _land_constants(zs, water_c, rim_porosity=_RIM_POROSITY)
-    psis = _poisson_sor(zs, water_c, pin=pin,
-                        rim_porosity=_RIM_POROSITY)
+    psis = _poisson_sor(zs, water_c, pin=pin, rim_porosity=_RIM_POROSITY)
     tmax = np.hypot(*_transport(psis)).max(axis=(-2, -1))
-    return [psis[k] / max(float(tmax[k]), 1e-9)
-            for k in range(len(sources))]
+    return [psis[k] / max(float(tmax[k]), 1e-9) for k in range(len(sources))]
 
 
-def _blend(psis: list[np.ndarray], weights: list[float],
-           strengths: np.ndarray | None = None) -> np.ndarray:
+def _blend(
+    psis: list[np.ndarray],
+    weights: list[float],
+    strengths: np.ndarray | None = None,
+) -> np.ndarray:
     out = np.zeros_like(psis[0])
     for k, (psi, w) in enumerate(zip(psis, weights)):
         s = 1.0 if strengths is None else strengths[k]
@@ -308,60 +363,73 @@ def _blend(psis: list[np.ndarray], weights: list[float],
     return out
 
 
-def velocity_field(currents: dict, month: int = 6,
-                   depth_m: np.ndarray | None = None,
-                   ocean_mask: np.ndarray | None = None
-                   ) -> tuple[np.ndarray, np.ndarray]:
+def velocity_field(
+    currents: dict,
+    month: int = 6,
+    depth_m: np.ndarray | None = None,
+    ocean_mask: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """Seasonal velocity: each vorticity seed's strength breathes
     +-30% with its K1-drawn phase; the wind source is steady. The
     blend is normalized by the annual-reference vmax."""
     import math
-    n_gyres = len(currents["gyres"])
-    strengths = np.array([
-        1.0 + 0.3 * math.cos(2 * math.pi * (month + phase) / 12.0)
-        for _, _, _, _, phase in currents["gyres"]]
-        + [1.0] * (len(currents["psi"]) - n_gyres))
-    weights = list(currents["weights"])
-    ramp = currents.get("ramp")
+
+    n_gyres = len(currents['gyres'])
+    strengths = np.array(
+        [
+            1.0 + 0.3 * math.cos(2 * math.pi * (month + phase) / 12.0)
+            for _, _, _, _, phase in currents['gyres']
+        ]
+        + [1.0] * (len(currents['psi']) - n_gyres)
+    )
+    weights = list(currents['weights'])
+    ramp = currents.get('ramp')
     if ramp is not None:
         # seasonal direction jitter: rotate the through-flow around
         # its seeded prevailing direction (no re-solve — the ramp
         # pair spans every direction by linearity)
-        th = ramp["theta"] + ramp["jitter"] * math.sin(
-            2.0 * math.pi * (month + ramp["phase"]) / 12.0)
-        weights[ramp["i0"]] = ramp["strength"] * math.cos(th)
-        weights[ramp["i0"] + 1] = ramp["strength"] * math.sin(th)
-    psi = _blend(currents["psi"], weights, strengths)
+        th = ramp['theta'] + ramp['jitter'] * math.sin(
+            2.0 * math.pi * (month + ramp['phase']) / 12.0
+        )
+        weights[ramp['i0']] = ramp['strength'] * math.cos(th)
+        weights[ramp['i0'] + 1] = ramp['strength'] * math.sin(th)
+    psi = _blend(currents['psi'], weights, strengths)
     if depth_m is None:
-        depth_m = currents["depth_m"]
+        depth_m = currents['depth_m']
     if ocean_mask is None:
-        ocean_mask = currents["ocean_mask"]
-    u, v = _anchor_velocity(psi, currents["factor"], depth_m, ocean_mask)
-    return u / max(currents["vmax"], 1e-9), v / max(currents["vmax"], 1e-9)
+        ocean_mask = currents['ocean_mask']
+    u, v = _anchor_velocity(psi, currents['factor'], depth_m, ocean_mask)
+    return u / max(currents['vmax'], 1e-9), v / max(currents['vmax'], 1e-9)
 
 
-def _finish(currents: dict, elev: np.ndarray, ocean_mask: np.ndarray,
-            sea_level: float) -> dict:
+def _finish(
+    currents: dict, elev: np.ndarray, ocean_mask: np.ndarray, sea_level: float
+) -> dict:
     """(Re)build the annual-reference velocity, vmax and upwelling
     rise from the current source set."""
     depth_m = -elev_m(elev, sea_level)
-    psi = _blend(currents["psi"], currents["weights"])
-    u, v = _anchor_velocity(psi, currents["factor"], depth_m, ocean_mask)
+    psi = _blend(currents['psi'], currents['weights'])
+    u, v = _anchor_velocity(psi, currents['factor'], depth_m, ocean_mask)
     vmax = float(np.hypot(u, v).max())
     u, v = u / max(vmax, 1e-9), v / max(vmax, 1e-9)
     # upwelling: depth DECREASING along the flow = water rising
     ddx, ddy = _grad(depth_m)
     rise = np.maximum(0.0, -(u * ddx + v * ddy)) * ocean_mask
-    currents.update(u=u, v=v, rise=rise, vmax=vmax, depth_m=depth_m,
-                    ocean_mask=ocean_mask)
+    currents.update(
+        u=u, v=v, rise=rise, vmax=vmax, depth_m=depth_m, ocean_mask=ocean_mask
+    )
     return currents
 
 
-def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
-                   sea_level: float, seed: int = 0,
-                   min_center_depth_m: float = 800.0,
-                   min_center_sep: int = 60,
-                   coarse: int = 64) -> dict:
+def build_currents(
+    elev: np.ndarray,
+    ocean_mask: np.ndarray,
+    sea_level: float,
+    seed: int = 0,
+    min_center_depth_m: float = 800.0,
+    min_center_sep: int = 60,
+    coarse: int = 64,
+) -> dict:
     """Absolute vorticity-seeded gyre field (pre-wind — see module
     docstring; refine_currents adds the wind correlation later).
 
@@ -370,7 +438,7 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
     Poisson solve runs at `coarse`² — gyres are huge, the coastline
     detail returns when the transport meets the anchor bathymetry.
     """
-    stream = Stream(seed, "k11.currents")
+    stream = Stream(seed, 'k11.currents')
     H, W = elev.shape
     f = max(1, H // coarse)
     depth_m = -elev_m(elev, sea_level)
@@ -382,8 +450,10 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
     centers: list[tuple[int, int]] = []
     for i in order.tolist():
         y, x = int(ys[i]), int(xs[i])
-        if all((y - cy) ** 2 + (x - cx) ** 2 >= min_center_sep ** 2
-               for cy, cx in centers):
+        if all(
+            (y - cy) ** 2 + (x - cx) ** 2 >= min_center_sep**2
+            for cy, cx in centers
+        ):
             centers.append((y, x))
         if len(centers) >= 4 + int(3.0 * stream.uniform(1, 0)):
             break
@@ -392,11 +462,13 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
     for k, (cy, cx) in enumerate(centers):
         sigma = 30.0 + 40.0 * stream.uniform(2 + k, 0)
         amp = (0.5 + stream.uniform(2 + k, 1)) * (
-            1.0 if stream.uniform(2 + k, 2) < 0.5 else -1.0)
-        phase = 12.0 * stream.uniform(2 + k, 3)   # seasonal wobble phase
+            1.0 if stream.uniform(2 + k, 2) < 0.5 else -1.0
+        )
+        phase = 12.0 * stream.uniform(2 + k, 3)  # seasonal wobble phase
         gyres.append((cy, cx, sigma, amp, phase))
-        sources.append(_vorticity_blob(cy / f, cx / f, sigma / f, amp,
-                                       (H // f, W // f)))
+        sources.append(
+            _vorticity_blob(cy / f, cx / f, sigma / f, amp, (H // f, W // f))
+        )
     water_c, _ = _coarse_grids(elev, ocean_mask, sea_level, f)
     psis = _solve_sources(sources, water_c)
 
@@ -408,74 +480,93 @@ def build_currents(elev: np.ndarray, ocean_mask: np.ndarray,
     # direction AND the seasonal direction jitter cost no re-solve
     # (velocity_field rotates the pair's weights per month).
     import math
+
     pc, pw = water_c.shape
     zero = np.zeros((2, pc, pw))
-    ramps = np.stack([coord.astype(float) / max(coord.max(), 1.0)
-                      for coord in np.mgrid[0:pc, 0:pw]])
-    pin = _land_constants(zero, water_c, psi_open=ramps,
-                          rim_to_zero=False)
+    ramps = np.stack(
+        [
+            coord.astype(float) / max(coord.max(), 1.0)
+            for coord in np.mgrid[0:pc, 0:pw]
+        ]
+    )
+    pin = _land_constants(zero, water_c, psi_open=ramps, rim_to_zero=False)
     psi_r = _poisson_sor(zero, water_c, pin=pin, rim_values=ramps)
     tmax = np.hypot(*_transport(psi_r)).max(axis=(-2, -1))
     ramp_psis = [psi_r[k] / max(float(tmax[k]), 1e-9) for k in range(2)]
-    theta = 2.0 * math.pi * stream.uniform(6, 0)      # any side
+    theta = 2.0 * math.pi * stream.uniform(6, 0)  # any side
     strength = 0.8 + 0.4 * stream.uniform(6, 1)
-    ramp = {"i0": len(psis), "theta": theta, "strength": strength,
-            "jitter": 0.35, "phase": 12.0 * stream.uniform(6, 2)}
-    currents = {"gyres": gyres, "psi": psis + ramp_psis,
-                "weights": [1.0] * len(sources)
-                + [strength * math.cos(theta),
-                   strength * math.sin(theta)],
-                "ramp": ramp,
-                "factor": f, "n_gyres": len(centers)}
+    ramp = {
+        'i0': len(psis),
+        'theta': theta,
+        'strength': strength,
+        'jitter': 0.35,
+        'phase': 12.0 * stream.uniform(6, 2),
+    }
+    currents = {
+        'gyres': gyres,
+        'psi': psis + ramp_psis,
+        'weights': [1.0] * len(sources)
+        + [strength * math.cos(theta), strength * math.sin(theta)],
+        'ramp': ramp,
+        'factor': f,
+        'n_gyres': len(centers),
+    }
     out = _finish(currents, elev, ocean_mask, sea_level)
     # metric scale: the world's max current speed in m/s, wiggled
     # around CURRENT_VMAX_MS (boundary-current peak ~1.5) — seeded,
     # leaky-capped, so worlds vary but stay physical
     from exp.k11_worldgen.units import CURRENT_VMAX_MS, wiggle_metric
-    out["vmax_ms"] = wiggle_metric(stream.child("metric"),
-                                   CURRENT_VMAX_MS, 0.5, 0.3)
+
+    out['vmax_ms'] = wiggle_metric(
+        stream.child('metric'), CURRENT_VMAX_MS, 0.5, 0.3
+    )
     return out
 
 
-def refine_currents(currents: dict, elev: np.ndarray,
-                    ocean_mask: np.ndarray, sea_level: float,
-                    climate: dict,
-                    wind_weight: float = _WIND_FORCING_WEIGHT) -> dict:
+def refine_currents(
+    currents: dict,
+    elev: np.ndarray,
+    ocean_mask: np.ndarray,
+    sea_level: float,
+    climate: dict,
+    wind_weight: float = _WIND_FORCING_WEIGHT,
+) -> dict:
     """Conditioning-pass refinement: add the curl of the world's OWN
     mean annual surface wind (the mean of the delivered weather
     pattern — nothing invented) as a vorticity source, and rebuild
     the annual field. Pass-2 climate and the aquatic layer read this
     refined field, so the currents correlate with the atmospheric
     circulation instead of ignoring it."""
-    wu = climate["wind_u"].mean(axis=(0, 1))
-    wv = climate["wind_v"].mean(axis=(0, 1))
-    zeta_w = _grad(wv)[0] - _grad(wu)[1]          # wind-stress curl
-    f = currents["factor"]
+    wu = climate['wind_u'].mean(axis=(0, 1))
+    wv = climate['wind_v'].mean(axis=(0, 1))
+    zeta_w = _grad(wv)[0] - _grad(wu)[1]  # wind-stress curl
+    f = currents['factor']
     # pool the wind curl from the climate grid down to the psi grid
     g = wu.shape[0] // (ocean_mask.shape[0] // f)
     zeta_c = _pool(zeta_w, g) if g > 1 else zeta_w
     water_c, _ = _coarse_grids(elev, ocean_mask, sea_level, f)
     pin = _land_constants(zeta_c, water_c, rim_porosity=_RIM_POROSITY)
-    psi_w = _poisson_sor(zeta_c, water_c, pin=pin,
-                         rim_porosity=_RIM_POROSITY)
+    psi_w = _poisson_sor(zeta_c, water_c, pin=pin, rim_porosity=_RIM_POROSITY)
     tmax = float(np.hypot(*_transport(psi_w)).max())
     # keep the seeds-only normalization around: the loading screen's
     # pass-1/pass-2 current stages both render from the one dict
-    currents["vmax_seeds"] = currents["vmax"]
-    currents["psi"] = currents["psi"] + [psi_w / max(tmax, 1e-9)]
-    currents["weights"] = currents["weights"] + [wind_weight]
+    currents['vmax_seeds'] = currents['vmax']
+    currents['psi'] = currents['psi'] + [psi_w / max(tmax, 1e-9)]
+    currents['weights'] = currents['weights'] + [wind_weight]
     return _finish(currents, elev, ocean_mask, sea_level)
 
 
-def velocity_ms(currents: dict, month: int = 6
-                ) -> tuple[np.ndarray, np.ndarray]:
+def velocity_ms(
+    currents: dict, month: int = 6
+) -> tuple[np.ndarray, np.ndarray]:
     """Surface current velocity in M/S: velocity_field's relative
     field scaled by the world's seeded max (vmax_ms — around
     CURRENT_VMAX_MS, see units.wiggle_metric). This is the metric
     store downstream consumers (ecology, gameplay) should read."""
     from exp.k11_worldgen.units import CURRENT_VMAX_MS
+
     u, v = velocity_field(currents, month)
-    s = currents.get("vmax_ms", CURRENT_VMAX_MS)
+    s = currents.get('vmax_ms', CURRENT_VMAX_MS)
     return u * s, v * s
 
 
@@ -485,9 +576,9 @@ def rise_monthly(currents: dict) -> np.ndarray:
     nutrient-circulation store for downstream kernels (ecology reads
     where deep water surfaces, and that place moves with the
     seasons)."""
-    depth_m = currents["depth_m"]
+    depth_m = currents['depth_m']
     ddx, ddy = _grad(depth_m)
-    oc = currents["ocean_mask"]
+    oc = currents['ocean_mask']
     out = np.zeros((12, *depth_m.shape), dtype=np.float32)
     for m in range(12):
         u, v = velocity_field(currents, m)
@@ -495,10 +586,15 @@ def rise_monthly(currents: dict) -> np.ndarray:
     return out
 
 
-def advect_sst(t_base_c: np.ndarray, u: np.ndarray, v: np.ndarray,
-               rise: np.ndarray,
-               steps: int = 32, relax: float = 0.02,
-               diffuse_passes: int = 3) -> np.ndarray:
+def advect_sst(
+    t_base_c: np.ndarray,
+    u: np.ndarray,
+    v: np.ndarray,
+    rise: np.ndarray,
+    steps: int = 32,
+    relax: float = 0.02,
+    diffuse_passes: int = 3,
+) -> np.ndarray:
     """Sea-surface temperature (metric degC) from a latitude baseline.
 
     Semi-Lagrangian advection along the gyre flow with thermostat
@@ -519,10 +615,16 @@ def advect_sst(t_base_c: np.ndarray, u: np.ndarray, v: np.ndarray,
     T = t_base_c.copy()
     for _ in range(steps):
         T = _bilinear(T, gx - u, gy - v)
-        T = T + relax * (t_base_c - T)     # thermostat: local equilibrium
+        T = T + relax * (t_base_c - T)  # thermostat: local equilibrium
         T = T + _UPW_MIX * rr * (_T_DEEP_C - T)
     for _ in range(diffuse_passes):
-        p = np.pad(T, 1, mode="edge")
-        T = sum(p[dy:dy + H, dx:dx + W]
-                for dy in range(3) for dx in range(3)) / 9.0
+        p = np.pad(T, 1, mode='edge')
+        T = (
+            sum(
+                p[dy : dy + H, dx : dx + W]
+                for dy in range(3)
+                for dx in range(3)
+            )
+            / 9.0
+        )
     return T

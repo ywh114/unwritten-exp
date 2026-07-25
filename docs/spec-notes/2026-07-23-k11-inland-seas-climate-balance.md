@@ -1005,3 +1005,517 @@ pass-1 scaffold runs lean at 4.
   -> 1m37 (float32) -> 1m19 (trims); 267 fast pass, seed 1 verdict
   PASS, world sheet healthy. Knobs documented for the user in-chat:
   iters formula, step counts, coarse grids (128/64), n_samples.
+
+- Aridity round (user hand tweaks + subsidence delivery): the user
+  applied the desert-knob suggestions directly — _subsidence decay
+  0.012 -> 0.006, wet/dry floors 0.65/0.75 -> 0.75/0.85, convective
+  budget gated by (1 - 0.9*sub) (a subtropical high caps convection
+  FIRST), t_pow 0.40 -> 1.0 (linear ramp: cold north third), f_cap
+  0.88 -> 0.92, realistic shrink 4 -> 6, psi_coarse 64 -> 48,
+  build_climate coarse 128 -> 96, SOR iters 600 -> 400. Follow-ups
+  here: the (1 - 0.9*sub) gate crashed on sub=None (unit tests call
+  _advect bare) — guarded as cap_conv alongside wet/dry. Subsidence
+  is now DELIVERED: _precip_pass returns the snapshot-mean sub field
+  per month, build_climate delivers sub_monthly (12, coarse grid,
+  0..1, persisted as c_sub_monthly), rendered monthly/mNN_sub.png on
+  the fixed 0..1 gray scale. Band migration soft-constrained: the
+  fixed 0.03 solstice swing is now a seeded triangular draw (K1
+  clock 5 indices 22-23), mean 0.02, leaky-squashed above 0.03 at
+  slope 0.25 — most worlds' highs dwell more, a rare one leaks past.
+  shrink defaults aligned to 6.0 across build_climate/__main__ (the
+  _lat_profile edit alone was inert — build_climate always passes
+  shrink explicitly). Seed 1: verdict PASS, sub band visibly parked
+  (m01 vs m07 shift small), desert 0.1% (was ~0), ice cap 12% — the
+  thirds layout is knob territory now. 267 fast + 2 climate slow
+  pass.
+
+- Rim tube BC (user design): the annual-mean wind render showed
+  streamlines crossing every border near-PERPENDICULAR — the
+  porous-rim ghost in _poisson_sor blends Neumann (kills tangential
+  velocity) and Dirichlet (kills normal), so any diagonal prevailing
+  flow was decomposed into axis-aligned inflows at the borders
+  ("winds from N/S AND W/E" from ONE axis). Fix is a velocity-space
+  correction after the solve, not a new solver: _rim_bc treats the
+  domain as a tube along the seeded band axis — the two walls the
+  axis points through are OPEN (rim velocity extrapolated from the
+  adjacent interior ring; corners from the diagonal interior cell),
+  the two axis-parallel walls WEAKLY BINDING (v_new = v_parr -
+  (1-porous)*v_perp for normal outflow only; _RIM_BIND_POROUS = 0.65
+  stolen by the void, rest reflected; inflow and tangential
+  untouched). Applied at the end of sample() and sample_high() on
+  the total field; the solve's own ghost stays (air 0.8, water 0.5 —
+  currents unchanged). Band hardcodes removed (user: "don't hard
+  code the bands"): the equatorward-override of the outermost bands
+  is gone — no baked-in ITCZ, convergence zones happen where the
+  random signs converge. Gyres stay fully random at 0.6 (the
+  sign-flip "averaging out" is a non-issue at monthly granularity).
+  Unit test test_rim_bc_tube covers reflect/steal, inflow-pass,
+  tangential-untouched, extrapolation, corners, both orientations.
+  268 fast pass.
+
+- Renderer u/v transposition (the "perpendicular border" bug was
+  COSMETIC): _wind_lines and _flow_lines stepped particles py += u,
+  px += v, but the delivered convention is standard (u = x-velocity,
+  v = y-velocity) — every streamline was mirrored across the
+  diagonal, so glancing border flow rendered as perpendicular
+  crossing and the rim tube looked broken. Caught via a synthetic
+  +u field (rendered vertical) and a decisive empirical convention
+  test (seed 21, near-perfectly meridional axis: mean flow entirely
+  in v => u is the x-component). Physics verified correct
+  throughout: npz rim checks (no binding-wall outflow, open-wall
+  extrapolation) had already passed. Fixed both drawers; the
+  current lines on aquabiomes.png were mirrored the same way
+  (invisible on gyres; upwelling markers landed on mirrored
+  positions). Dumps unaffected — `render --seed N` re-renders in
+  seconds. 268 fast pass; border crops now show wall-hugging flow
+  at binding rims and oblique crossing at open rims.
+
+- Proper-curl fix for currents + open-tube air solve (user caught
+  two real bugs): (1) _transport returned the SWAPPED curl
+  (u=ψ_x, v=−ψ_y), so solved currents crossed coastlines instead
+  of hugging them — empirically 0.74 into-land vs 0.52 along-coast
+  on seed 18's stored psi, inverted to 0.52/0.74 with the proper
+  curl. The renderer's own u/v transposition had masked it
+  visually. _transport now returns the proper curl (u=∂ψ/∂y,
+  v=−∂ψ/∂x); the wind-conditioning zeta (∂wv/∂x−∂wu/∂y) was
+  already proper and now pairs correctly; ramp through-flow
+  directions shift per world (theta is a uniform seeded draw —
+  statistically identical). The wind library KEEPS its matched
+  zeta/extraction pair: the band field's speed varies ALONG its
+  flow, which is divergent by design (that divergence is the
+  subsidence source, read analytically), so no pure-curl
+  representation exists — warning comment left in
+  WindLibrary._rotational. (2) The air solve's Robin ghost
+  (rim_porosity 0.8) damped the crossing component at every rim —
+  "4 dampening sides". _poisson_sor gains ghost="linear": the
+  ghost ring is a linear extrapolation of the two innermost rings
+  (zero curvature, corners diagonal), rim cells join the solve,
+  porosity machinery skipped; WindLibrary.solve_batch uses it and
+  _RIM_POROSITY_AIR is gone (water keeps 0.5). Boundary behavior
+  lives entirely in _rim_bc now. Verified: seed 21 open rims carry
+  −0.26 mean v vs −0.27 interior (true source/sink). New test
+  test_transport_hugs_coast. 269 fast pass.
+
+- Wall-driven prevailing wind (user design, replaces the band
+  machinery wholesale): the band vorticity construction, band
+  stream, band migration and band_divergence are DELETED. The rim
+  tube's two open walls are fully partitioned into seeded segments
+  (2-4 per wall, random cut points) — PERFECT SOURCES (prescribed
+  inflow: wall-normal, speed = per-world default 0.5-1.0 x per-
+  segment jitter 0.7-1.3, angular jitter +-0.2 rad triangular,
+  seasonal wobble +-30% own phase) and PERFECT SINKS (purely
+  absorptive: outflow passes, inflow zeroed, never emits). At
+  least one source per world (forced if the draws give none).
+  The prevailing field is a POTENTIAL FLOW: _poisson_sor gains
+  `edge_flux` (prescribed outward normal flux via a ghost offset,
+  +2*flux per touched edge; boundary fluxes must balance) and
+  solves div-grad phi = 0 monthly (per-segment phases are not
+  linear in `seasonal`, so no two-extreme interpolation — one
+  batched 12-solve), terrain pinned as obstacles exactly like the
+  gyres; velocity = gradient (no curl-convention ambiguity).
+  High layer: same segments inverted at _HIGH_BAND_RETURN,
+  terrain ignored. Gyres unchanged (kept the historical swapped
+  extraction — statistically inert for noise). _rim_bc now takes
+  src (absolute prescription) + sink (pass-outflow, zero-inflow)
+  instead of extrapolating open walls. Subsidence source is now
+  the DIVERGENCE of the month's mean surface wind (90th-
+  percentile scaled), computed in _precip_pass after the snapshot
+  loop. Verified: mass balance ~0 all months, source rings exact,
+  interior not windless, seed 1 (3 north sources, south all-sink)
+  and seed 18 (south all-source, north all-sink) both show a
+  clean coherent through-flow with terrain deflection; the
+  streamline pinch-point singularities are gone. Tests:
+  test_rim_bc_tube rewritten for src/sink, new
+  test_segment_prevailing_flow (partition contiguity, balance,
+  prescription, interior strength). 270 fast + 3 slow (climate/
+  biome/persist) pass, both demo verdicts PASS.
+
+- Subsidence de-speckling (user caught biome patching): the new
+  subsidence source — divergence of the month's mean surface wind —
+  was dominated by small-scale terms (coastal monsoon-breeze
+  dipoles, pinned-terrain edge artifacts, katabatic streaks, gyre
+  residue), and the 90th-percentile scaling saturated that speckle
+  to 1, printing speckled dry patches into the biome map. The dry
+  belts are synoptic features: the mean wind is now pooled 4x and
+  box-smoothed (_box3, 4 passes) BEFORE the derivative, then
+  upsampled back — coastal dipoles and terrain edges are gone, the
+  lobes are smooth. Render: wind trails on biomes.png are now
+  colored by direction along the open axis (amber =
+  east/southbound, steel blue = west/northbound; the open pair is
+  read off the net rim fluxes, bright/dark variant by local biome
+  luminance). 270 fast pass, seed 18 verdict PASS, sub renders
+  smooth.
+
+- Seasonal rotation for the segment wind (user: no monthly jitter
+  visible): two omissions fixed. (1) Boundary wobble: each interior
+  segment cut breathes +-2% of the wall (gap-limited so segments
+  never cross/switch) with its own seeded phase — the circulation
+  pattern rotates gently through the year; _seg_bounds(w, month) is
+  used by both _edge_flux and _rim_prescription, and the sink mask
+  is per-month now (sink_masks). (2) The per-snapshot angle jitter
+  (same K1 draw (clock, 8)) now rotates the PREVAILING field as
+  well as the gyres, in sample and sample_high — one coherent
+  whole-field tilt instead of gyres-only, so monthly means swing a
+  few degrees. Single-direction worlds are a draw outcome (one
+  wall all-sink, ~25-50% likely), not a bug; the mass return is
+  aloft. Verified: monthly prevail mean-direction breathes ~+-1 deg
+  (boundary wobble), snapshots swing +-3-4 deg coherently, bounds
+  contiguous all months, 270 fast pass.
+
+- Per-wall source+sink guarantee (user): the earlier ">=1 source
+  per wall" still allowed an all-source wall (seed 18's south was
+  all sources). Now every open wall carries at least one source
+  AND at least one sink — all-source draws get their smallest
+  segment flipped to a sink, all-sink draws their largest to a
+  source. Binding-wall porosity back to the historical air value
+  0.8 (_RIM_BIND_POROUS 0.65 -> 0.8; more reflection piles wind up
+  against the wall). Test asserts both constraints. 270 fast pass,
+  seeds 1+18 verdict PASS; seed 18 shows amber/southbound and
+  steel/northbound streams meeting in convergence zones.
+
+- Algebraic braiding of the wall segments (user design): one wall
+  draws a braid bar — a partition with widths floored at 60%/n (no
+  slivers; fixes the 1% corner-sink draw) and ALTERNATING
+  source/sink types; the opposite wall gets the same partition
+  with a seeded matching of disjoint adjacent swaps applied to the
+  types. Swapped pair = braid crossing (streams shear diagonally
+  into neighboring sinks); unswapped pair = head-on opposing
+  sources whose air cannot escape -> vortex/stagnation singularity,
+  so unswapped sources are damped (_HEADON_DAMP = 0.4). Magnitudes
+  decided after the topology. Boundary wobble now wobbles one
+  SHARED base partition (the braid breathes as a unit). Binding
+  porosity corrected to 0.4 (REFLECT 0.6 — user meant the
+  reflection share: porosity 0.8 = reflect 0.2 acted as a vacuum
+  and piled wind against the wall). Test asserts braid structure
+  (disjoint adjacent swaps only, damping on unswapped sources,
+  width floor, alternating types). 270 fast pass, seeds 1+18
+  verdict PASS; renders show clean diagonal braid crossings, no
+  stagnation pinches, smoother biome zones.
+
+- Mirror-invert walls (user simplification, replaces the swap
+  braid): pinching persisted with the swap matching, so the
+  construction is now: one wall draws the partition (width floor
+  60%/n, alternating types), the opposite wall takes the SAME
+  partition with types INVERTED — X Y X over Y X Y, every source
+  faces a sink directly, no source-source opposition can exist at
+  all, so no head-on vortex or stagnation pinch by construction.
+  The swap matching and _HEADON_DAMP are gone (dead code removed).
+  Test asserts the inverted mirror. 270 fast pass, seeds 1+18
+  verdict PASS; both renders are pinch-free with clean crossing
+  braids.
+
+- Ramp through-flow prevailing wind (replaces the wall segments
+  entirely): the segment model — even mirror-inverted — was
+  inherently singularity-prone (a sink is too local; flow that
+  misses it curls back and forms stagnation pinches and local
+  hurricanes). The prevailing flow is now a UNIFORM THROUGH-FLOW:
+  two orthogonal Dirichlet-ramp solves (the exact machinery of the
+  ocean currents' through-flow — _poisson_sor rim_values=ramps,
+  landmass pins from _land_constants with psi_open=ramps,
+  rim_to_zero=False) blended per month by the seeded direction
+  theta (seasonal jitter +-0.2..0.5 rad, strength wobble +-30%),
+  curl-extracted with the proper _transport. Divergence-free, no
+  sources, no sinks, hugs relief through the solve's obstacle pins;
+  the field is normalized per ramp by its max transport so the
+  blend direction is exact in open water (test: per-cell cosine =
+  1.0). The HIGH layer is the same blend on the RAW ramps (no
+  solve, terrain ignored) scaled by _HIGH_BAND_RETURN. Dead code
+  removed: segments, _edge_flux/_rim_prescription/_seg_bounds/
+  _open_walls, boundary wobble, sink masks, the edge_flux plumbing
+  in currents._poisson_sor/_land_constants. 271 fast pass, seeds
+  1+18 verdict PASS; peak snapshot wind 26 m/s (gusts, was 53.6
+  pre-limiter), no funnel clustering.
+
+- No walls at all (follow-up simplification): with the ramps
+  deciding where air enters and leaves, the rim TUBE split
+  (two open + two binding walls, _RIM_BIND_POROUS reflect-steal,
+  the frame/axis/open_x draws) is obsolete. _rim_bc is now a plain
+  transparent extrapolation on ALL four sides (corners diagonal) —
+  it exists because the curl's central difference leaves the rim
+  ring at zero and the semi-Lagrangian advection samples through
+  it. The flow-line hue detection in the render was already
+  data-driven (net rim fluxes) and adapts unchanged. 271 fast
+  pass.
+
+- Chaotic rim-harmonic through-flow (replaces the single-direction
+  ramp blend): a nameable world-wide direction ("the wind comes
+  from the X") was too orderly — wind may enter and exit anywhere,
+  soft-constrained. The rim streamfunction is now a seeded harmonic
+  series over the perimeter angle, psi_rim(s, m) = sum_k A_k
+  cos(k s + phi_k + drift_k m), k = 1.._RIM_MODES(3): k=1 fixed at
+  amplitude 1.0 (a loose persistent backbone), higher modes on a
+  soft falloff (A2 ~ 0.25..0.6, A3 ~ 0.1..0.35, seeded) so the
+  entry/exit arcs stay few and broad; per-mode phase drift
+  (+-0.06k rad/month, seeded sign) makes k=1 lap in ~9 years
+  (persistent) and k=3 in ~3 (chaotic seasons). Two batched
+  Dirichlet solves: the unobstructed harmonic extension (landmass
+  pins AND the high layer) and the obstacle solve against the
+  relief pins. Same smooth-distributed forcing as the ramps, so
+  still no funnels/singularities — but several inflow/outflow
+  arcs instead of one. theta/theta_jitter/theta_phase draws gone
+  (rim_amp/rim_phase/rim_drift/wobble_phase instead). On the
+  all-ocean 48 test grid: max/interior speed ratio ~1.35 (funnel
+  bound is 4), cos(month0, month1) = 0.998 and cos(month0, month6)
+  = 0.94 (persistent, evolving), 10 rim-flux sign changes (5
+  inflow + 5 outflow arcs). Test asserts all four properties.
+  271 fast pass.
+
+- Ground-relative low layer (user redesign of the whole persistent
+  wind system): the low-layer wind is wind RELATIVE TO THE GROUND,
+  so absolute altitude can never block — only terrain SHAPE along
+  the path may. The pin-solve propagation (all-or-nothing obstacle
+  islands, sub-threshold slopes invisible) and the altitude-keyed
+  over-the-top bleed are gone. New _terrain_flow: the rim-harmonic
+  free stream (unobstructed harmonic extension — also the high
+  layer, now pinless) is propagated by semi-Lagrangian sweeps with
+  kinetic-energy accounting per hop: ascent v'^2 = v^2 -
+  _CLIMB_COST*Δa, descent v'^2 = v^2 + _CLIMB_COST*|Δa|
+  (_CLIMB_COST = 1.0 in normalized-altitude units: unit-speed flow
+  exactly stalls over the full ~6 km range, pays ~8% over 500 m).
+  A parcel whose next step is unaffordable ROTATES exactly (speed
+  conserved — re-stalling would bleed the face jet to zero over
+  sweeps) onto the local contour in open air before the rise;
+  along-face sign keeps the parcel's drift, ties break toward the
+  descending contour. Parcels that cannot afford a hop do not
+  arrive — a _STALL_SEEP (0.1) share leaks (never hard walls).
+  Blocking, drag, rain-shadow winds, ridge winds and valley
+  channeling all emerge from slope in the path; foehn acceleration
+  off descents emerges too. Verified on synthetic terrain: gentle
+  3 km ramp crossed at ~0.74 speed; full-range wall gives a
+  meridional face jet + 0.12-speed lee; flow routes around an
+  isolated block's ends at full speed; constant-shifting the
+  terrain changes nothing (altitude irrelevance). High layer:
+  unobstructed solve, curl is solve residue only (test) — no
+  singularities aloft. Known sketch artifact: a thin full-height
+  block leaks a full-speed wake via diffusion + descent gain.
+  Strength normalization switched to per-month MEAN transport
+  (floored at 0.25x the year median) — modal interference in the
+  rim forcing made months 4/10 collapse under max-normalization
+  (seed 18). Gyres keep the pin solves (transient mechanics
+  unchanged); breeze/katabatic/frontal-lift/subsidence/friction
+  untouched. 272 fast pass.
+
+- Flow-line gridlines fix (same system): the first _terrain_flow
+  advected the FIELD itself — self-advection of a smoothly-varying
+  field is not idempotent, so over flat ground it re-solved
+  transport from the rim by characteristics and the interior
+  striped into discrete rim-cell bundles (the gridline render
+  complaint). Relaxing toward the free stream fixed the stripes
+  but washed out path energy (climb loss recovered in place —
+  wrong; kinetic energy is a path property). Final form: advect
+  the DEVIATION from the free stream along the total field, work
+  it, no decay — flat ground keeps the prescribed field exactly
+  (verified 0.0 deviation on a sinusoidal field), the ramp keeps
+  its ~0.74 terminal speed, the face jet runs at ~0.94, the lee
+  shadow persists at ~0.12 with the seep. 272 fast pass.
+
+- Wind cost trim + climate grid 64^2: profiling the demo (95s
+  total under cProfile) put moisture _advect at 28.7s (the
+  elephant), _terrain_flow at 9.6s, SOR 11.9s, advect_sst 9.6s.
+  _terrain_flow is now batched over the 12 monthly free streams
+  (one call, bitwise-identical to per-month calls — the batched
+  gather idiom), the contour direction and descending-side
+  tie-break sign are precomputed once per grid (static — 6
+  gathers/sweep down to 4), and sweeps run at max(ph, pw) (64 vs
+  128 sweeps differ ~3% on a full-wall test — conditioning, not
+  convergence). The climate coarse grid (moisture advection, T/P,
+  delivered snapshots) drops from 128^2 to 64^2 (build_climate
+  coarse default 96 -> 64, an exact integer pool of the 256
+  anchor): 4x less advection work. The wind psi grid is 64^2
+  either way (f_psi becomes 1), so the solves are unchanged.
+  272 fast pass.
+
+- Forest wind: cover now enters the pass-2 propagation as a weak
+  effective rise (_FOREST_RISE = 0.02 of the normalized range,
+  ~120 m-equivalent — flow pays a climb cost into forest and
+  prefers routing around big forest masses; verified: ~1% field
+  delta localized to the block), and the post-sampling windbreak
+  drag strengthens 0.25 -> 0.4. Desert/ocean-rain diagnosis
+  (seed 18 + 1 measurements): the subsidence drying oscillates
+  seasonally (0.75 winter / 0.16 summer, katabatic+monsoon
+  driven) and cancels annually (corr(sub, P) over land = -0.08);
+  the thermal overturning that would organize stationary belts
+  runs at ~10% strength under the fixed x8 gradient clip
+  (continental grad T ~ 0.01); and the chaotic multi-arc wind
+  delivers marine moisture everywhere over the year. Open ocean
+  is dry because capacity stays high with no lift and only
+  weak/patchy convergence — the ITCZ analog is the same muted
+  overturning. All three share one root: the persistent-structure
+  term is weak.
+
+- Propagation damping (_terrain_flow `drag` parameter): the
+  propagation was fully conservative before (climb cost returned
+  on descent; only sinks were the stall seep and post-sampling
+  friction). Now an optional quadratic roughness-drag field
+  decays the TOTAL field per distance traveled (1 - c*speed per
+  hop — slow air is not over-damped), so absorbed momentum is
+  never returned and the free stream itself arrives weaker
+  downwind of rough ground. Forest cover (pass 2) uses it:
+  _FOREST_DRAG = 0.1 at full cover (~65% loss over 10 cells,
+  ~90% over 20 — real canopy is a very effective windbreak),
+  alongside the _FOREST_RISE reroute. Verified: a forest band
+  cuts unit flow to 0.42 at the exit and it STAYS 0.42
+  downstream (absorption, no recovery); drag=None reproduces the
+  old path bitwise. The post-sampling 0.4 windbreak multiplier
+  stays for the gyre/breeze terms the propagation does not
+  touch. 273 fast pass, seed 1 verdict PASS.
+
+- Land friction moved into the propagation: bare land now absorbs
+  along the path (_LAND_DRAG = 0.03 quadratic — ~25% lost over 10
+  cells, giving flow a routing preference for smooth surfaces and
+  sea lanes), and the post-sampling multiplier drops to a 0.2
+  residual covering only the unpropagated terms (gyres, breeze,
+  katabatic, overturning) so the prevailing is not double-counted.
+  273 fast pass, seed 1 verdict PASS.
+
+- Agreement-seeded subduction (_sub_seed): the subsidence band is
+  now seeded only where the surface wind DIVERGES and the
+  high-layer wind CONVERGES over the same spot (min of the two,
+  4x-pooled and smoothed, p90-scaled). Shallow circulations
+  (breeze, katabatic, friction dipoles) fail the high-layer vote
+  and drop out; the thermal overturning passes by construction.
+  Result on seed 18: the seasonal flip-flop is GONE (month means
+  0.05-0.21, was 0.75 winter / 0.16 summer) and the annual field
+  has real sparse structure — but the overall level is low
+  (mean ~0.12), so drying is still too weak to carve desert
+  biomes (land P mean 0.19, 17% of land < 0.1, no desert class
+  in the top shares; corr(sub, P) = -0.05). The veto works
+  mechanically; levels, not structure, are now the limiter.
+
+- Rain-fueled subsidence (replaces the divergence seeds): the
+  subsidence seed is LAST MONTH'S RAIN ANOMALY (mean + 1 std, one
+  light box pass, p90-normalized) — rainfall is the measured
+  exhaust of rising air; what rains must come down. Month m seeds
+  from this pass's m-1; January wraps from the previous pass's
+  December (pass A scaffold: dry seed; pass B wraps exactly).
+  Transport rewritten twice: the old band-recharge rule saturated
+  S to near-1 wherever the band was appreciable (0.7-0.95
+  everywhere); relax-to-band kept S on the rain cores themselves
+  (corr +0.6 — drying the wet zones). Final form: pure
+  advect-decay plumes (_SUB_DECAY 0.98, 24 steps, seed gain
+  _SUB_GAIN 2.0) that CONCENTRATE where the high-layer flow
+  converges (descent = convergence aloft). Seed 18: sub p50 0.04
+  / p90 0.58 / p99 1.0 (right-shaped distribution), corr(sub, P)
+  over land -0.07, sensible seasonal structure (summer highs).
+  Still no desert biome class at scale — the saturated zones
+  cover ~1% of cells; the next lever is drying response or seed
+  gain, not structure.
+
+## 2026-07-24: revert-and-graft (wind system rollback)
+
+The saga above ended with the wind system measurably WORSE than the
+committed baseline (fewer biome classes, no deserts, no moist tropical
+forest, singularity-prone fields). Call: revert wind/climate to the
+committed code and graft onto it only the mechanisms that had proven
+themselves in isolation. Not a git revert — the committed currents
+renderer had an x/y transposition bug that sent flow lines into land,
+so the fix was: restore committed `climate.py` + `test_worldgen.py`
+from HEAD, keep the uncommitted current/render/terrain fixes, then
+re-apply the graft list by hand.
+
+Kept (uncommitted, unrelated to the wind regression):
+- `currents.py` — current fixes incl. the u=x/v=y renderer correction
+- `render.py` — current-flip fix, `(sub)tropical` legend labels,
+  resolution-independent flow lines
+- `plates.py` — land grain 0.32 -> 0.45
+- `__main__.py` — `P_prev` wiring between the two precip passes
+- `persist.py` — climate dict keys (incl. the new `sub_monthly`)
+  round-trip as `c_*` arrays
+
+Grafts re-applied onto the committed wind stack:
+- Coherent, breathing gyres: gyre cells WOBBLE (_GYRE_WANDER cells)
+  instead of teleporting between months, alpha keeps a fixed sign per
+  gyre, and each solved gyre contributes a divergence field
+  (`gyre_div`, psi>0 = anticyclone = diverge) blended into the
+  rotational flow — cyclones wet, anticyclones dry by construction
+- Rain-fueled subsidence (`_rain_seed` + plume advect-decay with
+  high-layer convergence concentration) — the end state of the saga
+  above, kept because its distribution was right-shaped
+- Forest windbreak as quadratic path drag (`_drag_flow`,
+  _FOREST_DRAG 0.1, 16 sweeps): canopy absorbs momentum, absorbed
+  momentum is never returned — flow leaves forests weaker and routes
+  around; the old per-cell multiplicative damp is replaced in pass 2
+- Ascent rain (_ASCENT_RAIN 0.15): convergent low-layer flow rains
+  directly — the gyre cells' wet/dry signature
+- Moisture recycling 0.15 -> 0.30, advect baseline 0.06 -> 0.03
+- Climate grid 64^2 (was finer), sub_monthly delivered in the climate
+  store (coarse (12,64,64)) for downstream ecology layers
+
+Dropped (saga machinery, not coming back): Hadley overturning term,
+frontal lift, `_terrain_flow` mechanical propagation, rim source/sink
+segments and braided wall partitions, porous/reflecting boundary
+variants, Helmholtz-pure band flow.
+
+New tests: `test_rain_seed` (cores seed, ordinary rain does not),
+`test_drag_flow` (momentum absorbed along path, zero drag = identity).
+
+Addendum (same day, later): two mechanisms added during the
+post-graft debugging were REMOVED on review — a heat-low (ITCZ)
+inflow term and a hot-land evapotranspiration loop (_CONV_EVAP).
+Decomposition of the persisted wind showed the heat-low term was
+itself the hot belt's winter-divergence driver: in winter the
+annual-hottest land is not hot, so a term keyed on the temperature
+anomaly pushes air OUT of it (month 0: +0.42 of the +0.8 total).
+Ruling: tropics are not a circulation parameter — they show up
+naturally where mountains force rain; a flat hot belt staying dry
+forest/savanna is correct output, not a bug. Kept from that round,
+because it is parameter-free: subsidence plumes cannot stack over
+active low-level convergence (sub *= 1 - ascent, reuses
+_ASCENT_DIV) — the ITCZ and a subtropical high never share a
+column, and orographic convergence keeps its rain. Verified across
+seeds: moist forest 0.17% (seed 2), 0.09% (seed 5), 0% on seed 1
+(flat hot belt, mean 287 m — dry forest 8.4% instead), 0% on
+seed 18 (realistic patch centered 40 degN — no true tropics in the
+patch by design). All demo verdicts PASS.
+
+## 2026-07-25: wind rebuilt as a two-layer fluid (WindLibrary deleted)
+
+The kinematic wind stack (prescribed bands + random fbm gyres + stapled
+divergence terms + scalar friction, psi pinned on a boolean obstacle
+mask) is GONE. Replacement: exp/k11_worldgen/wind.py, a two-layer
+rigid-lid fluid at 128^2 (was 64^2), developed test-first
+(exp/k11_worldgen/test_wind.py — 9 physics tests, all green before
+integration).
+
+Surface layer: semi-Lagrangian momentum advection, thermal pressure
+forcing (hot = low, force = +ALPHA*grad(T)), constant-f Coriolis
+(seeded sign — this is what spins convergence into cyclones), Brinkman
+drag -u/K(x) with K continuous from local relief + altitude + forest
+cover (terrain is NEVER a step function; trees are windbreaks in the
+surface drag field), pressure projection to a TARGET divergence
+D = -(u.grad h)/H_EFF - buoyancy*(T - spatial mean) — not to zero;
+the vertical-motion budget survives the solve. Projection is exact
+(backward-div / forward-grad compose the 5-point Laplacian, solved
+spectrally via DST built on numpy FFT, Dirichlet-zero rim = porous).
+
+Middle layer: mass compensation only (div(H_s*u_s + H_m*u_m) = 0),
+no thermal forcing, no terrain. Middle-layer convergence = descent
+into the surface column — the subsidence seed (as ANOMALY above
+mean+std, cores only; the raw D is a smooth seasonal blanket that
+dries nothing). Momentum exchange between layers proportional to w
+(rising air carries momentum up, subsiding brings it down), bounded
+transfer fraction; tanh speed governor against runaway cells.
+
+High layer: untouched role — a non-interacting highway (blended fbm
+curls + weak drift) transporting subsidence plumes.
+
+Momentum budget: sources = thermal pressure work + the constant
+background drive (a rim velocity hold alone CANNOT sustain flow
+against drag — pressure work does; measured: through-flow decays to
+zero in ~6 cells on land without a drive); sinks = ground drag
+(terrain form drag, canopy) + rim outflow; Coriolis and the
+projection redistribute.
+
+Pipeline: build_climate computes equilibrium T, simulates ONE wind
+trajectory through the year (_wind_ensemble), transports T along it,
+runs both precip passes against the SAME ensemble. Deleted: bands,
+gyres, gyre_div, breeze/katabatic/bleed/friction staples, psi
+obstacle solve, smudge, _drag_flow, _rain_seed, band_divergence,
+P_prev wiring.
+
+Known deltas vs the old stack: biome mix runs wet (desert classes
+rare — accepted, see conversation; the drying side comes only from
+structured subsidence now, and the fluid distributes moisture
+efficiently). Demo runtime roughly doubled (fluid at 128^2 + 4x
+advect cost). Seed 2 ranges_exist marginal-fail is terrain-side
+(max peak 0.709 vs 0.72 bar), not wind.

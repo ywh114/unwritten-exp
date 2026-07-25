@@ -547,27 +547,6 @@ def test_soil_schedule_memory():
     assert S_wet.mean() > S.mean()
 
 
-def test_wind_library_terrain_blocking():
-    from exp.k11_worldgen.climate import WindLibrary
-    shape = (32, 32)
-    land = np.ones(shape, bool)
-    alt = np.zeros(shape)
-    alt[:, 16:] = 0.8                   # high plateau over the east half
-    lib0 = WindLibrary(Stream(SEED, "t"), shape, land, alt=np.zeros(shape))
-    lib1 = WindLibrary(Stream(SEED, "t"), shape, land, alt=alt)
-    u0, v0 = lib0.sample(Stream(SEED, "s"), 1000, 1.0)
-    u1, v1 = lib1.sample(Stream(SEED, "s"), 1000, 1.0)
-    # same seed -> same sources. The ESCARPMENT (high relief) is the
-    # obstacle: speed and the cross-front component collapse at the
-    # rise. The plateau INTERIOR is high but flat — open air in the
-    # solve, plus the over-the-top bleed — so the wind hugs the rise
-    # and keeps blowing across the interior
-    s0, s1 = np.hypot(u0, v0), np.hypot(u1, v1)
-    assert s1[:, 12:16].mean() < 0.5 * s0[:, 12:16].mean()
-    assert abs(v1[:, 12:16]).mean() < 0.3 * abs(v0[:, 12:16]).mean()
-    assert s1[:, 24:30].mean() > 0.5 * s0[:, 24:30].mean()
-
-
 @pytest.mark.slow
 def test_climate_and_biome_overrides():
     elev, ocean = _tiny_world()

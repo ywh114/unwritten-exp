@@ -54,7 +54,7 @@ def _step(msg: str) -> None:
 
 def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
                 realistic: bool = False, center_lat: float | None = None,
-                shrink: float = 4.0) -> dict:
+                shrink: float = 6.0) -> dict:
     """Two-pass pipeline (second order, never circular):
 
     PASS 1 — the full pipeline in honest dependency order: plates ->
@@ -182,7 +182,7 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
 
 def run_demo(seed: int, check_determinism: bool = False,
              realistic: bool = False, center_lat: float | None = None,
-             shrink: float = 4.0) -> dict:
+             shrink: float = 6.0) -> dict:
     import os
     from exp.k11_worldgen.climate import resolve_center_lat
     center_lat = resolve_center_lat(seed, center_lat)
@@ -455,7 +455,7 @@ def main(argv: list[str] | None = None) -> int:
                       help="realistic mode: patch center latitude, degN "
                            "(default: 45N + seeded wiggle, mostly +-5 "
                            "with a leaky cap)")
-    demo.add_argument("--shrink", type=float, default=4.0,
+    demo.add_argument("--shrink", type=float, default=6.0,
                       help="realistic mode: planet shrink factor "
                            "(map spans 1024 km * shrink / 111 degrees)")
     rend = sub.add_parser("render", help="re-render PNGs from seed_N/world.json")

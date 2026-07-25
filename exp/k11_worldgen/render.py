@@ -218,8 +218,12 @@ def render_world(path: str, delivered: dict, plates, factor: int,
         x0 = 48 if col == 0 else 520
         yy = y + row * 24
         fill_rect(right, x0, yy, 40, 16, color)
+        # legend wording: the WWF "tropical" classes are tropical AND
+        # subtropical — "(sub)tropical" says so in five extra chars
         draw_text(right, x0 + 48, yy + 2,
-                  _legend_label(name.replace('_', ' '), count, land_cells),
+                  _legend_label(name.replace('_', ' ')
+                                .replace('tropical', '(sub)tropical'),
+                                count, land_cells),
                   (200, 200, 200), scale=2)
     y += 24 * rows
     # aquatic layer: FRESHWATER / MARINE sections (compact rows;
@@ -370,9 +374,10 @@ def _flow_lines(base: np.ndarray, cur: dict, factor: int = 4,
                 # unit-length steps: the trail traces the DIRECTION
                 # field, so slow gyre cores curve as much as fast
                 # rims (speed-scaled steps read as short straight
-                # dashes — nothing long enough to wrap)
-                py += u[iy, ix] / sp * 0.6
-                px += v[iy, ix] / sp * 0.6
+                # dashes — nothing long enough to wrap). u is the
+                # x-component (columns), v the y-component (rows)
+                py += v[iy, ix] / sp * 0.6
+                px += u[iy, ix] / sp * 0.6
                 t = np.clip(vert[iy, ix] / (vscale + 1e-9), -1.0, 1.0)
                 col = (np.array([140, 245, 250]) * (0.50 + 0.50 * t)
                        if t >= 0.0 else
@@ -428,8 +433,11 @@ def _wind_lines(base: np.ndarray, wu: np.ndarray, wv: np.ndarray,
     lines on aquabiomes.png). Particles seeded on a K1-jittered grid
     over the whole map are advected along the time-mean direction
     field at sub-cell resolution. Trail brightness carries speed
-    (sqrt scale); the ink flips light/dark against the local biome
-    luminance so it reads on both taiga and desert."""
+    (sqrt scale); trail HUE carries direction along the prevailing
+    axis (amber = eastbound/southbound, steel blue =
+    westbound/northbound — the dominant through-flow axis is read
+    off the net rim fluxes); the ink dims against light biomes so it
+    reads on both taiga and desert."""
     from kernel.hashrng import Stream
 
     H, W = wu.shape
@@ -437,35 +445,64 @@ def _wind_lines(base: np.ndarray, wu: np.ndarray, wv: np.ndarray,
     speed = np.hypot(wu, wv)
     smax = float(np.percentile(speed, 99))
     snorm = speed / max(smax, 1e-9)
+    # the prevailing axis: the rim pair carrying the larger net
+    # outward flux (the driven through-flow)
+    fx = float(wu[:, -1].mean() - wu[:, 0].mean())
+    fy = float(wv[-1, :].mean() - wv[0, :].mean())
+    axis_x = abs(fx) >= abs(fy)
+    pos_c = np.array([240.0, 200.0, 80.0])    # amber: east/southbound
+    neg_c = np.array([100.0, 160.0, 235.0])   # steel: west/northbound
 
     out = base.astype(float)
     st = Stream(0, "k11.render.wind")
-    for y0 in range(2, H - 2, 6):
-        for x0 in range(2, W - 2, 6):
+
+    def _bl(a: np.ndarray, y: float, x: float) -> float:
+        # bilinear sample — the wind grid is coarse (64^2), and
+        # nearest-cell tracing renders each cell as a block of
+        # parallel 45-degree segments
+        y0, x0 = int(np.floor(y)), int(np.floor(x))
+        y1, x1 = min(y0 + 1, H - 1), min(x0 + 1, W - 1)
+        y0, x0 = min(max(y0, 0), H - 1), min(max(x0, 0), W - 1)
+        fy, fx = y - y0, x - x0
+        return float((1 - fy) * (1 - fx) * a[y0, x0]
+                     + (1 - fy) * fx * a[y0, x1]
+                     + fy * (1 - fx) * a[y1, x0] + fy * fx * a[y1, x1])
+    # resolution-independent seeding/stepping (tuned at 128^2): the
+    # wind grid may be coarser — keep particle count and trail
+    # length in SHEET terms constant
+    r = H / 128.0
+    stride = max(2, int(round(6 * r)))
+    jit = 2.5 * r
+    step = 0.6 * r
+    for y0 in range(2, H - 2, stride):
+        for x0 in range(2, W - 2, stride):
             if snorm[y0, x0] < 0.01:
                 continue
-            py = y0 + 2.5 * (st.uniform(y0 * W + x0, 0) - 0.5)
-            px = x0 + 2.5 * (st.uniform(y0 * W + x0, 1) - 0.5)
+            py = y0 + jit * (st.uniform(y0 * W + x0, 0) - 0.5)
+            px = x0 + jit * (st.uniform(y0 * W + x0, 1) - 0.5)
             for _ in range(n_steps):
-                iy, ix = int(round(py)), int(round(px))
-                if not (0 <= iy < H and 0 <= ix < W):
+                if not (1 <= py < H - 1 and 1 <= px < W - 1):
                     break
-                sp = speed[iy, ix]
-                if sp < 1e-9 or snorm[iy, ix] < 0.002:
+                uu = _bl(wu, py, px)
+                vv = _bl(wv, py, px)
+                sp = float(np.hypot(uu, vv))
+                sn = _bl(snorm, py, px)
+                if sp < 1e-9 or sn < 0.002:
                     break
                 # unit steps: trace the DIRECTION field (see
-                # _flow_lines for why)
-                py += wu[iy, ix] / sp * 0.6
-                px += wv[iy, ix] / sp * 0.6
-                alpha = 0.20 + 0.35 * float(np.sqrt(snorm[iy, ix]))
+                # _flow_lines for why). u is the x-component
+                # (columns), v the y-component (rows)
+                py += vv / sp * step
+                px += uu / sp * step
+                alpha = 0.20 + 0.35 * float(np.sqrt(max(sn, 0.0)))
+                comp = uu if axis_x else vv
+                col = pos_c if comp >= 0.0 else neg_c
                 Y, X = int(py * factor), int(px * factor)
                 if 0 <= Y < Hf - 1 and 0 <= X < Wf - 1:
                     for dy in (0, 1):
                         for dx in (0, 1):
                             lum = float(out[Y + dy, X + dx].mean())
-                            ink = (np.array([245.0, 242.0, 230.0])
-                                   if lum < 130.0 else
-                                   np.array([45.0, 45.0, 60.0]))
+                            ink = col if lum < 130.0 else col * 0.35
                             px_ = out[Y + dy, X + dx]
                             out[Y + dy, X + dx] = ((1.0 - alpha) * px_
                                                    + alpha * ink)
@@ -677,7 +714,8 @@ def render_monthly(out_dir: str, climate: dict,
                    currents: dict | None = None) -> list[str]:
     """Write the UNAVERAGED monthly curves — the canonical climate
     store — as grayscale PNGs into `<out_dir>/monthly/` (anchor grid):
-    T and P (normalized) plus the monthly mean wind and current speeds
+    T and P (normalized) plus the subsidence field (0..1, where the
+    subtropical highs park) and the monthly mean wind and current speeds
     in M/S on fixed physical gray scales (0..15 m/s wind, 0..2 m/s
     current) so months and worlds compare directly."""
     import os
@@ -685,7 +723,11 @@ def render_monthly(out_dir: str, climate: dict,
     os.makedirs(f"{out_dir}/monthly", exist_ok=True)
     paths: list[str] = []
     for m in range(12):
-        for key, tag in (("T_monthly", "T"), ("P_monthly", "P")):
+        for key, tag in (
+            ("T_monthly", "T"),
+            ("P_monthly", "P"),
+            ("sub_monthly", "sub"),
+        ):
             p = f"{out_dir}/monthly/m{m + 1:02d}_{tag}.png"
             write_png_gray(p, normalize_u8(climate[key][m], 0.0, 1.0))
             paths.append(p)
