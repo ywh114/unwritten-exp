@@ -21,7 +21,7 @@ From the Fauna RFC, reused verbatim:
 
 - **Phylogenetics core (Fauna §3):** genetic distance g from the initial point, generation-time clock, three forces (drift / stress descent / runaway — runaway applies to flora display organs: flowers), per-clade speciation cutoff g\* in generations, hash-stable IDs. Flora generation length derives from architecture axes (annual herbs clock fast, canopy trees slow — the grass/oak tempo split is emergent).
 - **Niche & stress (Fauna §4):** preference vector in the shared 24-dim month-vector space, weighted saturating stress. Flora extension axes: salinity band, HAND/inundation (mangrove/wetland grades), elevation-above-treeline, growing-season length (months above threshold — from derived products, §2), soil fertility, and (post-insect round) pollinator availability.
-- **Trait vectors on parts (Fauna §3.2), flora-edited:** body plans here are **growth forms** — tree, shrub, herb, grass, succulent, vine, aquatic, epiphyte — with slots: architecture (height, layer, woodiness), leaf (shape, persistence/deciduousness), root (tap/fibrous/mat), display (flower shape/color — the `signal` generic), fruit/seed (dispersal morphology per channel, §3), defense (thorns, toxins), metabolism (succulence, nitrogen-fixing, carnivory).
+- **Trait vectors on parts (Fauna §3.2), flora-edited:** body plans here are **growth forms** — terrestrial {tree, shrub, herb, grass/sward, rosette/mat, succulent, vine, epiphyte, fern-grade, moss-grade, fungus (honorary)} + aquatic {benthic rosette, rhizome/hardscape, runner-meadow, floating-leaf, floater, macroalgae/holdfast}; marginals (reeds) are terrestrial plans with high HAND tolerance. Vine/epiphyte are second-round-only (need canopy). Slots: architecture (height, layer, woodiness), leaf (shape, persistence/deciduousness), root (tap/fibrous/mat/aerial/storage), display (flower shape/color — the `signal` generic), fruit/seed (dispersal morphology per channel, §3), defense (thorns, toxins), metabolism (succulence, nitrogen-fixing, carnivory).
 - **Generics (Fauna §6.3):** same interface layer — `signal` (flower), `support` (architecture), `feeding organ` (root/leaf chemistry), `defense`, `storage` (tubers/bulbs/rhizomes, succulent water tissue, seed endosperm — couples to seasonality stress and provision density), `locomotor` → replaced by `dispersal`. Ley lifting uses the same operator mechanism (§6, Fauna RFC) with flora-appropriate rebinds.
 
 ## 2. Derived-products layer (precompute, new)
@@ -66,6 +66,8 @@ Channels:
 
 ## 5. Two tiers
 
+**Ranks (standard taxonomy):** **Phylum** = line (seed / spore / decomposer) → **Class** = growth-form plan → **Order** = clade-steady traits (flower architecture, fruit family, root family, chemistry, photosynthesis grade, mycorrhizal dependence) → **Family** = narrowed parameter ranges → **Genus** = folk label ("sedge," "wort," "chive") → **Species**. Each rank commits; descendants inherit; pins may sit at any regular rank. Pin test as fauna: *"would the world feel broken if the generator never made this?"*
+
 **Tier 1 — pinned flora (curated, human-authored).** Same job description as fauna anchors: pinning is **authoring a record**, not naming one. The curator sets clade slot and salient trait fields (clade defaults provided); the name is an opaque label attached afterward (locale-tagged; English first). The engine never infers traits from names. Salience computation is available as an authoring aid. Real-plant-inspired pins (yarrow, wild carrot, sword-iris, thread-leaf chive, ice-crown, stonecrop, grave-flower) land here, one per record; anchors need to be *findable*, not common.
 
 **Tier 2 — generated flora (raw output).** The bulk: canopy trees, sward grasses, shrubs, weeds. Genus-level records, mostly unnamed ("a sedge," "white-flowered shrub"); species-level only where pinned or where a fauna dependency demands it.
@@ -76,7 +78,32 @@ Channels:
 
 ## 6. Ley flora
 
-Ley lifting uses the Fauna RFC §6 machinery unmodified: ley sites sample flora (sessile stock — the vagrant channel is seed dispersal itself), lifted lineages leave the regular tree with pullback reminders, magic operators rebind generics (luminous flowers via `signal`, `EMBER-CORED` succulents, `GIANT` trees via `support`). Flora has one extra property worth stating: **ley-lifted flora can itself become a ley site modifier** (a giant-tree grove is already a listed trigger) — one seeded recursion, capped.
+**No pinned magicals** (Fauna RFC §6.2, restated): ley flora is always emergent. A pinned regular plant (e.g. the grave-flower) may carry `RESONANT`-eligible traits, but its lifted forms are generator output.
+
+Ley lifting uses the Fauna RFC §6 machinery unmodified: ley sites sample flora (sessile stock — the vagrant channel is seed dispersal itself), lifted lineages leave the regular tree with pullback reminders, magic operators rebind generics. Flora has one extra property worth stating: **ley-lifted flora can itself become a ley site modifier** (a giant-tree grove is already a listed trigger) — one seeded recursion, capped.
+
+Flora lifts lean **landscape-scale** (fauna lifts make encounters; flora lifts make places). Operator table (each is a concrete record delta — axes changed, slots lost, flags set):
+
+| Operator | Target | Record effect | Flavor |
+|---|---|---|---|
+| `BUOYANT` | `support` | gas-bladder scaffold; architecture layer → aerial/low; root/stem axes vestigial | floating flowers, sky-meadows |
+| `REDUCE [slot]` | any slot | slot removed or shrunk to vestige; recorded in pullback | flower-only organisms, rootless rock-flowers |
+| `TERRESTRIALIZE` | medium + `support` | medium += land; support scaffolded for air | coral highlands, land-anemones |
+| `AQUATIZE` | medium | inverse: land plans gain submersion | sunken meadows |
+| `CLONAL BLOOM` | clonality axis | axis → unbounded; **one entity, area-valued** (counters treat as singleton with extent); synchronous phenology | flower sea, single-organism forest |
+| `GIANT` / `TINY` | `support` | scale ×k / ÷k outside bounds | god-tree grove; moss-grade trees in a rock crack |
+| `GLOW` / `PULSE` | `signal` | hue/intensity from site palette on display organs; `PULSE` adds rhythm (a flower sea pulses in waves) | luminous meadows, lantern-fruit |
+| `SPORE-FOG` | dispersal | spore output ×, luminous/persistent; local ambience flag | glowing spore-fog forests; visible dispersal |
+| `LEY-FED` | `sustenance` | field-fed; nutrient axes inert; range-locked, substrate-free | flowers on bare rock, flora on statues |
+| `MANA-FILTER` | `feeding organ` | carnivorous trap → mana-prey; root → siphon | ley pitcher-plants |
+| `RESONANT` | `sensor array` (tropism) | growth/bloom intensity ∝ ley gradient | divining flowers (the grave-flower's home), explorer's compass |
+| `PHASE-ROOT` | root slot | roots penetrate any substrate | cliff-face gardens |
+| `EVERBLOOM` | phenology | bloom window → always-on, or inverted: one day/year (date seeded — festival flower, rumor bait) | the always-blooming grove; the one-day bloom |
+| `VOLATILE` | seed/fruit slot | hazard-grade fruit (explosive pods scaled, spore bursts) | dangerous meadows |
+| `MIRROR-GROW` | architecture | growth form copies a nearby plan's silhouette | coral-shaped forests |
+| `SEED-RAFT` | dispersal | seeds/fruits become buoyant rafts (water, or aerial with `BUOYANT`) | drifting seed-islands |
+
+Rules: one-entity-vs-many is always stated; combos produce named place-types (`TERRESTRIALIZE`+coral = coral highlands; `CLONAL BLOOM`+`PULSE` = the flower sea; `GIANT`+`LEY-FED` = the god-tree); renderer and field guide read the same delta — nothing is prose-only.
 
 ## 7. Pass order (biosphere; interleaved with fauna/ley)
 
