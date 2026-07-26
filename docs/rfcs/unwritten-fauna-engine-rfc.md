@@ -57,7 +57,11 @@
 
 ## 5. Assembly
 
-1. **World-blind backbone** (world-blind tree: plans → clades → few hundred species of slack; pinned anchors pre-committed).
+**Tree-of-life skeleton (standard ranks):** **Phylum** = root frame (inner / outer / soft) → **Class** = body plan → **Order** = clade-steady traits (pigment set, chemistry family, reproductive mode, chosen generic realizations) → **Family** = narrowed parameter ranges → **Genus** = folk label bound ("mouse," "pike") → **Species** (+ **Subspecies** below g\*). Each rank commits; descendants inherit; what a rank leaves open, descendants draw. **Pins may sit at any regular rank** — Order-level (equids), Genus-level (a pinned genus with free species inside), Species-level (most anchors). Pin test: *"would the world feel broken if the generator never made this?"* Megafauna curated; the murid-and-below world is ~100% free. **Pins stop at the ley boundary** (§6.2).
+
+**Display (viewer):** the tree renders **Cayley-style** — edges labeled by trait deltas; a species is a *word* in the operation alphabet, and the word's order is the biography: **non-commutative by design** (flight-then-giant ≠ giant-then-flight). Convergence = cross-tree chords between distant lineages that landed close in trait space; lifted lineages = dotted pullback edges to source species.
+
+1. **World-blind backbone** (world-blind tree: phyla → classes → … → few hundred species of slack; pinned anchors pre-committed).
 2. **Dump-and-adapt rounds** (fixed 3–4): flora-aware seeding, smear → fragment → diverge; the dump prunes (nowhere to live → dies unrecorded) and extends (isolates radiate).
 3. Interleaved with flora/ley rounds per the pass order (Flora RFC §7): fauna reads flora cover/provisions; lift events are local disturbances.
 
@@ -78,6 +82,7 @@ Committed at world build from committed geography (Flora RFC §2 + K11): trenche
 - **Pullback reminder:** `(source species id, site id, round, K1 draw)`; founder's trait vector is a sample of the source — the echo is inherited, not copied. Pick lift stock deliberately (cloud whale = cetacean stock; sky manta = ray stock).
 - **Interestingness-weighted:** neoteny (cute) and drift-distance (weird) raise lift probability; mundane biomass ≈ 0.
 - **Multiple rounds:** fresh lifts per round + re-lifting (cap 2–3; weaker echo per round). Fresh lifts start drift-dominated (founder bottleneck) automatically.
+- **No pinned magicals.** Curation stops at the ley boundary: every lifted lineage is emergent from stock × site × operators — never hand-authored, never pre-committed. Magic plans (aerial buoyant, soft-bodied pelagic) exist as *possibility space* lifting can reach, not as committed content. A hand-authored magical is a mascot, not a discovery. (Cloud whale / sky manta mentions in this document are illustrative, not pins.)
 
 ### 6.3 Operators on generics
 
@@ -155,7 +160,20 @@ The engine's resolution limit is a feature, handled uniformly:
 
 1. **Pond/creek potentials** (committed fields, Flora RFC §2): sub-grid water statistics. Dual consumer: biosphere (habitat/connectivity) and refinement (summoning prior — actual ponds collapse at L1 with their own counters).
 2. **Overland-aquatic channel** (§3): cost ∝ 1/wetness potential; flood pulses drop costs; beaver-grade engineers *raise* pond potential locally (the food web edits the dispersal graph).
-3. **Collapse-time endemics:** per-patch endemism/diversity **scores** (committed); at pond observation, seeded draw decides endemic-or-not, and the species is *generated then* — parent = drainage stock, traits from pond conditions, g backdated, K1-keyed identity stable across re-observation. Backdates seamlessly; the player never catches the engine stitching. Generalizes: soil invertebrates, cave fauna, under-bark guilds — "speciation as a collapse-time event."
+3. **Collapse-time endemics:** per-patch endemism/diversity **scores** (committed); at pond observation, seeded draw decides endemic-or-not, and the species is *generated then** — parent = drainage stock, traits from pond conditions, g backdated, K1-keyed identity stable across re-observation. Backdates seamlessly; the player never catches the engine stitching. Generalizes: soil invertebrates, cave fauna, under-bark guilds — "speciation as a collapse-time event."
+
+## 10.5 Illustration layer (derived view)
+
+Species illustrations are **parametric SVG, generated from the record, never stored** (§11 derived tier; prototype plates validated: rough and polished hare variants, plus a lifted `FLIES`+`GLOW` variant).
+
+- **Plan = coordinate system:** each body-plan template is a spine path + named anchors (`dorsal.mid`, `head.crown`, `limb.front.L`, `tail.base`…) with orientation and body-derived scale. Parts never know where they are; anchors know.
+- **Clobber model:** parts (ears, wings, horns, crests, fins) are parametric path functions stamped at anchors via translate/rotate/scale from the slot's curated axes. One wing part serves hare and whale — scale comes from the anchor.
+- **Fixed layer stack:** silhouette → covering/pattern (per-clade palette, pattern params as SVG patterns) → anchored parts → scaffolds → effects. No z-fighting; a part occupies only its layer.
+- **Operators map to SVG mechanics:** scaffolds stamp parts; substance ops swap fills/filters (`TRANSLUCENT` = opacity + organ blobs, `CRYSTALLINE` = path polygonalize, `MIST-BODIED` = blur-fade, `EMBER-CORED` = inner radial gradient); `GLOW`/`SHIMMER` = blur-merge/gradient filters in site-palette hues; `REDUCE` = omit the stamp; `GIANT`/`TINY` read off the scale bar.
+- **Presentation convention:** standardized lateral pose, plain ground, scale bar, italic binomial + common name — the field-guide plate aesthetic; uniformity reads as scientific, not cheap. Same render serves viewer panels, tree icons, and field-guide plates.
+- **Tier split:** parametric SVG is canonical everywhere (identification keys point at visible trait deltas — Allen-rule ears must be drawable). AI-generated display plates are optional garnish for ~30 anchors/promoted species only, human-reviewed against the record, committed-when-issued like names. Tier 2 never gets AI plates (curation through the back door).
+- **Anchor placement is the art budget:** tune-once-per-plan hand work; bad anchors are visible fixable bugs, surfaced by the viewer across many species sharing the anchor set.
+- **Flora:** same approach, easier — growth forms are famously procedural (recursive branching, radial rosettes, blade clusters); phenology flips leaf/flower layers by month (seasonal observation made visible).
 
 ## 11. State architecture: records + quantity layers
 
