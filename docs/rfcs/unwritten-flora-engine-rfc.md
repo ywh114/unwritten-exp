@@ -22,7 +22,7 @@ From the Fauna RFC, reused verbatim:
 - **Phylogenetics core (Fauna §3):** genetic distance g from the initial point, generation-time clock, three forces (drift / stress descent / runaway — runaway applies to flora display organs: flowers), per-clade speciation cutoff g\* in generations, hash-stable IDs. Flora generation length derives from architecture axes (annual herbs clock fast, canopy trees slow — the grass/oak tempo split is emergent).
 - **Niche & stress (Fauna §4):** preference vector in the shared 24-dim month-vector space, weighted saturating stress. Flora extension axes: salinity band, HAND/inundation (mangrove/wetland grades), elevation-above-treeline, growing-season length (months above threshold — from derived products, §2), soil fertility, and (post-insect round) pollinator availability.
 - **Trait vectors on parts (Fauna §3.2), flora-edited:** body plans here are **growth forms** — tree, shrub, herb, grass, succulent, vine, aquatic, epiphyte — with slots: architecture (height, layer, woodiness), leaf (shape, persistence/deciduousness), root (tap/fibrous/mat), display (flower shape/color — the `signal` generic), fruit/seed (dispersal morphology per channel, §3), defense (thorns, toxins), metabolism (succulence, nitrogen-fixing, carnivory).
-- **Generics (Fauna §6.3):** same interface layer — `signal` (flower), `support` (architecture), `feeding organ` (root/leaf chemistry), `defense`, `locomotor` → replaced by `dispersal`. Ley lifting uses the same operator mechanism (§6, Fauna RFC) with flora-appropriate rebinds.
+- **Generics (Fauna §6.3):** same interface layer — `signal` (flower), `support` (architecture), `feeding organ` (root/leaf chemistry), `defense`, `storage` (tubers/bulbs/rhizomes, succulent water tissue, seed endosperm — couples to seasonality stress and provision density), `locomotor` → replaced by `dispersal`. Ley lifting uses the same operator mechanism (§6, Fauna RFC) with flora-appropriate rebinds.
 
 ## 2. Derived-products layer (precompute, new)
 
@@ -60,17 +60,17 @@ Channels:
 
 - **Layered capacity:** per cell, independent capacities for canopy / shrub / sward / ground layers. Species occupy layers via architecture axes. Canopy shades; a **shade-tolerance axis** decides understorey membership. Diversity = layers × microsite partitioning.
 - **Establishment rule:** realized suitability (1 − stress). Incumbents hold committed cover; a challenger establishes only if suitability beats the least-suitable incumbent's by a seeded per-clade margin (weeds small, climax trees large), taking cover from that incumbent. Below the margin: **trace abundance** (seed bank) — no cover, but present, observable, and primed to expand.
+- **Negative density dependence:** effective suitability declines with own share of layer cover (`suit_eff = suit − k·share`, k per clade — host-specific pests/pathogens tax the dominant). Competition strength scales with site benignity (`× (1 − site_stress)`). Emergent gradient: harsh sites → few tolerators dominate canopy, understory diverse (taiga pattern); benign sites → many co-dominants, none holding a layer (temperate/tropical pattern).
 - **Disturbance resets:** regime events (fire, flood, storm — and ley lift events count locally) clear cover by layer. Recolonization = one closed-form reassignment pass ordered by (dispersal speed × growth rate × suitability): pioneers first, climax later. Succession without ODEs; r/K axis shared with fauna counters.
-- **Diversity gradient emerges:** benign cells → few strong incumbents + rich seed bank; marginal cells → weak incumbency, real cover for specialists (alpines, succulents, salt-tolerants). Diversity peaks at intermediate stress.
 - **Output (what fauna reads):** per-patch cover mix by layer, structural class fractions, and **provisions** (mast, graze-able sward, browse, nectar, shelter) computed from the actual species mix — including succession and disturbance history. Plus the productivity bound for the trophic base.
 
 ## 5. Two tiers
 
-**Tier 1 — pinned flora (curated, human-authored).** Same job description as fauna anchors: pinning is **authoring a record**, not naming one. The curator sets clade slot and salient trait fields (clade defaults provided); the name is an opaque label attached afterward. The engine never infers traits from names. Salience computation is available as an authoring aid ("does my ice-crown differ from the other bulbs?"). Personal cool-name lists and invented flower names land here, one per record; anchors need to be *findable*, not common. Implication-rich names (thaw-blooming alpines, sword-leaved iris grades, grave-flowers for ley bogs) get their traits from the curator, their sisters from the tree.
+**Tier 1 — pinned flora (curated, human-authored).** Same job description as fauna anchors: pinning is **authoring a record**, not naming one. The curator sets clade slot and salient trait fields (clade defaults provided); the name is an opaque label attached afterward (locale-tagged; English first). The engine never infers traits from names. Salience computation is available as an authoring aid. Real-plant-inspired pins (yarrow, wild carrot, sword-iris, thread-leaf chive, ice-crown, stonecrop, grave-flower) land here, one per record; anchors need to be *findable*, not common.
 
 **Tier 2 — generated flora (raw output).** The bulk: canopy trees, sward grasses, shrubs, weeds. Genus-level records, mostly unnamed ("a sedge," "white-flowered shrub"); species-level only where pinned or where a fauna dependency demands it.
 
-**Naming:** the Fauna RFC §7.1 stack unchanged — unnamed default, nickname micro-vocabulary, trait-keyed binomials, curation-only real names. English first, locale-tagged labels from day one.
+**Naming:** the Fauna RFC §9 stack unchanged — unnamed default, nickname micro-vocabulary, trait-keyed binomials, curation-only real names.
 
 **Pollinator coupling (one round):** the insect foundation (fauna build) publishes pollinator ranges; flora runs one adaptation round where `signal` axes (flower shape/color) and phenology can descend toward pollinator-matching. Written as a reserved channel, executed once.
 
@@ -123,10 +123,10 @@ Budget: **≤ 60 s total biosphere build on an old laptop** (the K11 worldgen en
 
 ## 10. Open questions
 
-1. Growth-form plan list: is {tree, shrub, herb, grass, succulent, vine, aquatic, epiphyte} the right eight? (Epiphyte and vine depend on canopy existing — second-round-only plans?)
+1. Growth-form plan list: terrestrial {tree, shrub, herb, grass, rosette/mat, succulent, vine, epiphyte, fern-grade, moss-grade, fungus(honorary)} + aquatic {benthic rosette, rhizome/hardscape, runner-meadow, floating-leaf, floater, macroalgae/holdfast} — vine/epiphyte are second-round-only plans (need canopy). Right cut?
 2. Jump-rate calibration per clade: what frequency makes island floras related-but-distinct rather than identical or unrelated?
 3. Shade-tolerance as one axis or two (seedling vs adult)?
-4. Margin calibration: what fraction of cells should hold trace species at steady state? (Targets the "rare find" observation density.)
+4. Margin + NDD calibration: target fraction of trace species per cell at steady state; target dominance curve per climate band (taiga duopoly vs temperate mixed canopy)?
 5. Fire return-interval coupling: does flora get a say in fire frequency (fuel axis feeding the A2 fire regime), or is fire purely exogenous?
 6. Ley-flora recursion cap (§6): exactly one round, or two?
 7. Carnivorous-plant clade: fauna-coupled (needs insect counters) or self-contained provision math?
