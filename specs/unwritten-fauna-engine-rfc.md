@@ -82,7 +82,7 @@ Committed at world build from committed geography (Flora RFC §2 + K11): trenche
 - **Pullback reminder:** `(source species id, site id, round, K1 draw)`; founder's trait vector is a sample of the source — the echo is inherited, not copied. Pick lift stock deliberately (cloud whale = cetacean stock; sky manta = ray stock).
 - **Interestingness-weighted:** neoteny (cute) and drift-distance (weird) raise lift probability; mundane biomass ≈ 0.
 - **Multiple rounds:** fresh lifts per round + re-lifting (cap 2–3; weaker echo per round). Fresh lifts start drift-dominated (founder bottleneck) automatically.
-- **No pinned magicals.** Curation stops at the ley boundary: every lifted lineage is emergent from stock × site × operators — never hand-authored, never pre-committed. Magic plans (aerial buoyant, soft-bodied pelagic) exist as *possibility space* lifting can reach, not as committed content. A hand-authored magical is a mascot, not a discovery. (Cloud whale / sky manta mentions in this document are illustrative, not pins.)
+- **No pinned magicals.** Curation stops at the ley boundary: every lifted lineage is emergent from stock × site × operators — small curated list of hand-authored, pre-committed. Magic plans (aerial buoyant, soft-bodied pelagic) exist as *possibility space* lifting can reach, not as committed content. A hand-authored magical is a mascot, not a discovery. (Cloud whale / sky manta mentions in this document are illustrative)
 
 ### 6.3 Operators on generics
 
@@ -112,6 +112,7 @@ N ≈ 2–5 operators per lift (wide draw 1–6), continuous parameters, compose
 ### 6.5 Variance engineering
 
 Discrete classes are vocabulary; freshness lives in variance of utterance:
+
 1. **Stock diversity protected** — per-species lift cooldowns per site, bumped vagrant fraction.
 2. **Themes bias, never lock** — signature ~50% / secondary ~30% / off-theme tail ~20%.
 3. **Sub-variant tables per lineage** — wings ∈ {feathered, membrane, insectoid, crystalline, light}; glow ∈ {steady, pulsing, rippling, reactive, constellation}.
