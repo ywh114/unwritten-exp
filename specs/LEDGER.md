@@ -41,7 +41,7 @@ conflict log (table 4).
 | `unwritten-fauna-engine-rfc.md` v0.3 | proposal | supersedes rfc-fauna-generator; feeds C6 | under review (with W2) |
 | `unwritten-flora-engine-rfc.md` v0.1 | proposal | companion to fauna RFC; lands first in build order | under review (with W2) |
 | `biosphere-vocabulary-proposal.md` v1.0 | proposal | content companion to fauna/flora RFCs; feeds C6 + naming | pending user decision (with W2) |
-| `biosphere-addendum-b1-morphometrics.md` v0.2 | proposal | amends biosphere-vocabulary-proposal; within-plan generation knobs + mutation-coupling bindings; feeds C6 / tree-of-life builder | pending user decision (with W2) |
+| `biosphere-addendum-b1-morphometrics.md` v0.3 | proposal | amends biosphere-vocabulary-proposal; within-plan generation knobs + sex/age/season modifiers + mutation-coupling bindings; feeds C6 / tree-of-life builder | pending user decision (with W2) |
 | `docs/spec-notes/2026-07-19-k2-drift-field-verdict.md` | write-back, final | amends engine spec §3.1 drift-field language | unfurled → fold queue (W1) |
 | `docs/spec-notes/2026-07-19-k3-demotion-policy.md` | write-back, final | amends engine spec §3.4 (demotion) | unfurled → fold queue (W1) |
 | `docs/spec-notes/2026-07-19-k5-predicate-vocabulary.md` | write-back, final | settles promise predicate vocabulary | unfurled → fold queue (W1); A1 §9.1/§12 and game-layer §5 EXTEND the vocabulary (see W1) |
@@ -71,7 +71,6 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | K10 | structure_registry: presets+params, content-addressed, promise-backable | A1 §4 (lab B1 candidate, not A2-numbered) | proposed — after C5 |
 | K11 | worldgen_l0: staged terrain pipeline (plates→hydrology→climate→biomes) + complex derivation + PNG renders | A1 §3, game-layer RFC §1 | **implemented** (`exp/k11_worldgen/`, not yet promoted; built by K3 2026-07-22 — PNG visual gate needs multimodality) |
 | K12 | naming_corpora: curated-corpus hash-seeded naming; **custom simple impl, NOT an Ara lift** | A1 §8, P5 | proposed — **deferred** (user 2026-07-21) |
-| K13 | treegen: world-blind tree-of-life backbone | fauna RFC §1/§5, B1, vocabulary proposal (W6) | v1 **archived** (`tmp/k13_treegen_v1_archive/` — structural-only validation let semantic errors through); **v2 rebuilding module-by-module** (M1 axis registry first): every module principled, documented interface, rigorous tests before the next. Variation is vary-by-default with a clade-steady blacklist (user ruling 2026-07-27) |
 | L1 | llm_client | lab spec §3 | **promoted** (`llm/llm_client/`) |
 | L2 | prefix_bench | lab spec §3 | **promoted** (`llm/prefix_bench/`) — §7.5 envelope confirmed |
 | C1 | eventfulness | lab spec §4 | **promoted** (`capability/eventfulness/`) |

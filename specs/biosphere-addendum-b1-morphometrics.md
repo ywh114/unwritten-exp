@@ -1,6 +1,6 @@
 # Biosphere Addendum B1 — Within-Plan Morphometrics (Generation Knobs)
 
-**Status:** v0.2 — 2026-07-27. Companion and amendment to the **Biosphere Vocabulary Proposal v1.0**; sits beside companion docs A (slots/parts) and the field-guide keying note. Nothing here contradicts v1.0; it fills the empty layer between **body plan** and **species**. v0.2 adds §13 (labile surface dials — ear posture, tail carriage, and ~28 more soft-tissue/secondary knobs) and §14 (curated mutation-coupling bindings).
+**Status:** v0.3 — 2026-07-27. Companion and amendment to the **Biosphere Vocabulary Proposal v1.0**; sits beside companion docs A (slots/parts) and the field-guide keying note. Nothing here contradicts v1.0; it fills the empty layer between **body plan** and **species**. v0.2 adds §13 (labile surface dials — ear posture, tail carriage, and ~28 more soft-tissue/secondary knobs) and §14 (curated mutation-coupling bindings). v0.3 adds the size convention (§1), worked contrast presets (§2 boar, §9 decapod grades), and §14 (sex, age, and season modifiers — dimorphism record, reproductive-mode enum, temporal-modifier tags); mutation-coupling bindings renumbered to §15.
 
 ## 1. Preamble
 
@@ -9,6 +9,8 @@
 **What knobs are for.** Generation, not identification puzzles. Primary consumers: **[draw]** (later parametric illustration), **[name]** (epithet fodder: *longicauda*, *macrocephala*), **[tell]** (gossip/narration texture), **[stress]** (niche stress function reads morphology), **[drift]** (evolutionary forces move knob values). **[id]** keys may consult knobs but are not the justification for most of them. **[pop]** consumes a few (trophic silhouette counters).
 
 **Deferral note.** The demo is text-based. **No geometry yet**: no spine paths, no joint coordinates, no mesh. Slots stay strings. Knobs are scalar proportions/ratios that feed words now and drawing later. Any knob whose only conceivable consumer is a renderer we don't have is kept only if [name]/[tell]/[stress] can already spend it.
+
+**Size convention.** Mass is the single size axis (§4.1 `body_mass`); every knob in this addendum is a **dimensionless ratio**. Linear dimensions are derived, never stored: `length ∝ mass^(1/3) × plan_factor`, where the plan factor absorbs body-form differences (a 10 kg eel vs a 10 kg puffer — that difference is what `length_diameter` / body-form class encode). Lint rule for the whole knob layer: a value is dimensionless or it is mass; a knob carrying absolute units is a bug.
 
 **Preset model.** Named morphs are **hand-authored presets in TOML** — curated types, parametric z (P4). The pipeline:
 
@@ -64,24 +66,24 @@ This addendum supplies (a) the knob vocabulary those presets are points in, and 
 
 **Worked-example presets (hand-authored anchors).** Ratios as fractions of HBL unless noted.
 
-| knob | squirrel | cat | weasel/otter | deer | bear | mole | rabbit | monkey |
-|---|---|---|---|---|---|---|---|---|
-| intermembral_index | 75 | 90 | 70 | 95 | 90 | 80 | 60 | 105 |
-| brachial_index | 85 | 95 | 75 | 110 | 85 | 65 | 85 | 100 |
-| crural_index | 95 | 100 | 85 | 120 | 90 | 70 | 105 | 90 |
-| metapodial_proximal_ratio | 0.45 | 0.55 | 0.35 | 0.80 | 0.40 | 0.25 | 0.50 | 0.45 |
-| olecranon_index | 30 | 25 | 35 | 22 | 38 | 55 | 28 | 28 |
-| limb_length_to_trunk | 0.7 | 0.9 | 0.5 | 1.3 | 0.8 | 0.4 | 0.9 | 1.0 |
-| trunk_elongation | 0.9 | 1.0 | 1.6 | 0.9 | 1.1 | 1.2 | 0.9 | 0.8 |
-| neck_length_ratio | 0.15 | 0.20 | 0.12 | 0.40 | 0.15 | 0.05 | 0.15 | 0.08 |
-| head_size_ratio | 0.25 | 0.28 | 0.25 | 0.30 | 0.30 | 0.30 | 0.28 | 0.30 |
-| snout_ratio | 0.40 | 0.30 | 0.35 | 0.52 | 0.45 | 0.50 | 0.35 | 0.25 |
-| ear_size_ratio | 0.06 | 0.08 | 0.04 | 0.12 | 0.05 | 0.01 | 0.20 | 0.05 |
-| tail_length_ratio | 0.90 | 0.60 | 0.40 | 0.12 | 0.08 | 0.10 | 0.06 | 0.90 |
-| stance_sprawl | 0.4 | 0.3 | 0.5 | 0.25 | 0.4 | 0.9 | 0.35 | 0.4 |
-| foot_posture | plantigrade | digitigrade | plantigrade | unguligrade | plantigrade | plantigrade | digitigrade | plantigrade |
+| knob | squirrel | boar | cat | weasel/otter | deer | bear | mole | rabbit | monkey |
+|---|---|---|---|---|---|---|---|---|---|
+| intermembral_index | 75 | 95 | 90 | 70 | 95 | 90 | 80 | 60 | 105 |
+| brachial_index | 85 | 95 | 95 | 75 | 110 | 85 | 65 | 85 | 100 |
+| crural_index | 95 | 115 | 100 | 85 | 120 | 90 | 70 | 105 | 90 |
+| metapodial_proximal_ratio | 0.45 | 0.60 | 0.55 | 0.35 | 0.80 | 0.40 | 0.25 | 0.50 | 0.45 |
+| olecranon_index | 30 | 38 | 25 | 35 | 22 | 38 | 55 | 28 | 28 |
+| limb_length_to_trunk | 0.7 | 1.1 | 0.9 | 0.5 | 1.3 | 0.8 | 0.4 | 0.9 | 1.0 |
+| trunk_elongation | 0.9 | 0.95 | 1.0 | 1.6 | 0.9 | 1.1 | 1.2 | 0.9 | 0.8 |
+| neck_length_ratio | 0.15 | 0.18 | 0.20 | 0.12 | 0.40 | 0.15 | 0.05 | 0.15 | 0.08 |
+| head_size_ratio | 0.25 | 0.35 | 0.28 | 0.25 | 0.30 | 0.30 | 0.30 | 0.28 | 0.30 |
+| snout_ratio | 0.40 | 0.55 | 0.30 | 0.35 | 0.52 | 0.45 | 0.50 | 0.35 | 0.25 |
+| ear_size_ratio | 0.06 | 0.09 | 0.08 | 0.04 | 0.12 | 0.05 | 0.01 | 0.20 | 0.05 |
+| tail_length_ratio | 0.90 | 0.18 | 0.60 | 0.40 | 0.12 | 0.08 | 0.10 | 0.06 | 0.90 |
+| stance_sprawl | 0.4 | 0.35 | 0.3 | 0.5 | 0.25 | 0.4 | 0.9 | 0.35 | 0.4 |
+| foot_posture | plantigrade | unguligrade | digitigrade | plantigrade | unguligrade | plantigrade | plantigrade | digitigrade | plantigrade |
 
-Values are author-set anchors inside the published ranges above, not measurements; tune at authoring time.
+Values are author-set anchors inside the published ranges above, not measurements; tune at authoring time. The boar column is the worked contrast: same 16 knobs, ungulate quadrant (Mt:F toward the ungulate band, unguligrade, deep trunk, head_size 0.35) versus the squirrel's scansorial one (IMI 75, tail 0.9). §13.1 dials finish the read: boar = `toe_count 4 (dewclaws), ear_posture erect, tail_carriage curled, vibrissae 0.8, mane_ruff dorsal ridge, skin_wrinkle 0.6`; squirrel = `tail_flag none, claws fixed-curved`.
 
 ---
 
@@ -337,6 +339,20 @@ Bird set: 17 knobs (15 scalars + 2 enums). Bat: 16.
 
 Anchors: crab W:L 1.4, folded abdomen, no rostrum; lobster 0.4, extended, heavy symmetric chelae; shrimp 0.3, extended, rostrum 0.5; fiddler crab 1.3, asymmetry extreme.
 
+**Worked grade contrast — lobster / shrimp / round crab (+ squat lobster).** Crab-form is a convergent grade, not a clade (carcinization, ≥5 independent origins), so it must be reachable by drifting knob values — widen carapace, tuck abdomen, lose rostrum:
+
+| knob | lobster | shrimp | round crab | squat lobster |
+|---|---|---|---|---|
+| carapace_WL | 0.4 | 0.3 | 1.4 | 0.8 |
+| carapace_dome | 0.5 (cylindrical) | 0.3 (laterally compressed) | 0.7 (domed vault) | 0.5 |
+| abdomen_state | extended, muscular | extended, muscular | folded | folded |
+| rostrum_ratio | 0.2 | 0.5 (serrated) | ~0 | 0.3 |
+| cheliped_ratio | heavy, symmetric | small, thin | large, symmetric | moderate |
+| cheliped_asymmetry | 1.0 | 1.0 | 1.0 | 1.0 |
+| leg_specialization | walking | walking | walking (paddles → swimming grade) | walking |
+
+The squat lobster column is the intermediate point proving the enum's worth: folded abdomen like a crab, narrow carapace and retained rostrum like a lobster — "king crab vs true crab" separates on `abdomen_state` + `carapace_WL` with no new vocabulary.
+
 ---
 
 ## 10. Myriapod
@@ -392,7 +408,7 @@ play); none are clade-steady. Established classifications are adopted where they
 
 | knob | states/range | notes | consumers |
 |---|---|---|---|
-| ear_posture | erect / semi-erect / folded / pendant | wild bunny erect, domestic lop pendant; dog-breed spectrum. Domestication coupling (§14) pulls this | [draw][tell][name][drift] |
+| ear_posture | erect / semi-erect / folded / pendant | wild bunny erect, domestic lop pendant; dog-breed spectrum. Domestication coupling (§15) pulls this | [draw][tell][name][drift] |
 | tail_carriage | low / level / raised / curled / sickle | husky sickle, pig curl, tucked; domestication coupling pulls this | [draw][tell][name] |
 | foot_webbing_grade | none / partial / full | otter vs weasel; reads "aquatic" instantly | [draw][stress][tell][name] |
 | toe_count | int 1–5 per foot | rhino 3 vs tapir 4; horse 1 vs deer 2 | [draw][id][name] |
@@ -474,7 +490,65 @@ Cross-plan reuse note: webbing, dewlap flesh, casque, dorsal crest, and pupil sh
 share one schema across plans with plan-appropriate ranges — ~30 unique channels
 cover all of §13.
 
-## 14. Mutation-coupling bindings (curated rules)
+## 14. Sex, age, and season (modifiers)
+
+Stated as biological rules and record shapes, not wiring. Three orthogonal facts about
+an individual — its sex system, its age, and the season — modify what the knobs
+*express*. The unifying model: **every labile dial may carry at most one temporal
+modifier** (`juvenile-only` / `seasonal` / `age-ramped` / `breeding-male`), and sex
+linkage is a separate, orthogonal flag. A dial needing two temporal behaviors is two
+dials (antler *size* ramps with age; antler *presence* toggles seasonally — that split
+is literally correct biology). "Male, adult, breeding season" is the fully-specified
+read of a dial.
+
+### 14.1 Reproductive mode (amends proposal §3.8)
+
+Proposal §3.8's `mating_system` assumes gonochoric throughout. Add enum
+`reproductive_mode` on the reproduction generic:
+
+| state | real anchor | notes |
+|---|---|---|
+| gonochoric | vertebrate default | separate sexes |
+| simultaneous hermaphrodite | gastropods, earthworms, **most plants (flora default)** | no dimorphism record |
+| sequential — protandrous | clownfish | male → female with size/age |
+| sequential — protogynous | wrasses, parrotfish | female → male; "the big one is always male" ([tell] gold; size-advantage model is the real rule) |
+| parthenogenetic | whiptail lizards, aphids | aphid cyclic switching as a footnote state |
+
+Interlocks: non-gonochoric states **zero out the dimorphism record** (§14.2);
+sequential modes make `body_mass` a sex-determinant — one rule connecting two axes.
+For flora, hermaphrodite is the default and **dioecy is the marked exception** (holly,
+willow, kiwi) — player-visible: "this holly never fruits — it's male."
+
+### 14.2 Sexual dimorphism record
+
+Per-species block (gonochoric species only):
+
+| field | range | real basis | consumers |
+|---|---|---|---|
+| size_dimorphism_ratio + direction | ~1 (most birds) – 3–10 (elephant seal, orangutan); inverted in raptors, hyenas, spiders; extreme: anglerfish | **Rensch's rule (adopted)**: dimorphism ↑ with body size in male-larger clades, ↓ in female-larger | [pop][draw][tell][id] |
+| dichromatism | scalar 0–1 | plumage/coat divergence (mallard, peafowl; eclectus inverted) | [draw][tell][id] |
+| weapon/ornament sex-linkage | flag on existing dials (horn_mandible_exaggeration, eye_stalks, mane_ruff_extent, tail ornaments…) | weapons usually male | [draw][tell][id] |
+
+[pop] note: herd counters are female-dominated; field-guide keys citing "male antlers"
+presuppose this record exists.
+
+### 14.3 Age and season (temporal modifiers on dials)
+
+Age is the third temporal axis, beside stage_forms (discrete metamorphosis, proposal
+§3.8, cap 1–2) and breeding_male_flags (seasonal toggles, §13.4). Its real signatures:
+
+1. **Juvenile pattern distinctness** (`juvenile-only`): spotted fawns, lion cub spots,
+   juvenile eagle plumage (bald eagle needs ~5 years for the white head — birders age
+   birds by plumage stage). Model: bool + brief juvenile pattern descriptor +
+   `maturity_age` scalar. Classic field-guide puzzle: "a juvenile, not a new species."
+2. **Age-ramped dials** (`age-ramped`): antler size, horn length, lion mane darkness
+   (tracks age/testosterone), gorilla silvering (silverback is an **age grade**, not a
+   subspecies). Value = ramp toward the adult preset point; any labile dial may carry
+   the flag.
+3. **Shed cycles** (`seasonal`, *not* age): antler shed/regrow — same mechanism class
+   as breeding_male_flags. Kept separate so season and age never conflate in one tag.
+
+## 15. Mutation-coupling bindings (curated rules)
 
 Stated as biological rules, not wiring. Each entry: directional coupling, documented
 scope, strength rating. SEMI-UNIVERSAL = documented across many independent clades;
@@ -502,7 +576,7 @@ Beyond the curated table: a few **weak couplings between arbitrary axis pairs** 
 lineage give each clade idiosyncratic texture (flavor only; the curated rules are the
 ones worth learning — they're real natural history).
 
-## 15. Knob count per plan (summary)
+## 16. Knob count per plan (summary)
 
 | plan | scalars | enums | total |
 |---|---|---|---|
@@ -529,7 +603,7 @@ to accumulate, because biology is high-dimensional and their rent is cheap — o
 
 ---
 
-## 16. Authoring schema (TOML, per proposal §11)
+## 17. Authoring schema (TOML, per proposal §11)
 
 ```toml
 # presets/tetrapod/squirrel.toml — one preset record
@@ -573,7 +647,7 @@ stress = "scansorial niche reads IMI + foot_posture"
 
 ---
 
-## 17. Provenance
+## 18. Provenance
 
 Four research domains fed this addendum:
 
@@ -584,6 +658,6 @@ Four research domains fed this addendum:
 | C. Fish | body-form classes, measurement conventions, swimming modes | Lindsey, "Form, function, and locomotory habits in fish," in *Fish Physiology* 7 (1978); Sfakiotakis, Lane & Davies, "Review of fish swimming modes for aquatic locomotion," *IEEE J. Oceanic Eng.* 24 (1999) — https://doi.org/10.1109/48.757275 |
 | D. Invertebrates | Raup shell model, ammonoid morphospace, arthropod ratios, cephalopod ML indices | Raup, "Geometric analysis of shell coiling: general problems," *J. Paleontol.* 40 (1966) — https://www.jstor.org/stable/1301764; Raup, "Geometric analysis of shell coiling: coiling in ammonoids," *J. Paleontol.* 41 (1967) — https://www.jstor.org/stable/1301975 |
 | E. Surface-dial gap sweeps (§13) | vertebrate soft-tissue/posture dials; fish/invertebrate secondary dials | textbook-level traits (Proctor & Lynch, *Manual of Ornithology*, toe/webbing classifications; Wikipedia anatomical terminology; treehopper pronotum landmarks per Sugiura et al. 2025, *Eur. J. Entomol.*) |
-| F. Mutation-coupling research (§14) | tradeoff/pleiotropy literature | Wilkins, Wrangham & Fitch, "The domestication syndrome in mammals," *Genetics* 197 (2014); Smith & Fretwell, "The optimal balance between size and number of offspring," *Am. Nat.* 108 (1974); Ducrest, Keller & Roulin, "Pleiotropy in the melanocortin system," *TREE* 23 (2008); McCue, "Cost of producing venom in three North American pitviper species," *Copeia* (2006) |
+| F. Mutation-coupling research (§15) | tradeoff/pleiotropy literature | Wilkins, Wrangham & Fitch, "The domestication syndrome in mammals," *Genetics* 197 (2014); Smith & Fretwell, "The optimal balance between size and number of offspring," *Am. Nat.* 108 (1974); Ducrest, Keller & Roulin, "Pleiotropy in the melanocortin system," *TREE* 23 (2008); McCue, "Cost of producing venom in three North American pitviper species," *Copeia* (2006) |
 
 **Gold flag.** Raup (1966) W/D/T/S is adopted verbatim as the shell vocabulary. If a future knob duplicates a Raup parameter, the Raup parameter wins and the knob is deleted.
