@@ -71,6 +71,7 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | K10 | structure_registry: presets+params, content-addressed, promise-backable | A1 §4 (lab B1 candidate, not A2-numbered) | proposed — after C5 |
 | K11 | worldgen_l0: staged terrain pipeline (plates→hydrology→climate→biomes) + complex derivation + PNG renders | A1 §3, game-layer RFC §1 | **implemented** (`exp/k11_worldgen/`, not yet promoted; built by K3 2026-07-22 — PNG visual gate needs multimodality) |
 | K12 | naming_corpora: curated-corpus hash-seeded naming; **custom simple impl, NOT an Ara lift** | A1 §8, P5 | proposed — **deferred** (user 2026-07-21) |
+| K13 | treegen: world-blind tree-of-life backbone | fauna RFC §1/§5, B1, vocabulary proposal (W6) | v1 **archived** (`tmp/k13_treegen_v1_archive/` — structural-only validation let semantic errors through); **v2 rebuilding module-by-module** (M1 axis registry first): every module principled, documented interface, rigorous tests before the next. Variation is vary-by-default with a clade-steady blacklist (user ruling 2026-07-27) |
 | L1 | llm_client | lab spec §3 | **promoted** (`llm/llm_client/`) |
 | L2 | prefix_bench | lab spec §3 | **promoted** (`llm/prefix_bench/`) — §7.5 envelope confirmed |
 | C1 | eventfulness | lab spec §4 | **promoted** (`capability/eventfulness/`) |
