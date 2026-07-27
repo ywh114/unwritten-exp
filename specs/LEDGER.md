@@ -38,6 +38,10 @@ conflict log (table 4).
 | `unwritten-addendum-a2-topology-items-ecology.md` (A2) v0.1 | normative-draft | amends engine spec + A1 (§11/§13 queues); open questions §12 | adopted 2026-07-20 |
 | `rfc-fauna-generator.md` v0.1 | proposal | feeds experiment C6; refines A2 §4 | under review |
 | `rfc-game-layer.md` v0.1 | proposal | feeds future Addendum A3; answers A1 §18 q6 partially | under review |
+| `unwritten-fauna-engine-rfc.md` v0.3 | proposal | supersedes rfc-fauna-generator; feeds C6 | under review (with W2) |
+| `unwritten-flora-engine-rfc.md` v0.1 | proposal | companion to fauna RFC; lands first in build order | under review (with W2) |
+| `biosphere-vocabulary-proposal.md` v1.0 | proposal | content companion to fauna/flora RFCs; feeds C6 + naming | pending user decision (with W2) |
+| `biosphere-addendum-b1-morphometrics.md` v0.2 | proposal | amends biosphere-vocabulary-proposal; within-plan generation knobs + mutation-coupling bindings; feeds C6 / tree-of-life builder | pending user decision (with W2) |
 | `docs/spec-notes/2026-07-19-k2-drift-field-verdict.md` | write-back, final | amends engine spec §3.1 drift-field language | unfurled → fold queue (W1) |
 | `docs/spec-notes/2026-07-19-k3-demotion-policy.md` | write-back, final | amends engine spec §3.4 (demotion) | unfurled → fold queue (W1) |
 | `docs/spec-notes/2026-07-19-k5-predicate-vocabulary.md` | write-back, final | settles promise predicate vocabulary | unfurled → fold queue (W1); A1 §9.1/§12 and game-layer §5 EXTEND the vocabulary (see W1) |
@@ -86,6 +90,7 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | W3 | adopt/reject rfc-game-layer (feeds A3) | rfc | pending user decision |
 | W4 | commit specs/ move | repo | **done** (commit 03afc0b) |
 | W5 | C2 backfill stress tests: harder prompts (larger k, more dead NPCs, contradictory counter anchors) — make the validator fail live | user 2026-07-20 | pending |
+| W6 | adopt/reject biosphere-vocabulary-proposal + biosphere-addendum-b1 (folds with W2; also unblocks the tree-of-life builder first step) | specs/ | pending user decision |
 
 ### Consistency review 2026-07-21 (specs vs. implemented libraries)
 
