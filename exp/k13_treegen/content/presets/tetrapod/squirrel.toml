@@ -1,0 +1,96 @@
+# Tetrapod preset: squirrel
+# B1 §2 worked example — scansorial rodent
+
+[preset]
+id = "tetrapod.squirrel"
+plan = "tetrapod"
+grade = "squirrel"
+status = "hand-authored"
+source = "addendum-B1 §2 table"
+
+[knobs]
+# Core B1 §2
+intermembral_index = 75
+brachial_index = 85
+crural_index = 95
+metapodial_proximal_ratio = 0.45
+olecranon_index = 30
+limb_length_to_trunk = 0.7
+trunk_elongation = 0.9
+trunk_depth_ratio = 0.6
+neck_length_ratio = 0.15
+head_size_ratio = 0.25
+snout_ratio = 0.40
+ear_size_ratio = 0.06
+tail_length_ratio = 0.90
+tail_taper = 0.5
+stance_sprawl = 0.4
+foot_posture = "plantigrade"
+
+# Labile dials
+ear_posture = "erect"
+tail_carriage = "raised"
+foot_webbing_grade = "none"
+toe_count = 4
+claw_retractability = "semi"
+vibrissae_prominence = 0.3
+mane_ruff_extent = 0.0
+dewlap_jowl_flesh = 0.0
+skin_wrinkle_looseness = 0.0
+fat_depot = "none"
+horn_cover_texture = "N/A"
+pupil_shape = "round"
+stance_profile = 0.5
+tail_flag_rump_patch = "tuft"
+proboscis_grade = 0.0
+
+# Herp dials
+throat_fan_dewlap = "none"
+dorsal_crest_spines = "none"
+vocal_sac = "none"
+parotoid_glands = 0.0
+neck_frill = 0.0
+skin_texture = "N/A"
+
+[axes]
+body_mass = 0.5
+diet_spectrum = { granivore = 1.0 }
+activity_period = "diurnal"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "canopy"
+seasonality_mode = "resident"
+fecundity = 10.0
+lifespan_yr = 3.0
+trophic_level = 2.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.0
+
+
+# patternation (M3)
+base_color = "rufous"
+belly_color = "cream"
+accent_color = "white"
+pattern_motif = "countershaded"
+pattern_coverage = 0.8
+pattern_contrast = 0.4
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 15
+temp_breadth_c = 0.45
+moisture_opt = 0.6
+moisture_breadth = 0.35
+
+[generics]
+locomotor = "scansorial_climbing"
+feeding_organ = "ever_growing_incisors_1pair"
+covering = "fur"
+respiration = "lungs"
+reproduction = "viviparous"
+sensor_array = "camera_eye_lateral"
+sustenance = "hindgut_cecum"
+defense = "escape_arboreal"
+support = "endoskeleton"
+storage = "caching_scatter_hoard"

@@ -1,0 +1,81 @@
+# Winged Biped preset: duck
+# B1 §3 worked example — anatid
+
+[preset]
+id = "winged_biped.duck"
+plan = "winged_biped"
+grade = "duck"
+status = "hand-authored"
+source = "addendum-B1 §3 table"
+
+[knobs]
+aspect_ratio = 7.5
+wing_loading = 11.0
+hand_wing_index = 35
+hand_wing_fraction = 0.55
+slot_count = 0
+slot_depth = 0.0
+neck_fraction = 0.30
+head_fraction = 0.22
+tarsus_fraction = 0.12
+leg_setback = "rear"
+winged_tail_length_ratio = 0.2
+tail_shape = "pointed"
+fork_depth = 0.0
+beak_length_ratio = 0.8
+beak_depth_ratio = 0.3
+beak_hook = 0.0
+beak_width = 0.7
+flight_style = "sustained_flapping"
+toe_arrangement = "anisodactyl"
+winged_foot_webbing_grade = "palmate"
+crest = "none"
+comb_type = "none"
+wattle_snood = 0.0
+cere_bareface = 0.0
+leg_feathering = "bare"
+tarsal_spur = "none"
+throat_pouch = "none"
+head_casque = "none"
+facial_disc = "none"
+
+[axes]
+body_mass = 1.0
+diet_spectrum = { filter_feeder = 0.4, granivore = 0.3, insectivore = 0.3 }
+activity_period = "diurnal"
+social_system = "flock"
+group_size = 20.0
+vertical_stratum = "pelagic"
+seasonality_mode = "migrant_latitudinal"
+fecundity = 10.0
+lifespan_yr = 10.0
+trophic_level = 2.5
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.8
+
+
+# patternation (M3)
+base_color = "dark_brown"
+belly_color = "tan"
+accent_color = "iridescent"
+pattern_motif = "mottled"
+pattern_coverage = 0.7
+pattern_contrast = 0.5
+pattern_juvenile = "none"
+seasonal_molt = "eclipse"
+[niche]
+temp_opt_c = 12
+temp_breadth_c = 0.55
+moisture_opt = 0.9
+moisture_breadth = 0.3
+
+[generics]
+locomotor = "feathered_wing"
+feeding_organ = "beak_lamellate_filter"
+covering = "feathers"
+respiration = "lungs_air_sacs"
+reproduction = "oviparous"
+sensor_array = "camera_eye_lateral"
+sustenance = "crop_gizzard"
+support = "endoskeleton_pneumatic"

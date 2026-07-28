@@ -1,0 +1,82 @@
+# Winged Biped preset: sparrow
+# B1 §3 worked example — passerine
+
+[preset]
+id = "winged_biped.sparrow"
+plan = "winged_biped"
+grade = "sparrow"
+status = "hand-authored"
+source = "addendum-B1 §3 table"
+
+[knobs]
+aspect_ratio = 5.0
+wing_loading = 2.5
+hand_wing_index = 20
+hand_wing_fraction = 0.45
+slot_count = 0
+slot_depth = 0.0
+neck_fraction = 0.25
+head_fraction = 0.25
+tarsus_fraction = 0.13
+leg_setback = "central"
+winged_tail_length_ratio = 0.4
+tail_shape = "rounded"
+fork_depth = 0.0
+beak_length_ratio = 0.4
+beak_depth_ratio = 0.7
+beak_hook = 0.0
+beak_width = 0.3
+flight_style = "bounding"
+toe_arrangement = "anisodactyl"
+winged_foot_webbing_grade = "none"
+crest = "none"
+comb_type = "none"
+wattle_snood = 0.0
+cere_bareface = 0.0
+leg_feathering = "bare"
+tarsal_spur = "none"
+throat_pouch = "none"
+head_casque = "none"
+facial_disc = "none"
+
+[axes]
+body_mass = 0.025
+diet_spectrum = { granivore = 1.0 }
+activity_period = "diurnal"
+social_system = "flock"
+group_size = 30.0
+vertical_stratum = "aerial"
+seasonality_mode = "resident"
+fecundity = 6.0
+lifespan_yr = 3.0
+trophic_level = 2.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.2
+
+
+# patternation (M3)
+base_color = "dark_brown"
+belly_color = "tan"
+accent_color = "gray"
+pattern_motif = "mottled"
+pattern_coverage = 0.6
+pattern_contrast = 0.3
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 18
+temp_breadth_c = 0.5
+moisture_opt = 0.5
+moisture_breadth = 0.45
+
+[generics]
+locomotor = "feathered_wing"
+feeding_organ = "beak_conical_seed"
+covering = "feathers"
+respiration = "lungs_air_sacs"
+reproduction = "oviparous"
+sensor_array = "camera_eye_lateral"
+sustenance = "crop_gizzard"
+defense = "escape_flight"
+support = "endoskeleton_pneumatic"

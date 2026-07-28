@@ -1,0 +1,69 @@
+# Hexapod preset: dragonfly
+# B1 §5 table — odonate
+
+[preset]
+id = "hexapod.dragonfly"
+plan = "hexapod"
+grade = "dragonfly"
+status = "hand-authored"
+source = "addendum-B1 §5 table"
+
+[knobs]
+# Core B1 §5
+insect_head_fraction = 0.15
+thorax_fraction = 0.30
+abdomen_fraction = 0.55
+antenna_length = 0.05
+antenna_form = "filiform"
+hindleg_ratio = 1.0
+wing_span_ratio = 3.5
+wing_count = "4"
+waist_constriction = 0.9
+abdomen_taper = 0.4
+
+# Labile dials
+horn_mandible_exaggeration = 0.0
+cerci_type = "none"
+pronotum_extension = "none"
+eye_stalks = 0.0
+swimming_leg_fringe = 0.0
+elytra_sculpture = "smooth"
+
+[axes]
+body_mass = 0.001
+diet_spectrum = { carnivore = 1.0 }
+activity_period = "diurnal"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "aerial"
+seasonality_mode = "migrant_latitudinal"
+fecundity = 200.0
+lifespan_yr = 1.0
+trophic_level = 3.5
+stage_forms = 2
+reproductive_mode = "gonochoric"
+dichromatism = 0.3
+
+
+# patternation (M3)
+base_color = "iridescent"
+belly_color = "iridescent"
+accent_color = "black"
+pattern_motif = "uniform"
+pattern_coverage = 1.0
+pattern_contrast = 0.6
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 20
+temp_breadth_c = 0.5
+moisture_opt = 0.7
+moisture_breadth = 0.3
+
+[generics]
+locomotor = "insectoid_wing_membranous"
+feeding_organ = "mandibulate_predatory"
+covering = "chitin_cuticle"
+respiration = "tracheae_spiracles"
+reproduction = "hemimetabolous"
+sensor_array = "compound_eye_large"

@@ -1,0 +1,37 @@
+# allometry.toml — ratio-sanity constants (vocabulary proposal §5).
+# Authored data for C6 counter validation and the M11 trophic audit. Numbers
+# are published values (Damuth, Lindeman, Kleiber, home-range allometry).
+
+[energy]
+# Lindeman trophic transfer efficiency; food chains rarely exceed 4-5 levels.
+transfer_efficiency = 0.10
+max_trophic_chain = 5
+
+[density]
+# Damuth: herbivore density ~ M^-0.75. carnivore biomass is 1-10% of prey.
+herbivore_density_exponent = -0.75
+carnivore_biomass_fraction_lo = 0.01
+carnivore_biomass_fraction_hi = 0.10
+
+[metabolism]
+# Kleiber: basal metabolic rate ~ M^0.75.
+bmr_exponent = 0.75
+
+[home_range]
+# Home range ~ M^~1 (terrestrial; >1 for carnivores, <1 for herbivores).
+exponent_herbivore = 0.8
+exponent_carnivore = 1.2
+
+[reference_densities]
+# Grounding numbers for sanity checks (per km^2).
+mouse_per_km2 = [1000, 10000]      # 10-100 /ha
+deer_per_km2 = [1, 10]
+wolf_per_km2 = [0.0033, 0.01]      # ~1 per 100-300 km^2
+
+[life_history]
+# Generation-time allometry (M5 clock): gen_time_yr = coeff × mass_kg^exp.
+# The ~M^0.25 scaling is the standard generation-time allometry; coeff 1.0
+# grounds it: ~0.4 yr at 0.1 kg (mouse), ~3 yr at 100 kg (deer),
+# ~18 yr at 100 t (whale-grade).
+generation_time_coeff = 1.0
+generation_time_exponent = 0.25

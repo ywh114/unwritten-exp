@@ -1,0 +1,101 @@
+# Tetrapod preset: reptile
+# NEW — crocodile-grade per design doc. B1 §13.3 herp dials active.
+# sprawling, long trunk, semi-aquatic, plantigrade, osteoderm-ish.
+
+[preset]
+id = "tetrapod.reptile"
+plan = "tetrapod"
+grade = "reptile"
+status = "hand-authored"
+source = "addendum-B1 §2 + §13.3 (new, crocodile-grade)"
+# grade-specific pigment reach beyond the plan palette: the full herp
+# gamut — xanthophores/erythrophores (red/orange/yellow), iridophores
+# (structural blue, iridescent), and green (yellow pigment over blue
+# structural). Mammal grades stay melanin-only.
+palette_extra = ["red", "orange", "yellow", "blue", "green", "iridescent"]
+
+[knobs]
+# Core B1 §2 — crocodile-grade: sprawling, elongated trunk, heavy tail
+intermembral_index = 70
+brachial_index = 75
+crural_index = 80
+metapodial_proximal_ratio = 0.22
+olecranon_index = 30
+limb_length_to_trunk = 0.45
+trunk_elongation = 1.8
+trunk_depth_ratio = 0.55
+neck_length_ratio = 0.18
+head_size_ratio = 0.35
+snout_ratio = 0.55
+ear_size_ratio = 0.01
+tail_length_ratio = 1.0
+tail_taper = 0.7
+stance_sprawl = 1.0
+foot_posture = "plantigrade"
+
+# Labile dials — crocodile surface
+ear_posture = "folded"
+tail_carriage = "level"
+foot_webbing_grade = "full"
+toe_count = 4
+claw_retractability = "fixed"
+vibrissae_prominence = 0.0
+mane_ruff_extent = 0.0
+dewlap_jowl_flesh = 0.1
+skin_wrinkle_looseness = 0.7
+fat_depot = "none"
+horn_cover_texture = "N/A"
+pupil_shape = "vertical_slit"
+stance_profile = 0.2
+tail_flag_rump_patch = "none"
+proboscis_grade = 0.0
+
+# Herp dials — active for reptile
+throat_fan_dewlap = "none"
+dorsal_crest_spines = "dorsal_crest"
+vocal_sac = "none"
+parotoid_glands = 0.0
+neck_frill = 0.0
+skin_texture = "keeled"
+
+[axes]
+body_mass = 400.0
+diet_spectrum = { carnivore = 1.0 }
+activity_period = "cathemeral"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "demersal"
+seasonality_mode = "resident"
+fecundity = 30.0
+lifespan_yr = 70.0
+trophic_level = 4.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.1
+
+
+# patternation (M3)
+base_color = "dark_green"
+belly_color = "cream"
+accent_color = "black"
+pattern_motif = "mottled"
+pattern_coverage = 0.9
+pattern_contrast = 0.5
+pattern_juvenile = "striped"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 28
+temp_breadth_c = 0.35
+moisture_opt = 0.9
+moisture_breadth = 0.2
+
+[generics]
+locomotor = "sprawling"
+feeding_organ = "carnivore_dentition"
+covering = "osteoderm_armor"
+respiration = "lungs"
+reproduction = "oviparous"
+sensor_array = "camera_eye_lateral"
+sustenance = "simple_gut"
+defense = "armor_osteoderm"
+support = "endoskeleton"

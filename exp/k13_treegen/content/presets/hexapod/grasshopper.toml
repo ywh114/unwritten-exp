@@ -1,0 +1,71 @@
+# Hexapod preset: grasshopper
+# B1 §5 table — orthopteran
+
+[preset]
+id = "hexapod.grasshopper"
+plan = "hexapod"
+grade = "grasshopper"
+status = "hand-authored"
+source = "addendum-B1 §5 table"
+
+[knobs]
+# Core B1 §5
+insect_head_fraction = 0.15
+thorax_fraction = 0.30
+abdomen_fraction = 0.55
+antenna_length = 0.8
+antenna_form = "filiform"
+hindleg_ratio = 1.3
+wing_span_ratio = 2.5
+wing_count = "4"
+waist_constriction = 0.9
+abdomen_taper = 0.6
+
+# Labile dials
+horn_mandible_exaggeration = 0.0
+cerci_type = "filaments"
+pronotum_extension = "none"
+eye_stalks = 0.0
+swimming_leg_fringe = 0.0
+elytra_sculpture = "smooth"
+
+[axes]
+body_mass = 0.002
+diet_spectrum = { folivore = 1.0 }
+activity_period = "diurnal"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "ground"
+seasonality_mode = "resident"
+fecundity = 50.0
+lifespan_yr = 0.5
+trophic_level = 2.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.2
+
+
+# patternation (M3)
+base_color = "green"
+belly_color = "tan"
+accent_color = "dark_brown"
+pattern_motif = "mottled"
+pattern_coverage = 0.6
+pattern_contrast = 0.4
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 20
+temp_breadth_c = 0.6
+moisture_opt = 0.4
+moisture_breadth = 0.5
+
+[generics]
+locomotor = "insectoid_wing_jumping"
+feeding_organ = "mandibulate_herbivore"
+covering = "chitin_cuticle"
+respiration = "tracheae_spiracles"
+reproduction = "hemimetabolous"
+sensor_array = "compound_eye_antennae"
+defense = "escape_jump"
+signal = "stridulation"

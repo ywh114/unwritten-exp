@@ -1,0 +1,100 @@
+# M3 — patternation axes (color & pattern, v2 core).
+# Palette + base motif + modifiers. NO region-anchored markings (deferred
+# with parts/slots — see docs/m3-patternation.md). dichromatism lives in
+# axes_core.toml (sex_age_season). Per-clade legal colors in palettes.toml.
+
+[axis.base_color]
+block = "patternation"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["black", "dark_brown", "gray", "rufous", "tan", "cream", "white",
+          "red", "orange", "yellow", "blue", "green", "dark_green",
+          "iridescent"]
+plan_scope = "all"
+consumers = ["draw", "id", "name", "tell"]
+salience = 0.8
+grammar_role = "covering"
+
+[axis.belly_color]
+block = "patternation"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["black", "dark_brown", "gray", "rufous", "tan", "cream", "white",
+          "red", "orange", "yellow", "blue", "green", "dark_green",
+          "iridescent"]
+plan_scope = "all"
+consumers = ["draw", "id", "tell"]
+salience = 0.4
+
+[axis.accent_color]
+adapt_weight = 0.2
+block = "patternation"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["black", "dark_brown", "gray", "rufous", "tan", "cream", "white",
+          "red", "orange", "yellow", "blue", "green", "dark_green",
+          "iridescent"]
+plan_scope = "all"
+consumers = ["draw", "id", "name", "tell"]
+salience = 0.6
+
+[axis.pattern_motif]
+block = "patternation"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["uniform", "countershaded", "spotted", "striped", "banded",
+          "rosette", "mottled", "saddled"]
+plan_scope = "all"
+consumers = ["draw", "id", "name", "tell"]
+salience = 0.7
+grammar_role = "covering"
+
+[axis.pattern_coverage]
+block = "patternation"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["draw", "id"]
+salience = 0.5
+
+[axis.pattern_contrast]
+block = "patternation"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["draw", "id"]
+salience = 0.5
+
+# juvenile pattern overlay, removed at first molt (fawn spots, piglet
+# stripes, tapir calf). B1 §14 juvenile-only temporal modifier's home.
+[axis.pattern_juvenile]
+block = "patternation"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "spotted", "striped", "natal_coat"]
+plan_scope = "all"
+consumers = ["draw", "id", "tell"]
+salience = 0.4
+
+# seasonal molt swap (ptarmigan/ermine white, duck eclipse, breeding
+# alternate). Swap with pinned regions; B1 §14 seasonal modifier.
+[axis.seasonal_molt]
+block = "patternation"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "winter_white", "breeding_alternate", "eclipse"]
+plan_scope = "all"
+consumers = ["draw", "id", "tell"]
+salience = 0.4

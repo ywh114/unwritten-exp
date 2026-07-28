@@ -1,0 +1,95 @@
+# Tetrapod preset: bear
+# B1 §2 worked example — ursid
+
+[preset]
+id = "tetrapod.bear"
+plan = "tetrapod"
+grade = "bear"
+status = "hand-authored"
+source = "addendum-B1 §2 table"
+
+[knobs]
+# Core B1 §2
+intermembral_index = 90
+brachial_index = 85
+crural_index = 90
+metapodial_proximal_ratio = 0.40
+olecranon_index = 38
+limb_length_to_trunk = 0.8
+trunk_elongation = 1.1
+trunk_depth_ratio = 0.65
+neck_length_ratio = 0.15
+head_size_ratio = 0.30
+snout_ratio = 0.45
+ear_size_ratio = 0.05
+tail_length_ratio = 0.08
+tail_taper = 0.3
+stance_sprawl = 0.4
+foot_posture = "plantigrade"
+
+# Labile dials
+ear_posture = "erect"
+tail_carriage = "low"
+foot_webbing_grade = "none"
+toe_count = 5
+claw_retractability = "fixed"
+vibrissae_prominence = 0.2
+mane_ruff_extent = 0.0
+dewlap_jowl_flesh = 0.0
+skin_wrinkle_looseness = 0.0
+fat_depot = "none"
+horn_cover_texture = "N/A"
+pupil_shape = "round"
+stance_profile = 0.5
+tail_flag_rump_patch = "none"
+proboscis_grade = 0.0
+
+# Herp dials
+throat_fan_dewlap = "none"
+dorsal_crest_spines = "none"
+vocal_sac = "none"
+parotoid_glands = 0.0
+neck_frill = 0.0
+skin_texture = "N/A"
+
+[axes]
+body_mass = 200.0
+diet_spectrum = { grazer = 0.3, frugivore = 0.4, carnivore = 0.3 }
+activity_period = "cathemeral"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "ground"
+seasonality_mode = "hibernator"
+fecundity = 2.0
+lifespan_yr = 25.0
+trophic_level = 3.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.0
+
+
+# patternation (M3)
+base_color = "dark_brown"
+belly_color = "dark_brown"
+accent_color = "tan"
+pattern_motif = "uniform"
+pattern_coverage = 1.0
+pattern_contrast = 0.3
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 10
+temp_breadth_c = 0.6
+moisture_opt = 0.55
+moisture_breadth = 0.4
+
+[generics]
+locomotor = "plantigrade"
+feeding_organ = "bunodont_molars"
+covering = "fur"
+respiration = "lungs"
+reproduction = "viviparous"
+sensor_array = "camera_eye_binocular"
+sustenance = "simple_gut"
+support = "endoskeleton"
+storage = "fat_depot_seasonal"

@@ -1,0 +1,1614 @@
+# stems.toml — mechanically transcribed from specs/naming-binomial-stems.md
+# DO NOT EDIT BY HAND — regenerate from the spec.
+
+# ── §1 Stem Register ──
+
+[[stem]]
+id = "megas"
+category = "size"
+stem = "mega- / -megas"
+meaning = "great, large"
+role = "prefix / suffix-root"
+attestation = ["Megascops (screech-owl genus, \"great watcher\")", "Epimachus megas"]
+axis = "body_mass, size extreme"
+
+[[stem]]
+id = "macro"
+category = "size"
+stem = "macro-"
+meaning = "large, long"
+role = "prefix"
+attestation = ["Macroclemys (alligator snapper, \"large turtle\")", "Macropus (kangaroo, \"big foot\")"]
+axis = "body_mass, limb length"
+
+[[stem]]
+id = "gigante"
+category = "size"
+stem = "gigant- / gigante-"
+meaning = "gigantic"
+role = "prefix / standalone"
+attestation = ["Gigantopithecus, Sequoiadendron giganteum"]
+axis = "body_mass (top decile)"
+
+[[stem]]
+id = "grandi"
+category = "size"
+stem = "grandi-"
+meaning = "large, grand"
+role = "prefix"
+attestation = ["Tyrannus grandis, Platanista gangetica subsp. minor opposes"]
+axis = "body_mass"
+
+[[stem]]
+id = "magni"
+category = "size"
+stem = "magni-"
+meaning = "large"
+role = "prefix"
+attestation = ["Magnirostris (protoceratopsid, \"large beak\")", "Alces magnus"]
+axis = "size of specific part"
+
+[[stem]]
+id = "major"
+category = "size"
+stem = "maj- / major"
+meaning = "greater"
+role = "standalone"
+attestation = ["Parus major (great tit)", "Dendrocopos major (great spotted woodpecker)"]
+axis = "size relative to sister species"
+
+[[stem]]
+id = "micro"
+category = "size"
+stem = "micro-"
+meaning = "small"
+role = "prefix"
+attestation = ["Microtus (vole genus, \"small ear\")", "Microcebus (\"small monkey\" — mouse lemur)"]
+axis = "body_mass (bottom decile)"
+
+[[stem]]
+id = "parvi"
+category = "size"
+stem = "parv- / parvi-"
+meaning = "small, slight"
+role = "prefix"
+attestation = ["Parvulus (genus)", "Parvicursor (\"small runner\" — alvarezsaurid)"]
+axis = "body_mass"
+
+[[stem]]
+id = "minor"
+category = "size"
+stem = "min- / minut- / minor"
+meaning = "very small, lesser"
+role = "standalone"
+attestation = ["Sorex minutus (pygmy shrew)", "Fregata minor (great frigatebird — ironic)"]
+axis = "body_mass (bottom)"
+
+[[stem]]
+id = "nanus"
+category = "size"
+stem = "nan- / nanus"
+meaning = "dwarf"
+role = "standalone"
+attestation = ["Nanus (genus)", "Dryobates nanus"]
+axis = "body_mass, island dwarf"
+
+[[stem]]
+id = "pumil"
+category = "size"
+stem = "pumil-"
+meaning = "dwarf, diminutive"
+role = "standalone"
+attestation = ["Caryota pumila, Amaranthus pumilus (seabeach amaranth)"]
+axis = "body_mass"
+
+[[stem]]
+id = "gracil"
+category = "size"
+stem = "gracil-"
+meaning = "slender, gracile"
+role = "standalone"
+attestation = ["Australopithecus gracilis, Gracilinanus (gracile opossum)"]
+axis = "build/robustness"
+
+[[stem]]
+id = "robust"
+category = "size"
+stem = "robust-"
+meaning = "robust, stout"
+role = "standalone"
+attestation = ["Paranthropus robustus, Brachylophus robustus"]
+axis = "build/robustness"
+
+[[stem]]
+id = "longi"
+category = "size"
+stem = "longi-"
+meaning = "long"
+role = "prefix"
+attestation = ["Longicauda (genus)", "Tyrannus longicauda"]
+axis = "tail, neck, snout, limb length"
+
+[[stem]]
+id = "brevi"
+category = "size"
+stem = "brevi-"
+meaning = "short"
+role = "prefix"
+attestation = ["Breviceps (rain frog, \"short head\")", "Breviparopus (\"short equal-foot\")"]
+axis = "tail, neck, snout length"
+
+[[stem]]
+id = "alti"
+category = "size"
+stem = "alti-"
+meaning = "tall, high"
+role = "prefix"
+attestation = ["Altirhinus (\"high snout\" — iguanodontian)", "Alticola (mountain vole)"]
+axis = "height, altitude"
+
+[[stem]]
+id = "humil"
+category = "size"
+stem = "humil-"
+meaning = "low, humble"
+role = "standalone"
+attestation = ["Festuca humilior, Chamaecrista humilis"]
+axis = "low stature"
+
+[[stem]]
+id = "procer"
+category = "size"
+stem = "procer-"
+meaning = "tall, slender-tall"
+role = "standalone"
+attestation = ["Proceratophrys (horned frog, \"tall eyebrow\"?)", "Euphorbia procera"]
+axis = "height"
+
+[[stem]]
+id = "angust"
+category = "size"
+stem = "angust-"
+meaning = "narrow"
+role = "standalone"
+attestation = ["Angustidontus (eurypterid)", "Astragalus angustus"]
+axis = "narrow body/part"
+
+[[stem]]
+id = "lati"
+category = "size"
+stem = "lat- / lati-"
+meaning = "wide, broad"
+role = "prefix"
+attestation = ["Latimeria (coelacanth)", "Laticauda (sea krait, \"wide tail\")"]
+axis = "broad body/part"
+
+[[stem]]
+id = "melano"
+category = "color"
+stem = "melan- / melano-"
+meaning = "black, dark"
+role = "prefix"
+attestation = ["Melanerpes (woodpecker, \"black creeper\")", "Melanocetus (black seadevil)"]
+axis = "pigmentation (melanic)"
+
+[[stem]]
+id = "nigri"
+category = "color"
+stem = "nigr- / nigri-"
+meaning = "black, dark"
+role = "prefix / standalone"
+attestation = ["Branta nigricans, Nigrita (negrofinch)"]
+axis = "pigmentation"
+
+[[stem]]
+id = "atr"
+category = "color"
+stem = "ater / atr-"
+meaning = "dull black"
+role = "standalone / prefix"
+attestation = ["Parus ater (coal tit)", "Atrichornis (scrub-bird, \"dark bird\")"]
+axis = "pigmentation (matte)"
+
+[[stem]]
+id = "fusc"
+category = "color"
+stem = "fusc-"
+meaning = "dusky, dark brown"
+role = "standalone"
+attestation = ["Fuscus (genus)", "Turdus fuscus"]
+axis = "pigmentation"
+
+[[stem]]
+id = "leuco"
+category = "color"
+stem = "leuc- / leuco-"
+meaning = "white, pale"
+role = "prefix"
+attestation = ["Leucochloris (white-throated hummingbird)", "Leucopternis (white hawk)"]
+axis = "pigmentation (albinistic/pale)"
+
+[[stem]]
+id = "albi"
+category = "color"
+stem = "alb- / albi-"
+meaning = "white"
+role = "prefix / standalone"
+attestation = ["Albus (genus)", "Calyptorhynchus albus"]
+axis = "pigmentation"
+
+[[stem]]
+id = "candid"
+category = "color"
+stem = "candid-"
+meaning = "shining white"
+role = "standalone"
+attestation = ["Candidus (genus)", "Crocidura candida"]
+axis = "pigmentation"
+
+[[stem]]
+id = "nivalis"
+category = "color"
+stem = "nive- / nivalis"
+meaning = "snowy white"
+role = "standalone"
+attestation = ["Plectrophenax nivalis (snow bunting)", "Galanthus nivalis"]
+axis = "pigmentation, alpine habitat"
+
+[[stem]]
+id = "cinereus"
+category = "color"
+stem = "cinere- / cinereus"
+meaning = "ash-grey"
+role = "standalone"
+attestation = ["Cinereus (genus)", "Peromyscus cinereus"]
+axis = "pigmentation (grey)"
+
+[[stem]]
+id = "glauc"
+category = "color"
+stem = "glauc-"
+meaning = "blue-grey, sea-grey"
+role = "standalone"
+attestation = ["Glaucidium (pygmy owl, \"little grey\")", "Pseudotsuga glauca"]
+axis = "pigmentation (grey-blue)"
+
+[[stem]]
+id = "grise"
+category = "color"
+stem = "grise-"
+meaning = "grey (Medieval Latin)"
+role = "standalone"
+attestation = ["Griseus (genus)", "Streptopelia grisea"]
+axis = "pigmentation (warm grey)"
+
+[[stem]]
+id = "rufi"
+category = "color"
+stem = "ruf- / rufi-"
+meaning = "red, reddish"
+role = "prefix / standalone"
+attestation = ["Rufus (genus)", "Canis rufus (red wolf)"]
+axis = "pigmentation (rufous)"
+
+[[stem]]
+id = "rubr"
+category = "color"
+stem = "rub- / rubr-"
+meaning = "red"
+role = "prefix / standalone"
+attestation = ["Rubus (bramble, from red fruit)", "Rubricapillus (\"red-headed\")"]
+axis = "pigmentation"
+
+[[stem]]
+id = "erythro"
+category = "color"
+stem = "erythr- / erythro-"
+meaning = "red (Greek)"
+role = "prefix"
+attestation = ["Erythrocebus (patas monkey, \"red monkey\")", "Erythrotriorchis (red goshawk)"]
+axis = "pigmentation"
+
+[[stem]]
+id = "ferrugin"
+category = "color"
+stem = "ferrugin-"
+meaning = "rust-red, iron-colored"
+role = "standalone"
+attestation = ["Ferrugineus (used in many genera)", "Myiarchus ferrugineus"]
+axis = "pigmentation"
+
+[[stem]]
+id = "flavi"
+category = "color"
+stem = "flav- / flavi-"
+meaning = "yellow, golden-yellow"
+role = "prefix / standalone"
+attestation = ["Flavus (genus)", "Crotalus flavus"]
+axis = "pigmentation"
+
+[[stem]]
+id = "lute"
+category = "color"
+stem = "lute-"
+meaning = "yellow (deep, saffron)"
+role = "standalone"
+attestation = ["Luteus (genus)", "Lycoperdon luteum"]
+axis = "pigmentation"
+
+[[stem]]
+id = "xantho"
+category = "color"
+stem = "xanth- / xantho-"
+meaning = "yellow (Greek)"
+role = "prefix"
+attestation = ["Xanthocephalus (yellow-headed blackbird)", "Xanthoria (lichen)"]
+axis = "pigmentation"
+
+[[stem]]
+id = "aureus"
+category = "color"
+stem = "aure- / aureus"
+meaning = "golden"
+role = "standalone"
+attestation = ["Aureus (genus)", "Staphylococcus aureus"]
+axis = "pigmentation (iridescent-gold)"
+
+[[stem]]
+id = "fulv"
+category = "color"
+stem = "fulv-"
+meaning = "tawny, yellow-brown"
+role = "standalone"
+attestation = ["Fulvus (genus)", "Fulica fulva"]
+axis = "pigmentation"
+
+[[stem]]
+id = "viridi"
+category = "color"
+stem = "virid- / viridi-"
+meaning = "green"
+role = "prefix / standalone"
+attestation = ["Viridis (genus)", "Bufo viridis (green toad)"]
+axis = "pigmentation"
+
+[[stem]]
+id = "chloro"
+category = "color"
+stem = "chlor- / chloro-"
+meaning = "green (Greek)"
+role = "prefix"
+attestation = ["Chloris (greenfinch)", "Chlorocebus (green monkey)"]
+axis = "pigmentation"
+
+[[stem]]
+id = "caerule"
+category = "color"
+stem = "caerul- / caerule-"
+meaning = "blue, sky-blue"
+role = "standalone"
+attestation = ["Caeruleus (genus)", "Cyanistes caeruleus (blue tit)"]
+axis = "pigmentation"
+
+[[stem]]
+id = "cyano"
+category = "color"
+stem = "cyan- / cyano-"
+meaning = "dark blue (Greek)"
+role = "prefix"
+attestation = ["Cyanocitta (blue jay)", "Cyanocompsa (blue bunting)"]
+axis = "pigmentation"
+
+[[stem]]
+id = "purpur"
+category = "color"
+stem = "purpur-"
+meaning = "purple"
+role = "standalone"
+attestation = ["Purpureus (genus)", "Lamium purpureum"]
+axis = "pigmentation"
+
+[[stem]]
+id = "violace"
+category = "color"
+stem = "violace-"
+meaning = "violet"
+role = "standalone"
+attestation = ["Violaceus (genus)", "Janthinobacterium violaceum"]
+axis = "pigmentation"
+
+[[stem]]
+id = "rose"
+category = "color"
+stem = "rose-"
+meaning = "pink, rosy"
+role = "standalone"
+attestation = ["Roseus (genus)", "Phoenicopterus roseus (greater flamingo)"]
+axis = "pigmentation"
+
+[[stem]]
+id = "aurantiac"
+category = "color"
+stem = "auranti- / aurantiac-"
+meaning = "orange"
+role = "standalone"
+attestation = ["Aurantius (genus)", "Amanita aurantiaca"]
+axis = "pigmentation"
+
+[[stem]]
+id = "variegat"
+category = "color"
+stem = "variegat-"
+meaning = "variegated, mottled"
+role = "standalone"
+attestation = ["Variegatus (used in many genera)", "Vireo variegatus"]
+axis = "pattern"
+
+[[stem]]
+id = "maculat"
+category = "color"
+stem = "maculat-"
+meaning = "spotted"
+role = "standalone"
+attestation = ["Maculatus (genus)", "Crocodylus maculatus"]
+axis = "pattern"
+
+[[stem]]
+id = "striat"
+category = "color"
+stem = "striat-"
+meaning = "striped"
+role = "standalone"
+attestation = ["Striatus (genus)", "Atheris striata"]
+axis = "pattern"
+
+[[stem]]
+id = "fasciat"
+category = "color"
+stem = "fasciat-"
+meaning = "banded"
+role = "standalone"
+attestation = ["Fasciatus (genus)", "Hemigalus fasciatus"]
+axis = "pattern"
+
+[[stem]]
+id = "punctat"
+category = "color"
+stem = "punctat-"
+meaning = "dotted, punctate"
+role = "standalone"
+attestation = ["Punctatus (genus)", "Ictalurus punctatus (channel catfish)"]
+axis = "pattern"
+
+[[stem]]
+id = "palustr"
+category = "habitat"
+stem = "palustr-"
+meaning = "marsh, swamp"
+role = "standalone"
+attestation = ["Palustris (used widely)", "Cistothorus palustris (marsh wren)", "Bracteantha palustris"]
+axis = "niche: wetland"
+
+[[stem]]
+id = "sylvatic"
+category = "habitat"
+stem = "silv- / silvestr- / sylvatic-"
+meaning = "forest, woodland"
+role = "standalone"
+attestation = ["Silvestris (genus)", "Felis silvestris (European wildcat)", "Mus sylvaticus"]
+axis = "niche: forest"
+
+[[stem]]
+id = "montan"
+category = "habitat"
+stem = "mont- / montan-"
+meaning = "mountain"
+role = "standalone"
+attestation = ["Montanus (genus)", "Passer montanus (tree sparrow — \"of the mountains\")", "Charadrius montanus (mountain plover)"]
+axis = "niche: montane"
+
+[[stem]]
+id = "alpin"
+category = "habitat"
+stem = "alpin-"
+meaning = "alpine, high-mountain"
+role = "standalone"
+attestation = ["Alpinus (genus)", "Lagopus alpinus, Pinguicula alpina"]
+axis = "niche: alpine"
+
+[[stem]]
+id = "arid"
+category = "habitat"
+stem = "arid-"
+meaning = "dry, arid"
+role = "standalone"
+attestation = ["Arida (genus)", "Pogonomyrmex aridus"]
+axis = "niche: desert/arid"
+
+[[stem]]
+id = "desertor"
+category = "habitat"
+stem = "desert- / desertor-"
+meaning = "desert"
+role = "standalone"
+attestation = ["Deserti (as epithet)", "Oenanthe deserti (desert wheatear)", "Ammomanes deserti (desert lark)"]
+axis = "niche: desert"
+
+[[stem]]
+id = "arenicola"
+category = "habitat"
+stem = "arenari- / arenicola"
+meaning = "sand-dwelling"
+role = "standalone"
+attestation = ["Arenarius (genus)", "Agrotis arenarius, Leymus arenarius (lyme grass)"]
+axis = "niche: sandy/desert"
+
+[[stem]]
+id = "aquatic"
+category = "habitat"
+stem = "aquat- / aquatic-"
+meaning = "water-dwelling"
+role = "standalone"
+attestation = ["Aquaticus (genus)", "Sorex aquaticus, Rallus aquaticus (water rail)"]
+axis = "niche: freshwater"
+
+[[stem]]
+id = "maritim"
+category = "habitat"
+stem = "marin- / maritim-"
+meaning = "sea, marine"
+role = "standalone"
+attestation = ["Marinus (genus)", "Larus marinus (great black-backed gull)", "Armadillidium marinum"]
+axis = "niche: marine"
+
+[[stem]]
+id = "lacustr"
+category = "habitat"
+stem = "lacustr-"
+meaning = "lake"
+role = "standalone"
+attestation = ["Lacustris (used widely)", "Acrocephalus lacustris"]
+axis = "niche: lake"
+
+[[stem]]
+id = "fluvial"
+category = "habitat"
+stem = "fluviatil- / fluvial-"
+meaning = "river"
+role = "standalone"
+attestation = ["Fluviatilis (genus)", "Potamogale fluviatilis, Unio fluviatilis"]
+axis = "niche: river"
+
+[[stem]]
+id = "ripari"
+category = "habitat"
+stem = "ripari-"
+meaning = "riverbank, shore"
+role = "standalone"
+attestation = ["Riparius (genus)", "Riparia riparia (sand martin/bank swallow)", "Passerculus riparius"]
+axis = "niche: riparian"
+
+[[stem]]
+id = "littoral"
+category = "habitat"
+stem = "littor- / littoral-"
+meaning = "shore, littoral"
+role = "standalone"
+attestation = ["Littoralis (genus)", "Pisidium littorale"]
+axis = "niche: coastal shore"
+
+[[stem]]
+id = "campestr"
+category = "habitat"
+stem = "campestr-"
+meaning = "plain, field, grassland"
+role = "standalone"
+attestation = ["Campestris (genus)", "Colaptes campestris (campo flicker)", "Agaricus campestris (field mushroom)"]
+axis = "niche: grassland"
+
+[[stem]]
+id = "praticola"
+category = "habitat"
+stem = "pratens- / praticola"
+meaning = "meadow-dwelling"
+role = "standalone"
+attestation = ["Pratensis (genus)", "Anthus pratensis (meadow pipit)", "Cardamine pratensis (cuckooflower)"]
+axis = "niche: meadow"
+
+[[stem]]
+id = "agrest"
+category = "habitat"
+stem = "agrest-"
+meaning = "field, cultivated land"
+role = "standalone"
+attestation = ["Agrestis (genus)", "Microtus agrestis (field vole)"]
+axis = "niche: field/agro"
+
+[[stem]]
+id = "arboricol"
+category = "habitat"
+stem = "arbore- / arboricol-"
+meaning = "tree-dwelling"
+role = "standalone / prefix"
+attestation = ["Arboreus (genus)", "Dendroica arborea, Thylogale arboreus"]
+axis = "niche: arboreal"
+
+[[stem]]
+id = "saxatil"
+category = "habitat"
+stem = "sax- / saxatil-"
+meaning = "rock-dwelling"
+role = "standalone"
+attestation = ["Saxatilis (genus)", "Achaearanea saxatilis, Rupicapra rupicapra is related"]
+axis = "niche: rocky/rupicolous"
+
+[[stem]]
+id = "rupestr"
+category = "habitat"
+stem = "rupestr-"
+meaning = "cliff, crag"
+role = "standalone"
+attestation = ["Rupestris (genus)", "Columba rupestris (hill pigeon)", "Sedum rupestre"]
+axis = "niche: cliff"
+
+[[stem]]
+id = "cavernicol"
+category = "habitat"
+stem = "cavern- / cavernicol-"
+meaning = "cave-dwelling"
+role = "standalone"
+attestation = ["Cavernicola (genus)", "Proteus cavernicola"]
+axis = "niche: cave"
+
+[[stem]]
+id = "troglodyt"
+category = "habitat"
+stem = "troglodyt-"
+meaning = "cave-dweller (Greek)"
+role = "standalone"
+attestation = ["Troglodytes (wren genus — misapplied but standard)", "Pan troglodytes (chimpanzee)", "Eptesicus troglodytes"]
+axis = "niche: cave"
+
+[[stem]]
+id = "fossori"
+category = "habitat"
+stem = "fossor- / fossori-"
+meaning = "digging, burrowing"
+role = "standalone"
+attestation = ["Clivina fossor (Linnaeus, 1758)", "Euneomys fossor (burrowing rodent)"]
+axis = "behavior: fossorial"
+
+[[stem]]
+id = "arenicol"
+category = "habitat"
+stem = "arenicol-"
+meaning = "sand-dweller"
+role = "standalone"
+attestation = ["Arenicola (lugworm genus)", "Phrynosoma arenicola"]
+axis = "niche: sandy"
+
+[[stem]]
+id = "limos"
+category = "habitat"
+stem = "limos-"
+meaning = "muddy"
+role = "standalone"
+attestation = ["Limosa (godwit genus, \"muddy\")", "Neoceratodus limosus"]
+axis = "niche: mud"
+
+[[stem]]
+id = "paludos"
+category = "habitat"
+stem = "paludos-"
+meaning = "boggy"
+role = "standalone"
+attestation = ["Paludosus (genus)", "Ranunculus paludosus"]
+axis = "niche: bog/fen"
+
+[[stem]]
+id = "boreal"
+category = "habitat"
+stem = "bore- / boreal-"
+meaning = "northern"
+role = "standalone"
+attestation = ["Borealis (genus)", "Balaena borealis (sei whale)", "Lynx borealis"]
+axis = "geography: boreal"
+
+[[stem]]
+id = "austral"
+category = "habitat"
+stem = "austral-"
+meaning = "southern"
+role = "standalone"
+attestation = ["Australis (genus)", "Balaena australis (southern right whale)", "Eudyptes australis"]
+axis = "geography: austral"
+
+[[stem]]
+id = "oriental"
+category = "habitat"
+stem = "oriental-"
+meaning = "eastern"
+role = "standalone"
+attestation = ["Orientalis (genus)", "Platanista orientalis, Cuculus orientalis"]
+axis = "geography: eastern"
+
+[[stem]]
+id = "occidental"
+category = "habitat"
+stem = "occidental-"
+meaning = "western"
+role = "standalone"
+attestation = ["Occidentalis (genus)", "Larus occidentalis (western gull)", "Thuja occidentalis"]
+axis = "geography: western"
+
+[[stem]]
+id = "arct"
+category = "habitat"
+stem = "arctic- / arct-"
+meaning = "arctic, far north"
+role = "standalone"
+attestation = ["Arcticus (genus)", "Lepus arcticus (arctic hare)", "Gavia arctica (black-throated diver)"]
+axis = "geography: arctic"
+
+[[stem]]
+id = "tropical"
+category = "habitat"
+stem = "tropic- / tropical-"
+meaning = "tropical"
+role = "standalone"
+attestation = ["Tropicus (genus)", "Phaethon tropicus"]
+axis = "geography: tropical"
+
+[[stem]]
+id = "insular"
+category = "habitat"
+stem = "insular-"
+meaning = "island"
+role = "standalone"
+attestation = ["Insularis (genus)", "Urocyon insularis (island fox)", "Bothrops insularis (golden lancehead)"]
+axis = "geography: island"
+
+[[stem]]
+id = "pelagic"
+category = "habitat"
+stem = "pelag- / pelagic-"
+meaning = "open ocean"
+role = "standalone"
+attestation = ["Pelagicus (genus)", "Hydrobates pelagicus (European storm petrel)", "Puffinus pelagicus"]
+axis = "niche: pelagic"
+
+[[stem]]
+id = "abyssal"
+category = "habitat"
+stem = "abyss- / abyssal-"
+meaning = "deep-sea, abyssal"
+role = "standalone"
+attestation = ["Abyssicola (genus)", "Bathysaurus abyssicola, Meadia abyssalis (abyssal cutthroat eel)"]
+axis = "niche: abyssal"
+
+[[stem]]
+id = "longi"
+category = "morphology"
+stem = "longi-"
+meaning = "long"
+role = "prefix"
+attestation = ["Longicauda, Longirostris — see #14"]
+axis = "relative dimension"
+
+[[stem]]
+id = "brevi"
+category = "morphology"
+stem = "brevi-"
+meaning = "short"
+role = "prefix"
+attestation = ["Brevicauda, Brevirostris — see #15"]
+axis = "relative dimension"
+
+[[stem]]
+id = "macro"
+category = "morphology"
+stem = "macro-"
+meaning = "large"
+role = "prefix"
+attestation = ["Macrocephala, Macropoda — see #2"]
+axis = "relative dimension"
+
+[[stem]]
+id = "micro"
+category = "morphology"
+stem = "micro-"
+meaning = "small"
+role = "prefix"
+attestation = ["Microcephala, Micropoda — see #7"]
+axis = "relative dimension"
+
+[[stem]]
+id = "lati"
+category = "morphology"
+stem = "lati-"
+meaning = "broad, wide"
+role = "prefix"
+attestation = ["Latirostris (\"broad beak\")", "Laticauda — see #20"]
+axis = "relative dimension"
+
+[[stem]]
+id = "angusti"
+category = "morphology"
+stem = "angusti-"
+meaning = "narrow"
+role = "prefix"
+attestation = ["Angustirostris (\"narrow beak\")", "Angustidens (\"narrow tooth\")"]
+axis = "relative dimension"
+
+[[stem]]
+id = "crassi"
+category = "morphology"
+stem = "crassi-"
+meaning = "thick"
+role = "prefix"
+attestation = ["Crassirostris (\"thick beak\")", "Crassicauda (\"thick tail\")"]
+axis = "relative dimension"
+
+[[stem]]
+id = "tenui"
+category = "morphology"
+stem = "tenui-"
+meaning = "thin, slender"
+role = "prefix"
+attestation = ["Tenuicauda (\"thin tail\")", "Tenuipes (\"thin foot\")", "Acanthephyra tenuipes"]
+axis = "relative dimension"
+
+[[stem]]
+id = "curvi"
+category = "morphology"
+stem = "curvi-"
+meaning = "curved"
+role = "prefix"
+attestation = ["Curvirostris (\"curved beak\")", "Curvicauda (\"curved tail\")"]
+axis = "shape"
+
+[[stem]]
+id = "recti"
+category = "morphology"
+stem = "recti-"
+meaning = "straight"
+role = "prefix"
+attestation = ["Rectirostris (\"straight beak\")", "Rectipes (\"straight foot\")"]
+axis = "shape"
+
+[[stem]]
+id = "acuti"
+category = "morphology"
+stem = "acuti-"
+meaning = "sharp, pointed"
+role = "prefix"
+attestation = ["Acutirostris (\"sharp beak\")", "Acuticauda (\"sharp tail\")"]
+axis = "shape"
+
+[[stem]]
+id = "obtusi"
+category = "morphology"
+stem = "obtusi-"
+meaning = "blunt"
+role = "prefix"
+attestation = ["Obtusirostris (\"blunt snout\")", "Obtusidens (\"blunt tooth\")"]
+axis = "shape"
+
+[[stem]]
+id = "plani"
+category = "morphology"
+stem = "plan- / plani-"
+meaning = "flat"
+role = "prefix"
+attestation = ["Planirostris (\"flat beak\")", "Planicauda (\"flat tail\")"]
+axis = "shape"
+
+[[stem]]
+id = "caudus"
+category = "morphology"
+stem = "-cauda / -caudus"
+meaning = "tail"
+role = "suffix-root"
+attestation = ["Longicauda, Brevicauda, Laticauda, Acanthophthalmus longicaudus"]
+axis = "tail_length_ratio"
+
+[[stem]]
+id = "cephalus"
+category = "morphology"
+stem = "-cephala / -cephalus"
+meaning = "head"
+role = "suffix-root"
+attestation = ["Macrocephala, Breviceps, Xanthocephalus"]
+axis = "head_size_ratio"
+
+[[stem]]
+id = "pes"
+category = "morphology"
+stem = "-poda / -pus / -pes"
+meaning = "foot"
+role = "suffix-root"
+attestation = ["Macropus, Brevipes, Tenuipes, Cryptopus"]
+axis = "foot_posture, limb_length"
+
+[[stem]]
+id = "rostris"
+category = "morphology"
+stem = "-rostris"
+meaning = "beak, snout"
+role = "suffix-root"
+attestation = ["Longirostris, Brevirostris, Crassirostris"]
+axis = "snout_ratio"
+
+[[stem]]
+id = "pennis"
+category = "morphology"
+stem = "-pinna / -pennis"
+meaning = "wing, fin"
+role = "suffix-root"
+attestation = ["Longipennis (\"long-winged\")", "Macropinna (\"big fin\")", "Brevi pennis"]
+axis = "wing/fin size"
+
+[[stem]]
+id = "dens"
+category = "morphology"
+stem = "-dentis / -dens"
+meaning = "tooth"
+role = "suffix-root"
+attestation = ["Macrodens, Brevidentis, Angustidens"]
+axis = "tooth/tusk size"
+
+[[stem]]
+id = "cornis"
+category = "morphology"
+stem = "-cornis"
+meaning = "horn"
+role = "suffix-root"
+attestation = ["Brevicornis, Longicornis, Acuticornis"]
+axis = "horn/antler size"
+
+[[stem]]
+id = "alatus"
+category = "morphology"
+stem = "-ala / -alatus"
+meaning = "wing"
+role = "suffix-root"
+attestation = ["Longialatus, Brevialata"]
+axis = "wing span"
+
+[[stem]]
+id = "collis"
+category = "morphology"
+stem = "-collis"
+meaning = "neck"
+role = "suffix-root"
+attestation = ["Longicollis, Brevicollis"]
+axis = "neck_length_ratio"
+
+[[stem]]
+id = "auritus"
+category = "morphology"
+stem = "-auris / -auritus"
+meaning = "ear"
+role = "suffix-root"
+attestation = ["Macrotis (bilby, \"big ear\")", "Plecotus auritus (brown long-eared bat)"]
+axis = "ear_size_ratio"
+
+[[stem]]
+id = "opsis"
+category = "morphology"
+stem = "-ops / -opsis"
+meaning = "face, eye, appearance"
+role = "suffix-root"
+attestation = ["Megascops (\"great face\")", "Chloropsis (\"green appearance\")"]
+axis = "eye/face region"
+
+[[stem]]
+id = "ophthalmus"
+category = "morphology"
+stem = "-oculis / -ophthalmus"
+meaning = "eye"
+role = "suffix-root"
+attestation = ["Macroculis, Microphthalmus"]
+axis = "eye size"
+
+[[stem]]
+id = "thorax"
+category = "morphology"
+stem = "-thorax"
+meaning = "chest"
+role = "suffix-root"
+attestation = ["Macrothorax, Stenothorax"]
+axis = "trunk_depth_ratio"
+
+[[stem]]
+id = "gaster"
+category = "morphology"
+stem = "-gaster"
+meaning = "belly"
+role = "suffix-root"
+attestation = ["Macrogaster, Stenogaster"]
+axis = "trunk shape"
+
+[[stem]]
+id = "nocturn"
+category = "behavior"
+stem = "nocturn-"
+meaning = "nocturnal, night-active"
+role = "standalone"
+attestation = ["Nocturnus (genus)", "Caprimulgus nocturnus"]
+axis = "activity period"
+
+[[stem]]
+id = "diurn"
+category = "behavior"
+stem = "diurn-"
+meaning = "diurnal, day-active"
+role = "standalone"
+attestation = ["Diurnus (genus, less common but valid)", "Geophaps diurna"]
+axis = "activity period"
+
+[[stem]]
+id = "vespertin"
+category = "behavior"
+stem = "crepuscul- / vespertin-"
+meaning = "crepuscular, twilight"
+role = "standalone"
+attestation = ["Vespertinus (genus)", "Falco vespertinus (red-footed falcon — \"evening falcon\")", "Vespertilio (bat genus, \"of evening\")"]
+axis = "activity period"
+
+[[stem]]
+id = "migratori"
+category = "behavior"
+stem = "migrat- / migratori-"
+meaning = "migratory"
+role = "standalone"
+attestation = ["Migratorius (genus)", "Turdus migratorius (American robin — misnamed but standard)", "Ectopistes migratorius (passenger pigeon)"]
+axis = "seasonality mode"
+
+[[stem]]
+id = "cursor"
+category = "behavior"
+stem = "cursor-"
+meaning = "running, cursorial"
+role = "standalone"
+attestation = ["Cursorius (courser genus)", "Cursor (genus)", "Parvicursor"]
+axis = "locomotor mode"
+
+[[stem]]
+id = "natator"
+category = "behavior"
+stem = "natat- / natator"
+meaning = "swimming"
+role = "standalone"
+attestation = ["Natator (flatback turtle genus)", "Tropidonotus natator"]
+axis = "locomotor mode"
+
+[[stem]]
+id = "volans"
+category = "behavior"
+stem = "volat- / volans"
+meaning = "flying"
+role = "standalone"
+attestation = ["Volans (genus)", "Draco volans (flying dragon lizard)", "Petaurus volans"]
+axis = "locomotor mode"
+
+[[stem]]
+id = "saltator"
+category = "behavior"
+stem = "saltat- / saltator"
+meaning = "leaping, jumping"
+role = "standalone"
+attestation = ["Saltator (genus)", "Callicebus saltator"]
+axis = "locomotor mode"
+
+[[stem]]
+id = "fossor"
+category = "behavior"
+stem = "fossor-"
+meaning = "digging"
+role = "standalone"
+attestation = ["see #75 (Clivina fossor, Euneomys fossor)"]
+axis = "locomotor mode"
+
+[[stem]]
+id = "scansor"
+category = "behavior"
+stem = "scansor-"
+meaning = "climbing"
+role = "standalone"
+attestation = ["Scansor (genus)", "Dendroscansor (climbing bird)"]
+axis = "locomotor mode"
+
+[[stem]]
+id = "raptor"
+category = "behavior"
+stem = "raptor-"
+meaning = "seizing, predatory"
+role = "standalone"
+attestation = ["Raptor (genus)", "Velociraptor (\"swift seizer\")"]
+axis = "diet guild"
+
+[[stem]]
+id = "piscivor"
+category = "behavior"
+stem = "piscivor-"
+meaning = "fish-eating"
+role = "standalone"
+attestation = ["Piscivorus (genus)", "Agkistrodon piscivorus (cottonmouth)"]
+axis = "diet guild"
+
+[[stem]]
+id = "insectivor"
+category = "behavior"
+stem = "insectivor-"
+meaning = "insect-eating"
+role = "standalone"
+attestation = ["Insectivorus (genus)", "Sorex insectivorus"]
+axis = "diet guild"
+
+[[stem]]
+id = "carnivor"
+category = "behavior"
+stem = "carnivor-"
+meaning = "meat-eating"
+role = "standalone"
+attestation = ["Carnivorus (genus)", "Carnivora (the order)"]
+axis = "diet guild"
+
+[[stem]]
+id = "graminivor"
+category = "behavior"
+stem = "herbivor- / graminivor-"
+meaning = "plant/grass-eating"
+role = "standalone"
+attestation = ["Herbivorus (genus)", "Graminivorus (genus)"]
+axis = "diet guild"
+
+[[stem]]
+id = "gregari"
+category = "behavior"
+stem = "gregari-"
+meaning = "gregarious, social"
+role = "standalone"
+attestation = ["Gregarius (genus)", "Vanellus gregarius (sociable lapwing)"]
+axis = "social system"
+
+[[stem]]
+id = "solitari"
+category = "behavior"
+stem = "solitari-"
+meaning = "solitary"
+role = "standalone"
+attestation = ["Solitarius (genus)", "Pezophaps solitarius (Rodrigues solitaire)", "Cuculus solitarius (red-chested cuckoo)"]
+axis = "social system"
+
+[[stem]]
+id = "hirsut"
+category = "texture"
+stem = "hirsut-"
+meaning = "hairy, shaggy"
+role = "standalone"
+attestation = ["Hirsutus (genus)", "Brachionichthys hirsutus (spotted handfish — rough skin)", "Rubus hirsutus"]
+axis = "covering: fur density"
+
+[[stem]]
+id = "glabr"
+category = "texture"
+stem = "glabr-"
+meaning = "smooth, hairless"
+role = "standalone"
+attestation = ["Glaber (genus)", "Lithobius glaber, Amaranthus glaber"]
+axis = "covering: bare skin"
+
+[[stem]]
+id = "spinos"
+category = "texture"
+stem = "spinos-"
+meaning = "spiny"
+role = "standalone"
+attestation = ["Spinosus (genus)", "Gasterosteus spinosus (spiny stickleback)", "Zanthoxylum spinosum"]
+axis = "defense: spines"
+
+[[stem]]
+id = "squamos"
+category = "texture"
+stem = "squam- / squamos-"
+meaning = "scaly"
+role = "standalone"
+attestation = ["Squamosus (genus)", "Manis squamosa (pangolin)", "Anthonomus squamosus"]
+axis = "covering: scales"
+
+[[stem]]
+id = "echinat"
+category = "texture"
+stem = "echinat-"
+meaning = "prickly, hedgehog-like"
+role = "standalone"
+attestation = ["Echinatus (genus)", "Erinaceus echinatus"]
+axis = "covering: spines"
+
+[[stem]]
+id = "setos"
+category = "texture"
+stem = "setos-"
+meaning = "bristly"
+role = "standalone"
+attestation = ["Setosus (genus)", "Atheris setosa"]
+axis = "covering: bristles"
+
+[[stem]]
+id = "tomentos"
+category = "texture"
+stem = "tomentos-"
+meaning = "woolly, densely hairy"
+role = "standalone"
+attestation = ["Tomentosus (genus)", "Rhinolophus tomentosus"]
+axis = "covering: fur density"
+
+[[stem]]
+id = "villos"
+category = "texture"
+stem = "villos-"
+meaning = "shaggy, villous"
+role = "standalone"
+attestation = ["Villosus (genus)", "Dasypus villosus (hairy armadillo)", "Chaetophractus villosus"]
+axis = "covering: fur texture"
+
+[[stem]]
+id = "nud"
+category = "texture"
+stem = "nud-"
+meaning = "naked, bare"
+role = "standalone"
+attestation = ["Nudus (genus)", "Heterocephalus nudus (partial)", "Georychus nudus"]
+axis = "covering: bare"
+
+[[stem]]
+id = "armat"
+category = "texture"
+stem = "armat-"
+meaning = "armed, armored"
+role = "standalone"
+attestation = ["Armatus (genus)", "Hoplosternum armatum, Acteon armatus"]
+axis = "defense: armor"
+
+[[stem]]
+id = "cristat"
+category = "texture"
+stem = "cristat-"
+meaning = "crested"
+role = "standalone"
+attestation = ["Cristatus (genus)", "Triturus cristatus (great crested newt)", "Cariama cristata (red-legged seriema)"]
+axis = "signal: crest"
+
+[[stem]]
+id = "coronat"
+category = "texture"
+stem = "coronat-"
+meaning = "crowned"
+role = "standalone"
+attestation = ["Coronatus (genus)", "Stephanoaetus coronatus (crowned eagle)", "Lemur coronatus (crowned lemur)"]
+axis = "signal: crest/crown"
+
+[[stem]]
+id = "barbat"
+category = "texture"
+stem = "barbat-"
+meaning = "bearded"
+role = "standalone"
+attestation = ["Barbatus (genus)", "Gypaetus barbatus (bearded vulture)", "Pogona barbata (bearded dragon)"]
+axis = "covering: facial hair"
+
+[[stem]]
+id = "jubat"
+category = "texture"
+stem = "jubat-"
+meaning = "maned"
+role = "standalone"
+attestation = ["Jubatus (genus)", "Acinonyx jubatus (cheetah — \"maned\")", "Panthera leo subsp. jubata"]
+axis = "covering: mane"
+
+# ── §2.2 Rule A: habitat adjective forms ──
+
+[habitat_form.abyss]
+form = "abyssalis"
+note = "or abyssicola; see -cola table"
+
+[habitat_form.agrest]
+form = "agrestis"
+m = "agrestis"
+f = "agrestis"
+n = "agrestre"
+
+[habitat_form.alpin]
+form = "alpinus"
+m = "alpinus"
+f = "alpina"
+n = "alpinum"
+
+[habitat_form.aquat]
+form = "aquaticus"
+m = "aquaticus"
+f = "aquatica"
+n = "aquaticum"
+
+[habitat_form.arctic]
+form = "arcticus"
+m = "arcticus"
+f = "arctica"
+n = "arcticum"
+
+[habitat_form.arid]
+form = "aridus"
+m = "aridus"
+f = "arida"
+n = "aridum"
+
+[habitat_form.austral]
+form = "australis"
+m = "australis"
+f = "australis"
+n = "australe"
+
+[habitat_form.bore]
+form = "borealis"
+m = "borealis"
+f = "borealis"
+n = "boreale"
+
+[habitat_form.campestr]
+form = "campestris"
+m = "campestris"
+f = "campestris"
+n = "campestre"
+
+[habitat_form.fluviatil]
+form = "fluviatilis"
+m = "fluviatilis"
+f = "fluviatilis"
+n = "fluviatile"
+
+[habitat_form.insular]
+form = "insularis"
+m = "insularis"
+f = "insularis"
+n = "insulare"
+
+[habitat_form.littoral]
+form = "littoralis"
+m = "littoralis"
+f = "littoralis"
+n = "littorale"
+
+[habitat_form.marin]
+form = "marinus"
+m = "marinus"
+f = "marina"
+n = "marinum"
+
+[habitat_form.montan]
+form = "montanus"
+m = "montanus"
+f = "montana"
+n = "montanum"
+
+[habitat_form.occidental]
+form = "occidentalis"
+m = "occidentalis"
+f = "occidentalis"
+n = "occidentale"
+
+[habitat_form.oriental]
+form = "orientalis"
+m = "orientalis"
+f = "orientalis"
+n = "orientale"
+
+[habitat_form.palustr]
+form = "palustris"
+m = "palustris"
+f = "palustris"
+n = "palustre"
+
+[habitat_form.pelag]
+form = "pelagicus"
+m = "pelagicus"
+f = "pelagica"
+n = "pelagicum"
+
+[habitat_form.pratens]
+form = "pratensis"
+m = "pratensis"
+f = "pratensis"
+n = "pratense"
+
+[habitat_form.rupestr]
+form = "rupestris"
+m = "rupestris"
+f = "rupestris"
+n = "rupestre"
+
+[habitat_form.silvestr]
+form = "silvestris"
+m = "silvestris"
+f = "silvestris"
+n = "silvestre"
+
+# ── §2.2 Rule B: -cola forms ──
+
+[cola.arbor]
+form = "arboricola"
+
+[cola.aren]
+form = "arenicola"
+
+[cola.cavern]
+form = "cavernicola"
+
+[cola.lim]
+form = "limicola"
+
+[cola.prat]
+form = "praticola"
+
+[cola.rip]
+form = "ripicola"
+
+[cola.sax]
+form = "saxicola"
+
+[cola.silv]
+form = "silvicola"
+
+[cola.troglodyt]
+form = "troglodytes"
+note = "Greek form, native -es suffix; troglodyticola would be a monster"
+
+# ── §2.3 Decision table ──
+
+[suffix_policy.behavior]
+primary = "none (standalone adj.)"
+fallback = ""
+notes = "nocturnus, migratorius, natator, cursorius."
+
+[suffix_policy.color_approximate]
+primary = "-oides"
+fallback = "standalone adj."
+notes = "\"Glaucous-like\" is glaucoides if the color is approximate."
+
+[suffix_policy.color_pure_hue]
+primary = "none (standalone adj.)"
+fallback = ""
+notes = "rufus, flavus, viridis are already complete words."
+
+[suffix_policy.diet]
+primary = "none (standalone adj.)"
+fallback = ""
+notes = "piscivorus, carnivorus, insectivorus."
+
+[suffix_policy.geography]
+primary = "-ensis variant (e.g., -alis)"
+fallback = ""
+notes = "borealis, australis, orientalis. These are already fossilized forms."
+
+[suffix_policy.habitat_place]
+primary = "-ensis / -is form"
+fallback = "-cola"
+notes = "-ensis for geographic origin; -cola for substrate inhabitation. The fallback handles edge cases like \"mud-dweller\" where both make sense — prefer -cola for microhabitat."
+
+[suffix_policy.habitat_substrate]
+primary = "-cola"
+fallback = "-ensis"
+notes = "Sand, rock, cave, mud, tree — the organism lives *in* it, not *from* it."
+
+[suffix_policy.honor_person]
+primary = "-i / -ae"
+fallback = "avoid"
+notes = "Engine should not generate eponyms. Human-authored only."
+
+[suffix_policy.morphology_part_shape]
+primary = "compound (prefix + body-part root)"
+fallback = "-oides"
+notes = "latirostris, curvicauda. If no part root fits, -oides (\"that-shaped\")."
+
+[suffix_policy.size_relative_to_part]
+primary = "compound (prefix + body-part root)"
+fallback = "standalone"
+notes = "longicauda, brevipes, macrocephala."
+
+[suffix_policy.size_standalone]
+primary = "none (standalone adj.)"
+fallback = ""
+notes = "gracilis, robustus, giganteus."
+
+[suffix_policy.texture_covering]
+primary = "none (standalone adj.)"
+fallback = ""
+notes = "hirsutus, glaber, spinosus, squamosus."
+
+# ── §3.1 Genus body-plan suffix vocabulary ──
+
+[genus_suffix.bird]
+grade = "Bird-grade"
+suffixes = ["-ornis", "-avis", "-gavia"]
+example_roots = ["Cyanornis", "Leptavis"]
+precedent = "Phaethornis, Leptornis, Eoavis"
+
+[genus_suffix.crustacean]
+grade = "Crustacean-grade"
+suffixes = ["-carcinus", "-astacus"]
+example_roots = ["Abyssocarcinus"]
+precedent = "Carcinus, Astacus"
+
+[genus_suffix.fish]
+grade = "Fish-grade"
+suffixes = ["-ichthys", "-piscis"]
+example_roots = ["Melanichthys", "Macropiscis"]
+precedent = "Melanoichthys, Ichthyornis"
+
+[genus_suffix.frog_toad]
+grade = "Frog/toad-grade"
+suffixes = ["-batrachus", "-rana"]
+example_roots = ["Microbatrachus"]
+precedent = "Megalobatrachus, Bufo genus itself"
+
+[genus_suffix.generic]
+grade = "Generic \"creature\""
+suffixes = ["-ops", "-oides", "-therium"]
+example_roots = ["Sciurops", "Megaloides"]
+precedent = "Titanoides, Megatherium"
+
+[genus_suffix.insect]
+grade = "Insect-grade"
+suffixes = ["-ptera", "-formica"]
+example_roots = ["Xanthoptera", "Macroformica"]
+precedent = "Coleoptera, Hymenoptera"
+
+[genus_suffix.lizard]
+grade = "Lizard-grade"
+suffixes = ["-saurus", "-lacerta"]
+example_roots = ["Microsaurus", "Flavilacerta"]
+precedent = "Mosasaurus, Megalosaurus"
+
+[genus_suffix.mollusc]
+grade = "Mollusc-grade"
+suffixes = ["-concha", "-limax"]
+example_roots = ["Macroconcha"]
+precedent = "Spirula, Limax"
+
+[genus_suffix.rodent]
+grade = "Rodent-grade (small gnawer)"
+suffixes = ["-mys"]
+example_roots = ["Cinereomys", "Sciurops"]
+precedent = "Peromyscus, Oryzomys, Eliomys"
+
+[genus_suffix.snake]
+grade = "Snake-grade"
+suffixes = ["-ophis", "-serpens"]
+example_roots = ["Leptophis", "Microserpens"]
+precedent = "Leptophis, Dendroaspis"
+
+[genus_suffix.soft_pelagic]
+grade = "Soft-bodied pelagic"
+suffixes = ["-medusa", "-pulmo"]
+example_roots = ["Caerulomedusa"]
+precedent = "Aurelia, Pelagia"
+
+[genus_suffix.spider_scorpion]
+grade = "Spider/scorpion-grade"
+suffixes = ["-arachne", "-scorpio"]
+example_roots = ["Cavernarachne"]
+precedent = "Ariadne, Palpigradi"
+
+[genus_suffix.turtle]
+grade = "Turtle-grade"
+suffixes = ["-chelys", "-testudo"]
+example_roots = ["Megachelys"]
+precedent = "Archelon, Chelonia"
+
+[genus_suffix.worm]
+grade = "Worm-grade"
+suffixes = ["-vermis", "-helminthus"]
+example_roots = ["Microvermis"]
+precedent = "Vermes (archaic), Plathelminthes"
+

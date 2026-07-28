@@ -1,0 +1,96 @@
+# Tetrapod preset: boar
+# B1 §2 worked example — suid, ungulate quadrant contrast to squirrel
+
+[preset]
+id = "tetrapod.boar"
+plan = "tetrapod"
+grade = "boar"
+status = "hand-authored"
+source = "addendum-B1 §2 table"
+
+[knobs]
+# Core B1 §2
+intermembral_index = 95
+brachial_index = 95
+crural_index = 115
+metapodial_proximal_ratio = 0.60
+olecranon_index = 38
+limb_length_to_trunk = 1.1
+trunk_elongation = 0.95
+trunk_depth_ratio = 0.80
+neck_length_ratio = 0.18
+head_size_ratio = 0.35
+snout_ratio = 0.55
+ear_size_ratio = 0.09
+tail_length_ratio = 0.18
+tail_taper = 0.4
+stance_sprawl = 0.35
+foot_posture = "unguligrade"
+
+# Labile dials
+ear_posture = "erect"
+tail_carriage = "curled"
+foot_webbing_grade = "none"
+toe_count = 4
+claw_retractability = "fixed"
+vibrissae_prominence = 0.8
+mane_ruff_extent = 0.4
+dewlap_jowl_flesh = 0.2
+skin_wrinkle_looseness = 0.6
+fat_depot = "none"
+horn_cover_texture = "N/A"
+pupil_shape = "round"
+stance_profile = 0.5
+tail_flag_rump_patch = "none"
+proboscis_grade = 0.2
+
+# Herp dials
+throat_fan_dewlap = "none"
+dorsal_crest_spines = "none"
+vocal_sac = "none"
+parotoid_glands = 0.0
+neck_frill = 0.0
+skin_texture = "N/A"
+
+[axes]
+body_mass = 80.0
+diet_spectrum = { frugivore = 0.4, detritivore = 0.3, carnivore = 0.3 }
+activity_period = "diurnal"
+social_system = "family"
+group_size = 8.0
+vertical_stratum = "ground"
+seasonality_mode = "resident"
+fecundity = 8.0
+lifespan_yr = 12.0
+trophic_level = 2.5
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.1
+
+
+# patternation (M3)
+base_color = "dark_brown"
+belly_color = "dark_brown"
+accent_color = "gray"
+pattern_motif = "uniform"
+pattern_coverage = 1.0
+pattern_contrast = 0.3
+pattern_juvenile = "striped"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 15
+temp_breadth_c = 0.55
+moisture_opt = 0.6
+moisture_breadth = 0.4
+
+[generics]
+locomotor = "cursorial_unguligrade"
+feeding_organ = "bunodont_molars"
+covering = "fur"
+respiration = "lungs"
+reproduction = "viviparous"
+sensor_array = "camera_eye_lateral"
+sustenance = "simple_gut"
+defense = "escape_cursorial"
+support = "endoskeleton"
+storage = "fat_depot_seasonal"

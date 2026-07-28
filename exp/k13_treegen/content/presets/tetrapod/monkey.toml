@@ -1,0 +1,94 @@
+# Tetrapod preset: monkey
+# B1 §2 worked example — arboreal primate
+
+[preset]
+id = "tetrapod.monkey"
+plan = "tetrapod"
+grade = "monkey"
+status = "hand-authored"
+source = "addendum-B1 §2 table"
+
+[knobs]
+# Core B1 §2
+intermembral_index = 105
+brachial_index = 100
+crural_index = 90
+metapodial_proximal_ratio = 0.45
+olecranon_index = 28
+limb_length_to_trunk = 1.0
+trunk_elongation = 0.8
+trunk_depth_ratio = 0.55
+neck_length_ratio = 0.08
+head_size_ratio = 0.30
+snout_ratio = 0.25
+ear_size_ratio = 0.05
+tail_length_ratio = 0.90
+tail_taper = 0.5
+stance_sprawl = 0.4
+foot_posture = "plantigrade"
+
+# Labile dials
+ear_posture = "erect"
+tail_carriage = "curled"
+foot_webbing_grade = "none"
+toe_count = 5
+claw_retractability = "fixed"
+vibrissae_prominence = 0.1
+mane_ruff_extent = 0.0
+dewlap_jowl_flesh = 0.0
+skin_wrinkle_looseness = 0.0
+fat_depot = "none"
+horn_cover_texture = "N/A"
+pupil_shape = "round"
+stance_profile = 0.7
+tail_flag_rump_patch = "none"
+proboscis_grade = 0.0
+
+# Herp dials
+throat_fan_dewlap = "none"
+dorsal_crest_spines = "none"
+vocal_sac = "none"
+parotoid_glands = 0.0
+neck_frill = 0.0
+skin_texture = "N/A"
+
+[axes]
+body_mass = 8.0
+diet_spectrum = { frugivore = 1.0 }
+activity_period = "diurnal"
+social_system = "herd"
+group_size = 25.0
+vertical_stratum = "canopy"
+seasonality_mode = "resident"
+fecundity = 1.0
+lifespan_yr = 25.0
+trophic_level = 2.5
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.3
+
+
+# patternation (M3)
+base_color = "dark_brown"
+belly_color = "tan"
+accent_color = "tan"
+pattern_motif = "uniform"
+pattern_coverage = 1.0
+pattern_contrast = 0.4
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 25
+temp_breadth_c = 0.25
+moisture_opt = 0.85
+moisture_breadth = 0.3
+
+[generics]
+locomotor = "scansorial_arboreal"
+feeding_organ = "bunodont_molars"
+covering = "fur"
+respiration = "lungs"
+reproduction = "viviparous"
+sensor_array = "camera_eye_binocular"
+sustenance = "simple_gut"
+support = "endoskeleton"

@@ -1,0 +1,206 @@
+# pins.toml — Tier-1 anchors (taste-informed; me-authored pin→preset map).
+# Pins are real animals used as-is (taste bootstrap: everyday register =
+# standard archetypes, no invented everyday creatures). Species-rank pins sit
+# under the nearest preset + overrides. Texture pins are any-rank radiation
+# controls (radiation = authored param, not dynamics).
+# Axis overrides use the M1 registry axis names (body_mass, diet_guild, ...).
+
+# ──  carry / ride  ───────────────────────────────────────────────────────
+[[pin]]
+preset = "tetrapod.deer"
+parent_pin = "equines"
+label = "horse"
+name = { binomial = "Equus caballus", folk = "horse" }
+knobs = { toe_count = 1, metapodial_proximal_ratio = 0.9, tail_length_ratio = 0.5 }
+axes = { body_mass = 450.0, diet_spectrum = { grazer = 1.0 }, social_system = "herd", activity_period = "diurnal" }
+flags = ["pinned"]
+
+# ──  eat / game  ─────────────────────────────────────────────────────────
+[[pin]]
+preset = "tetrapod.deer"
+label = "red deer"
+name = { binomial = "Cervus elaphus", folk = "red deer" }
+axes = { body_mass = 160.0, diet_spectrum = { browser = 1.0 }, social_system = "herd" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tetrapod.deer"
+label = "aurochs"
+name = { binomial = "Bos primigenius", folk = "aurochs" }
+knobs = { trunk_depth_ratio = 0.9, head_size_ratio = 0.32 }
+axes = { body_mass = 700.0, diet_spectrum = { grazer = 1.0 }, social_system = "herd" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tetrapod.boar"
+label = "boar"
+name = { binomial = "Sus scrofa", folk = "boar" }
+axes = { body_mass = 90.0, diet_spectrum = { frugivore = 0.4, detritivore = 0.3, carnivore = 0.3 }, social_system = "family" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tetrapod.rabbit"
+label = "rabbit"
+name = { binomial = "Oryctolagus cuniculus", folk = "rabbit" }
+axes = { body_mass = 2.0, diet_spectrum = { grazer = 1.0 }, fecundity = 30.0 }
+flags = ["pinned"]
+
+# ──  threaten  ───────────────────────────────────────────────────────────
+[[pin]]
+preset = "tetrapod.cat"
+label = "wolf"
+name = { binomial = "Canis lupus", folk = "wolf" }
+knobs = { claw_retractability = "fixed", pupil_shape = "round", snout_ratio = 0.45 }
+axes = { body_mass = 45.0, diet_spectrum = { carnivore = 1.0 }, social_system = "pack", group_size = 8.0, trophic_level = 4.0, base_color = "gray", pattern_motif = "countershaded" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tetrapod.bear"
+label = "brown bear"
+name = { binomial = "Ursus arctos", folk = "brown bear" }
+axes = { body_mass = 300.0, diet_spectrum = { grazer = 0.2, frugivore = 0.35, piscivore = 0.2, carnivore = 0.25 }, social_system = "solitary", trophic_level = 3.5 }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tetrapod.cat"
+label = "tiger"
+name = { binomial = "Panthera tigris", folk = "tiger" }
+axes = { body_mass = 220.0, diet_spectrum = { carnivore = 1.0 }, social_system = "solitary", trophic_level = 4.5, base_color = "orange", belly_color = "white", accent_color = "black", pattern_motif = "striped", pattern_coverage = 0.9, pattern_contrast = 0.9 }
+knobs = { pupil_shape = "round" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tetrapod.reptile"
+label = "crocodile"
+name = { binomial = "Crocodylus niloticus", folk = "crocodile" }
+knobs = { stance_sprawl = 1.1, trunk_elongation = 1.8, tail_length_ratio = 1.0 }
+axes = { body_mass = 400.0, diet_spectrum = { carnivore = 1.0 }, vertical_stratum = "demersal", trophic_level = 4.0 }
+flags = ["pinned"]
+
+# ──  coastal  ────────────────────────────────────────────────────────────
+[[pin]]
+preset = "tetrapod.weasel_otter"
+label = "seal"
+name = { binomial = "Phoca vitulina", folk = "seal" }
+knobs = { foot_webbing_grade = "full", limb_length_to_trunk = 0.4 }
+axes = { body_mass = 100.0, diet_spectrum = { piscivore = 1.0 }, vertical_stratum = "pelagic" }
+flags = ["pinned"]
+
+# ──  real-exotic flavor  ─────────────────────────────────────────────────
+[[pin]]
+preset = "tetrapod.deer"
+label = "tapir"
+name = { binomial = "Tapirus terrestris", folk = "tapir" }
+knobs = { proboscis_grade = 0.3, toe_count = 4 }
+axes = { body_mass = 250.0, diet_spectrum = { browser = 1.0 }, social_system = "solitary", base_color = "dark_brown", accent_color = "white", pattern_motif = "saddled", pattern_juvenile = "natal_coat" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tetrapod.weasel_otter"
+label = "anteater"
+name = { binomial = "Myrmecophaga tridactyla", folk = "anteater" }
+knobs = { snout_ratio = 0.65, tail_length_ratio = 0.7 }
+axes = { body_mass = 35.0, diet_spectrum = { insectivore = 1.0 }, vertical_stratum = "ground" }
+generics = { feeding_organ = "insectivore_dentition" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tetrapod.mole"
+label = "pangolin"
+name = { binomial = "Manis javanica", folk = "pangolin" }
+axes = { body_mass = 5.0, diet_spectrum = { insectivore = 1.0 }, vertical_stratum = "fossorial" }
+flags = ["pinned"]
+
+# ──  see-daily  ──────────────────────────────────────────────────────────
+[[pin]]
+preset = "winged_biped.sparrow"
+label = "sparrow"
+name = { binomial = "Passer domesticus", folk = "sparrow" }
+axes = { body_mass = 0.03, diet_spectrum = { granivore = 1.0 }, social_system = "flock" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "winged_biped.crow"
+label = "crow"
+name = { binomial = "Corvus corax", folk = "crow" }
+axes = { body_mass = 0.5, diet_spectrum = { granivore = 0.3, insectivore = 0.3, carnivore = 0.2, scavenger = 0.2 }, social_system = "family" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "winged_biped.duck"
+label = "mallard"
+name = { binomial = "Anas platyrhynchos", folk = "mallard" }
+knobs = { foot_webbing_grade = "palmate" }
+axes = { body_mass = 1.0, diet_spectrum = { filter_feeder = 0.4, granivore = 0.3, insectivore = 0.3 }, vertical_stratum = "pelagic" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "winged_biped.eagle"
+label = "eagle"
+name = { binomial = "Aquila chrysaetos", folk = "eagle" }
+knobs = { beak_hook = true, flight_style = "soaring" }
+axes = { body_mass = 5.0, diet_spectrum = { carnivore = 1.0 }, social_system = "solitary" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "winged_biped.owl"
+label = "owl"
+name = { binomial = "Strix aluco", folk = "owl" }
+knobs = { facial_disc = "full" }
+axes = { body_mass = 1.0, diet_spectrum = { carnivore = 1.0 }, activity_period = "nocturnal", social_system = "solitary" }
+flags = ["pinned"]
+
+# ──  texture pins (radiation controls)  ──────────────────────────────────
+[[pin]]
+preset = "tetrapod.squirrel"
+label = "murid rodents"
+name = { binomial = "Muridae" }
+rank = "family"
+radiation = 60
+axes = { body_mass = 0.05, diet_spectrum = { granivore = 1.0 }, fecundity = 40.0 }
+flags = ["pinned", "texture"]
+
+[[pin]]
+preset = "winged_biped.sparrow"
+label = "passerine songbirds"
+name = { binomial = "Passeridae" }
+rank = "family"
+radiation = 80
+axes = { diet_spectrum = { insectivore = 1.0 }, social_system = "flock", group_size = 20.0 }
+generics = { feeding_organ = "beak_generalist" }
+flags = ["pinned", "texture"]
+
+[[pin]]
+preset = "hexapod.beetle"
+label = "beetles"
+name = { binomial = "Coleoptera" }
+rank = "order"
+radiation = 120
+axes = { diet_spectrum = { detritivore = 1.0 } }
+flags = ["pinned", "texture"]
+
+# ──  M4: radiation anchors with directional drift  ────────────────────────
+# equines — horse-grade genus anchor, "horse but more cursorial": the
+# directional-drift demonstrator (biases in sigma units, see docs/m4-pins.md)
+[[pin]]
+preset = "tetrapod.deer"
+label = "equines"
+name = { binomial = "Equus" }
+rank = "genus"
+radiation = 3
+drift = { limb_length_to_trunk = 1.0, neck_length_ratio = 0.5 }
+axes = { body_mass = 300.0, diet_spectrum = { grazer = 1.0 }, social_system = "herd", group_size = 12.0 }
+flags = ["pinned"]
+
+# ──  invented clades (budgeted; critter tier only)  ───────────────────────
+[[pin]]
+preset = "tetrapod.squirrel"
+label = "coal-rat"
+name = { binomial = "Carbonomys", folk = "coal-rat" }
+rank = "genus"
+radiation = 4
+axes = { body_mass = 0.3, diet_spectrum = { omnivore = 1.0 }, activity_period = "nocturnal", fecundity = 24.0 }
+flags = ["pinned", "invented"]
+
+[budget]
+invented_max = 3

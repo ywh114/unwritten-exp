@@ -1,0 +1,81 @@
+# Winged Biped preset: penguin
+# B1 §3 worked example — spheniscid (flightless)
+
+[preset]
+id = "winged_biped.penguin"
+plan = "winged_biped"
+grade = "penguin"
+status = "hand-authored"
+source = "addendum-B1 §3 table"
+
+[knobs]
+aspect_ratio = 0.0
+wing_loading = 0.0
+hand_wing_index = 0.5
+hand_wing_fraction = 0.5
+slot_count = 0
+slot_depth = 0.0
+neck_fraction = 0.30
+head_fraction = 0.22
+tarsus_fraction = 0.06
+leg_setback = "rear"
+winged_tail_length_ratio = 0.1
+tail_shape = "stub"
+fork_depth = 0.0
+beak_length_ratio = 0.5
+beak_depth_ratio = 0.3
+beak_hook = 0.0
+beak_width = 0.2
+flight_style = "flightless"
+toe_arrangement = "anisodactyl"
+winged_foot_webbing_grade = "palmate"
+crest = "none"
+comb_type = "none"
+wattle_snood = 0.0
+cere_bareface = 0.0
+leg_feathering = "bare"
+tarsal_spur = "none"
+throat_pouch = "none"
+head_casque = "none"
+facial_disc = "none"
+
+[axes]
+body_mass = 15.0
+diet_spectrum = { piscivore = 1.0 }
+activity_period = "diurnal"
+social_system = "colony"
+group_size = 5000.0
+vertical_stratum = "pelagic"
+seasonality_mode = "migrant_altitudinal"
+fecundity = 1.5
+lifespan_yr = 20.0
+trophic_level = 3.5
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.0
+
+
+# patternation (M3)
+base_color = "black"
+belly_color = "white"
+accent_color = "orange"
+pattern_motif = "countershaded"
+pattern_coverage = 1.0
+pattern_contrast = 0.9
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 2
+temp_breadth_c = 0.3
+moisture_opt = 0.95
+moisture_breadth = 0.1
+
+[generics]
+locomotor = "flipper_aquatic"
+feeding_organ = "beak_piscivore"
+covering = "feathers"
+respiration = "lungs_air_sacs"
+reproduction = "oviparous"
+sensor_array = "camera_eye_binocular"
+sustenance = "simple_gut"
+support = "endoskeleton_dense"

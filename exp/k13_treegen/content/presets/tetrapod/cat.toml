@@ -1,0 +1,95 @@
+# Tetrapod preset: cat
+# B1 §2 worked example — felid
+
+[preset]
+id = "tetrapod.cat"
+plan = "tetrapod"
+grade = "cat"
+status = "hand-authored"
+source = "addendum-B1 §2 table"
+
+[knobs]
+# Core B1 §2
+intermembral_index = 90
+brachial_index = 95
+crural_index = 100
+metapodial_proximal_ratio = 0.55
+olecranon_index = 25
+limb_length_to_trunk = 0.9
+trunk_elongation = 1.0
+trunk_depth_ratio = 0.6
+neck_length_ratio = 0.20
+head_size_ratio = 0.28
+snout_ratio = 0.30
+ear_size_ratio = 0.08
+tail_length_ratio = 0.60
+tail_taper = 0.7
+stance_sprawl = 0.3
+foot_posture = "digitigrade"
+
+# Labile dials
+ear_posture = "erect"
+tail_carriage = "level"
+foot_webbing_grade = "none"
+toe_count = 4
+claw_retractability = "retractile"
+vibrissae_prominence = 0.7
+mane_ruff_extent = 0.0
+dewlap_jowl_flesh = 0.0
+skin_wrinkle_looseness = 0.0
+fat_depot = "none"
+horn_cover_texture = "N/A"
+pupil_shape = "vertical_slit"
+stance_profile = 0.4
+tail_flag_rump_patch = "none"
+proboscis_grade = 0.0
+
+# Herp dials
+throat_fan_dewlap = "none"
+dorsal_crest_spines = "none"
+vocal_sac = "none"
+parotoid_glands = 0.0
+neck_frill = 0.0
+skin_texture = "N/A"
+
+[axes]
+body_mass = 4.0
+diet_spectrum = { carnivore = 1.0 }
+activity_period = "nocturnal"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "ground"
+seasonality_mode = "resident"
+fecundity = 4.0
+lifespan_yr = 15.0
+trophic_level = 4.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.1
+
+
+# patternation (M3)
+base_color = "gray"
+belly_color = "cream"
+accent_color = "dark_brown"
+pattern_motif = "mottled"
+pattern_coverage = 0.6
+pattern_contrast = 0.5
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 22
+temp_breadth_c = 0.4
+moisture_opt = 0.5
+moisture_breadth = 0.4
+
+[generics]
+locomotor = "cursorial"
+feeding_organ = "carnassial_shear"
+covering = "fur"
+respiration = "lungs"
+reproduction = "viviparous"
+sensor_array = "camera_eye_binocular"
+sustenance = "simple_gut"
+defense = "retractile_claws"
+support = "endoskeleton"

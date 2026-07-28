@@ -1,0 +1,110 @@
+# K13 tree-gen — body plans (M1 PlanSpec format).
+# Restricted to the 3 starting plans: tetrapod, winged_biped, hexapod.
+# Slots re-used verbatim from v1 plans.toml.
+# [plan.X.generics] = generic -> [realizations] rebind permission table,
+# compiled from v1 presets.
+
+[plan.tetrapod]
+phylum = "chordata"
+frame = "inner_frame"
+medium = "land"
+magic_only = false
+slots = [
+    "head.crown", "head.snout", "head.cheek", "head.throat",
+    "dorsal.neck", "dorsal.mid", "dorsal.rump",
+    "ventral.throat", "ventral.chest", "ventral.belly",
+    "limb.fore.L", "limb.fore.R", "limb.hind.L", "limb.hind.R",
+    "tail.base", "tail.mid", "tail.tip",
+]
+
+[plan.tetrapod.generics]
+locomotor = [
+    "cursorial", "plantigrade", "digitigrade_cursorial",
+    "scansorial_climbing", "scansorial_arboreal",
+    "cursorial_unguligrade", "fossorial", "saltatorial",
+    "semi_aquatic_elongate", "sprawling",
+]
+feeding_organ = [
+    "ever_growing_incisors_1pair", "ever_growing_incisors_2pair",
+    "carnassial_shear", "hypsodont_molars", "bunodont_molars",
+    "insectivore_dentition", "carnivore_dentition",
+]
+signal = ["antlers", "horns_keratin", "mane", "facial_disc", "dewlap", "vocal_sac"]
+covering = ["fur", "scales", "keratin_scales", "osteoderm_armor"]
+sensor_array = ["camera_eye_lateral", "camera_eye_binocular", "reduced_eye"]
+sustenance = ["hindgut_cecum", "simple_gut", "rumen_4chamber"]
+defense = ["escape_arboreal", "retractile_claws", "escape_cursorial",
+           "escape_saltatorial", "escape_aquatic", "armor_osteoderm"]
+support = ["endoskeleton"]
+storage = ["caching_scatter_hoard", "fat_depot_seasonal"]
+respiration = ["lungs"]
+reproduction = ["viviparous", "oviparous"]
+
+[plan.winged_biped]
+phylum = "chordata"
+frame = "inner_frame"
+medium = "air/land"
+magic_only = false
+slots = [
+    "head.crown", "head.snout", "head.cheek", "head.throat",
+    "dorsal.neck", "dorsal.mid", "dorsal.rump",
+    "ventral.throat", "ventral.chest", "ventral.belly",
+    "limb.fore.L", "limb.fore.R", "limb.hind.L", "limb.hind.R",
+    "tail.base", "tail.mid", "tail.tip",
+    "wing.L", "wing.R",
+]
+
+[plan.winged_biped.generics]
+locomotor = ["feathered_wing", "flipper_aquatic"]
+feeding_organ = [
+    "beak_conical_seed", "beak_hooked_flesh", "beak_piscivore",
+    "beak_generalist", "beak_lamellate_filter", "beak_spear_probe",
+    "beak_nectar_tube",
+]
+signal = ["facial_disc", "crest", "display_plumage", "comb_wattle"]
+covering = ["feathers"]
+sensor_array = ["camera_eye_lateral", "camera_eye_binocular"]
+sustenance = ["crop_gizzard", "simple_gut"]
+defense = ["talons", "escape_flight", "mobbing"]
+support = ["endoskeleton_pneumatic", "endoskeleton_dense"]
+storage = ["subcutaneous_fat"]
+respiration = ["lungs_air_sacs"]
+reproduction = ["oviparous"]
+
+[plan.hexapod]
+phylum = "arthropoda"
+frame = "outer_frame"
+medium = "land/air"
+magic_only = false
+slots = [
+    "head.crown", "head.snout", "head.cheek", "head.throat",
+    "dorsal.neck", "dorsal.mid", "dorsal.rump",
+    "ventral.throat", "ventral.chest", "ventral.belly",
+    "limb.fore.L", "limb.fore.R", "limb.mid.L", "limb.mid.R",
+    "limb.hind.L", "limb.hind.R",
+    "wing.L", "wing.R",
+    "tail.base", "tail.mid", "tail.tip",
+]
+
+[plan.hexapod.generics]
+locomotor = [
+    "cursorial_hexapod", "insectoid_wing_scaled",
+    "insectoid_wing_elytra", "insectoid_wing_membranous",
+    "insectoid_wing_jumping",
+]
+feeding_organ = [
+    "mandibulate", "siphoning_proboscis",
+    "mandibulate_predatory", "mandibulate_herbivore",
+    "chewing_lapping",
+]
+signal = ["stridulation", "aposematic_color", "bioluminescence"]
+covering = ["chitin_cuticle", "chitin_cuticle_scaled", "chitin_cuticle_sclerotized"]
+sensor_array = ["compound_eye_antennae", "compound_eye_large"]
+sustenance = ["simple_gut", "crop"]
+defense = ["formic_acid_spray", "aposematism", "elytra_armor",
+           "escape_jump", "venom_sting"]
+support = ["exoskeleton"]
+storage = ["crop_storage"]
+respiration = ["tracheae_spiracles"]
+reproduction = ["oviparous_eusocial", "holometabolous", "hemimetabolous",
+                "holometabolous_eusocial"]

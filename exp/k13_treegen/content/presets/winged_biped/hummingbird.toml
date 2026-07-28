@@ -1,0 +1,81 @@
+# Winged Biped preset: hummingbird
+# B1 §3 worked example — trochilid
+
+[preset]
+id = "winged_biped.hummingbird"
+plan = "winged_biped"
+grade = "hummingbird"
+status = "hand-authored"
+source = "addendum-B1 §3 table"
+
+[knobs]
+aspect_ratio = 8.0
+wing_loading = 0.8
+hand_wing_index = 60
+hand_wing_fraction = 0.65
+slot_count = 0
+slot_depth = 0.0
+neck_fraction = 0.15
+head_fraction = 0.25
+tarsus_fraction = 0.08
+leg_setback = "central"
+winged_tail_length_ratio = 0.6
+tail_shape = "forked"
+fork_depth = 0.3
+beak_length_ratio = 1.5
+beak_depth_ratio = 0.08
+beak_hook = 0.0
+beak_width = 0.06
+flight_style = "hovering"
+toe_arrangement = "anisodactyl"
+winged_foot_webbing_grade = "none"
+crest = "none"
+comb_type = "none"
+wattle_snood = 0.0
+cere_bareface = 0.2
+leg_feathering = "bare"
+tarsal_spur = "none"
+throat_pouch = "none"
+head_casque = "none"
+facial_disc = "none"
+
+[axes]
+body_mass = 0.005
+diet_spectrum = { nectarivore = 1.0 }
+activity_period = "diurnal"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "aerial"
+seasonality_mode = "migrant_latitudinal"
+fecundity = 2.0
+lifespan_yr = 5.0
+trophic_level = 2.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.7
+
+
+# patternation (M3)
+base_color = "iridescent"
+belly_color = "cream"
+accent_color = "red"
+pattern_motif = "uniform"
+pattern_coverage = 1.0
+pattern_contrast = 0.6
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 22
+temp_breadth_c = 0.3
+moisture_opt = 0.6
+moisture_breadth = 0.3
+
+[generics]
+locomotor = "feathered_wing"
+feeding_organ = "beak_nectar_tube"
+covering = "feathers"
+respiration = "lungs_air_sacs"
+reproduction = "oviparous"
+sensor_array = "camera_eye_lateral"
+sustenance = "crop_gizzard"
+support = "endoskeleton_pneumatic"

@@ -1,0 +1,94 @@
+# Tetrapod preset: weasel_otter
+# B1 §2 worked example — mustelid
+
+[preset]
+id = "tetrapod.weasel_otter"
+plan = "tetrapod"
+grade = "weasel_otter"
+status = "hand-authored"
+source = "addendum-B1 §2 table"
+
+[knobs]
+# Core B1 §2
+intermembral_index = 70
+brachial_index = 75
+crural_index = 85
+metapodial_proximal_ratio = 0.35
+olecranon_index = 35
+limb_length_to_trunk = 0.5
+trunk_elongation = 1.6
+trunk_depth_ratio = 0.4
+neck_length_ratio = 0.12
+head_size_ratio = 0.25
+snout_ratio = 0.35
+ear_size_ratio = 0.04
+tail_length_ratio = 0.40
+tail_taper = 0.6
+stance_sprawl = 0.5
+foot_posture = "plantigrade"
+
+# Labile dials
+ear_posture = "semi-erect"
+tail_carriage = "level"
+foot_webbing_grade = "full"
+toe_count = 5
+claw_retractability = "fixed"
+vibrissae_prominence = 0.8
+mane_ruff_extent = 0.0
+dewlap_jowl_flesh = 0.0
+skin_wrinkle_looseness = 0.0
+fat_depot = "none"
+horn_cover_texture = "N/A"
+pupil_shape = "round"
+stance_profile = 0.3
+tail_flag_rump_patch = "none"
+proboscis_grade = 0.0
+
+# Herp dials
+throat_fan_dewlap = "none"
+dorsal_crest_spines = "none"
+vocal_sac = "none"
+parotoid_glands = 0.0
+neck_frill = 0.0
+skin_texture = "N/A"
+
+[axes]
+body_mass = 3.0
+diet_spectrum = { carnivore = 1.0 }
+activity_period = "cathemeral"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "ground"
+seasonality_mode = "resident"
+fecundity = 4.0
+lifespan_yr = 10.0
+trophic_level = 3.5
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.0
+
+
+# patternation (M3)
+base_color = "dark_brown"
+belly_color = "cream"
+accent_color = "white"
+pattern_motif = "countershaded"
+pattern_coverage = 0.8
+pattern_contrast = 0.5
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 12
+temp_breadth_c = 0.5
+moisture_opt = 0.8
+moisture_breadth = 0.3
+
+[generics]
+locomotor = "semi_aquatic_elongate"
+feeding_organ = "carnassial_shear"
+covering = "fur"
+respiration = "lungs"
+reproduction = "viviparous"
+sensor_array = "camera_eye_binocular"
+sustenance = "simple_gut"
+support = "endoskeleton"

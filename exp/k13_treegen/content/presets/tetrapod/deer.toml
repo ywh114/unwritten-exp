@@ -1,0 +1,96 @@
+# Tetrapod preset: deer
+# B1 §2 worked example — cervid
+
+[preset]
+id = "tetrapod.deer"
+plan = "tetrapod"
+grade = "deer"
+status = "hand-authored"
+source = "addendum-B1 §2 table"
+
+[knobs]
+# Core B1 §2
+intermembral_index = 95
+brachial_index = 110
+crural_index = 120
+metapodial_proximal_ratio = 0.80
+olecranon_index = 22
+limb_length_to_trunk = 1.3
+trunk_elongation = 0.9
+trunk_depth_ratio = 0.7
+neck_length_ratio = 0.40
+head_size_ratio = 0.30
+snout_ratio = 0.52
+ear_size_ratio = 0.12
+tail_length_ratio = 0.12
+tail_taper = 0.4
+stance_sprawl = 0.25
+foot_posture = "unguligrade"
+
+# Labile dials
+ear_posture = "erect"
+tail_carriage = "raised"
+foot_webbing_grade = "none"
+toe_count = 2
+claw_retractability = "fixed"
+vibrissae_prominence = 0.1
+mane_ruff_extent = 0.0
+dewlap_jowl_flesh = 0.0
+skin_wrinkle_looseness = 0.0
+fat_depot = "none"
+horn_cover_texture = "velvet"
+pupil_shape = "horizontal_slit"
+stance_profile = 0.8
+proboscis_grade = 0.0
+tail_flag_rump_patch = "none"
+
+# Herp dials
+throat_fan_dewlap = "none"
+dorsal_crest_spines = "none"
+vocal_sac = "none"
+parotoid_glands = 0.0
+neck_frill = 0.0
+skin_texture = "N/A"
+
+[axes]
+body_mass = 60.0
+diet_spectrum = { grazer = 1.0 }
+activity_period = "diurnal"
+social_system = "herd"
+group_size = 20.0
+vertical_stratum = "ground"
+seasonality_mode = "migrant_altitudinal"
+fecundity = 1.5
+lifespan_yr = 15.0
+trophic_level = 2.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.2
+
+
+# patternation (M3)
+base_color = "rufous"
+belly_color = "cream"
+accent_color = "white"
+pattern_motif = "countershaded"
+pattern_coverage = 0.8
+pattern_contrast = 0.4
+pattern_juvenile = "spotted"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 14
+temp_breadth_c = 0.5
+moisture_opt = 0.55
+moisture_breadth = 0.4
+
+[generics]
+locomotor = "cursorial_unguligrade"
+feeding_organ = "hypsodont_molars"
+covering = "fur"
+respiration = "lungs"
+reproduction = "viviparous"
+sensor_array = "camera_eye_lateral"
+sustenance = "rumen_4chamber"
+defense = "escape_cursorial"
+support = "endoskeleton"
+signal = "antlers"

@@ -1,0 +1,129 @@
+# M6 — coupling rules (B1 §15 enumeration + v2 status).
+# Data, not code. Every active rule has an existence proof in test_m6.py;
+# dormant rules are recorded-but-unbound with the reason; the 3 rejected
+# candidates (expensive-tissue, armor↔speed, venom cost) are absent by test.
+
+# ──  R1 domestication package (B1 §15.1, SEMI-UNIVERSAL)  ────────────────
+# tameness (wariness down) drags the §13.1 dial package with it — one event,
+# one correlated set, not independent draws.
+[[rule]]
+id = "domestication_package"
+kind = "bundle"
+status = "active"
+scope = ["tetrapod"]
+source = "B1 §15 #1"
+trigger = { axis = "wariness", direction = -1, min_z = 0.5 }
+[[rule.effect]]
+axis = "ear_posture"
+state = "pendant"
+[[rule.effect]]
+axis = "tail_carriage"
+state = "curled"
+[[rule.effect]]
+axis = "snout_ratio"
+z = -0.5
+[[rule.effect]]
+axis = "pattern_motif"
+state = "spotted"
+
+# ──  R2 offspring size x number (B1 §15.2, SEMI-UNIVERSAL)  ──────────────
+[[rule]]
+id = "size_fecundity"
+kind = "tradeoff"
+status = "active"
+scope = ["all"]
+source = "B1 §15 #2"
+a = "body_mass"
+b = "fecundity"
+strength = -0.3          # mass up => fecundity down (anticorrelate)
+
+# ──  R3 fast-slow life history (B1 §15.3, SEMI-UNIVERSAL)  ───────────────
+[[rule]]
+id = "fast_slow"
+kind = "tradeoff"
+status = "active"
+scope = ["all"]
+source = "B1 §15 #3"
+a = "lifespan_yr"
+b = "fecundity"
+strength = -0.4          # lifespan up => fecundity down
+
+# ──  R4 island flightlessness gate (B1 §15.4, SEMI-UNIVERSAL; gate per §3)
+[[rule]]
+id = "flightless_gate"
+kind = "gate"
+status = "active"
+scope = ["winged_biped"]
+source = "B1 §15 #4 + §3 (flight_style is the gate)"
+trigger = { axis = "flight_style", state = "flightless" }
+targets = ["aspect_ratio", "hand_wing_index", "hand_wing_fraction"]
+
+# ──  R8 ornament cost, weakened form (B1 §15.8)  ─────────────────────────
+# condition-dependent expression: under stress, ornaments shrink.
+[[rule]]
+id = "ornament_cost"
+kind = "gate"
+status = "active"
+scope = ["all"]
+source = "B1 §15 #8 (weakened form; runaway-cost claims dropped)"
+trigger = { condition = "stressed" }
+targets = ["mane_ruff_extent", "crest", "wattle_snood", "throat_fan_dewlap"]
+
+# ──  ecogeographic rules (symmetric: niche axis <-> morph axis)  ─────────
+# User ruling (scope/precedence): climate never touches morphology
+# directly. The world stresses the NICHE axes (temp_opt_c mismatch via
+# descent); morphology follows through these couplings — and the reverse
+# direction is equally real (a furrier animal BECOMES cold-suited).
+# Knobs and results are equal citizens.
+[[rule]]
+id = "allens_rule"
+kind = "tradeoff"
+status = "active"
+scope = ["tetrapod", "winged_biped"]
+source = "Allen's rule (extremity size x temperature); user 2026-07-28"
+a = "temp_opt_c"
+b = "ear_size_ratio"
+strength = 0.4           # colder-suited <=> smaller ears (same sign)
+
+[[rule]]
+id = "bergmanns_rule"
+kind = "tradeoff"
+status = "active"
+scope = ["tetrapod", "winged_biped"]
+source = "Bergmann's rule (body size x latitude); user 2026-07-28"
+a = "temp_opt_c"
+b = "body_mass"
+strength = -0.3          # colder-suited <=> larger body (opposite sign)
+
+# ──  dormant: enumerated, unbound, reason recorded  ──────────────────────
+[[rule]]
+id = "glogers_rule"
+kind = "tradeoff"
+status = "dormant"
+scope = ["tetrapod", "winged_biped"]
+source = "Gloger's rule (pigmentation x humidity); user 2026-07-28"
+dormant_reason = "pigmentation axes are enums (base_color); enum<->scalar coupling deferred with melanism_aggression"
+
+[[rule]]
+id = "cancer_suppression"
+kind = "tradeoff"
+status = "dormant"
+scope = ["all"]
+source = "B1 §15 #5"
+dormant_reason = "no cancer_suppression / regenerative_capacity axes in v2"
+
+[[rule]]
+id = "sensory_modality_tradeoff"
+kind = "tradeoff"
+status = "dormant"
+scope = ["all"]
+source = "B1 §15 #6"
+dormant_reason = "no sensory modality axes in v2; cave bundle lands with them"
+
+[[rule]]
+id = "melanism_aggression"
+kind = "tradeoff"
+status = "dormant"
+scope = ["tetrapod"]
+source = "B1 §15 #7 (CONTESTED mechanism)"
+dormant_reason = "enum(scalar) coupling deferred; base_color is an enum"

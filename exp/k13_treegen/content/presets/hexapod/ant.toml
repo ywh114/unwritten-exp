@@ -1,0 +1,70 @@
+# Hexapod preset: ant
+# B1 §5 table — social hymenopteran
+
+[preset]
+id = "hexapod.ant"
+plan = "hexapod"
+grade = "ant"
+status = "hand-authored"
+source = "addendum-B1 §5 table"
+
+[knobs]
+# Core B1 §5
+insect_head_fraction = 0.18
+thorax_fraction = 0.22
+abdomen_fraction = 0.60
+antenna_length = 0.5
+antenna_form = "elbowed"
+hindleg_ratio = 1.0
+wing_span_ratio = 0.0
+wing_count = "0"
+waist_constriction = 0.3
+abdomen_taper = 0.7
+
+# Labile dials
+horn_mandible_exaggeration = 0.1
+cerci_type = "none"
+pronotum_extension = "none"
+eye_stalks = 0.0
+swimming_leg_fringe = 0.0
+elytra_sculpture = "smooth"
+
+[axes]
+body_mass = 5e-06
+diet_spectrum = { detritivore = 0.4, nectarivore = 0.3, carnivore = 0.3 }
+activity_period = "diurnal"
+social_system = "eusocial"
+group_size = 10000.0
+vertical_stratum = "ground"
+seasonality_mode = "resident"
+fecundity = 100.0
+lifespan_yr = 5.0
+trophic_level = 2.5
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.0
+
+
+# patternation (M3)
+base_color = "dark_brown"
+belly_color = "dark_brown"
+accent_color = "black"
+pattern_motif = "uniform"
+pattern_coverage = 1.0
+pattern_contrast = 0.3
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 22
+temp_breadth_c = 0.55
+moisture_opt = 0.55
+moisture_breadth = 0.45
+
+[generics]
+locomotor = "cursorial_hexapod"
+feeding_organ = "mandibulate"
+covering = "chitin_cuticle"
+respiration = "tracheae_spiracles"
+reproduction = "oviparous_eusocial"
+sensor_array = "compound_eye_antennae"
+defense = "formic_acid_spray"

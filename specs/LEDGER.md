@@ -91,6 +91,7 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | W4 | commit specs/ move | repo | **done** (commit 03afc0b) |
 | W5 | C2 backfill stress tests: harder prompts (larger k, more dead NPCs, contradictory counter anchors) — make the validator fail live | user 2026-07-20 | pending |
 | W6 | adopt/reject biosphere-vocabulary-proposal + biosphere-addendum-b1 (folds with W2; also unblocks the tree-of-life builder first step) | specs/ | pending user decision |
+| W7 | ley-proximity mutation legalization (user 2026-07-28): near ley lines, mutations that are illegal in the base registry become legal — N/A reactivation without an authored pin, palette breaches (blue mammal), drift beyond 3σ. The legality envelope becomes spatial. Gated on the ley/magical system (out of K13 v2 backbone scope; see rounds spec-note) | user | future |
 
 ### Consistency review 2026-07-21 (specs vs. implemented libraries)
 

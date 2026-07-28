@@ -1,0 +1,70 @@
+# Hexapod preset: bee
+# B1 §5 table — hymenopteran (non-ant)
+
+[preset]
+id = "hexapod.bee"
+plan = "hexapod"
+grade = "bee"
+status = "hand-authored"
+source = "addendum-B1 §5 table"
+
+[knobs]
+# Core B1 §5
+insect_head_fraction = 0.15
+thorax_fraction = 0.30
+abdomen_fraction = 0.55
+antenna_length = 0.4
+antenna_form = "elbowed"
+hindleg_ratio = 1.1
+wing_span_ratio = 2.0
+wing_count = "4"
+waist_constriction = 0.5
+abdomen_taper = 0.6
+
+# Labile dials
+horn_mandible_exaggeration = 0.0
+cerci_type = "none"
+pronotum_extension = "none"
+eye_stalks = 0.0
+swimming_leg_fringe = 0.0
+elytra_sculpture = "smooth"
+
+[axes]
+body_mass = 0.0001
+diet_spectrum = { nectarivore = 1.0 }
+activity_period = "diurnal"
+social_system = "eusocial"
+group_size = 50000.0
+vertical_stratum = "aerial"
+seasonality_mode = "resident"
+fecundity = 200.0
+lifespan_yr = 2.0
+trophic_level = 2.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.2
+
+
+# patternation (M3)
+base_color = "yellow"
+belly_color = "yellow"
+accent_color = "black"
+pattern_motif = "banded"
+pattern_coverage = 0.9
+pattern_contrast = 0.9
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 18
+temp_breadth_c = 0.5
+moisture_opt = 0.55
+moisture_breadth = 0.45
+
+[generics]
+locomotor = "insectoid_wing_membranous"
+feeding_organ = "chewing_lapping"
+covering = "chitin_cuticle"
+respiration = "tracheae_spiracles"
+reproduction = "holometabolous_eusocial"
+sensor_array = "compound_eye_antennae"
+defense = "venom_sting"

@@ -1,0 +1,82 @@
+# Winged Biped preset: owl
+# B1 §3 worked example — strigiform
+
+[preset]
+id = "winged_biped.owl"
+plan = "winged_biped"
+grade = "owl"
+status = "hand-authored"
+source = "addendum-B1 §3 table"
+
+[knobs]
+aspect_ratio = 6.5
+wing_loading = 3.0
+hand_wing_index = 15
+hand_wing_fraction = 0.5
+slot_count = 3
+slot_depth = 0.08
+neck_fraction = 0.20
+head_fraction = 0.30
+tarsus_fraction = 0.15
+leg_setback = "central"
+winged_tail_length_ratio = 0.35
+tail_shape = "rounded"
+fork_depth = 0.0
+beak_length_ratio = 0.3
+beak_depth_ratio = 0.5
+beak_hook = 0.7
+beak_width = 0.3
+flight_style = "sustained_flapping"
+toe_arrangement = "zygodactyl"
+winged_foot_webbing_grade = "none"
+crest = "none"
+comb_type = "none"
+wattle_snood = 0.0
+cere_bareface = 0.0
+leg_feathering = "booted"
+tarsal_spur = "none"
+throat_pouch = "none"
+head_casque = "none"
+facial_disc = "full"
+
+[axes]
+body_mass = 0.8
+diet_spectrum = { carnivore = 1.0 }
+activity_period = "nocturnal"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "aerial"
+seasonality_mode = "resident"
+fecundity = 3.0
+lifespan_yr = 12.0
+trophic_level = 4.0
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.1
+
+
+# patternation (M3)
+base_color = "dark_brown"
+belly_color = "tan"
+accent_color = "cream"
+pattern_motif = "mottled"
+pattern_coverage = 0.8
+pattern_contrast = 0.4
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 14
+temp_breadth_c = 0.55
+moisture_opt = 0.5
+moisture_breadth = 0.45
+
+[generics]
+locomotor = "feathered_wing"
+feeding_organ = "beak_hooked_flesh"
+covering = "feathers"
+respiration = "lungs_air_sacs"
+reproduction = "oviparous"
+sensor_array = "camera_eye_binocular"
+sustenance = "crop_gizzard"
+support = "endoskeleton_pneumatic"
+signal = "facial_disc"

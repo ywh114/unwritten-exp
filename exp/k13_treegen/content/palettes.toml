@@ -1,0 +1,34 @@
+# M3 — per-plan legal color palettes: the pigment/structural reach of the
+# bauplan. A mammal cannot be blue (no blue pigment, no structural blue in
+# fur); a bird or insect can. Lint rule R-palette flags out-of-plan colors
+# on presets and pin overrides.
+#
+# Colors are the enum states of base_color / belly_color / accent_color
+# (axes_patternation.toml). Palettes are per PLAN, not per preset — a tiger
+# pin under tetrapod.cat draws from the tetrapod palette.
+
+[palette.tetrapod]
+# Mammalian melanin range (black..white through brown/rufous/tan/cream) plus
+# herp greens (the reptile grade is a tetrapod here) and tiger orange
+# (pheomelanin-rich). NOT red/blue/green/iridescent — no fur pigment or
+# structural mechanism reaches those. Herp grades widen to the full gamut
+# via preset-level palette_extra (see presets/tetrapod/reptile.toml).
+#
+# Documented exclusion: sloth-green (symbiotic algae in fur) is deliberately
+# NOT modeled — an ecological tint, not a pigment; if it is ever wanted it
+# belongs to a niche/coupling effect, not the palette.
+colors = ["black", "dark_brown", "gray", "rufous", "tan", "cream", "white",
+          "dark_green", "orange"]
+
+[palette.winged_biped]
+# Full avian reach: melanins + carotenoids (red/orange/yellow) + structural
+# (blue, green, iridescent).
+colors = ["black", "dark_brown", "gray", "rufous", "tan", "cream", "white",
+          "red", "orange", "yellow", "blue", "green", "dark_green",
+          "iridescent"]
+
+[palette.hexapod]
+# Full insect reach incl. structural.
+colors = ["black", "dark_brown", "gray", "rufous", "tan", "cream", "white",
+          "red", "orange", "yellow", "blue", "green", "dark_green",
+          "iridescent"]

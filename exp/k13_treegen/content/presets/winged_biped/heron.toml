@@ -1,0 +1,81 @@
+# Winged Biped preset: heron
+# B1 §3 worked example — ardeid
+
+[preset]
+id = "winged_biped.heron"
+plan = "winged_biped"
+grade = "heron"
+status = "hand-authored"
+source = "addendum-B1 §3 table"
+
+[knobs]
+aspect_ratio = 7.5
+wing_loading = 6.0
+hand_wing_index = 30
+hand_wing_fraction = 0.6
+slot_count = 1
+slot_depth = 0.04
+neck_fraction = 0.50
+head_fraction = 0.2
+tarsus_fraction = 0.45
+leg_setback = "central"
+winged_tail_length_ratio = 0.15
+tail_shape = "stub"
+fork_depth = 0.0
+beak_length_ratio = 1.2
+beak_depth_ratio = 0.15
+beak_hook = 0.0
+beak_width = 0.15
+flight_style = "sustained_flapping"
+toe_arrangement = "anisodactyl"
+winged_foot_webbing_grade = "semipalmate"
+crest = "erectile"
+comb_type = "none"
+wattle_snood = 0.0
+cere_bareface = 0.0
+leg_feathering = "bare"
+tarsal_spur = "none"
+throat_pouch = "none"
+head_casque = "none"
+facial_disc = "none"
+
+[axes]
+body_mass = 1.5
+diet_spectrum = { piscivore = 1.0 }
+activity_period = "diurnal"
+social_system = "solitary"
+group_size = 1.0
+vertical_stratum = "ground"
+seasonality_mode = "migrant_latitudinal"
+fecundity = 4.0
+lifespan_yr = 15.0
+trophic_level = 3.5
+stage_forms = 1
+reproductive_mode = "gonochoric"
+dichromatism = 0.0
+
+
+# patternation (M3)
+base_color = "gray"
+belly_color = "white"
+accent_color = "black"
+pattern_motif = "countershaded"
+pattern_coverage = 0.7
+pattern_contrast = 0.5
+pattern_juvenile = "none"
+seasonal_molt = "none"
+[niche]
+temp_opt_c = 16
+temp_breadth_c = 0.5
+moisture_opt = 0.8
+moisture_breadth = 0.35
+
+[generics]
+locomotor = "feathered_wing"
+feeding_organ = "beak_spear_probe"
+covering = "feathers"
+respiration = "lungs_air_sacs"
+reproduction = "oviparous"
+sensor_array = "camera_eye_binocular"
+sustenance = "crop_gizzard"
+support = "endoskeleton_pneumatic"

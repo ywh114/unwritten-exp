@@ -1,0 +1,997 @@
+# M2 — morphometric axes for the 3 starting plans (tetrapod, winged_biped, hexapod).
+# Converted mechanically from B1 v0.3 §§2-5 + §13 surface dials per the
+# m2-content-pack.md design tables. Tier / mutation / sigma / salience /
+# grammar_role assignment is mechanical — no judgment.
+#
+# Unit: dimensionless for ALL of these (body_mass is in axes_core.toml).
+# Naming: tetrapod axes are bare (matching pins.toml); winged_biped/hexapod
+#   axes that collide with tetrapod names are prefixed (winged_, insect_).
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TETRAPOD — B1 §2 core (16 knobs, tier=steady)
+# ═══════════════════════════════════════════════════════════════════════════
+
+[axis.intermembral_index]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 5.7               # 6% of (145-50)=95
+bounds = [50.0, 145.0]    # B1 §2: leapers 50–75, orangutan ~145
+plan_scope = ["tetrapod"]
+consumers = ["draw", "stress", "tell", "name"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.brachial_index]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 3.9               # 6% of (130-65)=65
+bounds = [65.0, 130.0]    # B1 §2: fossorial <80, cursors >100
+plan_scope = ["tetrapod"]
+consumers = ["draw", "stress", "drift"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.crural_index]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 3.6               # 6% of (130-70)=60
+bounds = [70.0, 130.0]    # B1 §2: deer-grade 110-130
+plan_scope = ["tetrapod"]
+consumers = ["draw", "stress"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.metapodial_proximal_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.045             # 6% of (0.95-0.20)=0.75
+bounds = [0.20, 0.95]     # B1 §2: <0.38 noncursorial, horse ~0.9
+plan_scope = ["tetrapod"]
+consumers = ["stress", "draw", "drift"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.olecranon_index]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 2.4               # 6% of (60-20)=40
+bounds = [20.0, 60.0]     # B1 §2: generalized 20-35, diggers 40-60
+plan_scope = ["tetrapod"]
+consumers = ["stress", "draw", "tell"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.limb_length_to_trunk]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.063             # 6% of (1.4-0.35)=1.05
+bounds = [0.35, 1.4]      # B1 §2: mole 0.4, deer 1.3
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.trunk_elongation]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.066             # 6% of (1.8-0.7)=1.1
+bounds = [0.7, 1.8]       # B1 §2: weasel-grade high, bear-grade low
+plan_scope = ["tetrapod"]
+consumers = ["draw", "stress", "name"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.trunk_depth_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.036             # 6% of (0.9-0.3)=0.6
+bounds = [0.3, 0.9]       # B1 §2: deep-chested cursor vs low slinker
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.neck_length_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.024             # 6% of (0.45-0.05)=0.4
+bounds = [0.05, 0.45]     # B1 §2
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.head_size_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.012             # 6% of (0.40-0.20)=0.2
+bounds = [0.20, 0.40]     # B1 §2
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.snout_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.024             # 6% of (0.6-0.2)=0.4
+bounds = [0.2, 0.6]       # B1 §2: brachy <0.35, dolicho >0.5
+plan_scope = ["tetrapod"]
+consumers = ["draw", "name", "tell", "stress"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.ear_size_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.0144            # 6% of (0.25-0.01)=0.24
+bounds = [0.01, 0.25]     # B1 §2: arctic-fox ~0.05, fennec ~0.25
+plan_scope = ["tetrapod"]
+consumers = ["draw", "name", "tell", "stress"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.tail_length_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.069             # 6% of (1.2-0.05)=1.15
+bounds = [0.05, 1.2]      # B1 §2: deer 0.1-0.15, monkey 0.7-1.2
+plan_scope = ["tetrapod"]
+consumers = ["draw", "name", "tell", "pop"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.tail_taper]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.048             # 6% of (0.9-0.1)=0.8
+bounds = [0.1, 0.9]       # B1 §2: tip:base thickness
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.stance_sprawl]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.06              # 6% of (1.2-0.2)=1.0
+bounds = [0.2, 1.2]       # B1 §2: parasagittal 0.2-0.4, sprawling 0.8-1.2
+plan_scope = ["tetrapod"]
+consumers = ["draw", "stress"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.foot_posture]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["plantigrade", "digitigrade", "unguligrade"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "stress", "tell", "name"]
+salience = 0.6
+grammar_role = "grade"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TETRAPOD — B1 §13.1 labile surface dials (15 knobs, tier=labile)
+# ═══════════════════════════════════════════════════════════════════════════
+
+[axis.ear_posture]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["erect", "semi-erect", "folded", "pendant"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name", "drift"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.tail_carriage]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["low", "level", "raised", "curled", "sickle"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.foot_webbing_grade]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "partial", "full"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "stress", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.toe_count]
+block = "morphometrics"
+tier = "labile"
+value_type = "int"
+mutation = "gaussian"
+sigma = 0.48              # 12% of (5-1)=4
+bounds = [1.0, 5.0]       # B1 §13.1: int 1-5 per foot
+plan_scope = ["tetrapod"]
+consumers = ["draw", "id", "name"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.claw_retractability]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["retractile", "semi", "fixed"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "stress", "tell"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.vibrissae_prominence]
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.1: 0-1
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.mane_ruff_extent]
+adapt_weight = 0.0
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.1: none → full mane
+plan_scope = ["tetrapod"]
+consumers = ["draw", "name", "tell", "runaway"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.dewlap_jowl_flesh]
+adapt_weight = 0.2
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.1: 0-1
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.skin_wrinkle_looseness]
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.1: 0-1
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.fat_depot]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "single_hump", "double_hump", "nuchal_hump", "fat_tail", "fat_rump"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "name", "tell", "stress"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.horn_cover_texture]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["bare_keratin", "velvet", "shed"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.pupil_shape]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["round", "vertical_slit", "horizontal_slit", "W", "crescent"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name", "id"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.stance_profile]
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.1: low-slung → high-set
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.tail_flag_rump_patch]
+adapt_weight = 0.2
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "dark_tip", "white_flag", "tuft"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name", "id"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.proboscis_grade]
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.1: none → full trunk
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TETRAPOD — B1 §13.3 herp additions (6 knobs, tier=labile)
+# ═══════════════════════════════════════════════════════════════════════════
+
+[axis.throat_fan_dewlap]
+adapt_weight = 0.0
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "small", "large_extensible"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.dorsal_crest_spines]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "nuchal", "dorsal_crest", "sail"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.vocal_sac]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "median", "paired"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.4
+grammar_role = "part"
+
+[axis.parotoid_glands]
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.3: 0-1
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "stress"]
+salience = 0.4
+grammar_role = "part"
+
+[axis.neck_frill]
+adapt_weight = 0.1
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.3: bool/erectile as scalar
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.skin_texture]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["smooth_moist", "granular", "warty", "keeled"]
+plan_scope = ["tetrapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.4
+grammar_role = "covering"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  WINGED BIPED — B1 §3 core bird knobs (19 knobs, tier=steady)
+# ═══════════════════════════════════════════════════════════════════════════
+
+[axis.aspect_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.84              # 6% of (18-4)=14
+bounds = [4.0, 18.0]      # B1 §3: elliptical 4-5, albatross 13-15.4
+plan_scope = ["winged_biped"]
+consumers = ["draw", "stress", "name"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.wing_loading]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 1.47              # 6% of (25-0.5)=24.5
+bounds = [0.5, 25.0]      # B1 §3: living birds 1-20 kg/m², limit ~25
+plan_scope = ["winged_biped"]
+consumers = ["stress", "tell", "draw"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.hand_wing_index]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 4.5               # 6% of (75-0.01)≈75
+bounds = [0.01, 75.0]     # B1 §3: rhea 0.016, hummingbird 74.8
+plan_scope = ["winged_biped"]
+consumers = ["stress", "drift", "draw"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.hand_wing_fraction]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.033             # 6% of (0.85-0.3)=0.55
+bounds = [0.3, 0.85]      # B1 §3
+plan_scope = ["winged_biped"]
+consumers = ["draw", "stress"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.slot_count]
+block = "morphometrics"
+tier = "steady"
+value_type = "int"
+mutation = "gaussian"
+sigma = 0.36              # 6% of (6-0)=6
+bounds = [0.0, 6.0]       # B1 §3: 0-6 emarginated primary slots
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.slot_depth]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.018             # 6% of (0.3-0.0)=0.3
+bounds = [0.0, 0.3]       # B1 §3: slot depth : chord
+plan_scope = ["winged_biped"]
+consumers = ["draw"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.neck_fraction]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.024             # 6% of (0.55-0.15)=0.4
+bounds = [0.15, 0.55]     # B1 §3: owl ~0.20, heron 0.45-0.55
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.head_fraction]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.012             # 6% of (0.35-0.15)=0.2
+bounds = [0.15, 0.35]     # B1 §3
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.tarsus_fraction]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.0264            # 6% of (0.5-0.06)=0.44
+bounds = [0.06, 0.5]      # B1 §3: penguin ~0.06, heron 0.4-0.5
+plan_scope = ["winged_biped"]
+consumers = ["draw", "stress", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.leg_setback]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["central", "rear"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "stress", "tell"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.winged_tail_length_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.066             # 6% of (1.2-0.1)=1.1
+bounds = [0.1, 1.2]       # B1 §3
+plan_scope = ["winged_biped"]
+consumers = ["draw", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.tail_shape]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["square", "rounded", "pointed", "graduated", "forked", "deeply_forked", "lyre_streamer", "fan", "wedge", "stub"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.fork_depth]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.03              # 6% of (0.5-0.0)=0.5
+bounds = [0.0, 0.5]       # B1 §3: fork depth 0-0.5 tail length
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.4
+grammar_role = "part"
+
+[axis.beak_length_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.141             # 6% of (2.5-0.15)=2.35
+bounds = [0.15, 2.5]      # B1 §3: hawking 0.15-0.3, probing 1.0-2.5
+plan_scope = ["winged_biped"]
+consumers = ["draw", "name", "stress", "tell"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.beak_depth_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.057             # 6% of (1.0-0.05)=0.95
+bounds = [0.05, 1.0]      # B1 §3: probe 0.05-0.15, seed-crusher 0.6-1.0
+plan_scope = ["winged_biped"]
+consumers = ["draw", "stress", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.beak_hook]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.06              # 6% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §3: hooked flag 0-1
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "stress"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.beak_width]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.06              # 6% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §3: width scalar 0-1
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "stress"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.flight_style]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["sustained_flapping", "bounding", "soaring", "hovering", "flightless"]
+plan_scope = ["winged_biped"]
+consumers = ["stress", "tell", "pop"]
+salience = 0.6
+grammar_role = "grade"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  WINGED BIPED — B1 §13.2 labile surface dials (11 knobs, tier=labile)
+# ═══════════════════════════════════════════════════════════════════════════
+
+[axis.toe_arrangement]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["anisodactyl", "zygodactyl", "heterodactyl", "syndactyl", "pamprodactyl"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "stress", "id", "name"]
+salience = 0.4
+grammar_role = "part"
+
+[axis.winged_foot_webbing_grade]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "semipalmate", "palmate", "totipalmate", "lobate"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "stress", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.crest]
+adapt_weight = 0.0
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "fixed", "erectile"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "name", "tell", "runaway"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.comb_type]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "single", "rose", "pea", "V", "duplex"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.wattle_snood]
+adapt_weight = 0.0
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.2
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.cere_bareface]
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.2
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.leg_feathering]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["bare", "partial", "booted"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "covering"
+
+[axis.tarsal_spur]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "single", "multiple"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "stress"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.throat_pouch]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "pouch", "inflatable"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.head_casque]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "keratin_casque", "bony_knob"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.facial_disc]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "partial", "full"]
+plan_scope = ["winged_biped"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  HEXAPOD — B1 §5 core (10 knobs, tier=steady except wing_count=invariant)
+# ═══════════════════════════════════════════════════════════════════════════
+
+[axis.insect_head_fraction]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.0072            # 6% of (0.20-0.08)=0.12
+bounds = [0.08, 0.20]     # B1 §5
+plan_scope = ["hexapod"]
+consumers = ["draw", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.thorax_fraction]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.009             # 6% of (0.35-0.20)=0.15
+bounds = [0.20, 0.35]     # B1 §5
+plan_scope = ["hexapod"]
+consumers = ["draw"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.abdomen_fraction]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.015             # 6% of (0.70-0.45)=0.25
+bounds = [0.45, 0.70]     # B1 §5
+plan_scope = ["hexapod"]
+consumers = ["draw"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.antenna_length]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.087             # 6% of (1.5-0.05)=1.45
+bounds = [0.05, 1.5]      # B1 §5: fly-grade 0.05, longhorn-grade 1.5
+plan_scope = ["hexapod"]
+consumers = ["draw", "name", "tell"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.antenna_form]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["filiform", "clubbed", "feathery", "elbowed"]
+plan_scope = ["hexapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.hindleg_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.018             # 6% of (1.3-1.0)=0.3
+bounds = [1.0, 1.3]       # B1 §5: grasshopper jumper 1.3+
+plan_scope = ["hexapod"]
+consumers = ["draw", "stress", "tell"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.wing_span_ratio]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.24              # 6% of (4-0)=4
+bounds = [0.0, 4.0]       # B1 §5: 0 (apterous) – 4
+plan_scope = ["hexapod"]
+consumers = ["draw", "stress", "name"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.wing_count]
+block = "morphometrics"
+tier = "invariant"        # plan topology (design-doc rule)
+value_type = "enum"
+mutation = "none"
+states = ["0", "2", "4", "4_elytra"]
+plan_scope = ["hexapod"]
+consumers = ["draw", "tell", "stress"]
+salience = 0.6
+grammar_role = "grade"
+
+[axis.waist_constriction]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.051             # 6% of (1.0-0.15)=0.85
+bounds = [0.15, 1.0]      # B1 §5: ant-grade 0.2-0.4, none ~1.0
+plan_scope = ["hexapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.abdomen_taper]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.042             # 6% of (1.0-0.3)=0.7
+bounds = [0.3, 1.0]       # B1 §5: wasp-waist vs blunt
+plan_scope = ["hexapod"]
+consumers = ["draw", "tell"]
+salience = 0.2
+grammar_role = "none"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  HEXAPOD — B1 §13.5 arthropod labile dials (6 knobs, tier=labile)
+# ═══════════════════════════════════════════════════════════════════════════
+
+[axis.horn_mandible_exaggeration]
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.5
+plan_scope = ["hexapod"]
+consumers = ["draw", "tell", "name", "runaway"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.cerci_type]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "filaments", "forceps"]
+plan_scope = ["hexapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.pronotum_extension]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "horn", "helmet", "thorn"]
+plan_scope = ["hexapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.eye_stalks]
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.5
+plan_scope = ["hexapod"]
+consumers = ["draw", "tell", "name"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.swimming_leg_fringe]
+block = "morphometrics"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.12              # 12% of (1.0-0.0)=1.0
+bounds = [0.0, 1.0]       # B1 §13.5
+plan_scope = ["hexapod"]
+consumers = ["draw", "stress"]
+salience = 0.2
+grammar_role = "none"
+
+[axis.elytra_sculpture]
+block = "morphometrics"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["smooth", "striate", "punctate", "tuberculate"]
+plan_scope = ["hexapod"]
+consumers = ["draw", "tell", "id"]
+salience = 0.4
+grammar_role = "covering"

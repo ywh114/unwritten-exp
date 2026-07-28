@@ -1,0 +1,307 @@
+# M2 — core cross-plan axes (non-morphometric blocks).
+# These are the blocks v1 lacked: niche, diet, life_history, behavior,
+# ecosystem, sex_age_season — plus the single shared mass axis (B1 size
+# convention: exactly one unit=mass axis registry-wide). Morphometric knobs
+# live in axes_morphometrics.toml (converted from B1 by the content fill).
+# Authored per exp/k13_treegen/docs/m2-content-pack.md design tables.
+
+# ──  the single mass axis (morphometrics block, but shared cross-plan)  ──
+[axis.body_mass]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.3
+bounds = [0.0001, 100000.0]        # kg: 0.1 g shrew to 100 t whale-grade
+unit = "mass"                       # the ONE mass axis (lint)
+plan_scope = "all"
+consumers = ["stress", "pop", "name"]
+salience = 0.9
+grammar_role = "size"
+
+# ──  niche  ──────────────────────────────────────────────────────────────
+[axis.temp_opt_c]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 2.0
+bounds = [-30.0, 45.0]
+plan_scope = "all"
+consumers = ["stress", "tell"]
+salience = 0.3
+
+[axis.temp_breadth_c]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 1.0
+bounds = [0.5, 25.0]
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.2
+
+[axis.moisture_opt]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.08
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress", "tell"]
+salience = 0.2
+
+[axis.moisture_breadth]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.06
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.1
+
+# ──  diet / trophic  ─────────────────────────────────────────────────────
+# Diet is a WEIGHTED SPECTRUM over guilds, not a single label (omnivory is the
+# default; the "omnivore" enum state was the tell). A bear is grazer +
+# frugivore + piscivore + carnivore. Weights sum ~1, dominated by 1-2 guilds
+# for specialists. See docs/spec-notes/2026-07-27-k13-rounds-fragmentation.md.
+[axis.diet_spectrum]
+block = "diet"
+tier = "steady"
+value_type = "weighted_set"
+mutation = "weight_redraw"
+sigma = 0.1
+states = ["grazer", "browser", "folivore", "frugivore", "granivore",
+          "nectarivore", "fungivore", "insectivore", "piscivore",
+          "molluscivore", "carnivore", "scavenger", "filter_feeder",
+          "detritivore", "omnivore", "planktivore"]
+plan_scope = "all"
+consumers = ["stress", "pop", "tell", "name"]
+salience = 0.85
+grammar_role = "diet"
+
+[axis.trophic_level]
+block = "diet"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.2
+bounds = [1.0, 5.0]
+plan_scope = "all"
+consumers = ["pop"]
+salience = 0.3
+
+[axis.niche_breadth]
+block = "diet"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.08
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress", "pop"]
+salience = 0.2
+
+# ──  life history  ───────────────────────────────────────────────────────
+[axis.fecundity]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.4
+bounds = [0.01, 1000.0]            # offspring per year
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.2
+
+[axis.lifespan_yr]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.3
+bounds = [0.1, 200.0]
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.2
+
+[axis.maturity_age_yr]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.3
+bounds = [0.05, 30.0]
+plan_scope = "all"
+consumers = ["pop"]
+salience = 0.1
+
+[axis.parental_care]
+block = "life_history"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "guard", "provision", "extended"]
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.2
+
+# ──  behavior  ───────────────────────────────────────────────────────────
+[axis.activity_period]
+block = "behavior"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["diurnal", "nocturnal", "crepuscular", "cathemeral"]
+plan_scope = "all"
+consumers = ["stress", "tell", "id"]
+salience = 0.5
+
+[axis.social_system]
+block = "behavior"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["solitary", "pair", "family", "pack", "herd", "flock", "school",
+          "colony", "eusocial"]
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.4
+
+[axis.group_size]
+block = "behavior"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.5
+bounds = [1.0, 10000.0]
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.3
+
+[axis.territoriality]
+block = "behavior"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.08
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["tell"]
+salience = 0.2
+
+[axis.wariness]
+block = "behavior"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["tell", "id", "stress"]
+salience = 0.3
+
+[axis.seasonality_mode]
+block = "behavior"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["resident", "migrant_latitudinal", "migrant_altitudinal",
+          "irruptive", "nomadic", "hibernator", "aestivator"]
+plan_scope = "all"
+consumers = ["stress", "tell"]
+salience = 0.4
+
+[axis.vertical_stratum]
+block = "behavior"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["fossorial", "ground", "understorey", "canopy", "aerial",
+          "benthic", "demersal", "pelagic"]
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.3
+
+# ──  ecosystem roles  ────────────────────────────────────────────────────
+[axis.engineer_impact]
+block = "ecosystem"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.06
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.3
+
+[axis.mutualist_links]
+block = "ecosystem"
+tier = "steady"
+value_type = "int"
+mutation = "gaussian"
+sigma = 1.0
+bounds = [0.0, 20.0]
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.1
+
+# ──  sex / age / season (B1 v0.3 §14)  ───────────────────────────────────
+[axis.reproductive_mode]
+block = "sex_age_season"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["gonochoric", "simultaneous_hermaphrodite",
+          "sequential_protandrous", "sequential_protogynous",
+          "parthenogenetic"]
+plan_scope = "all"
+consumers = ["pop", "tell", "id"]
+salience = 0.3
+
+[axis.size_dimorphism_ratio]
+block = "sex_age_season"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.2
+bounds = [0.1, 10.0]               # >1 male-larger, <1 female-larger
+plan_scope = "all"
+consumers = ["pop", "draw", "tell", "id"]
+salience = 0.4
+
+[axis.dimorphism_direction]
+block = "sex_age_season"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["male_larger", "female_larger", "none"]
+plan_scope = "all"
+consumers = ["tell", "id"]
+salience = 0.3
+
+[axis.dichromatism]
+block = "sex_age_season"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["draw", "tell", "id"]
+salience = 0.5                     # patternation<->sex seam (M3)
+
+[axis.stage_forms]
+block = "sex_age_season"
+tier = "steady"
+value_type = "int"
+mutation = "gaussian"
+sigma = 0.1
+bounds = [1.0, 2.0]                # metamorphosis cap 1-2 (proposal §3.8)
+plan_scope = "all"
+consumers = ["stress", "tell", "id"]
+salience = 0.2
