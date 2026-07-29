@@ -226,6 +226,27 @@ def assign_names(tree: Tree, pack: ContentPack, seed: int,
             if nm.get("binomial"):
                 used.add(nm["binomial"].split()[0])   # genus part reserved
 
+    # 1b. kingdom/phylum/class: authored latin names (deterministic, no
+    # seeding). Class from the plan's class_name; phylum capitalized from
+    # the plans beneath it; kingdom from its frame flag.
+    for n in tree.nodes.values():
+        if n.name.binomial:
+            continue
+        if n.rank is Rank.KINGDOM:
+            n.name.binomial = ("Animalia" if "animalia" in n.flags else
+                               n.flags[0].capitalize() if n.flags else None)
+        elif n.rank is Rank.CLASS and n.plan:
+            plan = pack.registry.plans.get(n.plan)
+            if plan and plan.class_name:
+                n.name.binomial = plan.class_name
+    for n in tree.nodes.values():
+        if n.rank is Rank.PHYLUM and not n.name.binomial:
+            for c in tree.children(n.path):
+                plan = pack.registry.plans.get(c.plan or "")
+                if plan and plan.phylum:
+                    n.name.binomial = plan.phylum.capitalize()
+                    break
+
     # 2. genera: composed names (seeded style mix) + clade names above
     genus_name: dict[str, tuple[str, str]] = {}   # path -> (name, gender)
     for n in tree.nodes.values():

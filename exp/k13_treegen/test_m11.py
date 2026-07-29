@@ -164,7 +164,7 @@ def test_plant_pin_axes_drifted(pack):
     deer = sp("k1.p1.c1.o1.f1.g1.s2", "tetrapod.cat",
               body_mass=5.0, base_color="gray")
     rep = run_checks(tree_of(tiger, deer), pack)
-    assert any("byte-exact" in v
+    assert any("drifted from authored" in v
                for v in rep.violations["pin_integration"])
 
 

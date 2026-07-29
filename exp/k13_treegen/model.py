@@ -209,6 +209,7 @@ class Node:
     flags: list[str] = field(default_factory=list)
     edge_delta: dict = field(default_factory=dict)
     name: NameRecord = field(default_factory=NameRecord)
+    description: str = ""               # M12 one-liner (species, set at gen)
     provenance: Provenance = field(default_factory=Provenance)
     quantities: QuantityStore = field(default_factory=QuantityStore)
 
@@ -228,6 +229,7 @@ class Node:
             "flags": self.flags,
             "edge_delta": self.edge_delta,
             "name": self.name.to_json(),
+            "description": self.description,
             "provenance": self.provenance.to_json(),
             "quantities": self.quantities.to_json(),
         }
@@ -243,6 +245,7 @@ class Node:
             flags=list(d.get("flags", [])),
             edge_delta=dict(d.get("edge_delta", {})),
             name=NameRecord.from_json(d.get("name", {})),
+            description=d.get("description", ""),
             provenance=Provenance.from_json(d.get("provenance", {})),
             quantities=QuantityStore.from_json(d.get("quantities", [])),
         )

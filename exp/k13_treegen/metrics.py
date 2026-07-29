@@ -10,6 +10,7 @@ byte-stable per seed: sorted checks, sorted violations, canonical counts.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from exp.k13_treegen.content import ContentPack
@@ -184,10 +185,30 @@ def check_pin_integration(tree: Tree, pack: ContentPack) -> list[str]:
             errs.append(f"pin {label!r}: at rank {n.rank.name}, "
                         f"authored {want_rank.name}")
         axes, generics = merged_pin(pack, pin)
-        if {k: str(v) for k, v in n.axes.items()} != \
-                {k: str(v) for k, v in axes.items()}:
+        # pinned record = authored + seeded PIN_JITTER_Z wiggle (scalars
+        # only): enums/sets byte-exact, scalars within 6 jitter-sigmas.
+        from exp.k13_treegen.backbone import PIN_JITTER_Z
+        from exp.k13_treegen.registry import MutationKind, ValueType
+        bad = False
+        for ax, v0 in axes.items():
+            v = n.axes.get(ax)
+            spec = pack.registry.axes.get(ax)
+            if (spec is not None and isinstance(v0, (int, float))
+                    and isinstance(v, (int, float))
+                    and spec.value_type in (ValueType.SCALAR, ValueType.INT)
+                    and spec.sigma > 0):
+                if spec.mutation_kind is not MutationKind.GAUSSIAN \
+                        and v0 > 0 and v > 0:
+                    z = abs(math.log(v / v0)) / spec.sigma
+                else:
+                    z = abs(v - v0) / spec.sigma
+                if z > 6 * PIN_JITTER_Z:
+                    bad = True
+            elif str(v) != str(v0):
+                bad = True
+        if bad:
             errs.append(f"pin {label!r}: axes drifted from authored "
-                        f"record (must be byte-exact)")
+                        f"record (beyond pin jitter)")
         if n.rank is Rank.SPECIES:
             siblings = [sp for sp in species_paths
                         if sp.rsplit(".s", 1)[0] ==

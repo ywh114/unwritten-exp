@@ -236,6 +236,7 @@ class PlanSpec:
     generics: dict[str, list[str]] = field(default_factory=dict)
     phylum: str = ""            # M7 frame map: taxonomic phylum anchor
     frame: str = ""             # inner_frame | outer_frame
+    class_name: str = ""        # authored latin class name (nomenclature)
 
     @classmethod
     def from_toml(cls, pid: str, t: dict) -> "PlanSpec":
@@ -245,7 +246,8 @@ class PlanSpec:
                    generics={g: list(r) for g, r in
                              t.get("generics", {}).items()},
                    phylum=t.get("phylum", ""),
-                   frame=t.get("frame", ""))
+                   frame=t.get("frame", ""),
+                   class_name=t.get("class_name", ""))
 
     def permissions(self) -> dict[str, list[str]]:
         """The rebind permission table for ``model.rebind``."""

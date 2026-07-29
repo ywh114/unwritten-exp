@@ -113,12 +113,39 @@ def test_pins_at_authored_ranks(pack, tree):
     assert _node(tree, "horse").rank is Rank.SPECIES
 
 
-def test_pins_byte_exact(pack, tree):
+def test_pins_within_jitter(pack, tree):
+    """Pinned records commit authored values + the seeded PIN_JITTER_Z
+    wiggle: scalars within 6 jitter-sigmas, everything else byte-exact."""
+    import math as _math
+    from exp.k13_treegen.backbone import PIN_JITTER_Z
+    from exp.k13_treegen.registry import MutationKind, ValueType
     for pin in pack.pins:
         n = _node(tree, pin["label"])
         axes, _ = merged_pin(pack, pin)
-        assert {k: str(v) for k, v in n.axes.items()} == \
-               {k: str(v) for k, v in axes.items()}, pin["label"]
+        for ax, v0 in axes.items():
+            v = n.axes.get(ax)
+            spec = pack.registry.axes.get(ax)
+            if (spec is not None and isinstance(v0, (int, float))
+                    and isinstance(v, (int, float))
+                    and spec.value_type in (ValueType.SCALAR, ValueType.INT)
+                    and spec.sigma > 0):
+                if spec.mutation_kind is not MutationKind.GAUSSIAN \
+                        and v0 > 0 and v > 0:
+                    z = abs(_math.log(v / v0)) / spec.sigma
+                else:
+                    z = abs(v - v0) / spec.sigma
+                assert z <= 6 * PIN_JITTER_Z, (pin["label"], ax, v0, v)
+            else:
+                assert str(v) == str(v0), (pin["label"], ax, v0, v)
+        # the wiggle must be real: at least one scalar moved off its
+        # authored whole number somewhere in the pin set
+    moved = 0
+    for pin in pack.pins:
+        n = _node(tree, pin["label"])
+        axes, _ = merged_pin(pack, pin)
+        moved += any(isinstance(v0, float) and
+                     n.axes.get(ax) != v0 for ax, v0 in axes.items())
+    assert moved > 0, "pin jitter never fires"
 
 
 def test_species_pins_have_relatives(pack, tree):

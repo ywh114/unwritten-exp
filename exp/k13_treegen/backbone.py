@@ -32,6 +32,11 @@ RADIATION_SIGMA = 0.3
 # generated sibling species per species-rank pin (no orphan pins).
 RELATIVES_LO = 1
 RELATIVES_HI = 2
+# pin wiggle: pinned records commit authored values plus a small seeded
+# jitter (in axis-sigma units) so a 450.0 kg horse doesn't sit
+# suspiciously whole among 437.28 kg generated neighbors (user ruling).
+# Enums/sets stay byte-exact; the metric tolerance is 6x this.
+PIN_JITTER_Z = 0.05
 
 _BENIGN = Condition()
 
@@ -53,9 +58,33 @@ def _preset_axes(preset: dict) -> dict:
     return {**preset.get("knobs", {}), **preset.get("axes", {})}
 
 
-def _apply_pin(node: Node, pack: ContentPack, pin: dict) -> None:
-    """Commit the pin's authored record byte-exact onto an anchored node."""
+def _apply_pin(node: Node, pack: ContentPack, pin: dict,
+               stream=None) -> None:
+    """Commit the pin's authored record onto an anchored node, plus the
+    PIN_JITTER_Z wiggle on scalar axes (seeded from the node's own
+    substream; enums and weighted sets stay byte-exact)."""
+    from exp.k13_treegen.registry import MutationKind, ValueType
     axes, generics = merged_pin(pack, pin)
+    if stream is not None:
+        jitter = stream.child("pin_jitter")
+        for clock, (ax, v) in enumerate(sorted(axes.items())):
+            spec = pack.registry.axes.get(ax)
+            if spec is None or not isinstance(v, (int, float)) \
+                    or spec.value_type not in (ValueType.SCALAR,
+                                               ValueType.INT) \
+                    or spec.sigma <= 0:
+                continue
+            z = PIN_JITTER_Z * jitter.normal(clock)
+            if spec.mutation_kind is not MutationKind.GAUSSIAN and v > 0:
+                nv = v * math.exp(z * spec.sigma)
+            else:
+                nv = v + z * spec.sigma
+            if spec.value_type is ValueType.INT:
+                nv = int(round(nv))
+            # NO _clip: authored pin values are trusted even outside the
+            # sampler bounds (anteater snout_ratio 0.65 vs bounds (0.2,
+            # 0.6) — the bound guides evolution, not curation).
+            axes[ax] = nv
     node.axes = axes
     node.generics = generics
     node.label = pin["label"]
@@ -128,15 +157,14 @@ def _build_order(tree: Tree, root_stream, pack: ContentPack, cpath: str,
     mass = order.axes.get("body_mass")
     if isinstance(mass, (int, float)) and mass > 0:
         order.gen_time = gen_time_years(float(mass))
+    ostream = root_stream.child(opath)
     order_pin = next((p for p in pins
                       if p.get("rank", "species") == "order"), None)
     order_radiation = 0
     if order_pin:
-        _apply_pin(order, pack, order_pin)
+        _apply_pin(order, pack, order_pin, ostream)
         order_radiation = order_pin.get("radiation", 0)
     tree.add(order)
-
-    ostream = root_stream.child(opath)
     fam_pins = [p for p in pins if p.get("rank") == "family"]
     genus_pins = [p for p in pins if p.get("rank") == "genus"]
     # species pins with parent_pin are hosted inside that genus pin's
@@ -201,7 +229,7 @@ def _build_family(tree: Tree, ostream, pack: ContentPack, order: Node,
                           rate, rdir, Rank.FAMILY, center=anchor)
     radiation = 0
     if fam_pin:
-        _apply_pin(family, pack, fam_pin)
+        _apply_pin(family, pack, fam_pin, fam_stream)
         radiation = fam_pin.get("radiation", 0)
     if fi == 1:
         radiation = order_radiation
@@ -251,7 +279,7 @@ def _build_genus(tree: Tree, fam_stream, pack: ContentPack, family: Node,
                          rate, rdir, Rank.GENUS, center=anchor)
     drift: dict = {}
     if gen_pin:
-        _apply_pin(genus, pack, gen_pin)
+        _apply_pin(genus, pack, gen_pin, gen_stream)
         drift = gen_pin.get("drift", {})
     elif name_hint:
         # binomial-anchored genus (from its pinned species): the name is
@@ -278,7 +306,7 @@ def _build_genus(tree: Tree, fam_stream, pack: ContentPack, family: Node,
                        sid=_sid(sstream), plan=genus.plan,
                        preset=genus.preset, g=genus.g +
                        _dg(sstream, DG_GENUS_MEDIAN))
-        _apply_pin(species, pack, pin)
+        _apply_pin(species, pack, pin, sstream)
         mass = species.axes.get("body_mass")
         if isinstance(mass, (int, float)) and mass > 0:
             species.gen_time = gen_time_years(float(mass), rate)

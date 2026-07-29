@@ -29,6 +29,9 @@ OUT = pathlib.Path(__file__).parent / "out"
 def generate(seed: int, pack) -> tuple:
     tree = build(seed, pack)
     assign_names(tree, pack, seed)
+    for n in tree.nodes.values():
+        if n.rank is Rank.SPECIES:
+            n.description = describe(n, pack)[0]
     report = run_checks(tree, pack)
     return tree, report
 

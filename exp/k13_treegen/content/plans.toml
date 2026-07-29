@@ -6,6 +6,7 @@
 
 [plan.tetrapod]
 phylum = "chordata"
+class_name = "Tetrapoda"
 frame = "inner_frame"
 medium = "land"
 magic_only = false
@@ -42,6 +43,7 @@ reproduction = ["viviparous", "oviparous"]
 
 [plan.winged_biped]
 phylum = "chordata"
+class_name = "Aves"
 frame = "inner_frame"
 medium = "air/land"
 magic_only = false
@@ -73,6 +75,7 @@ reproduction = ["oviparous"]
 
 [plan.hexapod]
 phylum = "arthropoda"
+class_name = "Insecta"
 frame = "outer_frame"
 medium = "land/air"
 magic_only = false
