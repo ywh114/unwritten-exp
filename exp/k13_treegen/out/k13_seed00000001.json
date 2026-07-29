@@ -768,7 +768,7 @@
     "trophic_level": 2.886713970708034,
     "trunk_depth_ratio": 0.6179558499826855,
     "trunk_elongation": 1.0338825927048014,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "vibrissae_prominence": 0.21163751103469447,
     "vocal_sac": "median"
    },
@@ -960,11 +960,6 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": -1.0473926570869188,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -2201,6 +2196,11 @@
      "drift": 0.023804758726109612,
      "runaway": 0.0
     },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "vibrissae_prominence": {
      "descent": 0.0,
      "drift": 0.894474378228949,
@@ -2699,7 +2699,7 @@
     "trophic_level": 3.6753061838749135,
     "trunk_depth_ratio": 0.6633941097395553,
     "trunk_elongation": 1.0729048014884113,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "fossorial",
     "vibrissae_prominence": 0.1750022509763902,
     "vocal_sac": "none"
    },
@@ -3893,7 +3893,7 @@
     "trophic_level": 3.6158195654297045,
     "trunk_depth_ratio": 0.41320459745543153,
     "trunk_elongation": 1.5401448601152954,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "benthic",
     "vibrissae_prominence": 0.8291998611244198,
     "vocal_sac": "median"
    },
@@ -10584,7 +10584,7 @@
     "trophic_level": 4.159448003011325,
     "trunk_depth_ratio": 0.6150567720292553,
     "trunk_elongation": 0.9578889824859139,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "vibrissae_prominence": 0.663803903756397,
     "vocal_sac": "none"
    },
@@ -10766,11 +10766,6 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": -0.6380457199103958,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -11292,7 +11287,7 @@
     "trophic_level": 4.340031778351197,
     "trunk_depth_ratio": 0.5958444591390699,
     "trunk_elongation": 1.0608886359128182,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "fossorial",
     "vibrissae_prominence": 0.658896407187541,
     "vocal_sac": "none"
    },
@@ -12539,7 +12534,7 @@
     "trophic_level": 1.9413511782289394,
     "trunk_depth_ratio": 0.6749003829299088,
     "trunk_elongation": 0.8739252381738215,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "fossorial",
     "vibrissae_prominence": 0.08634745876760179,
     "vocal_sac": "median"
    },
@@ -12835,7 +12830,7 @@
     "trophic_level": 1.9673450625204354,
     "trunk_depth_ratio": 0.6551448969315911,
     "trunk_elongation": 0.864298939894295,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "ground",
     "vibrissae_prominence": 0.09185493950727612,
     "vocal_sac": "median"
    },
@@ -13032,11 +13027,6 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": -0.5658074363714797,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -13358,11 +13348,6 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": 0.22549946476424582,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -13876,7 +13861,7 @@
     "trophic_level": 2.089982798310224,
     "trunk_depth_ratio": 0.7169267575571074,
     "trunk_elongation": 0.874931347830944,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "ground",
     "vibrissae_prominence": 0.08970199768118853,
     "vocal_sac": "none"
    },
@@ -14085,11 +14070,6 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": -0.4028854768238531,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -15302,11 +15282,6 @@
      "drift": -0.5882347170074052,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "vibrissae_prominence": {
      "descent": 0.0,
      "drift": 4.571813466099857,
@@ -15508,7 +15483,7 @@
     "trophic_level": 2.07922860861019,
     "trunk_depth_ratio": 0.6780311358510726,
     "trunk_elongation": 0.9027140882583775,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "vibrissae_prominence": 0.09802671637018232,
     "vocal_sac": "median"
    },
@@ -15695,11 +15670,6 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": 0.04112254936935549,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -17502,7 +17472,7 @@
     "trophic_level": 2.2494450195163016,
     "trunk_depth_ratio": 0.6595445978833365,
     "trunk_elongation": 0.9513805087871865,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "fossorial",
     "vibrissae_prominence": 0.0895722320410704,
     "vocal_sac": "median"
    },
@@ -19830,11 +19800,6 @@
      "drift": -0.340348015507121,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "vibrissae_prominence": {
      "descent": 0.0,
      "drift": 0.5030269003267193,
@@ -20027,7 +19992,7 @@
     "trophic_level": 2.956146238562902,
     "trunk_depth_ratio": 0.5041696226393609,
     "trunk_elongation": 1.1858840771403152,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "fossorial",
     "vibrissae_prominence": 0.8505664455807873,
     "vocal_sac": "paired"
    },
@@ -20214,11 +20179,6 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": -0.2138776190861318,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -22935,7 +22895,7 @@
     "trophic_level": 2.149105548082647,
     "trunk_depth_ratio": 0.5361618423942816,
     "trunk_elongation": 0.9383467320900953,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "vibrissae_prominence": 0.5432991415644501,
     "vocal_sac": "paired"
    },
@@ -23132,6 +23092,11 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": 0.21212720952598882,
+     "runaway": 0.0
+    },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -26134,7 +26099,7 @@
     "trophic_level": 3.9922077877208384,
     "trunk_depth_ratio": 0.5570744075482267,
     "trunk_elongation": 1.8,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "benthic",
     "vibrissae_prominence": 0.03371674572883438,
     "vocal_sac": "median"
    },
@@ -27024,7 +26989,7 @@
     "trophic_level": 2.1161773144135267,
     "trunk_depth_ratio": 0.5991470541618771,
     "trunk_elongation": 0.8683859525901604,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "understorey",
     "vibrissae_prominence": 0.2639087542896089,
     "vocal_sac": "none"
    },
@@ -27325,7 +27290,7 @@
     "trophic_level": 2.0429554715168923,
     "trunk_depth_ratio": 0.5814823138443341,
     "trunk_elongation": 0.8657623791419712,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "understorey",
     "vibrissae_prominence": 0.2505836694490755,
     "vocal_sac": "none"
    },
@@ -27606,7 +27571,7 @@
     "trophic_level": 1.9824585652094495,
     "trunk_depth_ratio": 0.6135199478753895,
     "trunk_elongation": 0.8777006737460818,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "understorey",
     "vibrissae_prominence": 0.2502517179610701,
     "vocal_sac": "median"
    },
@@ -27887,7 +27852,7 @@
     "trophic_level": 2.358115556011844,
     "trunk_depth_ratio": 0.5952374820743308,
     "trunk_elongation": 0.8759278380879777,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "understorey",
     "vibrissae_prominence": 0.28003013933870335,
     "vocal_sac": "none"
    },
@@ -30153,7 +30118,7 @@
     "trophic_level": 1.7886681298490443,
     "trunk_depth_ratio": 0.5783528022040778,
     "trunk_elongation": 0.8698110473000215,
-    "vertical_stratum": "demersal",
+    "vertical_stratum": "canopy",
     "vibrissae_prominence": 0.39434312875617133,
     "vocal_sac": "none"
    },
@@ -30355,11 +30320,6 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": -0.7938832259056008,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -34032,7 +33992,7 @@
     "trophic_level": 2.115605769840277,
     "trunk_depth_ratio": 0.580873584341397,
     "trunk_elongation": 0.9227466065024468,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "canopy",
     "vibrissae_prominence": 0.23484989644931104,
     "vocal_sac": "paired"
    },
@@ -34234,11 +34194,6 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": 0.9341897952320393,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -35815,7 +35770,7 @@
     "trophic_level": 1.9780067379910027,
     "trunk_depth_ratio": 0.5950437364203682,
     "trunk_elongation": 0.9113535057209023,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "vibrissae_prominence": 0.3033278303125082,
     "vocal_sac": "paired"
    },
@@ -36113,7 +36068,7 @@
     "trophic_level": 1.732890039965686,
     "trunk_depth_ratio": 0.5967264414005418,
     "trunk_elongation": 0.9072597635719375,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "ground",
     "vibrissae_prominence": 0.31214105461070546,
     "vocal_sac": "none"
    },
@@ -36300,6 +36255,11 @@
     "trunk_elongation": {
      "descent": 0.0,
      "drift": -0.5466559629416772,
+     "runaway": 0.0
+    },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
      "runaway": 0.0
     },
     "vibrissae_prominence": {
@@ -39088,7 +39048,7 @@
     "trophic_level": 2.0297451634395176,
     "trunk_depth_ratio": 0.6210899643637902,
     "trunk_elongation": 0.9454829667641045,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "ground",
     "vibrissae_prominence": 0.21104215482976463,
     "vocal_sac": "none"
    },
@@ -43337,7 +43297,7 @@
     "throat_pouch": "inflatable",
     "toe_arrangement": "heterodactyl",
     "trophic_level": 2.9352274857013403,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "fossorial",
     "wattle_snood": 0.0,
     "wing_loading": 4.00548804036033,
     "winged_foot_webbing_grade": "none",
@@ -46805,7 +46765,7 @@
     "throat_pouch": "none",
     "toe_arrangement": "zygodactyl",
     "trophic_level": 4.178556279987651,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.0316848640028514,
     "wing_loading": 6.640250024898208,
     "winged_foot_webbing_grade": "totipalmate",
@@ -47631,7 +47591,7 @@
     "throat_pouch": "inflatable",
     "toe_arrangement": "syndactyl",
     "trophic_level": 4.450196456143165,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.0,
     "wing_loading": 4.997426130079804,
     "winged_foot_webbing_grade": "none",
@@ -48872,7 +48832,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "anisodactyl",
     "trophic_level": 3.5765544842762296,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.18057497010903809,
     "wing_loading": 6.321253693594002,
     "winged_foot_webbing_grade": "semipalmate",
@@ -49021,11 +48981,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.1565729211532599,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "wattle_snood": {
@@ -50624,7 +50579,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "zygodactyl",
     "trophic_level": 4.143679168590441,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.0,
     "wing_loading": 4.663427964348088,
     "winged_foot_webbing_grade": "none",
@@ -50800,6 +50755,11 @@
      "drift": 0.7183958429522044,
      "runaway": 0.0
     },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "wattle_snood": {
      "descent": 0.0,
      "drift": 1.7684367730592192,
@@ -50896,7 +50856,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "heterodactyl",
     "trophic_level": 4.030592023657644,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "wattle_snood": 1.0,
     "wing_loading": 6.226494932671313,
     "winged_foot_webbing_grade": "none",
@@ -51138,7 +51098,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "zygodactyl",
     "trophic_level": 4.161094945121496,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.0,
     "wing_loading": 4.062650679985316,
     "winged_foot_webbing_grade": "none",
@@ -52541,7 +52501,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "anisodactyl",
     "trophic_level": 3.5139669951120203,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "demersal",
     "wattle_snood": 0.003805554103220654,
     "wing_loading": 2.5043460942636586,
     "winged_foot_webbing_grade": "totipalmate",
@@ -52811,7 +52771,7 @@
     "throat_pouch": "inflatable",
     "toe_arrangement": "zygodactyl",
     "trophic_level": 3.436878456508998,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "benthic",
     "wattle_snood": 0.0,
     "wing_loading": 0.6375910648403174,
     "winged_foot_webbing_grade": "semipalmate",
@@ -57308,7 +57268,7 @@
     "throat_pouch": "inflatable",
     "toe_arrangement": "syndactyl",
     "trophic_level": 2.0205665637063555,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.09459208240751274,
     "wing_loading": 2.873157361446997,
     "winged_foot_webbing_grade": "lobate",
@@ -57841,7 +57801,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "pamprodactyl",
     "trophic_level": 1.8961933717471733,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "fossorial",
     "wattle_snood": 0.0,
     "wing_loading": 2.3875878328235483,
     "winged_foot_webbing_grade": "none",
@@ -58608,7 +58568,7 @@
     "throat_pouch": "none",
     "toe_arrangement": "pamprodactyl",
     "trophic_level": 2.1147339364722986,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.0,
     "wing_loading": 1.2598906028934365,
     "winged_foot_webbing_grade": "none",
@@ -58877,7 +58837,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "pamprodactyl",
     "trophic_level": 2.0791162481364482,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "fossorial",
     "wattle_snood": 0.0,
     "wing_loading": 2.5807188181654346,
     "winged_foot_webbing_grade": "semipalmate",
@@ -63603,7 +63563,7 @@
     "throat_pouch": "none",
     "toe_arrangement": "heterodactyl",
     "trophic_level": 2.0624919268876467,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "aerial",
     "wattle_snood": 0.0,
     "wing_loading": 1.1011774199537971,
     "winged_foot_webbing_grade": "semipalmate",
@@ -63767,11 +63727,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.2117182411362144,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "wattle_snood": {
@@ -64380,7 +64335,7 @@
     "throat_pouch": "none",
     "toe_arrangement": "heterodactyl",
     "trophic_level": 1.9929214565192996,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "wattle_snood": 0.0,
     "wing_loading": 3.567827943743209,
     "winged_foot_webbing_grade": "none",
@@ -65429,7 +65384,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "syndactyl",
     "trophic_level": 1.9593012014960778,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "wattle_snood": 0.0,
     "wing_loading": 1.936240258924805,
     "winged_foot_webbing_grade": "none",
@@ -68452,7 +68407,7 @@
     "throat_pouch": "inflatable",
     "toe_arrangement": "anisodactyl",
     "trophic_level": 1.9308597484401853,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.008554846333114102,
     "wing_loading": 2.8994168122407986,
     "winged_foot_webbing_grade": "none",
@@ -68606,6 +68561,11 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.37698651328402755,
+     "runaway": 0.0
+    },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
      "runaway": 0.0
     },
     "wattle_snood": {
@@ -69687,7 +69647,7 @@
     "throat_pouch": "none",
     "toe_arrangement": "zygodactyl",
     "trophic_level": 2.0051786893043997,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "aerial",
     "wattle_snood": 0.005578207377847987,
     "wing_loading": 2.0355858590570715,
     "winged_foot_webbing_grade": "totipalmate",
@@ -69836,11 +69796,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.005391808962955015,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "wattle_snood": {
@@ -70185,7 +70140,7 @@
     "throat_pouch": "none",
     "toe_arrangement": "anisodactyl",
     "trophic_level": 2.087566779243387,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.007553984083698855,
     "wing_loading": 1.342922714512586,
     "winged_foot_webbing_grade": "totipalmate",
@@ -72197,7 +72152,7 @@
     "throat_pouch": "inflatable",
     "toe_arrangement": "pamprodactyl",
     "trophic_level": 2.0199425706362124,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "aerial",
     "wattle_snood": 0.0,
     "wing_loading": 3.004058645441156,
     "winged_foot_webbing_grade": "lobate",
@@ -72351,11 +72306,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.023334676854513514,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "wattle_snood": {
@@ -73706,7 +73656,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "pamprodactyl",
     "trophic_level": 1.8401851985484097,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.0,
     "wing_loading": 2.204578452114759,
     "winged_foot_webbing_grade": "none",
@@ -73901,7 +73851,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Troglodytavis major",
+    "binomial": "Troglodytavis terrestris",
     "folk": null,
     "history": []
    },
@@ -74653,7 +74603,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Troglodytavis fossoria",
+    "binomial": "Troglodytavis major",
     "folk": null,
     "history": []
    },
@@ -74971,7 +74921,7 @@
     "throat_pouch": "inflatable",
     "toe_arrangement": "anisodactyl",
     "trophic_level": 1.8304792456014305,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "fossorial",
     "wattle_snood": 0.01218462407028625,
     "wing_loading": 2.0445353592456756,
     "winged_foot_webbing_grade": "none",
@@ -75156,7 +75106,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Troglodytavis sp2756",
+    "binomial": "Troglodytavis fossoria",
     "folk": null,
     "history": []
    },
@@ -76948,7 +76898,7 @@
     "throat_pouch": "pouch",
     "toe_arrangement": "anisodactyl",
     "trophic_level": 1.976958019559232,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "ground",
     "wattle_snood": 0.0,
     "wing_loading": 1.9398059858859753,
     "winged_foot_webbing_grade": "none",
@@ -78228,7 +78178,7 @@
     "throat_pouch": "inflatable",
     "toe_arrangement": "anisodactyl",
     "trophic_level": 1.9213177093914813,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "wattle_snood": 0.0,
     "wing_loading": 3.6214708090577994,
     "winged_foot_webbing_grade": "palmate",
@@ -80751,7 +80701,7 @@
     "throat_pouch": "none",
     "toe_arrangement": "pamprodactyl",
     "trophic_level": 2.105044460301495,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "aerial",
     "wattle_snood": 0.0,
     "wing_loading": 2.4086252304191844,
     "winged_foot_webbing_grade": "none",
@@ -80905,11 +80855,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.515752913960167,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "wattle_snood": {
@@ -81965,7 +81910,7 @@
     "swimming_leg_fringe": 0.0,
     "thorax_fraction": 0.22045270973345824,
     "trophic_level": 2.3557777503049073,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.30219685364998516,
     "wing_count": "0",
     "wing_span_ratio": 0.0
@@ -82083,6 +82028,11 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.7001294493313469,
+     "runaway": 0.0
+    },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -84656,7 +84606,7 @@
     "swimming_leg_fringe": 0.005282623457278191,
     "thorax_fraction": 0.29544512159132447,
     "trophic_level": 1.8440788493792435,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.8421978634753544,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.818344157317059
@@ -84776,11 +84726,6 @@
      "drift": -0.23180973809504934,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": -1.9747344008285934,
@@ -84860,7 +84805,7 @@
     "swimming_leg_fringe": 0.004694481203442973,
     "thorax_fraction": 0.2952225260292952,
     "trophic_level": 1.6296406589132069,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.9688664760867457,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7190699876362205
@@ -84997,7 +84942,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Thoradus major",
+    "binomial": "Thoradus fossorius",
     "folk": null,
     "history": []
    },
@@ -85268,7 +85213,7 @@
     "swimming_leg_fringe": 0.005679926119649587,
     "thorax_fraction": 0.2988918244368698,
     "trophic_level": 1.7007802243875543,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.962720296158762,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6509374149159692
@@ -85401,11 +85346,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.9483028630534949,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -86696,7 +86636,7 @@
     "swimming_leg_fringe": 0.006113523264848503,
     "thorax_fraction": 0.29776699781916366,
     "trophic_level": 2.09299282483796,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 2.969048777335301
@@ -86824,11 +86764,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.7470082840056025,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -91303,7 +91238,7 @@
     "swimming_leg_fringe": 0.00509676816935589,
     "thorax_fraction": 0.3014281332322076,
     "trophic_level": 2.082713653809156,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9614940995805575,
     "wing_count": "4_elytra",
     "wing_span_ratio": 2.0462293824417683
@@ -91436,11 +91371,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.1900803875220257,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -92303,7 +92233,7 @@
     "swimming_leg_fringe": 0.00844251152264469,
     "thorax_fraction": 0.3028376531275488,
     "trophic_level": 2.0613311387318514,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9554319930055196,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4146980963400906
@@ -92421,11 +92351,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.017057612056655347,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -92920,7 +92845,7 @@
     "swimming_leg_fringe": 0.006847044155062917,
     "thorax_fraction": 0.30198945852413894,
     "trophic_level": 1.9802968281024462,
-    "vertical_stratum": "demersal",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6979764546483982
@@ -93038,11 +92963,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.42222916520367965,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -94706,7 +94626,7 @@
     "swimming_leg_fringe": 0.005383554150904054,
     "thorax_fraction": 0.30022535978827686,
     "trophic_level": 2.2940883279317763,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.9957290568943254,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3178495139057946
@@ -94811,6 +94731,11 @@
      "drift": -0.041252175892978984,
      "runaway": 0.0
     },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": -0.0839233261831858,
@@ -94838,7 +94763,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Zephotil nanus",
+    "binomial": "Zephotil fossorius",
     "folk": null,
     "history": []
    },
@@ -94890,7 +94815,7 @@
     "swimming_leg_fringe": 0.005579856260976974,
     "thorax_fraction": 0.30386863599151165,
     "trophic_level": 2.2170631760322665,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9932179207059246,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5488835643916254
@@ -95003,11 +94928,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.42637793539052693,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -95487,7 +95407,7 @@
     "swimming_leg_fringe": 0.007403292692685705,
     "thorax_fraction": 0.3013756843031123,
     "trophic_level": 2.307121355109119,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.9849704834443209,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3106227881018742
@@ -95620,6 +95540,11 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.023912959993734478,
+     "runaway": 0.0
+    },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -98333,7 +98258,7 @@
     "swimming_leg_fringe": 0.004425752453984214,
     "thorax_fraction": 0.30086548214388303,
     "trophic_level": 2.238658830237909,
-    "vertical_stratum": "demersal",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9749793376958447,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.9794642845094144
@@ -98461,11 +98386,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.7600651873847188,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -99119,7 +99039,7 @@
     "swimming_leg_fringe": 0.004386197347527843,
     "thorax_fraction": 0.2976603455049273,
     "trophic_level": 1.9330551606760407,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.9802027708260554,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.410051908294215
@@ -99323,7 +99243,7 @@
     "swimming_leg_fringe": 0.0066280423156170635,
     "thorax_fraction": 0.30380479459364174,
     "trophic_level": 1.8583049403656577,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4338100871874866
@@ -99463,11 +99383,6 @@
      "drift": -0.7481958733669742,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": 0.33899185066128035,
@@ -99547,7 +99462,7 @@
     "swimming_leg_fringe": 0.006514646544971961,
     "thorax_fraction": 0.30397875051525475,
     "trophic_level": 2.2152526248173343,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9944723339585807,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2371783864858266
@@ -99756,7 +99671,7 @@
     "swimming_leg_fringe": 0.005820464639771193,
     "thorax_fraction": 0.30323646849079827,
     "trophic_level": 2.0835338710733566,
-    "vertical_stratum": "understorey",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.9752984488925384,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3563865368568937
@@ -99965,7 +99880,7 @@
     "swimming_leg_fringe": 0.007036956247725991,
     "thorax_fraction": 0.3017554926302019,
     "trophic_level": 1.9723457356110856,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3347189900512884
@@ -100159,7 +100074,7 @@
     "swimming_leg_fringe": 0.007323979688059489,
     "thorax_fraction": 0.302460239855483,
     "trophic_level": 1.7347511974430623,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9521527156146827,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.1377623530179148
@@ -100348,7 +100263,7 @@
     "swimming_leg_fringe": 0.006637332063565384,
     "thorax_fraction": 0.30738843563194135,
     "trophic_level": 1.833667024202505,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 0.9949637437402655
@@ -100547,7 +100462,7 @@
     "swimming_leg_fringe": 0.006122138253503239,
     "thorax_fraction": 0.301740500567925,
     "trophic_level": 2.169943777059395,
-    "vertical_stratum": "demersal",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.95775202792856,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2292788366116012
@@ -100672,11 +100587,6 @@
      "drift": 1.5581941834686857,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": -0.846399568929578,
@@ -100756,7 +100666,7 @@
     "swimming_leg_fringe": 0.007651352901409978,
     "thorax_fraction": 0.3018797489984488,
     "trophic_level": 2.105158937558182,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9982297990178525,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2164923328898094
@@ -100891,11 +100801,6 @@
      "drift": 1.2342699859626216,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": -0.034740581164807674,
@@ -100975,7 +100880,7 @@
     "swimming_leg_fringe": 0.006829079136903226,
     "thorax_fraction": 0.3057909817161507,
     "trophic_level": 1.5768968527752278,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7241117900223022
@@ -101174,7 +101079,7 @@
     "swimming_leg_fringe": 0.006540941545657135,
     "thorax_fraction": 0.3007658485397853,
     "trophic_level": 1.921559448302189,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.164736073371082
@@ -101388,7 +101293,7 @@
     "swimming_leg_fringe": 0.006239165522354802,
     "thorax_fraction": 0.3071492876484578,
     "trophic_level": 1.660179561309563,
-    "vertical_stratum": "demersal",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6462425965251153
@@ -101513,11 +101418,6 @@
      "drift": -0.990626895280474,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": 0.6137309493251977,
@@ -101597,7 +101497,7 @@
     "swimming_leg_fringe": 0.006024162073886842,
     "thorax_fraction": 0.30146838243267143,
     "trophic_level": 1.421902028780652,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.9954311086144699,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4458055155143374
@@ -101749,7 +101649,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Aescapex terrestris",
+    "binomial": "Aescapex fossorius",
     "folk": null,
     "history": []
    },
@@ -102602,7 +102502,7 @@
     "swimming_leg_fringe": 0.006211449432820683,
     "thorax_fraction": 0.298620350733523,
     "trophic_level": 1.9045367828965802,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9292972157773511,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7031142901446228
@@ -102715,11 +102615,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.9582323517659546,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -103015,7 +102910,7 @@
     "swimming_leg_fringe": 0.00856954086457754,
     "thorax_fraction": 0.29932164406761513,
     "trophic_level": 2.086121415952916,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9604608706622043,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7828544480992763
@@ -103135,11 +103030,6 @@
      "drift": -0.05030918648427581,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": -0.7335009816862772,
@@ -103219,7 +103109,7 @@
     "swimming_leg_fringe": 0.0051820441098951306,
     "thorax_fraction": 0.2987437719036973,
     "trophic_level": 2.071266352045731,
-    "vertical_stratum": "demersal",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6692653302814822
@@ -103329,11 +103219,6 @@
      "drift": -0.12458450602020112,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": 0.23723568196017128,
@@ -103361,7 +103246,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Pelima demersa",
+    "binomial": "Pelima spe598",
     "folk": null,
     "history": []
    },
@@ -103413,7 +103298,7 @@
     "swimming_leg_fringe": 0.006317375961452354,
     "thorax_fraction": 0.29967340879061716,
     "trophic_level": 2.139615785723296,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3712961787066702
@@ -103831,7 +103716,7 @@
     "swimming_leg_fringe": 0.0074209563183849974,
     "thorax_fraction": 0.2966536590242327,
     "trophic_level": 2.029792884000061,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9910285360006008,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4741121489290583
@@ -103956,11 +103841,6 @@
      "drift": 0.42500993921139596,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": -0.17670490019034601,
@@ -104040,7 +103920,7 @@
     "swimming_leg_fringe": 0.006667623072509404,
     "thorax_fraction": 0.2968996685771608,
     "trophic_level": 1.8924406447894395,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3049384840090674
@@ -104160,11 +104040,6 @@
      "drift": -0.2617512568417124,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": 0.5061710679948815,
@@ -104244,7 +104119,7 @@
     "swimming_leg_fringe": 0.00695335412946041,
     "thorax_fraction": 0.2985220574012121,
     "trophic_level": 2.1633536613766093,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5776954168234925
@@ -104364,6 +104239,11 @@
      "drift": 1.0928138260941362,
      "runaway": 0.0
     },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": 1.296055408971927,
@@ -104443,7 +104323,7 @@
     "swimming_leg_fringe": 0.007166735471081821,
     "thorax_fraction": 0.2974933936838936,
     "trophic_level": 2.137441208772468,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9345698037055722,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3356316142803195
@@ -104566,11 +104446,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.963251563073431,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -105239,7 +105114,7 @@
     "swimming_leg_fringe": 0.007778186554557212,
     "thorax_fraction": 0.300783420329252,
     "trophic_level": 1.884723496170614,
-    "vertical_stratum": "benthic",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9309983099003561,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.345505818595589
@@ -105359,11 +105234,6 @@
      "drift": -0.30033699993584007,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": -1.4019179816894778,
@@ -105443,7 +105313,7 @@
     "swimming_leg_fringe": 0.006851178874546511,
     "thorax_fraction": 0.29560450077539174,
     "trophic_level": 1.8895518482864855,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.9679603309471336,
     "wing_count": "4_elytra",
     "wing_span_ratio": 0.9699609590902404
@@ -105566,6 +105436,11 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.27619523935648244,
+     "runaway": 0.0
+    },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -105856,7 +105731,7 @@
     "swimming_leg_fringe": 0.005586257258420283,
     "thorax_fraction": 0.29870222963722404,
     "trophic_level": 1.9136516710722744,
-    "vertical_stratum": "pelagic",
+    "vertical_stratum": "ground",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.0759889412663783
@@ -105969,11 +105844,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.15569612542753763,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -107085,7 +106955,7 @@
     "swimming_leg_fringe": 0.007912585460572589,
     "thorax_fraction": 0.302731765561894,
     "trophic_level": 2.108911651440317,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.9479841998673106,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7000203316696192
@@ -107208,6 +107078,11 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.8944782311982035,
+     "runaway": 0.0
+    },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -107702,7 +107577,7 @@
     "swimming_leg_fringe": 0.0065861752063448055,
     "thorax_fraction": 0.3019192106722013,
     "trophic_level": 2.1031359224005373,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.994907950344108,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4517334124385313
@@ -107832,11 +107707,6 @@
      "drift": 0.8655995859993039,
      "runaway": 0.0
     },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "waist_constriction": {
      "descent": 0.0,
      "drift": -0.10009918274588811,
@@ -107916,7 +107786,7 @@
     "swimming_leg_fringe": 0.006979045919066893,
     "thorax_fraction": 0.3030369583066733,
     "trophic_level": 2.480582847001067,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 1.0,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.987934282523789
@@ -108130,7 +108000,7 @@
     "swimming_leg_fringe": 0.007107601510062267,
     "thorax_fraction": 0.30309960689674104,
     "trophic_level": 1.8981574718611056,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "ground",
     "waist_constriction": 0.9952663801409158,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6925777462393943
@@ -108238,11 +108108,6 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": -0.15929266669785339,
-     "runaway": 0.0
-    },
-    "vertical_stratum": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {
@@ -108528,7 +108393,7 @@
     "swimming_leg_fringe": 0.008799530398672428,
     "thorax_fraction": 0.2999364093778831,
     "trophic_level": 2.1740429006500843,
-    "vertical_stratum": "canopy",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.9632326141089885,
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.651968642326241
@@ -111758,7 +111623,7 @@
     "swimming_leg_fringe": 0.13033560348072745,
     "thorax_fraction": 0.2979524368990983,
     "trophic_level": 1.7420327815440182,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "fossorial",
     "waist_constriction": 0.8896289337534226,
     "wing_count": "4",
     "wing_span_ratio": 2.4083648184342534
@@ -111881,6 +111746,11 @@
     "trophic_level": {
      "descent": 0.0,
      "drift": 0.4918099709460595,
+     "runaway": 0.0
+    },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
      "runaway": 0.0
     },
     "waist_constriction": {

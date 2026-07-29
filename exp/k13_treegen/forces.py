@@ -223,10 +223,40 @@ def _mutate_scalar(spec: AxisSpec, x: float, dg: float, g: float,
 # build produced 71 green/iridescent tetrapods without this).
 COLOR_AXES = ("base_color", "belly_color", "accent_color")
 
+# vertical_stratum redraw legality (user: "Canis giganteus is an aerial
+# wolf"): a stratum shift is a real adaptation, not a free redraw — it
+# needs the machinery (flight for aerial, aquatic gear for water,
+# climbing gear for trees) or an already-adapted parent (hereditary).
+# Base strata (ground, fossorial) are always legal. Mirror of
+# lint.ACTIVE_FLIGHT (kept local: lint sits above this layer).
+ACTIVE_FLIGHT_STATES = {"soaring", "sustained_flapping", "hovering",
+                        "bounding"}
+ARB_STRATA = {"understorey", "canopy"}
+AQUATIC_STRATA = {"benthic", "demersal", "pelagic"}
+
 
 def _legal_states(spec: AxisSpec, name: str, pack: ContentPack,
                   parent: Node) -> list[str] | None:
-    """Palette-legal states for color axes; None = unrestricted."""
+    """Restricted legal states for enum redraws; None = unrestricted."""
+    if name == "vertical_stratum":
+        cur = parent.axes.get("vertical_stratum")
+        loco = str(parent.generics.get("locomotor", ""))
+        flight = str(parent.axes.get("flight_style"))
+        legal = []
+        for s in spec.states:
+            if s in ("ground", "fossorial"):
+                legal.append(s)
+            elif s == "aerial":
+                if cur == "aerial" or flight in ACTIVE_FLIGHT_STATES:
+                    legal.append(s)
+            elif s in ARB_STRATA:
+                if cur in ARB_STRATA or "scansorial" in loco \
+                        or "climbing" in loco:
+                    legal.append(s)
+            elif s in AQUATIC_STRATA:
+                if cur in AQUATIC_STRATA or "aquatic" in loco:
+                    legal.append(s)
+        return legal or None
     if name not in COLOR_AXES or parent.plan is None:
         return None
     palette = pack.palettes.get(parent.plan)
