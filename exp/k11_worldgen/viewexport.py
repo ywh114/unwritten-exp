@@ -106,6 +106,36 @@ def export(seed_dir: Path, out_path: Path) -> None:
         pq, pm = _q8(precip_mm(z["c_P_monthly"]), 0, 300)
         monthly["p_monthly"] = pq
         monthly_meta["p_monthly"] = pm
+    # monthly VECTOR fields for viewer fieldlines: wind = per-month mean
+    # over the n_samples axis (coarse climate grid); currents = seasonal
+    # velocity_field rebuilt from the persisted psi/weights/gyres payload
+    if "c_wind_u" in z.files:
+        wu = z["c_wind_u"].mean(axis=1)
+        wv = z["c_wind_v"].mean(axis=1)
+        lim = float(np.abs(np.stack([wu, wv])).max())
+        a, m_ = _q8(wu, -lim, lim)
+        monthly["wu_monthly"] = a
+        monthly_meta["wu_monthly"] = m_
+        a, m_ = _q8(wv, -lim, lim)
+        monthly["wv_monthly"] = a
+        monthly_meta["wv_monthly"] = m_
+    try:
+        from exp.k11_worldgen.currents import velocity_field
+        from exp.k11_worldgen.persist import load_world
+        cur = load_world(str(seed_dir))["world"]["currents"]
+        cu = np.stack([velocity_field(cur, mm)[0] for mm in range(12)])
+        cv = np.stack([velocity_field(cur, mm)[1] for mm in range(12)])
+        lim = float(np.abs(np.stack([cu, cv])).max())
+        a, m_ = _q8(cu, -lim, lim)
+        monthly["cu_monthly"] = a
+        monthly_meta["cu_monthly"] = m_
+        a, m_ = _q8(cv, -lim, lim)
+        monthly["cv_monthly"] = a
+        monthly_meta["cv_monthly"] = m_
+    except (KeyError, ValueError):
+        pass  # older dumps without the full currents payload
+    for name, arr in monthly.items():
+        monthly_meta[name]["shape"] = list(arr.shape)
 
     backdrop = None
     for name in ("worldmap.png", "world.png"):
@@ -129,6 +159,7 @@ def export(seed_dir: Path, out_path: Path) -> None:
         "monthly_shape": ([12] + list(monthly["t_monthly"].shape[1:])
                           if monthly else None),
         "monthly_fields": monthly_meta,
+        "monthly_order": list(monthly),
         "pngs": sorted(p.stem for p in seed_dir.glob("*.png")
                        if p.stem != "load"),
         "order": list(fields),

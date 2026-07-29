@@ -84,6 +84,7 @@ body {
 .stat-sub .stat-key { color: #667788; }
 
 /* ── Month Chips ── */
+#month-chips-row { display: flex; align-items: center; gap: 4px; }
 #month-chips { display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 4px; }
 #month-chips button {
   width: 22px; height: 22px; border: 1px solid #0f3460; background: #1a1a2e;
@@ -98,6 +99,20 @@ body {
 #month-chips button.off {
   background: #1a1a2e; border-color: #0f3460; color: #556;
 }
+.month-shift {
+  width: 22px; height: 22px; border: 1px solid #0f3460; background: #1a1a2e;
+  color: #8899aa; border-radius: 3px; cursor: pointer; font-size: 12px;
+  padding: 0; line-height: 20px; text-align: center; flex-shrink: 0;
+  transition: all 0.12s;
+}
+.month-shift:hover { border-color: #1a5276; color: #c0c0c0; }
+.month-shift:disabled {
+  opacity: 0.35; cursor: not-allowed;
+}
+.area-clear {
+  color: #e06060; cursor: pointer; font-size: 11px;
+}
+.area-clear:hover { color: #ff8080; text-decoration: underline; }
 #month-note { font-size: 10px; color: #556; margin-top: 2px; }
 
 /* ── Search ── */
@@ -212,7 +227,11 @@ body {
 
   <div class="panel-section">
     <h2>Months</h2>
-    <div id="month-chips"></div>
+    <div id="month-chips-row">
+      <button class="month-shift" id="month-shift-left" disabled>−</button>
+      <div id="month-chips"></div>
+      <button class="month-shift" id="month-shift-right" disabled>+</button>
+    </div>
     <div id="month-note">Area stats &amp; search use annual fields.</div>
   </div>
 
@@ -292,7 +311,7 @@ const S = {
   backdropImg: null,
 
   // Monthly climate data
-  monthly: null,       // {t:Float32Array, p:Float32Array, shape:[12,256,256], ...}
+  monthly: null,       // {t_monthly:Float32Array, p_monthly:Float32Array, ..., _shapes:{name->[H,W]}}
 
   // Month selection (Set of indices 0-11; all 12 by default)
   selMonths: null,     // Set<number>
@@ -368,15 +387,16 @@ function monthsLabel() {
   return "(" + sel.join("") + ")";
 }
 
-// Compute 256×256 per-cell average over selected months for a given variable ("t" or "p")
-function monthlyAverage256(varName) {
+// Compute per-cell average over selected months for a given monthly field
+function monthlyAverage(fieldName) {
   if (!S.monthly) return null;
   if (allMonthsSelected()) return null;
-  const [MT, MH, MW] = S.monthly.shape; // [12, 256, 256]
-  const arr = S.monthly[varName]; // Float32Array[MT*MH*MW]
+  const arr = S.monthly[fieldName];
+  if (!arr) return null;
+  const [MH, MW] = S.monthly._shapes[fieldName];
   const out = new Float32Array(MH * MW);
   const sel = [];
-  for (let m = 0; m < MT; m++) {
+  for (let m = 0; m < 12; m++) {
     if (S.selMonths.has(m)) sel.push(m);
   }
   if (sel.length === 0) return out;
@@ -392,22 +412,23 @@ function monthlyAverage256(varName) {
   return out;
 }
 
-// Upscale 256×256 → 1024×1024 nearest-neighbor into an RGBA ImageData
-function renderMonthlyLayer(varName, rampFn) {
-  const avg256 = monthlyAverage256(varName);
-  if (!avg256) return null;
+// Upscale from native field resolution → 1024×1024 nearest-neighbor into an RGBA ImageData
+function renderMonthlyLayer(fieldName, rampFn) {
+  const avg = monthlyAverage(fieldName);
+  if (!avg) return null;
   const [W, H] = S.shape; // 1024×1024
+  const [FH, FW] = S.monthly._shapes[fieldName];
   const off = document.createElement("canvas");
   off.width = W; off.height = H;
   const octx = off.getContext("2d");
   const imgData = octx.createImageData(W, H);
   const d = imgData.data;
-  const scale = W / 256;
+  const scale = W / FW;
   for (let y = 0; y < H; y++) {
     const sy = Math.floor(y / scale);
     for (let x = 0; x < W; x++) {
       const sx = Math.floor(x / scale);
-      const v = avg256[sy * 256 + sx];
+      const v = avg[sy * FW + sx];
       const j = (y * W + x) * 4;
       const [r, g, b] = rampFn(v);
       d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = 255;
@@ -444,19 +465,20 @@ function precipRamp(p) {
   ];
 }
 
-// Get pixel-level T/P values from monthly data (with upscale) for a given world coords
-function monthlyPixelValue(varName, wx, wy) {
+// Get pixel-level value from monthly data (with upscale) for a given world coord
+function monthlyPixelValue(fieldName, wx, wy) {
   if (!S.monthly) return null;
   if (allMonthsSelected()) return null;
-  const [MT, MH, MW] = S.monthly.shape;
-  const arr = S.monthly[varName];
-  const scale = S.shape[0] / MW; // 1024/256 = 4
+  const arr = S.monthly[fieldName];
+  if (!arr) return null;
+  const [MH, MW] = S.monthly._shapes[fieldName];
+  const scale = S.shape[0] / MW;
   const sx = Math.floor(wx / scale);
   const sy = Math.floor(wy / scale);
   const planeSize = MH * MW;
   const idx = sy * MW + sx;
   let sum = 0, count = 0;
-  for (let m = 0; m < MT; m++) {
+  for (let m = 0; m < 12; m++) {
     if (S.selMonths.has(m)) {
       sum += arr[m * planeSize + idx];
       count++;
@@ -478,10 +500,31 @@ function buildMonthChips() {
     const isOn = !hasMonthly || !S.selMonths || S.selMonths.has(m);
     btn.classList.add(isOn ? "on" : "off");
     btn.onclick = () => toggleMonth(m);
+    btn.addEventListener("dblclick", () => {
+      if (!hasMonthly) return;
+      if (S.selMonths.size === 1 && S.selMonths.has(m)) {
+        // Only this month selected → select all 12
+        S.selMonths = new Set([0,1,2,3,4,5,6,7,8,9,10,11]);
+      } else {
+        // Select only this month
+        S.selMonths = new Set([m]);
+      }
+      delete S.layerCanvas["temperature"];
+      delete S.layerCanvas["precipitation"];
+      delete S.layerCanvas["wind"];
+      delete S.layerCanvas["currents"];
+      buildMonthChips();
+      if (S.layer === "temperature" || S.layer === "precipitation" || S.layer === "wind" || S.layer === "currents") {
+        ensureLayer(S.layer);
+      }
+      render();
+    });
     btn.disabled = !hasMonthly;
     if (!hasMonthly) btn.title = "No monthly climate data in this bundle";
     monthChips.appendChild(btn);
   }
+  $("month-shift-left").disabled = !hasMonthly;
+  $("month-shift-right").disabled = !hasMonthly;
   monthNote.textContent = hasMonthly ? "Area stats &amp; search use annual fields." : "No monthly climate data in this bundle.";
 }
 
@@ -492,11 +535,31 @@ function toggleMonth(m) {
   } else {
     S.selMonths.add(m);
   }
-  // Invalidate temperature/precipitation layer cache
+  // Invalidate temperature/precipitation/wind/currents layer cache
   delete S.layerCanvas["temperature"];
   delete S.layerCanvas["precipitation"];
+  delete S.layerCanvas["wind"];
+  delete S.layerCanvas["currents"];
   buildMonthChips();
-  if (S.layer === "temperature" || S.layer === "precipitation") {
+  if (S.layer === "temperature" || S.layer === "precipitation" || S.layer === "wind" || S.layer === "currents") {
+    ensureLayer(S.layer);
+  }
+  render();
+}
+
+function shiftMonths(delta) {
+  if (!S.monthly) return;
+  const newSet = new Set();
+  for (const m of S.selMonths) {
+    newSet.add(((m + delta) % 12 + 12) % 12);
+  }
+  S.selMonths = newSet;
+  delete S.layerCanvas["temperature"];
+  delete S.layerCanvas["precipitation"];
+  delete S.layerCanvas["wind"];
+  delete S.layerCanvas["currents"];
+  buildMonthChips();
+  if (S.layer === "temperature" || S.layer === "precipitation" || S.layer === "wind" || S.layer === "currents") {
     ensureLayer(S.layer);
   }
   render();
@@ -544,37 +607,25 @@ function parseBundle(buf) {
     rawFields[name] = { arr, meta };
   }
 
-  // Monthly climate data (after all main fields)
+  // Monthly climate data (after all main fields) — driven by header.monthly_order
   let monthly = null;
-  if (header.monthly_fields && header.monthly_shape) {
-    const [MT, MH, MW] = header.monthly_shape; // [12, 256, 256]
-    const planeSize = MH * MW;
-    const totalMonthly = MT * planeSize;
+  if (header.monthly_fields && header.monthly_order) {
     const mf = header.monthly_fields;
-
-    // t_monthly
-    const tMeta = mf.t_monthly;
-    if (tMeta && tMeta.dtype === "u1") {
-      const tRaw = new Uint8Array(buf, offset, totalMonthly);
+    monthly = { _shapes: {} };
+    for (const name of header.monthly_order) {
+      const meta = mf[name];
+      if (!meta || meta.dtype !== "u1") continue;
+      const shape = meta.shape; // [12, H, W]
+      const [MT, MH, MW] = shape;
+      const planeSize = MH * MW;
+      const totalMonthly = MT * planeSize;
+      const raw = new Uint8Array(buf, offset, totalMonthly);
       offset += totalMonthly;
-      const tF32 = new Float32Array(totalMonthly);
-      const tScale = tMeta.scale ?? 1, tOff = tMeta.offset ?? 0;
-      for (let i = 0; i < totalMonthly; i++) tF32[i] = tRaw[i] * tScale + tOff;
-
-      // p_monthly
-      const pMeta = mf.p_monthly;
-      const pRaw = new Uint8Array(buf, offset, totalMonthly);
-      offset += totalMonthly;
-      const pF32 = new Float32Array(totalMonthly);
-      const pScale = pMeta.scale ?? 1, pOff = pMeta.offset ?? 0;
-      for (let i = 0; i < totalMonthly; i++) pF32[i] = pRaw[i] * pScale + pOff;
-
-      monthly = {
-        t: tF32, p: pF32,
-        shape: header.monthly_shape,
-        scale_t: tScale, offset_t: tOff,
-        scale_p: pScale, offset_p: pOff,
-      };
+      const f32 = new Float32Array(totalMonthly);
+      const scale = meta.scale ?? 1, off = meta.offset ?? 0;
+      for (let i = 0; i < totalMonthly; i++) f32[i] = raw[i] * scale + off;
+      monthly[name] = f32;
+      monthly._shapes[name] = [MH, MW];
     }
   }
 
@@ -633,6 +684,8 @@ const LAYER_DEFS = [
   { id: "temperature", label: "Temperature",  fn: "renderTemperature",field: "T_c" },
   { id: "precipitation", label: "Precip",     fn: "renderPrecip",     field: "P_mm" },
   { id: "forest_cover",label: "Forest Cover", fn: "renderForestCover",field: "cover" },
+  { id: "wind",        label: "Wind",         fn: "renderWind",       field: null },
+  { id: "currents",    label: "Currents",     fn: "renderCurrents",   field: null },
 ];
 
 // Lazy-render a layer on demand (cached).
@@ -641,14 +694,37 @@ function ensureLayer(id) {
   const layer = LAYER_DEFS.find(l => l.id === id);
   if (!layer || !layer.fn) return null;
 
-  // Check if we should use monthly data
-  if (id === "temperature" && S.monthly && !allMonthsSelected()) {
-    const off = renderMonthlyLayer("t", temperatureRamp);
+  // Check if we should use monthly data for temperature/precipitation
+  if (id === "temperature" && S.monthly && S.monthly.t_monthly && !allMonthsSelected()) {
+    const off = renderMonthlyLayer("t_monthly", temperatureRamp);
     if (off) { S.layerCanvas[id] = off; return off; }
   }
-  if (id === "precipitation" && S.monthly && !allMonthsSelected()) {
-    const off = renderMonthlyLayer("p", precipRamp);
+  if (id === "precipitation" && S.monthly && S.monthly.p_monthly && !allMonthsSelected()) {
+    const off = renderMonthlyLayer("p_monthly", precipRamp);
     if (off) { S.layerCanvas[id] = off; return off; }
+  }
+  // Wind and currents always use monthly streamlines
+  if (id === "wind" && S.monthly && S.monthly.wu_monthly) {
+    const [W, H] = S.shape;
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    const octx = off.getContext("2d");
+    const imgData = octx.createImageData(W, H);
+    LAYER_RENDERERS.renderWind(imgData.data, W * H, W);
+    octx.putImageData(imgData, 0, 0);
+    S.layerCanvas[id] = off;
+    return off;
+  }
+  if (id === "currents" && S.monthly && S.monthly.cu_monthly) {
+    const [W, H] = S.shape;
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    const octx = off.getContext("2d");
+    const imgData = octx.createImageData(W, H);
+    LAYER_RENDERERS.renderCurrents(imgData.data, W * H, W);
+    octx.putImageData(imgData, 0, 0);
+    S.layerCanvas[id] = off;
+    return off;
   }
 
   const [W, H] = S.shape;
@@ -760,6 +836,79 @@ LAYER_RENDERERS.renderForestCover = function(data, n, W) {
     const j = i * 4;
     data[j] = r; data[j + 1] = g; data[j + 2] = b; data[j + 3] = 255;
   }
+};
+
+// ── Streamlines helper ──
+function renderStreamlines(data, uField, vField, color) {
+  const uArr = S.monthly[uField];
+  const vArr = S.monthly[vField];
+  if (!uArr || !vArr) return;
+  const [Hf, Wf] = S.monthly._shapes[uField];
+  const nf = Hf * Wf;
+
+  // Compute selected-month average u/v at native resolution
+  const uAvg = new Float32Array(nf), vAvg = new Float32Array(nf);
+  let count = 0;
+  for (let m = 0; m < 12; m++) {
+    if (!S.selMonths || S.selMonths.has(m)) {
+      const off = m * nf;
+      for (let i = 0; i < nf; i++) { uAvg[i] += uArr[off + i]; vAvg[i] += vArr[off + i]; }
+      count++;
+    }
+  }
+  if (count === 0) return;
+  for (let i = 0; i < nf; i++) { uAvg[i] /= count; vAvg[i] /= count; }
+
+  const step = 24;
+  const upscale = 1024 / Hf;
+  const maxSteps = 400;
+  const stepPx = 1.5;
+
+  for (let sy = step / 2; sy < 1024; sy += step) {
+    for (let sx = step / 2; sx < 1024; sx += step) {
+      const jx = ((sx * 2654435761) >>> 0) % 1000 / 1000 - 0.5;
+      const jy = ((sy * 2654435761) >>> 0) % 1000 / 1000 - 0.5;
+      let x = sx + jx * step * 0.5;
+      let y = sy + jy * step * 0.5;
+
+      for (let k = 0; k < maxSteps; k++) {
+        const ix = Math.floor(x), iy = Math.floor(y);
+        if (ix < 0 || ix >= 1024 || iy < 0 || iy >= 1024) break;
+
+        const fx = x / upscale, fy = y / upscale;
+        const fxi = Math.floor(fx), fyi = Math.floor(fy);
+        if (fxi < 0 || fxi >= Wf - 1 || fyi < 0 || fyi >= Hf - 1) break;
+        const tx = fx - fxi, ty = fy - fyi;
+        const idx00 = fyi * Wf + fxi;
+        const u = (1 - tx) * (1 - ty) * uAvg[idx00] + tx * (1 - ty) * uAvg[idx00 + 1]
+                + (1 - tx) * ty * uAvg[idx00 + Wf] + tx * ty * uAvg[idx00 + Wf + 1];
+        const v = (1 - tx) * (1 - ty) * vAvg[idx00] + tx * (1 - ty) * vAvg[idx00 + 1]
+                + (1 - tx) * ty * vAvg[idx00 + Wf] + tx * ty * vAvg[idx00 + Wf + 1];
+
+        const speed = Math.sqrt(u * u + v * v);
+        if (speed < 1e-6) break;
+
+        const px = Math.floor(x), py = Math.floor(y);
+        if (px >= 0 && px < 1024 && py >= 0 && py < 1024) {
+          const pi = (py * 1024 + px) * 4;
+          data[pi] = color[0]; data[pi + 1] = color[1]; data[pi + 2] = color[2]; data[pi + 3] = color[3];
+        }
+
+        const dt = stepPx / Math.max(speed, 1e-9);
+        x += u * dt; y += v * dt;
+      }
+    }
+  }
+}
+
+LAYER_RENDERERS.renderWind = function(data, n, W) {
+  if (!S.monthly || !S.monthly.wu_monthly) return;
+  renderStreamlines(data, "wu_monthly", "wv_monthly", [128, 224, 255, 200]);
+};
+
+LAYER_RENDERERS.renderCurrents = function(data, n, W) {
+  if (!S.monthly || !S.monthly.cu_monthly) return;
+  renderStreamlines(data, "cu_monthly", "cv_monthly", [255, 153, 68, 200]);
 };
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1005,8 +1154,8 @@ function pixelAt(wx, wy) {
   }
   // Monthly values if filtered
   if (S.monthly && !allMonthsSelected()) {
-    out.T_monthly = monthlyPixelValue("t", wx, wy);
-    out.P_monthly = monthlyPixelValue("p", wx, wy);
+    out.T_monthly = monthlyPixelValue("t_monthly", wx, wy);
+    out.P_monthly = monthlyPixelValue("p_monthly", wx, wy);
   }
   return out;
 }
@@ -1126,7 +1275,8 @@ function computeAreaStats(x0, y0, x1, y1) {
 function renderAreaStatsPanel(data, x0, y0, x1, y1) {
   const w = Math.abs(x1 - x0) + 1, h = Math.abs(y1 - y0) + 1;
   const isSingle = (w === 1 && h === 1);
-  let html = `<div class="sr-summary">Selection: ${w}×${h} (${data.cells} cells)</div>`;
+  let html = `<div style="text-align:right;margin-bottom:2px;"><span class="area-clear" onclick="document.getElementById('area-stats').innerHTML='<span style=\\'color:#667788;font-size:12px;\\'>Shift+drag on the map to select an area.</span>'">✕ clear</span></div>`;
+  html += `<div class="sr-summary">Selection: ${w}×${h} (${data.cells} cells)</div>`;
   if (data.cells === 0) { areaStats.innerHTML = html; return; }
 
   const fieldLabels = { elev_m:["Elevation","m"], T_c:["Temperature","°C"], P_mm:["Precip","mm/yr"],
@@ -1526,6 +1676,10 @@ for (const el of document.querySelectorAll(".examples span[data-expr]")) {
   };
 }
 
+// Month shift buttons
+$("month-shift-left").onclick = () => shiftMonths(-1);
+$("month-shift-right").onclick = () => shiftMonths(1);
+
 function doSearch(expr) {
   S.searchExpr = expr;
   searchErr.textContent = "";
@@ -1557,9 +1711,15 @@ function clearSearch() {
   render();
 }
 
-// Keyboard: Escape clears search
+// Keyboard: Escape clears search and area selection
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") clearSearch();
+  if (e.key === "Escape") {
+    clearSearch();
+    const placeholder = `<span style="color:#667788;font-size:12px;">Shift+drag on the map to select an area.</span>`;
+    if (areaStats.innerHTML !== placeholder) {
+      areaStats.innerHTML = placeholder;
+    }
+  }
 });
 
 // Canvas mouse events
