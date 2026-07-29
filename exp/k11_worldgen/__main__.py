@@ -478,6 +478,9 @@ def main(argv: list[str] | None = None) -> int:
     demo.add_argument("--shrink", type=float, default=6.0,
                       help="realistic mode: planet shrink factor "
                            "(map spans 1024 km * shrink / 111 degrees)")
+    demo.add_argument("--viewexport", action="store_true",
+                      help="also bake the .k11view viewer bundle after "
+                           "generating")
     rend = sub.add_parser("render", help="re-render PNGs from seed_N/world.json")
     rend.add_argument("--seed", type=int, default=1)
     args = parser.parse_args(argv)
@@ -492,6 +495,11 @@ def main(argv: list[str] | None = None) -> int:
     report = run_demo(args.seed, check_determinism=args.check_determinism,
                       realistic=args.realistic, center_lat=args.center_lat,
                       shrink=args.shrink)
+
+    if args.viewexport:
+        from exp.k11_worldgen.viewexport import export
+        seed_dir = Path(f"{OUT_DIR}/seed_{args.seed:08d}")
+        export(seed_dir, seed_dir / f"seed_{args.seed:08d}.k11view")
 
     if args.json:
         json.dump(report, sys.stdout, indent=2)
