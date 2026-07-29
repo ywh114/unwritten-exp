@@ -48,13 +48,16 @@ schema version. Acceptance: imports work, `python -m exp.k14_flora --help`.
 ### P1 — content pack: plans, axes, palettes, constraints (L)
 `content/{plans.toml, axes_core.toml, axes_parts.toml, palettes.toml,
 constraints.toml, presets/**, pins.toml, stems_flora.toml}`.
-- **Plans (v1 cut)** — terrestrial: tree, shrub, herb-forb, grass-sward,
+- **Plans (v1)** — terrestrial: tree, shrub, herb-forb, grass-sward,
   rosette-mat, succulent, fern-grade, moss-grade; aquatic: runner-meadow,
-  floating-leaf, floater, macroalgae-holdfast; honorary: fungus, lichen.
-  DEFERRED: vine/epiphyte (2nd-round-only), coral-grade (needs marine
-  rounds), phytoplankton (counters only). Each plan: slots (architecture,
-  leaf, root, display, fruit_seed, defense, storage, covering, phenology)
-  + generics table (dispersal replaces locomotor).
+  floating-leaf, floater, macroalgae-holdfast; sessile-marine: coral-grade,
+  sponge-grade (flora owns corals/sponges per vocabulary §14.3 — the tree
+  is world-blind, marine placement is a rounds concern, so these are IN);
+  honorary: fungus, lichen. DEFERRED: vine/epiphyte (2nd-round-only),
+  phytoplankton (counters only), tube-worm-grade (vent ecology). Each
+  plan: slots (architecture, leaf, root, display, fruit_seed, defense,
+  storage, covering, phenology) + generics table (dispersal replaces
+  locomotor).
 - **Axes (v1 cut)** — architecture: height, woodiness, growth_rate,
   longevity, shade_tolerance, pioneer_climax (CSR scalar); leaf: shape,
   persistence, size_class, margin_toothed; root: type, depth, mycorrhizal,
@@ -79,9 +82,16 @@ constraints.toml, presets/**, pins.toml, stems_flora.toml}`.
   duckweed-grade, kelp-grade, seagrass-grade, agaric-grade, bracket-grade,
   crust-lichen-grade, sphagnum-grade. Hallé grammar tuple at Order rank,
   scalar params at Family rank (vocab §14.6).
-- **Pins (~8, tier-1 curated)**: yarrow, wild carrot, sword-iris,
-  thread-leaf chive, ice-crown, stonecrop, grave-flower + one tree
-  (oak-grade "king oak" genus pin). Each = full record; radiation targets.
+- **Pins (tier-1 curated)** — two kinds per owner ruling 2026-07-29:
+  (a) COMMON cover — the everyday flora a world feels broken without,
+  pinned at genus rank with radiation so the genus is findable and
+  widespread: oak, pine, birch, willow (trees); bramble, heather
+  (shrubs); meadow-grass, reed, sedge (grasses/marginals); bracken
+  (fern); sphagnum, cushion-moss (mosses); water-lily, ludwigia,
+  sword-plant, duckweed (aquatics); field-agaric, bracket-conk (fungi);
+  (b) LANDMARK species (species-rank, findable not common): yarrow,
+  wild carrot, sword-iris, thread-leaf chive, ice-crown, stonecrop,
+  grave-flower. Each = full record; radiation targets on (a).
 Acceptance: lint clean (registered axes, plan-legal bindings, palette
 legality, constraint coverage); `preview.py` prints 5 preset records.
 
@@ -176,11 +186,20 @@ present-but-no-cover recorded; provisions match species mix; ≤ 8 s.
 Out of scope (later plans): fauna rounds A0–A4, ley flora operators,
 animal-vector channel, cover→climate feedback, phytoplankton counters.
 
+## Interface mirroring (owner ruling 2026-07-29 #4)
+
+K14 mirrors K13's public surface 1:1 wherever the concept exists:
+`content.load_content/merged_pin/merged_preset`, `backbone.build(seed,
+pack)`, `derive.derive_tree/effective_climate`, `nomenclature.assign_names`
+(K13 engine reused directly), `metrics.run_checks`, `__main__ generate(seed,
+pack)` with the same CLI shape, and the same node/tree JSON schema (meta.
+generator = "k14_flora"). A reader who knows K13 knows K14.
+
 ## User decisions needed
 
-1. `exp/k14_flora/` as the home (mirrors k13)? K14 = "flora engine" in the
-   LEDGER.
-2. Pin list (~8 named above) — veto/add now or review after P1.
-3. Coral-grade deferred until marine rounds exist — OK?
+1. ~~`exp/k14_flora/` as the home~~ — APPROVED (K14 = flora engine).
+2. ~~Pin list~~ — APPROVED + common-cover pins added (see P1).
+3. ~~Coral-grade deferred~~ — REJECTED by owner: corals/sponges are IN
+   (the tree is world-blind; marine placement is a rounds concern).
 4. Folk-label table English-first (RFC); Latin binomials for genera like
-   fauna — keep both?
+   fauna — keep both (mirrors fauna, per owner).
