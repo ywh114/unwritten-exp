@@ -431,6 +431,11 @@ function renderSidebar() {
   html += '<div style="font-weight:600;font-size:13px;margin-bottom:6px;">'
     + (pinned ? "★ " : "") + esc(name) + '</div>';
 
+  // Description (species one-liner) — italic, above the metadata rows
+  if (node.description && typeof node.description === "string" && node.description.trim() !== "") {
+    html += '<p style="font-style:italic;color:#555;margin-bottom:6px;">' + esc(node.description) + '</p>';
+  }
+
   const row = (k, v) =>
     '<div style="margin-bottom:2px;"><span class="sk">' + esc(k) + '</span> ' + v + '</div>';
 
@@ -438,9 +443,10 @@ function renderSidebar() {
   html += row("rank", esc(node.rank));
   if (node.parent) html += row("parent", esc(node.parent));
   if (node.label && !pinned) html += row("label", esc(node.label));
-  if (pinned && node.name.folk) html += row("folk name", esc(node.name.folk));
-  if (pinned && node.name.binomial)
-    html += row("binomial", '<i>' + esc(node.name.binomial) + '</i>');
+  html += row("folk name", pinned && node.name.folk ? esc(node.name.folk) : "—");
+  html += row("binomial", node.name.binomial
+    ? (pinned ? '<i>' + esc(node.name.binomial) + '</i>' : esc(node.name.binomial))
+    : "—");
   html += row("g", typeof node.g === "number" ? node.g.toFixed(4) : "—");
 
   // Axes — sorted alphabetically, N/A hidden, diet_spectrum special

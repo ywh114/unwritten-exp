@@ -332,6 +332,70 @@ async function main() {
   }
 
   // ========================================================================
+  // Test m0: stable name rows + description
+  // ========================================================================
+  // Find a generated (non-pinned) species with a description
+  const genSpecies = treeData.nodes.find(n =>
+    n.rank === "species" && !(n.flags && n.flags.includes("pinned")) &&
+    n.description && n.description.trim() !== ""
+  );
+  if (genSpecies) {
+    console.log(`Generated species: ${genSpecies.path} desc="${genSpecies.description.substring(0, 60)}"`);
+    // Select directly via JS API — sidebar renders even for non-visible nodes
+    await page.evaluate(p => { if (window.__selectPath) window.__selectPath(p); }, genSpecies.path);
+    await new Promise(r => setTimeout(r, 400));
+
+    const sidebarHtml = await page.evaluate(() => {
+      const sb = document.getElementById("sidebar");
+      return sb ? sb.innerHTML : "";
+    });
+
+    // Generated species: folk name should be "—", binomial should show the actual name
+    assert(
+      sidebarHtml.includes("folk name") && sidebarHtml.includes("—"),
+      "m0a: generated species shows folk name row with '—'"
+    );
+    assert(
+      sidebarHtml.includes("binomial") && sidebarHtml.includes(genSpecies.name.binomial.substring(0, 4)),
+      `m0b: generated species shows binomial row (expected '${genSpecies.name.binomial}')`
+    );
+    // Description should appear as italic paragraph
+    const descOk = sidebarHtml.includes(genSpecies.description.substring(0, 15)) &&
+      /font-style:\s*italic/.test(sidebarHtml);
+    assert(
+      descOk,
+      `m0c: description paragraph present (desc="${genSpecies.description.substring(0, 40)}")`
+    );
+  } else {
+    pass("m0: no generated species with description found — skipped");
+  }
+
+  // Also check a pinned species shows actual name values, not "—"
+  const pinnedSpecies = treeData.nodes.find(n =>
+    n.rank === "species" && n.flags && n.flags.includes("pinned") &&
+    n.name && n.name.folk
+  );
+  if (pinnedSpecies) {
+    await page.evaluate(p => { if (window.__selectPath) window.__selectPath(p); }, pinnedSpecies.path);
+    await new Promise(r => setTimeout(r, 400));
+
+    const ph = await page.evaluate(() => {
+      const sb = document.getElementById("sidebar");
+      return sb ? sb.innerHTML : "";
+    });
+    assert(
+      ph.includes("folk name") && ph.includes(pinnedSpecies.name.folk),
+      `m0d: pinned species shows folk name row with actual value (${pinnedSpecies.name.folk})`
+    );
+    assert(
+      ph.includes("binomial") && ph.includes(pinnedSpecies.name.binomial),
+      `m0e: pinned species shows binomial row with actual value (${pinnedSpecies.name.binomial})`
+    );
+  } else {
+    pass("m0e: no pinned species with folk name found — skipped");
+  }
+
+  // ========================================================================
   // Test k1: click at zoom ~0.3 selects the node
   // ========================================================================
   // First, get canvas-wrap center
