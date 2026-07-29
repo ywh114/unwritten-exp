@@ -53,7 +53,7 @@ body {
 
 /* ===== Tooltip ===== */
 #tooltip {
-  position: fixed; z-index: 9999; pointer-events: none;
+  position: fixed; z-index: 9999; pointer-events: auto;
   display: none; background: #fff; border: 1px solid #888;
   border-radius: 4px; padding: 8px 10px; font-size: 11px; line-height: 1.5;
   max-width: 360px; max-height: 70vh; overflow-y: auto;
@@ -325,7 +325,7 @@ function renderTree() {
 
     const cx = svgX(pos.x), cy = svgY(pos.y);
     const ri = rankIdx(node.rank);
-    const r = RANK_NODE_R[ri] || 3;
+    const r = Math.max(RANK_NODE_R[ri] || 3, 7 / zoomScale);
     const color = RANK_COLORS[ri] || "#999";
     const pinned = isPinned(node);
 
@@ -435,7 +435,7 @@ function renderTooltip(path, clientX, clientY) {
           const ds = Object.entries(v)
             .filter(([, w]) => w > 0)
             .sort((a, b) => b[1] - a[1])
-            .map(([g, w]) => `${g} ${Number(w).toFixed(0)}%`)
+            .map(([g, w]) => `${g} ${(w * 100).toFixed(0)}%`)
             .join(", ");
           html += `<div class="tt-row"><span class="tt-k">${esc(k)}</span><span class="tt-v">${esc(ds)}</span></div>`;
         } else {
@@ -553,8 +553,8 @@ function setupZoomPan() {
   // Mouse events on canvas
   wrap.addEventListener("mousedown", function(e) {
     if (e.button !== 0) return;
-    // Don't start drag on node clicks — nodes are handled separately
-    if (e.target.closest(".tree-node")) return;
+    // Don't start drag on node clicks or tooltip interactions
+    if (e.target.closest(".tree-node") || e.target.closest("#tooltip")) return;
     isDragging = true;
     dragMoved = false;
     wrap.classList.add("panning");
@@ -624,7 +624,7 @@ function setupSVGEvents() {
         renderTooltip(path, e.clientX, e.clientY);
       }
     } else {
-      if (tooltipPath !== null) {
+      if (tooltipPath !== null && !tooltipHovered) {
         tooltipPath = null;
         hideTooltip();
       }
@@ -636,6 +636,14 @@ function setupSVGEvents() {
     hideTooltip();
   });
 }
+
+// Tooltip interaction: stay open while mouse is over it
+let tooltipHovered = false;
+tooltipEl.addEventListener("mouseenter", () => { tooltipHovered = true; });
+tooltipEl.addEventListener("mouseleave", () => {
+  tooltipHovered = false;
+  hideTooltip();
+});
 
 // ============================================================================
 // Keyboard navigation (arrows only — no collapse toggle)

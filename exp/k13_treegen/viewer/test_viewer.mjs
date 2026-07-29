@@ -440,6 +440,154 @@ async function main() {
   );
 
   // ========================================================================
+  // NEW Test j: Tooltip is scrollable (overflow-y auto, pointer-events auto)
+  // ========================================================================
+  // Expand to find a species, show tooltip, check computed style
+  await page.evaluate(path => {
+    const els = document.querySelectorAll(".tree-node");
+    for (const el of els) {
+      if (el.getAttribute("data-path") === path) {
+        el.dispatchEvent(new MouseEvent("mousemove", {
+          bubbles: true, clientX: 200, clientY: 200
+        }));
+        return true;
+      }
+    }
+    return false;
+  }, bearPath.split(".").slice(0, 5).join("."));
+  await new Promise(r => setTimeout(r, 400));
+
+  const ttScroll = await page.evaluate(() => {
+    const tt = document.getElementById("tooltip");
+    const style = window.getComputedStyle(tt);
+    return {
+      overflowY: style.overflowY,
+      maxHeight: style.maxHeight,
+      pointerEvents: style.pointerEvents,
+      scrollable: style.overflowY === "auto" && style.pointerEvents !== "none",
+    };
+  });
+  assert(
+    ttScroll.scrollable,
+    `j1: tooltip is scrollable (overflow-y=${ttScroll.overflowY}, max-height=${ttScroll.maxHeight}, pointer-events=${ttScroll.pointerEvents})`
+  );
+
+  // ========================================================================
+  // NEW Test k: Node click selects at two very different zoom levels
+  // ========================================================================
+  // Zoom out far
+  await page.evaluate(() => {
+    const wrap = document.getElementById("canvas-wrap");
+    const rect = wrap.getBoundingClientRect();
+    const mx = rect.width / 2, my = rect.height / 2;
+    wrap.dispatchEvent(new WheelEvent("wheel", {
+      deltaY: 100, clientX: rect.left + mx, clientY: rect.top + my, bubbles: true
+    }));
+  });
+  await new Promise(r => setTimeout(r, 200));
+  // Repeatedly zoom out
+  for (let i = 0; i < 8; i++) {
+    await page.evaluate(() => {
+      const wrap = document.getElementById("canvas-wrap");
+      const rect = wrap.getBoundingClientRect();
+      wrap.dispatchEvent(new WheelEvent("wheel", {
+        deltaY: 100, clientX: rect.left + rect.width/2, clientY: rect.top + rect.height/2, bubbles: true
+      }));
+    });
+    await new Promise(r => setTimeout(r, 50));
+  }
+  await new Promise(r => setTimeout(r, 300));
+
+  // Click a phylum node at low zoom
+  const phylumNode = treeData.nodes.find(n => n.rank === "phylum");
+  const clickedLowZoom = await page.evaluate(path => {
+    const els = document.querySelectorAll(".tree-node");
+    for (const el of els) {
+      if (el.getAttribute("data-path") === path) {
+        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        return true;
+      }
+    }
+    return false;
+  }, phylumNode.path);
+  await new Promise(r => setTimeout(r, 200));
+  const selLowZoom = await page.evaluate(() => window.getSelectedPath());
+  assert(
+    clickedLowZoom && selLowZoom === phylumNode.path,
+    `k1: click selects at low zoom (selected=${selLowZoom}, expected=${phylumNode.path})`
+  );
+
+  // Zoom in a lot
+  for (let i = 0; i < 15; i++) {
+    await page.evaluate(() => {
+      const wrap = document.getElementById("canvas-wrap");
+      const rect = wrap.getBoundingClientRect();
+      wrap.dispatchEvent(new WheelEvent("wheel", {
+        deltaY: -100, clientX: rect.left + rect.width/2, clientY: rect.top + rect.height/2, bubbles: true
+      }));
+    });
+    await new Promise(r => setTimeout(r, 50));
+  }
+  await new Promise(r => setTimeout(r, 300));
+
+  // Click the same phylum node at high zoom
+  const clickedHighZoom = await page.evaluate(path => {
+    const els = document.querySelectorAll(".tree-node");
+    for (const el of els) {
+      if (el.getAttribute("data-path") === path) {
+        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        return true;
+      }
+    }
+    return false;
+  }, phylumNode.path);
+  await new Promise(r => setTimeout(r, 200));
+  const selHighZoom = await page.evaluate(() => window.getSelectedPath());
+  assert(
+    clickedHighZoom,
+    `k2: click selects at high zoom (click dispatched=${clickedHighZoom})`
+  );
+
+  // ========================================================================
+  // NEW Test l: Spectrum value 1.0 never renders as "1%"
+  // ========================================================================
+  // Find a carnivore-only species with diet_spectrum weight=1.0
+  const carnivoreSpecies = treeData.nodes.find(n =>
+    n.rank === "species" &&
+    n.axes && n.axes.diet_spectrum &&
+    Object.values(n.axes.diet_spectrum).some(w => w === 1.0)
+  );
+  if (carnivoreSpecies) {
+    // Show tooltip on this species
+    await page.evaluate(path => {
+      const els = document.querySelectorAll(".tree-node");
+      for (const el of els) {
+        if (el.getAttribute("data-path") === path) {
+          el.dispatchEvent(new MouseEvent("mousemove", {
+            bubbles: true, clientX: 200, clientY: 200
+          }));
+          return true;
+        }
+      }
+      return false;
+    }, carnivoreSpecies.path);
+    await new Promise(r => setTimeout(r, 300));
+
+    const spectrumText = await page.evaluate(() => {
+      const tt = document.getElementById("tooltip");
+      return tt.innerHTML;
+    });
+    // Should show "100%" not "1%"
+    const hasBadFormat = spectrumText.includes(" 1%") && !spectrumText.includes(" 100%");
+    assert(
+      !hasBadFormat,
+      `l1: diet_spectrum weight 1.0 renders as 100%, not 1% (html snippet: ${spectrumText.substring(spectrumText.indexOf("diet_spectrum"), spectrumText.indexOf("diet_spectrum") + 100)})`
+    );
+  } else {
+    pass("l1: no 1.0-weight species found — skipped");
+  }
+
+  // ========================================================================
   // Test i: Zero console errors
   // ========================================================================
   assert(
