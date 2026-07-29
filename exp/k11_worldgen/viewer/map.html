@@ -7,49 +7,52 @@
 <link rel="icon" href="data:,">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #1a1a2e;
-  color: #e0e0e0;
-  height: 100vh;
-  display: flex;
-  overflow: hidden;
+  background: #1a1a2e; color: #e0e0e0;
+  height: 100vh; display: flex; overflow: hidden;
+}
+
+/* ── File Picker Overlay ── */
+#file-picker {
+  display: flex; position: fixed; inset: 0; background: rgba(10,10,30,0.85); z-index: 2000;
+  align-items: center; justify-content: center;
+}
+#file-picker.hidden { display: none; }
+#file-picker .drop-zone {
+  background: #16213e; border: 3px dashed #0f3460; border-radius: 12px;
+  padding: 50px 70px; text-align: center; cursor: pointer; transition: border-color 0.2s;
+}
+#file-picker .drop-zone.drag-over { border-color: #2980b9; background: #1a2a4a; }
+#file-picker .drop-zone h2 { font-weight: 500; margin-bottom: 8px; font-size: 20px; }
+#file-picker .drop-zone p { color: #667788; font-size: 13px; }
+#file-picker .drop-zone input[type=file] { display: none; }
+
+#loading-indicator {
+  display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: #16213e; border: 1px solid #2980b9; border-radius: 8px;
+  padding: 16px 28px; z-index: 3000; font-size: 15px; color: #5dade2;
 }
 
 /* ── Side Panel ── */
 #panel {
-  width: 350px;
-  min-width: 350px;
-  background: #16213e;
-  border-right: 1px solid #0f3460;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-  z-index: 10;
+  width: 345px; min-width: 345px; background: #16213e; border-right: 1px solid #0f3460;
+  display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; z-index: 10;
 }
 #panel::-webkit-scrollbar { width: 6px; }
 #panel::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
 
 .panel-section {
-  padding: 10px 14px;
-  border-bottom: 1px solid #0f3460;
+  padding: 10px 14px; border-bottom: 1px solid #0f3460;
 }
 .panel-section h2 {
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: #8899aa;
-  margin-bottom: 8px;
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: #8899aa; margin-bottom: 7px;
 }
 
-/* ── World & Layer Selector ── */
-#world-select { width: 100%; padding: 6px 8px; background: #0f3460; color: #e0e0e0; border: 1px solid #1a5276; border-radius: 4px; font-size: 13px; }
-
+/* ── Layer Buttons ── */
 #layer-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
 #layer-buttons button {
-  padding: 4px 10px; border: 1px solid #0f3460; background: #1a1a2e;
+  padding: 4px 9px; border: 1px solid #0f3460; background: #1a1a2e;
   color: #c0c0c0; border-radius: 3px; cursor: pointer; font-size: 11px;
   transition: all 0.15s;
 }
@@ -59,19 +62,16 @@ body {
 /* ── Collapsible ── */
 .collapse-header {
   cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px;
-  font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; color: #8899aa;
-  margin-bottom: 6px;
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: #8899aa; margin-bottom: 5px;
 }
 .collapse-header .arrow { display: inline-block; transition: transform 0.2s; font-size: 10px; }
 .collapse-header.collapsed .arrow { transform: rotate(-90deg); }
-.collapse-body { overflow: hidden; max-height: 600px; transition: max-height 0.3s ease; }
+.collapse-body { overflow: hidden; max-height: 500px; transition: max-height 0.3s ease; }
 .collapse-body.hidden { max-height: 0; }
 
-/* ── Stats ── */
 .stat-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; border-bottom: 1px solid #0a1628; }
 .stat-key { color: #8899aa; }
 .stat-val { color: #e0e0e0; font-variant-numeric: tabular-nums; }
-
 .stat-sub { padding-left: 12px; font-size: 11px; }
 .stat-sub .stat-key { color: #667788; }
 
@@ -112,44 +112,49 @@ body {
 /* ── Map Canvas ── */
 #map-wrap { flex: 1; position: relative; cursor: crosshair; }
 #map-wrap.grabbing { cursor: grabbing; }
-#map-wrap.shift { cursor: crosshair; }
-
 #map-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 
 /* ── Tooltip ── */
 #tooltip {
   position: fixed; z-index: 9999; pointer-events: none;
-  background: rgba(15, 20, 40, 0.95); border: 1px solid #2980b9;
+  background: rgba(15,20,40,0.96); border: 1px solid #2980b9;
   border-radius: 5px; padding: 8px 12px; font-size: 12px; line-height: 1.5;
-  max-width: 260px; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-  display: none;
+  max-width: 260px; box-shadow: 0 4px 16px rgba(0,0,0,0.5); display: none;
 }
-#tooltip .tt-biome { color: #5dade2; font-weight: 600; margin-bottom: 4px; }
-#tooltip .tt-pos { color: #667788; font-size: 11px; margin-bottom: 6px; }
+#tooltip .tt-biome { color: #5dade2; font-weight: 600; margin-bottom: 3px; }
+#tooltip .tt-pos { color: #667788; font-size: 11px; margin-bottom: 5px; }
 #tooltip .tt-field { display: flex; justify-content: space-between; gap: 12px; }
 #tooltip .tt-name { color: #8899aa; }
 #tooltip .tt-val { color: #e0e0e0; font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-/* ── Loading / Error ── */
-#loading-msg { position: fixed; top: 12px; right: 24px; background: #1a5276; color: #fff; padding: 6px 14px; border-radius: 4px; font-size: 12px; z-index: 100; display: none; }
-#error-msg { position: fixed; top: 12px; right: 24px; background: #5a2a2a; color: #e06060; padding: 8px 14px; border-radius: 4px; font-size: 12px; z-index: 100; display: none; max-width: 400px; }
 
 /* ── Selection Box ── */
 #sel-box {
   position: absolute; border: 1px dashed #5dade2; background: rgba(41,128,185,0.12);
   pointer-events: none; display: none; z-index: 5;
 }
+
+/* ── Messages ── */
+#error-toast {
+  position: fixed; top: 12px; right: 24px; background: #5a2a2a; color: #e06060;
+  padding: 8px 14px; border-radius: 4px; font-size: 12px; z-index: 100; display: none; max-width: 400px;
+}
 </style>
 </head>
 <body>
 
+<!-- File Picker -->
+<div id="file-picker">
+  <div class="drop-zone" id="drop-zone">
+    <h2>Open .k11view Bundle</h2>
+    <p>Drop a file here or click to browse</p>
+    <input type="file" id="file-input" accept=".k11view">
+  </div>
+</div>
+
+<div id="loading-indicator">Loading…</div>
+
 <!-- Side Panel -->
 <div id="panel">
-  <div class="panel-section">
-    <h2>World</h2>
-    <select id="world-select"><option>Loading…</option></select>
-  </div>
-
   <div class="panel-section">
     <h2>Layer</h2>
     <div id="layer-buttons"></div>
@@ -164,7 +169,7 @@ body {
 
   <div class="panel-section">
     <h2>Search</h2>
-    <input type="text" id="search-input" placeholder="e.g. elev_m > 2000 &amp; biome == &quot;boreal taiga&quot;" spellcheck="false">
+    <input type="text" id="search-input" placeholder='e.g. elev_m > 2000 & biome == "boreal taiga"' spellcheck="false">
     <div id="search-btn-row">
       <button id="search-submit">Search</button>
       <button id="search-clear">Clear</button>
@@ -197,75 +202,86 @@ body {
 <!-- Tooltip -->
 <div id="tooltip"></div>
 
-<!-- Messages -->
-<div id="loading-msg">Loading…</div>
-<div id="error-msg"></div>
+<!-- Error toast -->
+<div id="error-toast"></div>
 
 <script>
 "use strict";
 
-// ── DOM refs ──
+// ══════════════════════════════════════════════════════════════════════
+// DOM refs
+// ══════════════════════════════════════════════════════════════════════
 const $ = id => document.getElementById(id);
-const mapWrap  = $("map-wrap");
-const canvas   = $("map-canvas");
-const ctx      = canvas.getContext("2d");
-const tooltip  = $("tooltip");
-const selBox   = $("sel-box");
-const loading  = $("loading-msg");
-const errorEl  = $("error-msg");
-
-const worldSel    = $("world-select");
-const layerBtns   = $("layer-buttons");
+const filePicker = $("file-picker");
+const dropZone = $("drop-zone");
+const fileInput = $("file-input");
+const loadingEl = $("loading-indicator");
+const canvas = $("map-canvas");
+const ctx = canvas.getContext("2d");
+const mapWrap = $("map-wrap");
+const tooltip = $("tooltip");
+const selBox = $("sel-box");
+const errorToast = $("error-toast");
+const layerBtns = $("layer-buttons");
 const statsHeader = $("stats-header");
-const statsBody   = $("stats-body");
+const statsBody = $("stats-body");
 const searchInput = $("search-input");
-const searchRes   = $("search-results");
-const searchErr   = $("search-error");
-const areaStats   = $("area-stats");
+const searchRes = $("search-results");
+const searchErr = $("search-error");
+const areaStats = $("area-stats");
 
-// ── State ──
-const STATE = {
-  seed: "seed_00000001",
+// ══════════════════════════════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════════════════════════════
+const S = {
+  header: null,        // parsed JSON header
+  fields: {},          // name -> decoded TypedArray
+  shape: [1024, 1024],
+  biomeNames: {},      // id (string) -> name
+  biomeNameById: {},   // numeric id -> name
+  biomeColors: {},     // id (string) -> [r,g,b]
   layer: "world",
-  pngs: [],
-  img: null,          // current layer Image
-  maskImg: null,      // search mask Image
-  maskLoaded: false,
+  layers: [],          // [{id, label}]
 
-  // pan/zoom
-  ox: 0, oy: 0,      // pan offset in screen px
-  scale: 1,
-  wldW: 1024, wldH: 1024,
+  // Pre-rendered layer canvases (1024×1024)
+  layerCanvas: {},     // id -> offscreen Canvas
 
-  // interaction
+  // Backdrop Image
+  backdropImg: null,
+
+  // Pan / zoom
+  ox: 0, oy: 0, scale: 1,
+
+  // Interaction
   dragging: false,
-  dragStartX: 0, dragStartY: 0,
-  dragOX: 0, dragOY: 0,
-
-  shifting: false,
-  selActive: false,
-  selX0: 0, selY0: 0, selX1: 0, selY1: 0,  // world coords
+  dragStartX: 0, dragStartY: 0, dragOX: 0, dragOY: 0,
+  shifting: false, selActive: false,
+  selX0: 0, selY0: 0, selX1: 0, selY1: 0,
 
   hoverTimer: null,
-  currentSearchExpr: null,
-  searchMaskUrl: null,
+  searchMask: null,     // Uint8Array mask or null
+  searchExpr: null,
 };
 
-// ── Utility ──
-function showError(msg) {
-  errorEl.textContent = msg;
-  errorEl.style.display = "block";
-  setTimeout(() => { errorEl.style.display = "none"; }, 4000);
+// ══════════════════════════════════════════════════════════════════════
+// Toast
+// ══════════════════════════════════════════════════════════════════════
+let toastTimer = null;
+function toast(msg) {
+  errorToast.textContent = msg;
+  errorToast.style.display = "block";
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { errorToast.style.display = "none"; }, 4000);
 }
 
-function showLoading(show) {
-  loading.style.display = show ? "block" : "none";
-}
-
+// ══════════════════════════════════════════════════════════════════════
+// Utilities
+// ══════════════════════════════════════════════════════════════════════
 function fmtNum(v) {
   if (typeof v === "number") {
     if (Number.isInteger(v)) return String(v);
-    return v.toFixed(2);
+    const s = v.toFixed(2);
+    return s.replace(/\.?0+$/, "") || "0";
   }
   return String(v);
 }
@@ -278,121 +294,256 @@ function fmtSI(v) {
   return n.toFixed(2);
 }
 
-// ── Coordinate transforms ──
-function screenToWorld(sx, sy) {
-  const rect = canvas.getBoundingClientRect();
-  const x = (sx - rect.left - STATE.ox) / STATE.scale;
-  const y = (sy - rect.top  - STATE.oy) / STATE.scale;
-  return [Math.round(x), Math.round(y)];
+function lerpColor(c1, c2, t) {
+  const tt = Math.max(0, Math.min(1, t));
+  return [
+    Math.round(c1[0] + (c2[0] - c1[0]) * tt),
+    Math.round(c1[1] + (c2[1] - c1[1]) * tt),
+    Math.round(c1[2] + (c2[2] - c1[2]) * tt),
+  ];
 }
 
-function worldToScreen(wx, wy) {
-  const rect = canvas.getBoundingClientRect();
-  return [wx * STATE.scale + STATE.ox + rect.left,
-          wy * STATE.scale + STATE.oy + rect.top];
-}
+// ══════════════════════════════════════════════════════════════════════
+// Bundle Parser
+// ══════════════════════════════════════════════════════════════════════
+function parseBundle(buf) {
+  const dv = new DataView(buf);
+  if (buf.byteLength < 8) throw new Error("Bundle too small");
 
-function clampWorld(wx, wy) {
-  return [Math.max(0, Math.min(STATE.wldW - 1, wx)),
-          Math.max(0, Math.min(STATE.wldH - 1, wy))];
-}
+  // Magic
+  const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+  if (magic !== "K11V") throw new Error(`Bad magic: ${magic}`);
 
-// ── API ──
-async function api(url) {
-  const r = await fetch(url);
-  if (!r.ok) {
-    const text = await r.text();
-    throw new Error(text.slice(0, 200));
+  const hdrLen = dv.getUint32(4, true);
+  if (8 + hdrLen > buf.byteLength) throw new Error("Header length exceeds buffer");
+
+  const hdrBytes = new Uint8Array(buf, 8, hdrLen);
+  const header = JSON.parse(new TextDecoder().decode(hdrBytes));
+  if (header.format !== "k11view/1") throw new Error(`Unknown format: ${header.format}`);
+
+  const shape = header.shape;
+  const n = shape[0] * shape[1];
+
+  // Parse fields
+  let offset = 8 + hdrLen;
+  const rawFields = {};
+  for (const name of header.order) {
+    const meta = header.fields[name];
+    const dtype = meta.dtype;
+    let arr;
+    if (dtype === "u1") {
+      arr = new Uint8Array(buf, offset, n);
+      offset += n;
+    } else if (dtype === "<u2") {
+      arr = new Uint16Array(buf, offset, n);
+      offset += n * 2;
+    } else {
+      throw new Error(`Unknown dtype: ${dtype}`);
+    }
+    rawFields[name] = { arr, meta };
   }
-  return r.json();
+
+  return { header, rawFields, n };
 }
 
-async function loadWorlds() {
-  const worlds = await api("/api/worlds");
-  worldSel.innerHTML = "";
-  for (const w of worlds) {
-    const opt = document.createElement("option");
-    opt.value = w.seed;
-    opt.textContent = w.seed;
-    worldSel.appendChild(opt);
+// ══════════════════════════════════════════════════════════════════════
+// Field Decoder
+// ══════════════════════════════════════════════════════════════════════
+function decodeFields(header, rawFields) {
+  const n = header.shape[0] * header.shape[1];
+  const decoded = {};
+
+  for (const name of header.order) {
+    const { arr, meta } = rawFields[name];
+    if (name === "masks") {
+      // Keep masks as-is, also extract individual mask arrays
+      decoded.masks = arr;
+      if (meta.bits) {
+        for (let b = 0; b < meta.bits.length; b++) {
+          const bitName = meta.bits[b];
+          const bitArr = new Uint8Array(n);
+          for (let i = 0; i < n; i++) bitArr[i] = (arr[i] >> b) & 1;
+          decoded[bitName] = bitArr;
+        }
+      }
+    } else if (meta.scale !== undefined || meta.offset !== undefined) {
+      const scale = meta.scale ?? 1;
+      const off = meta.offset ?? 0;
+      if (arr instanceof Float32Array && scale === 1 && off === 0) {
+        decoded[name] = arr;
+      } else {
+        const f32 = new Float32Array(n);
+        for (let i = 0; i < n; i++) f32[i] = arr[i] * scale + off;
+        decoded[name] = f32;
+      }
+    } else {
+      // Categorical (biome, aquatic)
+      decoded[name] = arr;
+    }
   }
-  if (worlds.length > 0) {
-    worldSel.value = STATE.seed;
+
+  return decoded;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Layer Pre-render
+// ══════════════════════════════════════════════════════════════════════
+function preRenderLayers() {
+  const [W, H] = S.shape;
+  const n = W * H;
+
+  const LAYERS = [
+    { id: "world", label: "World", fn: null }, // backdrop
+    { id: "biomes", label: "Biomes", fn: renderBiomes },
+    { id: "elevation", label: "Elevation", fn: renderElevation },
+    { id: "biome_sim", label: "Biome Sim", fn: renderBiomeSim },
+    { id: "salinity", label: "Salinity", fn: renderSalinity },
+    { id: "temperature", label: "Temperature", fn: renderTemperature },
+    { id: "precipitation", label: "Precip", fn: renderPrecip },
+    { id: "forest_cover", label: "Forest Cover", fn: renderForestCover },
+  ];
+
+  S.layers = LAYERS;
+
+  for (const layer of LAYERS) {
+    if (layer.id === "world") continue;
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    const octx = off.getContext("2d");
+    const imgData = octx.createImageData(W, H);
+    layer.fn(imgData.data, n, W);
+    octx.putImageData(imgData, 0, 0);
+    S.layerCanvas[layer.id] = off;
   }
 }
 
-async function loadManifest(seed) {
-  const m = await api(`/api/world/${seed}/manifest`);
-  STATE.pngs = m.pngs;
-  STATE.wldW = m.shape[0];
-  STATE.wldH = m.shape[1];
-  renderLayerButtons();
-  renderWorldStats(m);
-  return m;
+function renderBiomes(data, n, W) {
+  const biome = S.fields.biome;
+  const colors = S.biomeColors;
+  for (let i = 0; i < n; i++) {
+    const c = colors[biome[i]] || [128, 128, 128];
+    const j = i * 4;
+    data[j] = c[0]; data[j + 1] = c[1]; data[j + 2] = c[2]; data[j + 3] = 255;
+  }
 }
 
-function buildImageUrl(seed, layer) {
-  return `/api/world/${seed}/img/${layer}`;
+function renderElevation(data, n, W) {
+  const elev = S.fields.elev_m;
+  let vmin = Infinity, vmax = -Infinity;
+  for (let i = 0; i < n; i++) {
+    if (elev[i] < vmin) vmin = elev[i];
+    if (elev[i] > vmax) vmax = elev[i];
+  }
+  const range = vmax - vmin || 1;
+  for (let i = 0; i < n; i++) {
+    const v = Math.round(((elev[i] - vmin) / range) * 255);
+    const j = i * 4;
+    data[j] = v; data[j + 1] = v; data[j + 2] = v; data[j + 3] = 255;
+  }
 }
 
-function loadLayerImage(seed, layer) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load layer: ${layer}`));
-    img.src = buildImageUrl(seed, layer);
-  });
+function renderBiomeSim(data, n, W) {
+  const sim = S.fields.biome_sim;
+  // 1 (confident) → white [255,255,255]; 0 (ecotone) → magenta [200,0,200]
+  for (let i = 0; i < n; i++) {
+    const t = sim[i];
+    const j = i * 4;
+    data[j]     = Math.round(200 + (255 - 200) * t);
+    data[j + 1] = Math.round(0 + (255 - 0) * t);
+    data[j + 2] = Math.round(200 + (255 - 200) * t);
+    data[j + 3] = 255;
+  }
 }
 
-async function fetchPixel(seed, x, y) {
-  return api(`/api/world/${seed}/pixel?x=${x}&y=${y}`);
+function renderSalinity(data, n, W) {
+  const sal = S.fields.salinity;
+  // 0 → white [255,255,255]; 40 → dark blue [0,30,120]
+  for (let i = 0; i < n; i++) {
+    const t = Math.min(sal[i] / 40, 1);
+    const j = i * 4;
+    data[j]     = Math.round(255 + (0 - 255) * t);
+    data[j + 1] = Math.round(255 + (30 - 255) * t);
+    data[j + 2] = Math.round(255 + (120 - 255) * t);
+    data[j + 3] = 255;
+  }
 }
 
-async function fetchArea(seed, x0, y0, x1, y1) {
-  return api(`/api/world/${seed}/area?x0=${x0}&y0=${y0}&x1=${x1}&y1=${y1}`);
+function renderTemperature(data, n, W) {
+  const T = S.fields.T_c;
+  // -40 → blue [0,0,255]; 0 → white [255,255,255]; 40 → red [255,0,0]
+  for (let i = 0; i < n; i++) {
+    const t = T[i];
+    let r, g, b;
+    if (t <= 0) {
+      const f = (t + 40) / 40;
+      r = Math.round(0 + (255 - 0) * f);
+      g = Math.round(0 + (255 - 0) * f);
+      b = 255;
+    } else {
+      const f = t / 40;
+      r = 255;
+      g = Math.round(255 + (0 - 255) * f);
+      b = Math.round(255 + (0 - 255) * f);
+    }
+    const j = i * 4;
+    data[j] = r; data[j + 1] = g; data[j + 2] = b; data[j + 3] = 255;
+  }
 }
 
-async function fetchSearch(seed, expr) {
-  return api(`/api/world/${seed}/search?q=${encodeURIComponent(expr)}`);
+function renderPrecip(data, n, W) {
+  const P = S.fields.P_mm;
+  // 0 → white [255,255,255]; 600 → dark blue [0,50,200]
+  for (let i = 0; i < n; i++) {
+    const t = Math.min(P[i] / 600, 1);
+    const j = i * 4;
+    data[j]     = Math.round(255 + (0 - 255) * t);
+    data[j + 1] = Math.round(255 + (50 - 255) * t);
+    data[j + 2] = Math.round(255 + (200 - 255) * t);
+    data[j + 3] = 255;
+  }
 }
 
-function buildMaskUrl(seed, expr) {
-  return `/api/world/${seed}/mask.png?q=${encodeURIComponent(expr)}`;
+function renderForestCover(data, n, W) {
+  const cover = S.fields.cover;
+  const GREEN = [34, 139, 34], GRAY = [128, 128, 128];
+  for (let i = 0; i < n; i++) {
+    const t = cover[i];
+    const r = Math.round(GRAY[0] + (GREEN[0] - GRAY[0]) * t);
+    const g = Math.round(GRAY[1] + (GREEN[1] - GRAY[1]) * t);
+    const b = Math.round(GRAY[2] + (GREEN[2] - GRAY[2]) * t);
+    const j = i * 4;
+    data[j] = r; data[j + 1] = g; data[j + 2] = b; data[j + 3] = 255;
+  }
 }
 
-// ── Render: Layer Buttons ──
-function renderLayerButtons() {
+// ══════════════════════════════════════════════════════════════════════
+// Layer Buttons
+// ══════════════════════════════════════════════════════════════════════
+function buildLayerButtons() {
   layerBtns.innerHTML = "";
-  for (const name of STATE.pngs) {
+  for (const layer of S.layers) {
     const btn = document.createElement("button");
-    btn.textContent = name;
-    btn.dataset.layer = name;
-    if (name === STATE.layer) btn.classList.add("active");
-    btn.onclick = () => switchLayer(name);
+    btn.textContent = layer.label;
+    btn.dataset.layer = layer.id;
+    if (layer.id === S.layer) btn.classList.add("active");
+    btn.onclick = () => switchLayer(layer.id);
     layerBtns.appendChild(btn);
   }
 }
 
-async function switchLayer(name) {
-  STATE.layer = name;
-  renderLayerButtons();
-  showLoading(true);
-  try {
-    STATE.img = await loadLayerImage(STATE.seed, name);
-    render();
-  } catch (e) {
-    showError(e.message);
-  } finally {
-    showLoading(false);
-  }
+function switchLayer(id) {
+  S.layer = id;
+  buildLayerButtons();
+  render();
 }
 
-// ── Render: World Stats ──
-function renderWorldStats(manifest) {
-  const st = manifest.stats || {};
+// ══════════════════════════════════════════════════════════════════════
+// World Stats
+// ══════════════════════════════════════════════════════════════════════
+function renderWorldStats(stats) {
   const lines = [];
-  for (const [k, v] of Object.entries(st)) {
-    if (k === "complex" && typeof v === "object") {
+  for (const [k, v] of Object.entries(stats)) {
+    if (k === "complex" && typeof v === "object" && v !== null && !Array.isArray(v)) {
       lines.push(`<div class="stat-row"><span class="stat-key">complex</span><span class="stat-val">—</span></div>`);
       for (const [sk, sv] of Object.entries(v)) {
         if (sk === "audit_defects") {
@@ -413,21 +564,22 @@ function renderWorldStats(manifest) {
     } else if (k === "climate_trivia" && typeof v === "object") {
       lines.push(`<div class="stat-row"><span class="stat-key">climate_trivia</span><span class="stat-val">—</span></div>`);
       for (const [ck, cv] of Object.entries(v)) {
-        const label = ck.replace(/_/g, " ");
-        lines.push(`<div class="stat-row stat-sub"><span class="stat-key">${label}</span><span class="stat-val">${fmtNum(cv)}</span></div>`);
+        lines.push(`<div class="stat-row stat-sub"><span class="stat-key">${ck.replace(/_/g, " ")}</span><span class="stat-val">${fmtNum(cv)}</span></div>`);
       }
+    } else if (k === "biome_coherence" && typeof v === "number") {
+      lines.push(`<div class="stat-row"><span class="stat-key">biome coherence</span><span class="stat-val">${fmtNum(v)}</span></div>`);
     } else if (typeof v === "number") {
-      const label = k.replace(/_/g, " ");
-      lines.push(`<div class="stat-row"><span class="stat-key">${label}</span><span class="stat-val">${fmtSI(v)}</span></div>`);
+      lines.push(`<div class="stat-row"><span class="stat-key">${k.replace(/_/g, " ")}</span><span class="stat-val">${fmtSI(v)}</span></div>`);
     } else if (typeof v === "boolean") {
       lines.push(`<div class="stat-row"><span class="stat-key">${k.replace(/_/g, " ")}</span><span class="stat-val">${v}</span></div>`);
+    } else if (v == null) {
+      lines.push(`<div class="stat-row"><span class="stat-key">${k.replace(/_/g, " ")}</span><span class="stat-val">—</span></div>`);
     } else {
       lines.push(`<div class="stat-row"><span class="stat-key">${k.replace(/_/g, " ")}</span><span class="stat-val">${JSON.stringify(v)}</span></div>`);
     }
   }
   statsBody.innerHTML = lines.join("");
 
-  // toggle collapsed
   let collapsed = false;
   statsHeader.onclick = () => {
     collapsed = !collapsed;
@@ -436,155 +588,94 @@ function renderWorldStats(manifest) {
   };
 }
 
-// ── Render: Area Stats ──
-function renderAreaStats(data, x0, y0, x1, y1) {
-  const w = Math.abs(x1 - x0) + 1;
-  const h = Math.abs(y1 - y0) + 1;
-  const isSingle = (w === 1 && h === 1);
-  let html = `<div class="sr-summary">Selection: ${w}×${h} (${data.cells} cells)</div>`;
-
-  if (data.cells === 0) {
-    areaStats.innerHTML = html;
-    return;
-  }
-
-  // field stats
-  const fieldLabels = {
-    elev_m:   ["Elevation",    "m"],
-    T_c:      ["Temperature",  "°C"],
-    P_mm:     ["Precip",       "mm/yr"],
-    cover:    ["Forest Cover", ""],
-    salinity: ["Salinity",     "g/kg"],
-    depth_m:  ["Depth",        "m"],
-    hand_m:   ["HAND",         "m"],
-    width_m:  ["River Width",  "m"],
-    biome_sim:["Biome Sim",    ""],
-  };
-
-  for (const [fname, finfo] of Object.entries(fieldLabels)) {
-    if (!data[fname]) continue;
-    const [label, unit] = finfo;
-    if (isSingle) {
-      // For 1×1, show exact value
-      html += `<div class="stat-row"><span class="stat-key">${label}</span><span class="stat-val">${fmtNum(data[fname].mean)} ${unit}</span></div>`;
-    } else {
-      html += `<div class="stat-row"><span class="stat-key">${label}</span><span class="stat-val">${fmtNum(data[fname].mean)} ${unit}</span></div>`;
-      html += `<div class="stat-row stat-sub"><span class="stat-key">min</span><span class="stat-val">${fmtNum(data[fname].min)}</span></div>`;
-      html += `<div class="stat-row stat-sub"><span class="stat-key">max</span><span class="stat-val">${fmtNum(data[fname].max)}</span></div>`;
-    }
-  }
-
-  // biome histogram
-  if (data.biome_hist) {
-    const sorted = Object.entries(data.biome_hist).sort((a, b) => b[1] - a[1]);
-    html += `<div style="margin-top:6px;font-size:11px;color:#8899aa;">Biome Histogram</div>`;
-    for (const [name, frac] of sorted) {
-      const pct = (frac * 100).toFixed(1);
-      html += `<div class="biome-bar">
-        <div class="bb-fill" style="width:${Math.max(frac * 200, 3)}px;"></div>
-        <div class="bb-label">${name}</div>
-        <div class="bb-pct">${pct}%</div>
-      </div>`;
-    }
-  }
-
-  areaStats.innerHTML = html;
-}
-
-// ── Render: Search Results ──
-function renderSearchResults(data, expr) {
-  if (data.cells === 0) {
-    searchRes.innerHTML = `<div class="sr-summary">No cells match "${expr}"</div>`;
-    return;
-  }
-  let html = `<div class="sr-summary">Query: <code style="color:#5dade2;">${expr}</code> — ${data.cells} cells</div>`;
-  if (data.bbox) {
-    html += `<div class="sr-summary">Bbox: [${data.bbox.join(", ")}]</div>`;
-  }
-
-  const fieldLabels = {
-    elev_m:   ["Elevation",    "m"],
-    T_c:      ["Temperature",  "°C"],
-    P_mm:     ["Precip",       "mm/yr"],
-    cover:    ["Forest Cover", ""],
-    salinity: ["Salinity",     "g/kg"],
-    depth_m:  ["Depth",        "m"],
-    hand_m:   ["HAND",         "m"],
-    width_m:  ["River Width",  "m"],
-    biome_sim:["Biome Sim",    ""],
-  };
-
-  for (const [fname, finfo] of Object.entries(fieldLabels)) {
-    if (!data[fname]) continue;
-    const [label, unit] = finfo;
-    html += `<div class="stat-row"><span class="stat-key">${label}</span><span class="stat-val">μ${fmtNum(data[fname].mean)} ${unit}</span></div>`;
-    html += `<div class="stat-row stat-sub"><span class="stat-key">min</span><span class="stat-val">${fmtNum(data[fname].min)}</span></div>`;
-    html += `<div class="stat-row stat-sub"><span class="stat-key">max</span><span class="stat-val">${fmtNum(data[fname].max)}</span></div>`;
-  }
-
-  if (data.biome_hist) {
-    const sorted = Object.entries(data.biome_hist).sort((a, b) => b[1] - a[1]);
-    html += `<div style="margin-top:6px;font-size:11px;color:#8899aa;">Biome Histogram</div>`;
-    for (const [name, frac] of sorted) {
-      const pct = (frac * 100).toFixed(1);
-      html += `<div class="biome-bar">
-        <div class="bb-fill" style="width:${Math.max(frac * 200, 3)}px;"></div>
-        <div class="bb-label">${name}</div>
-        <div class="bb-pct">${pct}%</div>
-      </div>`;
-    }
-  }
-
-  searchRes.innerHTML = html;
-}
-
-// ── Canvas Rendering ──
+// ══════════════════════════════════════════════════════════════════════
+// Canvas Rendering
+// ══════════════════════════════════════════════════════════════════════
 function render() {
-  const cw = canvas.width;
-  const ch = canvas.height;
+  const cw = canvas.width, ch = canvas.height;
   ctx.clearRect(0, 0, cw, ch);
   ctx.imageSmoothingEnabled = false;
 
   ctx.save();
-  ctx.translate(STATE.ox, STATE.oy);
-  ctx.scale(STATE.scale, STATE.scale);
+  ctx.translate(S.ox, S.oy);
+  ctx.scale(S.scale, S.scale);
 
   // Base layer
-  if (STATE.img) {
-    ctx.drawImage(STATE.img, 0, 0, STATE.wldW, STATE.wldH);
+  const [W, H] = S.shape;
+  if (S.layer === "world" && S.backdropImg) {
+    ctx.drawImage(S.backdropImg, 0, 0, W, H);
+  } else if (S.layerCanvas[S.layer]) {
+    ctx.drawImage(S.layerCanvas[S.layer], 0, 0, W, H);
   }
 
   // Search mask overlay
-  if (STATE.maskImg && STATE.maskLoaded) {
+  if (S.searchMask) {
     ctx.globalAlpha = 0.55;
-    ctx.drawImage(STATE.maskImg, 0, 0, STATE.wldW, STATE.wldH);
+    const maskCanvas = buildMaskCanvas(S.searchMask);
+    ctx.drawImage(maskCanvas, 0, 0, W, H);
     ctx.globalAlpha = 1;
   }
 
   ctx.restore();
 
-  // Update selection box DOM element
   updateSelBox();
 }
 
-function updateSelBox() {
-  if (!STATE.selActive) {
-    selBox.style.display = "none";
-    return;
+// Lazy build / cache for mask overlay canvas
+let _maskCache = null;
+let _maskCacheKey = null;
+function buildMaskCanvas(mask) {
+  if (_maskCache && _maskCacheKey === mask) return _maskCache;
+  const [W, H] = S.shape;
+  const off = document.createElement("canvas");
+  off.width = W; off.height = H;
+  const octx = off.getContext("2d");
+  const imgData = octx.createImageData(W, H);
+  const d = imgData.data;
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i]) {
+      const j = i * 4;
+      d[j] = 255; d[j + 1] = 40; d[j + 2] = 40; d[j + 3] = 160;
+    }
   }
-  const [sx0, sy0] = worldToScreen(STATE.selX0, STATE.selY0);
-  const [sx1, sy1] = worldToScreen(STATE.selX1, STATE.selY1);
+  octx.putImageData(imgData, 0, 0);
+  _maskCache = off;
+  _maskCacheKey = mask;
+  return off;
+}
+
+function updateSelBox() {
+  if (!S.selActive) { selBox.style.display = "none"; return; }
+  const [sx0, sy0] = worldToScreen(S.selX0, S.selY0);
+  const [sx1, sy1] = worldToScreen(S.selX1, S.selY1);
   const rect = canvas.getBoundingClientRect();
   const left = Math.min(sx0, sx1) - rect.left;
   const top  = Math.min(sy0, sy1) - rect.top;
-  const w    = Math.abs(sx1 - sx0) || 1;
-  const h    = Math.abs(sy1 - sy0) || 1;
-
   selBox.style.display = "block";
-  selBox.style.left   = left + "px";
-  selBox.style.top    = top  + "px";
-  selBox.style.width  = w + "px";
-  selBox.style.height = h + "px";
+  selBox.style.left  = left + "px";
+  selBox.style.top   = top  + "px";
+  selBox.style.width  = Math.max(Math.abs(sx1 - sx0), 1) + "px";
+  selBox.style.height = Math.max(Math.abs(sy1 - sy0), 1) + "px";
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Coordinates
+// ══════════════════════════════════════════════════════════════════════
+function screenToWorld(sx, sy) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (sx - rect.left - S.ox) / S.scale;
+  const y = (sy - rect.top  - S.oy) / S.scale;
+  return [Math.round(x), Math.round(y)];
+}
+
+function worldToScreen(wx, wy) {
+  const rect = canvas.getBoundingClientRect();
+  return [wx * S.scale + S.ox + rect.left, wy * S.scale + S.oy + rect.top];
+}
+
+function clampWorld(wx, wy) {
+  return [Math.max(0, Math.min(S.shape[0] - 1, wx)),
+          Math.max(0, Math.min(S.shape[1] - 1, wy))];
 }
 
 function resizeCanvas() {
@@ -596,16 +687,16 @@ function resizeCanvas() {
 }
 
 function fitMap() {
-  const cw = canvas.width;
-  const ch = canvas.height;
-  // Fit the full world in view
-  const scaleFit = Math.min(cw / STATE.wldW, ch / STATE.wldH);
-  STATE.scale = scaleFit;
-  STATE.ox = (cw - STATE.wldW * STATE.scale) / 2;
-  STATE.oy = (ch - STATE.wldH * STATE.scale) / 2;
+  const cw = canvas.width, ch = canvas.height;
+  const [W, H] = S.shape;
+  S.scale = Math.min(cw / W, ch / H);
+  S.ox = (cw - W * S.scale) / 2;
+  S.oy = (ch - H * S.scale) / 2;
 }
 
-// ── Tooltip ──
+// ══════════════════════════════════════════════════════════════════════
+// Pixel Tooltip
+// ══════════════════════════════════════════════════════════════════════
 const FIELD_DISPLAY = {
   elev_m:   ["Elevation",    "m"],
   T_c:      ["Temperature",  "°C"],
@@ -617,8 +708,27 @@ const FIELD_DISPLAY = {
   width_m:  ["River Width",  "m"],
   biome_sim:["Biome Sim",    ""],
 };
-
 const FIELD_ORDER = ["elev_m","T_c","P_mm","cover","salinity","depth_m","hand_m","width_m","biome_sim"];
+
+function pixelAt(wx, wy) {
+  const [W, H] = S.shape;
+  const idx = wy * W + wx;
+  const out = { x: wx, y: wy };
+  for (const name of FIELD_ORDER) {
+    if (S.fields[name] != null) out[name] = S.fields[name][idx];
+  }
+  // Masks
+  if (S.fields.river != null) out.river = S.fields.river[idx];
+  if (S.fields.lake  != null) out.lake  = S.fields.lake[idx];
+  if (S.fields.ocean != null) out.ocean = S.fields.ocean[idx];
+  if (S.fields.sea   != null) out.sea   = S.fields.sea[idx];
+  if (S.fields.aquatic != null) out.aquatic = S.fields.aquatic[idx];
+  // Biome name
+  if (S.fields.biome != null) {
+    out.biome_name = S.biomeNameById[S.fields.biome[idx]] || "?";
+  }
+  return out;
+}
 
 function showTooltip(data, ex, ey) {
   let html = "";
@@ -631,7 +741,6 @@ function showTooltip(data, ex, ey) {
     const [label, unit] = FIELD_DISPLAY[f] || [f, ""];
     html += `<div class="tt-field"><span class="tt-name">${label}</span><span class="tt-val">${fmtNum(data[f])} ${unit}</span></div>`;
   }
-  // Masks
   const maskNames = { river: "River", lake: "Lake", ocean: "Ocean", sea: "Sea" };
   let maskVals = [];
   for (const [mk, ml] of Object.entries(maskNames)) {
@@ -647,17 +756,13 @@ function showTooltip(data, ex, ey) {
   tooltip.innerHTML = html;
   tooltip.style.display = "block";
 
-  // Position to avoid going offscreen
   const pad = 14;
-  let tx = ex + pad;
-  let ty = ey + pad;
-  const tw = tooltip.offsetWidth;
-  const th = tooltip.offsetHeight;
+  let tx = ex + pad, ty = ey + pad;
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
   if (tx + tw > window.innerWidth - 8)  tx = ex - tw - pad;
   if (ty + th > window.innerHeight - 8) ty = ey - th - pad;
   if (tx < 8) tx = 8;
   if (ty < 8) ty = 8;
-
   tooltip.style.left = tx + "px";
   tooltip.style.top  = ty + "px";
 }
@@ -666,74 +771,444 @@ function hideTooltip() {
   tooltip.style.display = "none";
 }
 
-// ── Search ──
-async function doSearch(expr) {
-  STATE.currentSearchExpr = expr;
-  searchErr.textContent = "";
-  searchRes.innerHTML = `<span style="color:#667788;">Searching…</span>`;
-  showLoading(true);
+// ══════════════════════════════════════════════════════════════════════
+// Area Stats
+// ══════════════════════════════════════════════════════════════════════
+function computeAreaStats(x0, y0, x1, y1) {
+  const [W, H] = S.shape;
+  const xMin = Math.min(x0, x1), xMax = Math.max(x0, x1);
+  const yMin = Math.min(y0, y1), yMax = Math.max(y0, y1);
+  const bw = xMax - xMin + 1, bh = yMax - yMin + 1;
+  const total = bw * bh;
+  const isSingle = (bw === 1 && bh === 1);
 
-  try {
-    const data = await fetchSearch(STATE.seed, expr);
-    renderSearchResults(data, expr);
+  const out = { cells: total };
+  if (total === 0) return out;
 
-    if (data.cells > 0) {
-      // Load mask overlay
-      const url = buildMaskUrl(STATE.seed, expr);
-      STATE.searchMaskUrl = url;
-      STATE.maskLoaded = false;
-      const img = new Image();
-      img.onload = () => {
-        STATE.maskImg = img;
-        STATE.maskLoaded = true;
-        render();
-      };
-      img.onerror = () => {
-        showError("Failed to load mask overlay");
-        STATE.maskImg = null;
-        STATE.maskLoaded = false;
-      };
-      img.src = url;
+  const indices = [];
+  for (let y = yMin; y <= yMax; y++) {
+    for (let x = xMin; x <= xMax; x++) {
+      indices.push(y * W + x);
     }
-  } catch (e) {
-    searchErr.textContent = e.message;
-    searchRes.innerHTML = "";
-    STATE.maskImg = null;
-    STATE.maskLoaded = false;
-    STATE.currentSearchExpr = null;
-    render();
-  } finally {
-    showLoading(false);
+  }
+
+  const fieldLabels = { elev_m:["Elevation","m"], T_c:["Temperature","°C"], P_mm:["Precip","mm/yr"],
+    cover:["Forest Cover",""], salinity:["Salinity","g/kg"], depth_m:["Depth","m"],
+    hand_m:["HAND","m"], width_m:["River Width","m"], biome_sim:["Biome Sim",""] };
+
+  for (const [fname, finfo] of Object.entries(fieldLabels)) {
+    const arr = S.fields[fname];
+    if (!arr) continue;
+    let sum = 0, min = Infinity, max = -Infinity;
+    for (const idx of indices) {
+      const v = arr[idx];
+      sum += v;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    const mean = sum / total;
+    if (isSingle) {
+      out[fname] = { mean, min, max };
+    } else {
+      out[fname] = { mean, min, max };
+    }
+  }
+
+  // Biome histogram
+  const biome = S.fields.biome;
+  if (biome) {
+    const hist = {};
+    for (const idx of indices) {
+      const name = S.biomeNameById[biome[idx]] || "?";
+      hist[name] = (hist[name] || 0) + 1;
+    }
+    for (const k of Object.keys(hist)) hist[k] /= total;
+    out.biome_hist = hist;
+  }
+
+  return out;
+}
+
+function renderAreaStatsPanel(data, x0, y0, x1, y1) {
+  const w = Math.abs(x1 - x0) + 1, h = Math.abs(y1 - y0) + 1;
+  const isSingle = (w === 1 && h === 1);
+  let html = `<div class="sr-summary">Selection: ${w}×${h} (${data.cells} cells)</div>`;
+  if (data.cells === 0) { areaStats.innerHTML = html; return; }
+
+  const fieldLabels = { elev_m:["Elevation","m"], T_c:["Temperature","°C"], P_mm:["Precip","mm/yr"],
+    cover:["Forest Cover",""], salinity:["Salinity","g/kg"], depth_m:["Depth","m"],
+    hand_m:["HAND","m"], width_m:["River Width","m"], biome_sim:["Biome Sim",""] };
+
+  for (const [fname, finfo] of Object.entries(fieldLabels)) {
+    if (!data[fname]) continue;
+    const [label, unit] = finfo;
+    if (isSingle) {
+      html += `<div class="stat-row"><span class="stat-key">${label}</span><span class="stat-val">${fmtNum(data[fname].mean)} ${unit}</span></div>`;
+    } else {
+      html += `<div class="stat-row"><span class="stat-key">${label}</span><span class="stat-val">${fmtNum(data[fname].mean)} ${unit}</span></div>`;
+      html += `<div class="stat-row stat-sub"><span class="stat-key">min</span><span class="stat-val">${fmtNum(data[fname].min)}</span></div>`;
+      html += `<div class="stat-row stat-sub"><span class="stat-key">max</span><span class="stat-val">${fmtNum(data[fname].max)}</span></div>`;
+    }
+  }
+
+  if (data.biome_hist) {
+    const sorted = Object.entries(data.biome_hist).sort((a, b) => b[1] - a[1]);
+    html += `<div style="margin-top:6px;font-size:11px;color:#8899aa;">Biome Histogram</div>`;
+    for (const [name, frac] of sorted) {
+      const pct = (frac * 100).toFixed(1);
+      html += `<div class="biome-bar">
+        <div class="bb-fill" style="width:${Math.max(frac * 200, 3)}px;"></div>
+        <div class="bb-label">${name}</div>
+        <div class="bb-pct">${pct}%</div></div>`;
+    }
+  }
+  areaStats.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Search (tokenizer + recursive-descent parser)
+// ══════════════════════════════════════════════════════════════════════
+const TOKEN_RE = /\s*(>=|<=|==|!=|[><&|!()]|"[^"]*"|'[^']*'|[A-Za-z_][A-Za-z0-9_]*|-?\d+\.?\d*)/g;
+
+function tokenize(expr) {
+  const toks = [];
+  let m;
+  while ((m = TOKEN_RE.exec(expr)) !== null) {
+    toks.push(m[1]);
+  }
+  return toks;
+}
+
+class SearchParser {
+  constructor(tokens, fields, n, biomeNameToId) {
+    this.t = tokens;
+    this.pos = 0;
+    this.f = fields;
+    this.n = n;
+    this.biomeNameToId = biomeNameToId;
+  }
+
+  peek() { return this.pos < this.t.length ? this.t[this.pos] : null; }
+
+  eat(tok) {
+    if (this.peek() !== tok) throw new Error(`expected ${JSON.stringify(tok)}, got ${JSON.stringify(this.peek())}`);
+    this.pos++;
+  }
+
+  parse() {
+    const m = this.or_();
+    if (this.pos < this.t.length) throw new Error(`trailing token: ${JSON.stringify(this.peek())}`);
+    return m;
+  }
+
+  or_() {
+    let m = this.and_();
+    while (this.peek() === "|") {
+      this.eat("|");
+      const r = this.and_();
+      for (let i = 0; i < this.n; i++) m[i] = m[i] | r[i];
+    }
+    return m;
+  }
+
+  and_() {
+    let m = this.unary();
+    while (this.peek() === "&") {
+      this.eat("&");
+      const r = this.unary();
+      for (let i = 0; i < this.n; i++) m[i] = m[i] & r[i];
+    }
+    return m;
+  }
+
+  unary() {
+    if (this.peek() === "!") {
+      this.eat("!");
+      const m = this.unary();
+      for (let i = 0; i < this.n; i++) m[i] = m[i] ^ 1;
+      return m;
+    }
+    if (this.peek() === "(") {
+      this.eat("(");
+      const m = this.or_();
+      this.eat(")");
+      return m;
+    }
+    return this.comparison();
+  }
+
+  comparison() {
+    const name = this.peek();
+    if (!name || !(name in this.f)) throw new Error(`unknown field: ${JSON.stringify(name)}`);
+    this.pos++;
+    const arr = this.f[name];
+    const op = this.peek();
+    const OPS = { ">": (a,b) => a > b, ">=": (a,b) => a >= b, "<": (a,b) => a < b,
+                  "<=": (a,b) => a <= b, "==": (a,b) => a == b, "!=": (a,b) => a != b };
+    if (!(op in OPS)) throw new Error(`expected operator, got ${JSON.stringify(op)}`);
+    this.pos++;
+    let raw = this.peek();
+    this.pos++;
+
+    const mask = new Uint8Array(this.n);
+    let val;
+    if (raw && (raw.startsWith('"') || raw.startsWith("'"))) {
+      const word = raw.slice(1, -1);
+      if (name === "biome") {
+        if (!(word in this.biomeNameToId)) throw new Error(`unknown biome: ${JSON.stringify(word)}`);
+        val = this.biomeNameToId[word];
+      } else {
+        throw new Error(`string value only allowed for biome, got ${name}`);
+      }
+    } else {
+      val = parseFloat(raw);
+    }
+
+    const cmp = OPS[op];
+    for (let i = 0; i < this.n; i++) mask[i] = cmp(arr[i], val) ? 1 : 0;
+    return mask;
   }
 }
 
-function clearSearch() {
-  STATE.currentSearchExpr = null;
-  STATE.searchMaskUrl = null;
-  STATE.maskImg = null;
-  STATE.maskLoaded = false;
-  searchRes.innerHTML = "";
-  searchErr.textContent = "";
-  searchInput.value = "";
-  render();
+function runSearch(expr) {
+  const n = S.shape[0] * S.shape[1];
+  const tokens = tokenize(expr);
+  if (tokens.length === 0) throw new Error("Empty expression");
+
+  // Build fields index for search
+  const searchFields = {};
+  for (const name of Object.keys(S.fields)) {
+    if (name === "masks") continue; // use unpacked river/lake/ocean/sea instead
+    searchFields[name] = S.fields[name];
+  }
+
+  // biome name → id mapping (numeric)
+  const biomeNameToId = {};
+  for (const [idStr, name] of Object.entries(S.biomeNames)) {
+    biomeNameToId[name] = parseInt(idStr, 10);
+  }
+
+  const parser = new SearchParser(tokens, searchFields, n, biomeNameToId);
+  const mask = parser.parse();
+
+  // Count
+  let count = 0;
+  for (let i = 0; i < n; i++) if (mask[i]) count++;
+
+  return { mask, count };
 }
 
-// ── Event Handlers ──
+function computeSearchStats(mask, count) {
+  const [W, H] = S.shape;
+  const n = W * H;
+  const out = { cells: count };
+  if (count === 0) return out;
+
+  // Bounding box
+  let xMin = W, xMax = -1, yMin = H, yMax = -1;
+  for (let i = 0; i < n; i++) {
+    if (mask[i]) {
+      const x = i % W, y = Math.floor(i / W);
+      if (x < xMin) xMin = x;
+      if (x > xMax) xMax = x;
+      if (y < yMin) yMin = y;
+      if (y > yMax) yMax = y;
+    }
+  }
+  out.bbox = [xMin, yMin, xMax, yMax];
+
+  // Field stats
+  const fieldLabels = { elev_m:["Elevation","m"], T_c:["Temperature","°C"], P_mm:["Precip","mm/yr"],
+    cover:["Forest Cover",""], salinity:["Salinity","g/kg"], depth_m:["Depth","m"],
+    hand_m:["HAND","m"], width_m:["River Width","m"], biome_sim:["Biome Sim",""] };
+
+  for (const [fname] of Object.entries(fieldLabels)) {
+    const arr = S.fields[fname];
+    if (!arr) continue;
+    let sum = 0, min = Infinity, max = -Infinity;
+    for (let i = 0; i < n; i++) {
+      if (mask[i]) {
+        const v = arr[i];
+        sum += v;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+    }
+    out[fname] = { mean: sum / count, min, max };
+  }
+
+  // Biome histogram
+  const biome = S.fields.biome;
+  if (biome) {
+    const hist = {};
+    for (let i = 0; i < n; i++) {
+      if (mask[i]) {
+        const name = S.biomeNameById[biome[i]] || "?";
+        hist[name] = (hist[name] || 0) + 1;
+      }
+    }
+    for (const k of Object.keys(hist)) hist[k] /= count;
+    out.biome_hist = hist;
+  }
+
+  return out;
+}
+
+function renderSearchResults(data, expr) {
+  if (data.cells === 0) {
+    searchRes.innerHTML = `<div class="sr-summary">No cells match <code style="color:#e06060;">${expr}</code></div>`;
+    return;
+  }
+  let html = `<div class="sr-summary">Query: <code style="color:#5dade2;">${expr}</code> — ${data.cells} cells</div>`;
+  if (data.bbox) {
+    html += `<div class="sr-summary">Bbox: [${data.bbox.join(", ")}]</div>`;
+  }
+
+  const fieldLabels = { elev_m:["Elevation","m"], T_c:["Temperature","°C"], P_mm:["Precip","mm/yr"],
+    cover:["Forest Cover",""], salinity:["Salinity","g/kg"], depth_m:["Depth","m"],
+    hand_m:["HAND","m"], width_m:["River Width","m"], biome_sim:["Biome Sim",""] };
+
+  for (const [fname, finfo] of Object.entries(fieldLabels)) {
+    if (!data[fname]) continue;
+    const [label, unit] = finfo;
+    html += `<div class="stat-row"><span class="stat-key">${label}</span><span class="stat-val">μ${fmtNum(data[fname].mean)} ${unit}</span></div>`;
+    html += `<div class="stat-row stat-sub"><span class="stat-key">min</span><span class="stat-val">${fmtNum(data[fname].min)}</span></div>`;
+    html += `<div class="stat-row stat-sub"><span class="stat-key">max</span><span class="stat-val">${fmtNum(data[fname].max)}</span></div>`;
+  }
+
+  if (data.biome_hist) {
+    const sorted = Object.entries(data.biome_hist).sort((a, b) => b[1] - a[1]);
+    html += `<div style="margin-top:6px;font-size:11px;color:#8899aa;">Biome Histogram</div>`;
+    for (const [name, frac] of sorted) {
+      const pct = (frac * 100).toFixed(1);
+      html += `<div class="biome-bar"><div class="bb-fill" style="width:${Math.max(frac * 200, 3)}px;"></div><div class="bb-label">${name}</div><div class="bb-pct">${pct}%</div></div>`;
+    }
+  }
+  searchRes.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Event Handlers
+// ══════════════════════════════════════════════════════════════════════
+
+// File loading
+function handleFile(file) {
+  if (!file.name.endsWith(".k11view")) {
+    toast("Expected a .k11view file");
+    return;
+  }
+  loadingEl.style.display = "block";
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      loadBundle(e.target.result);
+      loadingEl.style.display = "none";
+      filePicker.classList.add("hidden");
+    } catch (err) {
+      loadingEl.style.display = "none";
+      toast("Failed to load bundle: " + err.message);
+    }
+  };
+  reader.onerror = () => {
+    loadingEl.style.display = "none";
+    toast("Failed to read file");
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function loadBundle(buf) {
+  const { header, rawFields, n } = parseBundle(buf);
+
+  S.header = header;
+  S.shape = header.shape;
+  S.fields = decodeFields(header, rawFields);
+
+  // Build biome mappings
+  S.biomeNames = {};
+  S.biomeNameById = {};
+  S.biomeColors = {};
+  for (const [idStr, name] of Object.entries(header.biome_names)) {
+    const id = parseInt(idStr, 10);
+    S.biomeNames[idStr] = name;
+    S.biomeNameById[id] = name;
+  }
+  for (const [idStr, color] of Object.entries(header.biome_colors)) {
+    S.biomeColors[parseInt(idStr, 10)] = color;
+  }
+
+  // Backdrop image
+  if (header.backdrop_png_b64) {
+    S.backdropImg = new Image();
+    S.backdropImg.onload = () => {
+      fitMap();
+      render();
+    };
+    S.backdropImg.src = "data:image/png;base64," + header.backdrop_png_b64;
+  }
+
+  // Pre-render layers
+  preRenderLayers();
+
+  // UI
+  buildLayerButtons();
+  renderWorldStats(header.stats || {});
+  resizeCanvas();
+  fitMap();
+  render();
+  S.searchMask = null;
+  _maskCache = null;
+  _maskCacheKey = null;
+  searchRes.innerHTML = "";
+  searchErr.textContent = "";
+  areaStats.innerHTML = `<span style="color:#667788;font-size:12px;">Shift+drag on the map to select an area.</span>`;
+}
+
+// Expose for tests
+window.loadBundle = function(arrayBuffer) {
+  loadBundle(arrayBuffer);
+};
+
+// File-picker UI
+dropZone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => {
+  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+
+dropZone.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  dropZone.classList.add("drag-over");
+});
+dropZone.addEventListener("dragleave", () => {
+  dropZone.classList.remove("drag-over");
+});
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropZone.classList.remove("drag-over");
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+// Page-wide drop
+document.addEventListener("dragover", (e) => { e.preventDefault(); });
+document.addEventListener("drop", (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith(".k11view")) handleFile(file);
+});
+
+// Search
 searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     const expr = searchInput.value.trim();
     if (expr) doSearch(expr);
   }
 });
-
 $("search-submit").onclick = () => {
   const expr = searchInput.value.trim();
   if (expr) doSearch(expr);
 };
-
 $("search-clear").onclick = clearSearch;
 
-// Example clicks
 for (const el of document.querySelectorAll(".examples span[data-expr]")) {
   el.onclick = () => {
     searchInput.value = el.dataset.expr;
@@ -741,203 +1216,149 @@ for (const el of document.querySelectorAll(".examples span[data-expr]")) {
   };
 }
 
-// World selector
-worldSel.onchange = async () => {
-  const seed = worldSel.value;
-  if (seed === STATE.seed) return;
-  STATE.seed = seed;
-  STATE.maskImg = null;
-  STATE.maskLoaded = false;
-  STATE.currentSearchExpr = null;
-  searchRes.innerHTML = "";
+function doSearch(expr) {
+  S.searchExpr = expr;
   searchErr.textContent = "";
-  clearSearch();
-
-  showLoading(true);
+  searchRes.innerHTML = `<span style="color:#667788;">Searching…</span>`;
   try {
-    const m = await loadManifest(seed);
-    STATE.img = await loadLayerImage(seed, STATE.layer);
-    fitMap();
+    const { mask, count } = runSearch(expr);
+    S.searchMask = mask;
+    _maskCache = null;
+    _maskCacheKey = null;
+    const stats = computeSearchStats(mask, count);
+    renderSearchResults(stats, expr);
     render();
   } catch (e) {
-    showError(e.message);
-  } finally {
-    showLoading(false);
+    S.searchMask = null;
+    searchErr.textContent = e.message;
+    searchRes.innerHTML = "";
+    render();
   }
-};
+}
 
-// ── Canvas mouse events ──
-function onMouseDown(e) {
+function clearSearch() {
+  S.searchMask = null;
+  S.searchExpr = null;
+  _maskCache = null;
+  _maskCacheKey = null;
+  searchRes.innerHTML = "";
+  searchErr.textContent = "";
+  searchInput.value = "";
+  render();
+}
+
+// Keyboard: Escape clears search
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") clearSearch();
+});
+
+// Canvas mouse events
+canvas.addEventListener("mousedown", (e) => {
+  if (!S.header) return;
   e.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const sx = e.clientX;
-  const sy = e.clientY;
-
+  const sx = e.clientX, sy = e.clientY;
   if (e.shiftKey) {
-    // Area selection
     const [wx, wy] = clampWorld(...screenToWorld(sx, sy));
-    STATE.shifting = true;
-    STATE.selActive = true;
-    STATE.selX0 = wx;
-    STATE.selY0 = wy;
-    STATE.selX1 = wx;
-    STATE.selY1 = wy;
-    mapWrap.classList.add("shift");
+    S.shifting = true;
+    S.selActive = true;
+    S.selX0 = wx; S.selY0 = wy; S.selX1 = wx; S.selY1 = wy;
     updateSelBox();
     hideTooltip();
   } else {
-    // Pan
-    STATE.dragging = true;
-    STATE.dragStartX = sx;
-    STATE.dragStartY = sy;
-    STATE.dragOX = STATE.ox;
-    STATE.dragOY = STATE.oy;
+    S.dragging = true;
+    S.dragStartX = sx; S.dragStartY = sy;
+    S.dragOX = S.ox; S.dragOY = S.oy;
     mapWrap.classList.add("grabbing");
     document.body.style.userSelect = "none";
   }
-}
+});
 
-function onMouseMove(e) {
-  const sx = e.clientX;
-  const sy = e.clientY;
+canvas.addEventListener("mousemove", (e) => {
+  if (!S.header) return;
+  const sx = e.clientX, sy = e.clientY;
 
-  if (STATE.dragging) {
-    STATE.ox = STATE.dragOX + (sx - STATE.dragStartX);
-    STATE.oy = STATE.dragOY + (sy - STATE.dragStartY);
+  if (S.dragging) {
+    S.ox = S.dragOX + (sx - S.dragStartX);
+    S.oy = S.dragOY + (sy - S.dragStartY);
     render();
     hideTooltip();
     return;
   }
 
-  if (STATE.shifting && STATE.selActive) {
+  if (S.shifting && S.selActive) {
     const [wx, wy] = clampWorld(...screenToWorld(sx, sy));
-    STATE.selX1 = wx;
-    STATE.selY1 = wy;
+    S.selX1 = wx; S.selY1 = wy;
     updateSelBox();
     render();
     return;
   }
 
-  // Hover → pixel tooltip (debounced)
-  if (STATE.hoverTimer) clearTimeout(STATE.hoverTimer);
-  STATE.hoverTimer = setTimeout(async () => {
+  if (S.hoverTimer) clearTimeout(S.hoverTimer);
+  S.hoverTimer = setTimeout(() => {
     const [wx, wy] = clampWorld(...screenToWorld(sx, sy));
     try {
-      const data = await fetchPixel(STATE.seed, wx, wy);
+      const data = pixelAt(wx, wy);
       showTooltip(data, sx, sy);
-    } catch (e) {
-      hideTooltip();
-    }
+    } catch (e) { hideTooltip(); }
   }, 200);
-}
+});
 
-function onMouseUp(e) {
-  if (STATE.dragging) {
-    STATE.dragging = false;
+canvas.addEventListener("mouseup", (e) => {
+  if (S.dragging) {
+    S.dragging = false;
     mapWrap.classList.remove("grabbing");
     document.body.style.userSelect = "";
   }
 
-  if (STATE.shifting && STATE.selActive) {
-    STATE.shifting = false;
-    STATE.selActive = false;
-    mapWrap.classList.remove("shift");
+  if (S.shifting && S.selActive) {
+    S.shifting = false;
+    S.selActive = false;
     selBox.style.display = "none";
 
-    // Fetch area stats
-    const x0 = Math.min(STATE.selX0, STATE.selX1);
-    const y0 = Math.min(STATE.selY0, STATE.selY1);
-    const x1 = Math.max(STATE.selX0, STATE.selX1);
-    const y1 = Math.max(STATE.selY0, STATE.selY1);
+    const x0 = Math.min(S.selX0, S.selX1), y0 = Math.min(S.selY0, S.selY1);
+    const x1 = Math.max(S.selX0, S.selX1), y1 = Math.max(S.selY0, S.selY1);
 
-    fetchArea(STATE.seed, x0, y0, x1, y1)
-      .then(data => renderAreaStats(data, x0, y0, x1, y1))
-      .catch(e => { areaStats.innerHTML = `<span style="color:#e06060;">Error: ${e.message}</span>`; });
+    try {
+      const data = computeAreaStats(x0, y0, x1, y1);
+      renderAreaStatsPanel(data, x0, y0, x1, y1);
+    } catch (e) {
+      areaStats.innerHTML = `<span style="color:#e06060;">Error: ${e.message}</span>`;
+    }
   }
-}
+});
 
-function onWheel(e) {
+canvas.addEventListener("mouseleave", () => {
+  if (S.dragging) { S.dragging = false; mapWrap.classList.remove("grabbing"); document.body.style.userSelect = ""; }
+  if (S.shifting && S.selActive) { S.shifting = false; S.selActive = false; selBox.style.display = "none"; }
+  hideTooltip();
+});
+
+canvas.addEventListener("wheel", (e) => {
+  if (!S.header) return;
   e.preventDefault();
   const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-
-  // World coords under cursor before zoom
-  const wx = (mx - STATE.ox) / STATE.scale;
-  const wy = (my - STATE.oy) / STATE.scale;
-
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const wx = (mx - S.ox) / S.scale;
+  const wy = (my - S.oy) / S.scale;
   const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-  const newScale = Math.max(0.25, Math.min(STATE.scale * factor, 32));
-
-  STATE.ox = mx - wx * newScale;
-  STATE.oy = my - wy * newScale;
-  STATE.scale = newScale;
-
+  S.scale = Math.max(0.25, Math.min(S.scale * factor, 32));
+  S.ox = mx - wx * S.scale;
+  S.oy = my - wy * S.scale;
   render();
 
-  // Update tooltip after zoom if not dragging
-  if (!STATE.dragging && !STATE.shifting) {
+  if (!S.dragging && !S.shifting) {
     const [wwx, wwy] = clampWorld(...screenToWorld(e.clientX, e.clientY));
-    if (STATE.hoverTimer) clearTimeout(STATE.hoverTimer);
-    STATE.hoverTimer = setTimeout(async () => {
-      try {
-        const data = await fetchPixel(STATE.seed, wwx, wwy);
-        showTooltip(data, e.clientX, e.clientY);
-      } catch (e) {}
+    if (S.hoverTimer) clearTimeout(S.hoverTimer);
+    S.hoverTimer = setTimeout(() => {
+      try { showTooltip(pixelAt(wwx, wwy), e.clientX, e.clientY); } catch (e) {}
     }, 200);
   }
-}
+}, { passive: false });
 
-function onMouseLeave() {
-  if (STATE.dragging) {
-    STATE.dragging = false;
-    mapWrap.classList.remove("grabbing");
-    document.body.style.userSelect = "";
-  }
-  if (STATE.shifting && STATE.selActive) {
-    STATE.shifting = false;
-    STATE.selActive = false;
-    mapWrap.classList.remove("shift");
-    selBox.style.display = "none";
-  }
-  hideTooltip();
-}
-
-canvas.addEventListener("mousedown", onMouseDown);
-canvas.addEventListener("mousemove", onMouseMove);
-canvas.addEventListener("mouseup", onMouseUp);
-canvas.addEventListener("mouseleave", onMouseLeave);
-canvas.addEventListener("wheel", onWheel, { passive: false });
-
-// ── Keyboard: Escape clears search ──
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    clearSearch();
-  }
-});
-
-// ── Window resize ──
+// Window resize
 window.addEventListener("resize", () => {
-  resizeCanvas();
+  if (S.header) resizeCanvas();
 });
-
-// ── Init ──
-async function init() {
-  showLoading(true);
-  try {
-    await loadWorlds();
-    const manifest = await loadManifest(STATE.seed);
-    STATE.img = await loadLayerImage(STATE.seed, STATE.layer);
-    resizeCanvas();
-    render();
-  } catch (e) {
-    showError("Failed to initialize: " + e.message);
-  } finally {
-    showLoading(false);
-  }
-}
-
-init();
 </script>
 </body>
 </html>

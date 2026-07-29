@@ -49,6 +49,7 @@ conflict log (table 4).
 | `docs/spec-notes/2026-07-20-l2-prefix-cache-mechanics.md` | write-back, final | §7.2/§7.5 cache mechanics (128-token blocks) | unfurled → fold queue (W1) |
 | `docs/spec-notes/2026-07-20-c1-eventfulness-calibration.md` | write-back, final | amends engine spec §5.2 (calibration table) | unfurled → fold queue (W1) |
 | `docs/spec-notes/2026-07-20-c2-archaeological-legibility.md` | write-back, final | answers Q-legible (with reviewer addendum) | unfurled → fold queue (W1) |
+| `docs/spec-notes/2026-07-28-constraint-solver-design.md` | write-back, design | solver-above-levels over located records; present/absent/unwritten; query-vs-generate duality; feeds L1+ structure tier | discussion folded 2026-07-28 |
 
 ## 2. Work items
 
