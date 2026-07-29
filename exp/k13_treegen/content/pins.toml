@@ -199,7 +199,7 @@ label = "coal-rat"
 name = { binomial = "Carbonomys", folk = "coal-rat" }
 rank = "genus"
 radiation = 4
-axes = { body_mass = 0.3, diet_spectrum = { omnivore = 1.0 }, activity_period = "nocturnal", fecundity = 24.0 }
+axes = { body_mass = 0.3, diet_spectrum = { omnivore = 1.0 }, activity_period = "nocturnal", fecundity = 24.0, base_color = "black", belly_color = "gray" }
 flags = ["pinned", "invented"]
 
 [budget]

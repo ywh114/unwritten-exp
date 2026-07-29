@@ -864,14 +864,16 @@ function buildColorWashCanvas(which) {
     srcArr = S.fields.P_mm; rampFn = precipRamp;
   } else if (which === "forest") {
     srcArr = S.fields.cover;
-    // Green ramp for forest cover (0=gray, 1=green)
+    // Green wash ∝ cover: bare cells fully transparent (a fixed-alpha
+    // gray ramp washed the whole map gray)
     rampFn = (v) => {
-      const GRAY = [128, 128, 128], GREEN = [34, 139, 34];
+      const DARK = [20, 60, 20], GREEN = [60, 200, 60];
       const t = Math.max(0, Math.min(1, v));
       return [
-        Math.round(GRAY[0] + (GREEN[0] - GRAY[0]) * t),
-        Math.round(GRAY[1] + (GREEN[1] - GRAY[1]) * t),
-        Math.round(GRAY[2] + (GREEN[2] - GRAY[2]) * t),
+        Math.round(DARK[0] + (GREEN[0] - DARK[0]) * t),
+        Math.round(DARK[1] + (GREEN[1] - DARK[1]) * t),
+        Math.round(DARK[2] + (GREEN[2] - DARK[2]) * t),
+        Math.round(t * 150),
       ];
     };
   } else {
@@ -894,8 +896,9 @@ function _buildRampCanvas(arr, FW, FH, rampFn, outW, outH) {
       const sx = Math.floor(x / scaleX);
       const v = arr[sy * FW + sx];
       const j = (y * outW + x) * 4;
-      const [r, g, b] = rampFn(v);
-      d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = 128; // alpha ~0.5
+      const px = rampFn(v);
+      d[j] = px[0]; d[j + 1] = px[1]; d[j + 2] = px[2];
+      d[j + 3] = px.length > 3 ? px[3] : 128; // alpha ~0.5 unless ramp says
     }
   }
   octx.putImageData(imgData, 0, 0);
