@@ -54,6 +54,7 @@ pattern_coverage = 0.9
 pattern_contrast = 0.9
 pattern_juvenile = "none"
 seasonal_molt = "none"
+mutualist_links = 2
 [niche]
 temp_opt_c = 18
 temp_breadth_c = 0.5

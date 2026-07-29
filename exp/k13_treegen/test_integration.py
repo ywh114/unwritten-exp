@@ -97,6 +97,9 @@ def test_no_frozen_axis_at_composition_scale(pack):
                     continue
                 if spec.value_type.value == "int" and spec.sigma < 0.5:
                     continue  # discreteness, not machinery (M7 ruling)
+                from exp.k13_treegen.derive import DERIVED_AXES
+                if ax in DERIVED_AXES:
+                    continue  # recomputed from record, uniform is correct
                 vals = {str(m.axes[ax]) for m in members}
                 if len(vals) <= 1:
                     frozen_count[ax] = frozen_count.get(ax, 0) + 1

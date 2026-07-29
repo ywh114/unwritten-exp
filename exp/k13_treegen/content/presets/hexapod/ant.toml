@@ -54,6 +54,7 @@ pattern_coverage = 1.0
 pattern_contrast = 0.3
 pattern_juvenile = "none"
 seasonal_molt = "none"
+engineer_impact = 0.6
 [niche]
 temp_opt_c = 22
 temp_breadth_c = 0.55

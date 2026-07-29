@@ -77,6 +77,8 @@ pattern_coverage = 0.8
 pattern_contrast = 0.5
 pattern_juvenile = "none"
 seasonal_molt = "none"
+radiator_extent = 0.4
+wariness = 0.85
 [niche]
 temp_opt_c = 14
 temp_breadth_c = 0.45

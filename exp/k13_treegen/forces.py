@@ -339,12 +339,16 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
         runaway_dir = 1.0 if stream.child("runaway_dir").bernoulli(
             0.5, 0) else -1.0
 
+    from exp.k13_treegen.derive import DERIVED_AXES
     axes: dict = {}
     edge_delta: dict = {}
     for clock, (name, value) in enumerate(sorted(parent.axes.items())):
         spec = pack.registry.axes.get(name)
         if spec is None or value == "N/A":
             axes[name] = value
+            continue
+        if name in DERIVED_AXES:
+            axes[name] = value   # recomputed from the record, never drifts
             continue
         if not substrate_ok(name, parent):
             axes[name] = value   # no substrate: the dial is frozen

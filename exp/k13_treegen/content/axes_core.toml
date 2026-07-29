@@ -305,3 +305,46 @@ bounds = [1.0, 2.0]                # metamorphosis cap 1-2 (proposal §3.8)
 plan_scope = "all"
 consumers = ["stress", "tell", "id"]
 salience = 0.2
+
+# ──  thermoregulation parts (internal-organs layer, RFC §2 + vocabulary §180) ──
+[axis.blubber_thickness]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.08
+bounds = [0.0, 1.0]                # 0 = none .. 1 = whale-grade
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.4
+
+[axis.radiator_extent]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.08
+bounds = [0.0, 1.0]                # 0 = none .. 1 = elephant-ear grade
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.3
+
+[axis.cooling_mode]
+block = "behavior"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "sweat", "panting", "gular_flutter"]
+plan_scope = "all"
+consumers = ["stress", "tell"]
+salience = 0.2
+
+[axis.torpor_mode]
+block = "behavior"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "daily", "hibernation", "aestivation"]
+plan_scope = "all"
+consumers = ["stress", "tell"]
+salience = 0.2

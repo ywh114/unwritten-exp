@@ -57,6 +57,12 @@ def check_frozen_axis(tree: Tree, pack: ContentPack) -> list[str]:
             spec = pack.registry.axes.get(ax)
             if spec is None or not spec.mutable:
                 continue
+            # derived axes are recomputed from the record — uniform
+            # output (all "none" dimorphism in a plan without display
+            # organs) is correct, not a freeze
+            from exp.k13_treegen.derive import DERIVED_AXES
+            if ax in DERIVED_AXES:
+                continue
             # sub-quantum int axes (sigma < one step) cannot move under
             # gentle gaussian mutation regardless of machinery — that is
             # discreteness arithmetic, not the v1 whitelisting bug this

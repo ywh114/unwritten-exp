@@ -55,11 +55,16 @@ def _radiation_count(stream, target: int) -> int:
 
 
 def _preset_axes(preset: dict) -> dict:
-    # knobs + axes + the [niche] table (temp/moisture prefs — authored
-    # but silently dropped in the first builds: every niche axis read
-    # None on every species, and bergmanns_rule was a dead coupling)
-    return {**preset.get("knobs", {}), **preset.get("axes", {}),
-            **preset.get("niche", {})}
+    # knobs + axes only: the [niche] table is clade METADATA (baseline
+    # for the derived climate preference), never a stored trait
+    return {**preset.get("knobs", {}), **preset.get("axes", {})}
+
+
+def _preset_record(pack: ContentPack, preset: dict) -> tuple[dict, dict]:
+    """(axes, generics) for an order node: merged preset with organ
+    defaults (content.merged_preset — the same merge pins build on)."""
+    from exp.k13_treegen.content import merged_preset
+    return merged_preset(pack, preset)
 
 
 def _apply_pin(node: Node, pack: ContentPack, pin: dict,
@@ -145,6 +150,10 @@ def build(seed: int, pack: ContentPack) -> Tree:
             for oi, pid in enumerate(presets, 1):
                 _build_order(tree, root_stream, pack, cpath, oi, pid,
                              pins_by_preset.get(pid, []))
+    # derived axes are a pure function of the committed record — one
+    # pass at the end (rounds re-run it after their own evolves)
+    from exp.k13_treegen.derive import derive_tree
+    derive_tree(tree.nodes.values(), pack)
     return tree
 
 
@@ -152,11 +161,11 @@ def _build_order(tree: Tree, root_stream, pack: ContentPack, cpath: str,
                  oi: int, preset_id: str, pins: list) -> None:
     opath = f"{cpath}.o{oi}"
     preset = pack.presets[preset_id]
+    o_axes, o_generics = _preset_record(pack, preset)
     order = Node(path=opath, rank=Rank.ORDER, parent=cpath,
                  sid=_sid(root_stream.child(opath)), plan=preset["preset"]
                  ["plan"], preset=preset_id,
-                 axes=_preset_axes(preset),
-                 generics=dict(preset.get("generics", {})))
+                 axes=o_axes, generics=o_generics)
     mass = order.axes.get("body_mass")
     if isinstance(mass, (int, float)) and mass > 0:
         order.gen_time = gen_time_years(float(mass))

@@ -69,31 +69,12 @@ source = "B1 §15 #8 (weakened form; runaway-cost claims dropped)"
 trigger = { condition = "stressed" }
 targets = ["mane_ruff_extent", "crest", "wattle_snood", "throat_fan_dewlap"]
 
-# ──  ecogeographic rules (symmetric: niche axis <-> morph axis)  ─────────
-# User ruling (scope/precedence): climate never touches morphology
-# directly. The world stresses the NICHE axes (temp_opt_c mismatch via
-# descent); morphology follows through these couplings — and the reverse
-# direction is equally real (a furrier animal BECOMES cold-suited).
-# Knobs and results are equal citizens.
-[[rule]]
-id = "allens_rule"
-kind = "tradeoff"
-status = "active"
-scope = ["tetrapod", "winged_biped"]
-source = "Allen's rule (extremity size x temperature); user 2026-07-28"
-a = "temp_opt_c"
-b = "ear_size_ratio"
-strength = 0.4           # colder-suited <=> smaller ears (same sign)
-
-[[rule]]
-id = "bergmanns_rule"
-kind = "tradeoff"
-status = "active"
-scope = ["tetrapod", "winged_biped"]
-source = "Bergmann's rule (body size x latitude); user 2026-07-28"
-a = "temp_opt_c"
-b = "body_mass"
-strength = -0.3          # colder-suited <=> larger body (opposite sign)
+# ──  ecogeographic rules: RETIRED (2026-07-29)  ──────────────────────────
+# allens_rule / bergmanns_rule anchored on temp_opt_c as a TRAIT. In the
+# trait/derived/metadata partition, climate preference is DERIVED from
+# organs (temp_opt_c is not a stored axis), so both couplings are dead.
+# The real mechanism moves to the rounds' stress model: cold stress
+# backpropagates pressure onto ear_size_ratio / body_mass directly.
 
 # ──  dormant: enumerated, unbound, reason recorded  ──────────────────────
 [[rule]]

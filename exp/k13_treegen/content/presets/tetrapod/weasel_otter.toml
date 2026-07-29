@@ -77,6 +77,7 @@ pattern_coverage = 0.8
 pattern_contrast = 0.5
 pattern_juvenile = "none"
 seasonal_molt = "none"
+blubber_thickness = 0.5
 [niche]
 temp_opt_c = 12
 temp_breadth_c = 0.5
@@ -92,3 +93,4 @@ reproduction = "viviparous"
 sensor_array = "camera_eye_binocular"
 sustenance = "simple_gut"
 support = "endoskeleton"
+osmoreg = "salt_glands"

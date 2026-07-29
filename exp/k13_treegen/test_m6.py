@@ -163,30 +163,9 @@ def test_r8_must_not_fire(pack):
     assert c.axes["mane_ruff_extent"] == 0.5
 
 
-# ──  Allen/Bergmann (symmetric ecogeographic couplings)  ──────────────────
-
-
-def test_allen_fires_both_directions(pack):
-    """Equal citizens: the niche axis drags the knob AND the knob drags
-    the niche axis."""
-    # colder-suited => smaller ears
-    p = node("a", temp_opt_c=20.0, ear_size_ratio=0.15)
-    c = node("b", temp_opt_c=10.0, ear_size_ratio=0.15)
-    run(pack, p, c)
-    assert c.axes["ear_size_ratio"] < 0.15
-    # bigger ears => becomes warm-suited (reverse is equally real)
-    p2 = node("a", temp_opt_c=20.0, ear_size_ratio=0.15)
-    c2 = node("b", temp_opt_c=20.0, ear_size_ratio=0.24)
-    run(pack, p2, c2)
-    assert c2.axes["temp_opt_c"] > 20.0
-
-
-def test_bergmann_must_fire(pack):
-    """Colder-suited <=> larger body (opposite sign)."""
-    p = node("a", temp_opt_c=20.0, body_mass=100.0)
-    c = node("b", temp_opt_c=5.0, body_mass=100.0)
-    run(pack, p, c)
-    assert c.axes["body_mass"] > 100.0
+# ──  Allen/Bergmann: RETIRED with the trait/derived partition  ───────────
+# (climate preference is derived from organs; temp_opt_c is not a trait.
+# The mechanism moves to the rounds' stress backpropagation.)
 
 
 def test_tradeoff_bidirectional_on_r2(pack):
@@ -235,10 +214,12 @@ def test_weak_bindings_seeded(pack):
 
 def test_weak_bindings_applied(pack):
     wb = weak_bindings(1, pack)[0]
-    p = node("a", **{wb.a: 1.0, wb.b: 1.0})
-    c = node("b", **{wb.a: 2.0, wb.b: 1.0})   # a moved
+    # b starts MID-RANGE: at a bound the _clip can legitimately eat the
+    # whole induced step (blubber 1.0 + positive push stays 1.0)
+    p = node("a", **{wb.a: 1.0, wb.b: 0.5})
+    c = node("b", **{wb.a: 2.0, wb.b: 0.5})   # a moved
     run(pack, p, c, weak=[wb])
-    assert c.axes[wb.b] != 1.0
+    assert c.axes[wb.b] != 0.5
 
 
 # ──  env-gate hook (world-conditioned couplings, rounds seam)  ────────────

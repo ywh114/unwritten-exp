@@ -39,21 +39,46 @@ class ContentPack:
         return float(v) if isinstance(v, (int, float)) else None
 
 
-def _load_toml(path: Path) -> dict:
-    return tomllib.loads(path.read_text())
+# internal-organ + behavior defaults (RFC §2: every record carries the
+# organ layer). Presets override only where interesting. wariness is a
+# TRAIT (user ruling: it drifts with no predator pressure — deriving it
+# from mass would pin it), default mid.
+ORGAN_GENERIC_DEFAULTS = {
+    "tetrapod": {"metabolism": "endotherm", "osmoreg": "standard"},
+    "winged_biped": {"metabolism": "endotherm", "osmoreg": "standard"},
+    "hexapod": {"metabolism": "ectotherm", "osmoreg": "standard"},
+}
+ORGAN_AXIS_DEFAULTS = {
+    "blubber_thickness": 0.0, "radiator_extent": 0.05,
+    "cooling_mode": "none", "torpor_mode": "none", "wariness": 0.5,
+}
+
+
+def merged_preset(pack: ContentPack, preset: dict) -> tuple[dict, dict]:
+    """(axes, generics) for a preset with organ defaults filled. The ONE
+    merge for presets — merged_pin builds on it, so does the backbone's
+    order creation."""
+    plan = preset.get("preset", {}).get("plan")
+    axes = {**ORGAN_AXIS_DEFAULTS, **preset.get("knobs", {}),
+            **preset.get("axes", {})}
+    generics = {**ORGAN_GENERIC_DEFAULTS.get(plan, {}),
+                **preset.get("generics", {})}
+    return axes, generics
 
 
 def merged_pin(pack: ContentPack, pin: dict) -> tuple[dict, dict]:
-    """The pin's committed record: preset knobs+axes and generics with pin
-    overrides winning (pin > preset). The ONE merge — preview, backbone,
-    and the byte-exact metric all use this."""
+    """The pin's committed record: merged preset (with organ defaults)
+    and pin overrides winning (pin > preset). The ONE merge — preview,
+    backbone, and the pin-record metric all use this."""
     preset = pack.presets[pin["preset"]]
-    axes = {**preset.get("knobs", {}), **preset.get("axes", {}),
-            **preset.get("niche", {}),
-            **pin.get("knobs", {}), **pin.get("axes", {}),
-            **pin.get("niche", {})}
-    generics = {**preset.get("generics", {}), **pin.get("generics", {})}
+    paxes, pgenerics = merged_preset(pack, preset)
+    axes = {**paxes, **pin.get("knobs", {}), **pin.get("axes", {})}
+    generics = {**pgenerics, **pin.get("generics", {})}
     return axes, generics
+
+
+def _load_toml(path: Path) -> dict:
+    return tomllib.loads(path.read_text())
 
 
 def load_content(content_dir: str | Path) -> ContentPack:

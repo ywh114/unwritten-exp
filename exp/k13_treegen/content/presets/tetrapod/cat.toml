@@ -77,6 +77,7 @@ pattern_coverage = 0.6
 pattern_contrast = 0.5
 pattern_juvenile = "none"
 seasonal_molt = "none"
+cooling_mode = "panting"
 [niche]
 temp_opt_c = 22
 temp_breadth_c = 0.4

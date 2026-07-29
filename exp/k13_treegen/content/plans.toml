@@ -39,6 +39,9 @@ defense = ["escape_arboreal", "retractile_claws", "escape_cursorial",
 support = ["endoskeleton"]
 storage = ["caching_scatter_hoard", "fat_depot_seasonal"]
 respiration = ["lungs"]
+# internal organs (RFC §2: heart/osmoregulatory carry physiological axes)
+metabolism = ["endotherm", "ectotherm"]
+osmoreg = ["standard", "salt_glands", "euryhaline"]
 reproduction = ["viviparous", "oviparous"]
 
 [plan.winged_biped]
@@ -71,6 +74,8 @@ defense = ["talons", "escape_flight", "mobbing"]
 support = ["endoskeleton_pneumatic", "endoskeleton_dense"]
 storage = ["subcutaneous_fat"]
 respiration = ["lungs_air_sacs"]
+metabolism = ["endotherm"]
+osmoreg = ["standard", "salt_glands"]
 reproduction = ["oviparous"]
 
 [plan.hexapod]
@@ -109,5 +114,7 @@ defense = ["formic_acid_spray", "aposematism", "elytra_armor",
 support = ["exoskeleton"]
 storage = ["crop_storage"]
 respiration = ["tracheae_spiracles"]
+metabolism = ["ectotherm"]
+osmoreg = ["standard"]
 reproduction = ["oviparous_eusocial", "holometabolous", "hemimetabolous",
                 "holometabolous_eusocial"]
