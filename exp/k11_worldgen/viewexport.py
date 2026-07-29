@@ -73,7 +73,10 @@ def export(seed_dir: Path, out_path: Path) -> None:
     put("P_mm", a, m)
     a, m = _q8(d["cover"], 0, 1)
     put("cover", a, m)
-    a, m = _q8(d["salinity"], 0, 40)
+    # 0..260 g/kg: salt lakes run to ~220 — the old 0..40 clip flattened
+    # every hypersaline cell to "40" in tooltip/search and killed the
+    # Hydro layer's salinity-deviation signal
+    a, m = _q8(d["salinity"], 0, 260)
     put("salinity", a, m)
     a, m = _q16(d["depth"], 0, 6000)
     put("depth_m", a, m)

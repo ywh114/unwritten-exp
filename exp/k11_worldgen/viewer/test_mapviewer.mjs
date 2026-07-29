@@ -250,13 +250,15 @@ test("search elev_m>2000 biome==boreal taiga returns >1000 cells", async () => {
 
 // ── New tests for fixes ──
 
-test("month chips exist and are all selected by default", async () => {
+test("month chips show 1..12 and are all selected by default", async () => {
   const chipInfo = await page.evaluate(() => {
     const chips = document.querySelectorAll("#month-chips button");
     if (chips.length !== 12) return { ok: false, msg: `Expected 12 chips, got ${chips.length}` };
     let allOn = true;
-    for (const c of chips) {
-      if (!c.classList.contains("on")) { allOn = false; break; }
+    for (let m = 0; m < 12; m++) {
+      const c = chips[m];
+      if (c.textContent.trim() !== String(m + 1)) return { ok: false, msg: `Chip ${m} shows "${c.textContent.trim()}", expected "${m+1}"` };
+      if (!c.classList.contains("on")) { allOn = false; }
     }
     return { ok: allOn, count: chips.length };
   });
@@ -444,6 +446,30 @@ test("dblclick solos a month; dblclick again restores all", async () => {
     return Array.from(document.querySelectorAll("#month-chips button")).map(c => c.classList.contains("on"));
   });
   if (!restored.every(v => v)) throw new Error("Dblclick again should restore all 12 months");
+});
+
+test("Yr button restores all-12 month selection after a solo", async () => {
+  // Solo Feb
+  await page.evaluate(() => {
+    const chips = document.querySelectorAll("#month-chips button");
+    if (chips.length >= 12) { chips[1].dispatchEvent(new MouseEvent("dblclick", {bubbles:true})); }
+  });
+  await new Promise((r) => setTimeout(r, 200));
+
+  // Verify Feb is solo
+  let solo = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll("#month-chips button")).map(c => c.classList.contains("on"));
+  });
+  if (solo.filter(v => v).length !== 1) throw new Error("Expected solo after dblclick");
+
+  // Click Yr button
+  await page.evaluate(() => { document.getElementById("month-yr").click(); });
+  await new Promise((r) => setTimeout(r, 200));
+
+  const restored = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll("#month-chips button")).map(c => c.classList.contains("on"));
+  });
+  if (!restored.every(v => v)) throw new Error("Yr button should restore all 12 months");
 });
 
 test("Esc clears an active area selection", async () => {
@@ -673,7 +699,161 @@ test("currents overlay: ocean-only, no paint on land", async () => {
   console.log(`  Land orange violations: ${landCheck.landOrangeViolations}`);
 });
 
-test("month chips fit on a single row", async () => {
+test("Hydro layer renders with blue ocean depth + magenta salinity", async () => {
+  // Switch to Hydro base layer
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#layer-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Hydro") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 600));
+
+  const info = await page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+    const cw = canvas.width, ch = canvas.height;
+    let blueOcean = 0, magentaWater = 0, nonBlack = 0, total = 0;
+    // Sample a grid
+    for (let y = 0; y < ch; y += 12) {
+      for (let x = 0; x < cw; x += 12) {
+        total++;
+        const d = ctx.getImageData(x, y, 1, 1).data;
+        const r = d[0], g = d[1], b = d[2];
+        if (r > 10 || g > 10 || b > 10) nonBlack++;
+        // Blue ocean: b dominant, r low
+        if (b > g && b > r && r < 120 && b > 60) blueOcean++;
+        // Magenta saline: r high, b moderate, g low
+        if (r > 145 && b > 70 && g < 130) magentaWater++;
+      }
+    }
+    return { nonBlack, blueOcean, magentaWater, total };
+  });
+  if (info.nonBlack < info.total * 0.3) throw new Error("Hydro layer mostly black");
+  if (info.blueOcean < 5) throw new Error("Hydro layer has no blue ocean depth pixels");
+  if (info.magentaWater < 3) throw new Error("Hydro layer has no magenta saline water pixels");
+  console.log(`  Hydro: ${info.nonBlack}/${info.total} non-blank, blue=${info.blueOcean}, magenta=${info.magentaWater}`);
+});
+
+test("temperature overlay composites over World base", async () => {
+  // Ensure World base
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#layer-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "World") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 400));
+
+  // Sample base-only canvas
+  const baseSamples = await page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+    const samples = [];
+    for (let y = 100; y < 500; y += 100) {
+      for (let x = 100; x < 500; x += 100) {
+        const d = ctx.getImageData(x, y, 1, 1).data;
+        samples.push([d[0], d[1], d[2]]);
+      }
+    }
+    return samples;
+  });
+
+  // Toggle Temp overlay ON
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Temp") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 600));
+
+  const overlayActive = await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Temp") return b.classList.contains("active"); }
+    return false;
+  });
+  if (!overlayActive) throw new Error("Temp overlay not active after toggle");
+
+  // Samples with overlay: should differ from base-only (overlay changes colours)
+  const overlaySamples = await page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+    const samples = [];
+    for (let y = 100; y < 500; y += 100) {
+      for (let x = 100; x < 500; x += 100) {
+        const d = ctx.getImageData(x, y, 1, 1).data;
+        samples.push([d[0], d[1], d[2]]);
+      }
+    }
+    return samples;
+  });
+
+  // Verify overlay changes pixels (not identical to base)
+  let changed = 0;
+  for (let i = 0; i < baseSamples.length; i++) {
+    if (baseSamples[i][0] !== overlaySamples[i][0] ||
+        baseSamples[i][1] !== overlaySamples[i][1] ||
+        baseSamples[i][2] !== overlaySamples[i][2]) {
+      changed++;
+    }
+  }
+  if (changed < baseSamples.length * 0.3) {
+    throw new Error(`Temperature overlay barely changes base: ${changed}/${baseSamples.length} pixels differ`);
+  }
+  console.log(`  Temp overlay changed ${changed}/${baseSamples.length} sample pixels`);
+
+  // Ensure base is still visible (not blanked)
+  const nonBlank = await page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+    const cw = canvas.width, ch = canvas.height;
+    let count = 0, total = 0;
+    for (let y = ch * 0.2; y < ch * 0.8; y += 12) {
+      for (let x = cw * 0.2; x < cw * 0.8; x += 12) {
+        total++;
+        const d = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+        if (d[0] > 10 || d[1] > 10 || d[2] > 10) count++;
+      }
+    }
+    return { count, total };
+  });
+  if (nonBlank.count < nonBlank.total * 0.5) {
+    throw new Error(`Base mostly blanked under temp overlay: ${nonBlank.count}/${nonBlank.total}`);
+  }
+
+  // Toggle Temp OFF
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Temp") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 400));
+});
+
+test("take screenshot with winter temperature overlay over world", async () => {
+  // World base + temperature overlay + winter months
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#layer-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "World") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 200));
+
+  // Toggle temp overlay
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Temp") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 200));
+
+  // Deselect summer (JJA = months 5,6,7)
+  await page.evaluate(() => {
+    const chips = document.querySelectorAll("#month-chips button");
+    for (const m of [5, 6, 7]) { if (chips[m].classList.contains("on")) chips[m].click(); }
+  });
+  await new Promise((r) => setTimeout(r, 600));
+
+  const ssDir = resolve(REPO, "tmp");
+  mkdirSync(ssDir, { recursive: true });
+  const ssPath = resolve(ssDir, "k11_mapviewer.png");
+  await page.screenshot({ path: ssPath, fullPage: false });
+  console.log(`Screenshot saved: ${ssPath}`);
+});
+
+test("month chips + Yr + shift fit on a single row", async () => {
   const rowOk = await page.evaluate(() => {
     const chips = document.querySelectorAll("#month-chips button");
     if (chips.length === 0) return false;
@@ -681,14 +861,15 @@ test("month chips fit on a single row", async () => {
     for (const c of chips) {
       if (c.offsetTop !== firstTop) return false;
     }
-    // Also check shift buttons are on same row
     const sl = document.getElementById("month-shift-left");
     const sr = document.getElementById("month-shift-right");
+    const yr = document.getElementById("month-yr");
     if (sl && sl.offsetTop !== firstTop) return false;
     if (sr && sr.offsetTop !== firstTop) return false;
+    if (yr && yr.offsetTop !== firstTop) return false;
     return true;
   });
-  if (!rowOk) throw new Error("Month chips or shift buttons wrap to a second row");
+  if (!rowOk) throw new Error("Month chips, shift or Yr button wrap to a second row");
 });
 
 test("wind overlay responds to month-mask changes", async () => {
@@ -764,27 +945,6 @@ test("wind overlay responds to month-mask changes", async () => {
     for (const b of btns) { if (b.textContent.trim() === "Wind") { b.click(); break; } }
   });
   await new Promise((r) => setTimeout(r, 400));
-});
-
-test("take screenshot with winter temperature overlay", async () => {
-  // Switch back to Temperature and deselect summer for a nice winter screenshot
-  await page.evaluate(() => {
-    const btns = document.querySelectorAll("#layer-buttons button");
-    for (const b of btns) { if (b.textContent.trim() === "Temperature") { b.click(); break; } }
-  });
-  await new Promise((r) => setTimeout(r, 400));
-
-  await page.evaluate(() => {
-    const chips = document.querySelectorAll("#month-chips button");
-    for (const m of [5, 6, 7]) { if (chips[m].classList.contains("on")) chips[m].click(); }
-  });
-  await new Promise((r) => setTimeout(r, 600));
-
-  const ssDir = resolve(REPO, "tmp");
-  mkdirSync(ssDir, { recursive: true });
-  const ssPath = resolve(ssDir, "k11_mapviewer.png");
-  await page.screenshot({ path: ssPath, fullPage: false });
-  console.log(`Screenshot saved: ${ssPath}`);
 });
 
 // ── main ──

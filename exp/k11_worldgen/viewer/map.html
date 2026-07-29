@@ -84,12 +84,12 @@ body {
 .stat-sub .stat-key { color: #667788; }
 
 /* ── Month Chips ── */
-#month-chips-row { display: flex; align-items: center; gap: 3px; flex-wrap: nowrap; }
-#month-chips { display: flex; gap: 2px; flex-wrap: nowrap; margin-bottom: 0; }
+#month-chips-row { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; }
+#month-chips { display: flex; gap: 1px; flex-wrap: nowrap; margin-bottom: 0; }
 #month-chips button {
-  width: 20px; height: 20px; border: 1px solid #0f3460; background: #1a1a2e;
-  color: #8899aa; border-radius: 3px; cursor: pointer; font-size: 9px;
-  padding: 0; line-height: 18px; text-align: center;
+  width: 18px; height: 18px; border: 1px solid #0f3460; background: #1a1a2e;
+  color: #8899aa; border-radius: 3px; cursor: pointer; font-size: 8px;
+  padding: 0; line-height: 16px; text-align: center;
   transition: all 0.12s; flex-shrink: 0;
 }
 #month-chips button:hover { border-color: #1a5276; color: #c0c0c0; }
@@ -100,9 +100,9 @@ body {
   background: #1a1a2e; border-color: #0f3460; color: #556;
 }
 .month-shift {
-  width: 20px; height: 20px; border: 1px solid #0f3460; background: #1a1a2e;
-  color: #8899aa; border-radius: 3px; cursor: pointer; font-size: 11px;
-  padding: 0; line-height: 18px; text-align: center; flex-shrink: 0;
+  width: 18px; height: 18px; border: 1px solid #0f3460; background: #1a1a2e;
+  color: #8899aa; border-radius: 3px; cursor: pointer; font-size: 10px;
+  padding: 0; line-height: 16px; text-align: center; flex-shrink: 0;
   transition: all 0.12s;
 }
 .month-shift:hover { border-color: #1a5276; color: #c0c0c0; }
@@ -250,6 +250,7 @@ body {
       <button class="month-shift" id="month-shift-left" disabled>−</button>
       <div id="month-chips"></div>
       <button class="month-shift" id="month-shift-right" disabled>+</button>
+      <button class="month-shift" id="month-yr" disabled>Yr</button>
     </div>
     <div id="month-note">Area stats &amp; search use annual fields.</div>
   </div>
@@ -337,6 +338,9 @@ const S = {
   selMonths: null,     // Set<number>
 
   // Overlay state
+  tempOverlay: false,
+  precipOverlay: false,
+  forestOverlay: false,
   windOverlay: false,
   currentsOverlay: false,
   overlayCanvas: {},   // key -> offscreen Canvas (cached by month-mask)
@@ -520,7 +524,7 @@ function buildMonthChips() {
   const hasMonthly = S.monthly != null;
   for (let m = 0; m < 12; m++) {
     const btn = document.createElement("button");
-    btn.textContent = MONTH_LETTERS[m];
+    btn.textContent = String(m + 1);
     btn.dataset.month = m;
     const isOn = !hasMonthly || !S.selMonths || S.selMonths.has(m);
     btn.classList.add(isOn ? "on" : "off");
@@ -534,13 +538,8 @@ function buildMonthChips() {
         // Select only this month
         S.selMonths = new Set([m]);
       }
-      delete S.layerCanvas["temperature"];
-      delete S.layerCanvas["precipitation"];
       invalidateOverlays();
       buildMonthChips();
-      if (S.layer === "temperature" || S.layer === "precipitation") {
-        ensureLayer(S.layer);
-      }
       render();
     });
     btn.disabled = !hasMonthly;
@@ -549,6 +548,7 @@ function buildMonthChips() {
   }
   $("month-shift-left").disabled = !hasMonthly;
   $("month-shift-right").disabled = !hasMonthly;
+  $("month-yr").disabled = !hasMonthly;
   monthNote.textContent = hasMonthly ? "Area stats &amp; search use annual fields." : "No monthly climate data in this bundle.";
 }
 
@@ -559,14 +559,8 @@ function toggleMonth(m) {
   } else {
     S.selMonths.add(m);
   }
-  // Invalidate temperature/precipitation layer cache
-  delete S.layerCanvas["temperature"];
-  delete S.layerCanvas["precipitation"];
   invalidateOverlays();
   buildMonthChips();
-  if (S.layer === "temperature" || S.layer === "precipitation") {
-    ensureLayer(S.layer);
-  }
   render();
 }
 
@@ -577,13 +571,8 @@ function shiftMonths(delta) {
     newSet.add(((m + delta) % 12 + 12) % 12);
   }
   S.selMonths = newSet;
-  delete S.layerCanvas["temperature"];
-  delete S.layerCanvas["precipitation"];
   invalidateOverlays();
   buildMonthChips();
-  if (S.layer === "temperature" || S.layer === "precipitation") {
-    ensureLayer(S.layer);
-  }
   render();
 }
 
@@ -708,14 +697,11 @@ function decodeFields(header, rawFields) {
 // ══════════════════════════════════════════════════════════════════════
 // Layer definitions: each has a render function (data, n, W) or null for world.
 const LAYER_DEFS = [
-  { id: "world",       label: "World",        fn: null,        field: null },
-  { id: "biomes",      label: "Biomes",       fn: "renderBiomes",     field: "biome" },
-  { id: "elevation",   label: "Elevation",    fn: "renderElevation",  field: "elev_m" },
-  { id: "biome_sim",   label: "Biome Sim",    fn: "renderBiomeSim",   field: "biome_sim" },
-  { id: "salinity",    label: "Salinity",     fn: "renderSalinity",   field: "salinity" },
-  { id: "temperature", label: "Temperature",  fn: "renderTemperature",field: "T_c" },
-  { id: "precipitation", label: "Precip",     fn: "renderPrecip",     field: "P_mm" },
-  { id: "forest_cover",label: "Forest Cover", fn: "renderForestCover",field: "cover" },
+  { id: "world",       label: "World",        fn: null,             field: null },
+  { id: "biomes",      label: "Biomes",       fn: "renderBiomes",   field: "biome" },
+  { id: "elevation",   label: "Elevation",    fn: "renderElevation",field: "elev_m" },
+  { id: "biome_sim",   label: "Biome Sim",    fn: "renderBiomeSim", field: "biome_sim" },
+  { id: "hydro",       label: "Hydro",        fn: "renderHydro",    field: "depth_m" },
 ];
 
 // Lazy-render a layer on demand (cached).
@@ -724,15 +710,6 @@ function ensureLayer(id) {
   const layer = LAYER_DEFS.find(l => l.id === id);
   if (!layer || !layer.fn) return null;
 
-  // Check if we should use monthly data for temperature/precipitation
-  if (id === "temperature" && S.monthly && S.monthly.t_monthly && !allMonthsSelected()) {
-    const off = renderMonthlyLayer("t_monthly", temperatureRamp);
-    if (off) { S.layerCanvas[id] = off; return off; }
-  }
-  if (id === "precipitation" && S.monthly && S.monthly.p_monthly && !allMonthsSelected()) {
-    const off = renderMonthlyLayer("p_monthly", precipRamp);
-    if (off) { S.layerCanvas[id] = off; return off; }
-  }
   const [W, H] = S.shape;
   const off = document.createElement("canvas");
   off.width = W; off.height = H;
@@ -786,63 +763,144 @@ LAYER_RENDERERS.renderBiomeSim = function(data, n, W) {
   }
 };
 
-LAYER_RENDERERS.renderSalinity = function(data, n, W) {
-  const sal = S.fields.salinity;
-  for (let i = 0; i < n; i++) {
-    const t = Math.min(sal[i] / 40, 1);
-    const j = i * 4;
-    data[j]     = Math.round(255 + (0 - 255) * t);
-    data[j + 1] = Math.round(255 + (30 - 255) * t);
-    data[j + 2] = Math.round(255 + (120 - 255) * t);
-    data[j + 3] = 255;
-  }
-};
+// ── Hydro layer: water-focused composite ──
+// Land cells: dark neutral. Ocean/seas: depth gradient (deep navy → shallow steel blue).
+// Lakes: bright cyan-blue. Rivers: bright cyan.
+// Salinity wash over WATER cells: magenta/purple intensity (0..40 g/kg, ~35 = mid tint).
+LAYER_RENDERERS.renderHydro = function(data, n, W) {
+  const ocean = S.fields.ocean;
+  const sea   = S.fields.sea;
+  const lake  = S.fields.lake;
+  const river = S.fields.river;
+  const depth = S.fields.depth_m;
+  const sal   = S.fields.salinity;
 
-LAYER_RENDERERS.renderTemperature = function(data, n, W) {
-  const T = S.fields.T_c;
+  // Depth ramp: deep navy [10,20,80] → shallow steel blue [100,150,200]
+  // Clamp depth to 0..10000 m, lerp
+  const deepNavy  = [10, 20, 80];
+  const shallow   = [100, 150, 200];
+  const deepMax   = 8000;
+
+  // Lake bright cyan-blue
+  const lakeColor = [40, 180, 220];
+  // River bright cyan
+  const riverColor = [60, 220, 240];
+  // Land dark neutral
+  const landColor  = [40, 42, 48];
+
+  // Hypersaline tint: magenta/purple at full deviation (see wash below)
+  const salTint = [220, 40, 180]; // magenta/purple at max salinity
+
   for (let i = 0; i < n; i++) {
-    const t = T[i];
+    const j = i * 4;
+    const isOcean = ocean && ocean[i] === 1;
+    const isSea   = sea   && sea[i]   === 1;
+    const isLake  = lake  && lake[i]  === 1;
+    const isRiver = river && river[i] === 1;
+    const isWater = isOcean || isSea || isLake || isRiver;
+
     let r, g, b;
-    if (t <= 0) {
-      const f = (t + 40) / 40;
-      r = Math.round(0 + (255 - 0) * f);
-      g = Math.round(0 + (255 - 0) * f);
-      b = 255;
+    if (isLake) {
+      r = lakeColor[0]; g = lakeColor[1]; b = lakeColor[2];
+    } else if (isRiver) {
+      r = riverColor[0]; g = riverColor[1]; b = riverColor[2];
+    } else if (isOcean || isSea) {
+      const d = depth ? Math.max(0, Math.min(deepMax, depth[i])) : 0;
+      const t = d / deepMax;
+      r = Math.round(deepNavy[0] + (shallow[0] - deepNavy[0]) * t);
+      g = Math.round(deepNavy[1] + (shallow[1] - deepNavy[1]) * t);
+      b = Math.round(deepNavy[2] + (shallow[2] - deepNavy[2]) * t);
     } else {
-      const f = t / 40;
-      r = 255;
-      g = Math.round(255 + (0 - 255) * f);
-      b = Math.round(255 + (0 - 255) * f);
+      // Land
+      r = landColor[0]; g = landColor[1]; b = landColor[2];
     }
-    const j = i * 4;
+
+    // Salinity as DEVIATION from the 35 g/kg seawater norm: hypersaline
+    // water glows magenta, brackish water tints teal; open ocean stays
+    // on the depth ramp (anchoring the wash at 0 painted the entire
+    // ocean magenta and hid the depth gradient).
+    if (isWater && sal) {
+      const dev = sal[i] - 35.0;
+      if (dev > 1) {
+        const a = Math.min(1, dev / 60) * 0.8;
+        r = Math.round(r * (1 - a) + salTint[0] * a);
+        g = Math.round(g * (1 - a) + salTint[1] * a);
+        b = Math.round(b * (1 - a) + salTint[2] * a);
+      } else if (dev < -1) {
+        const a = Math.min(1, -dev / 35) * 0.55;
+        r = Math.round(r * (1 - a) + 40 * a);
+        g = Math.round(g * (1 - a) + 200 * a);
+        b = Math.round(b * (1 - a) + 200 * a);
+      }
+    }
+
     data[j] = r; data[j + 1] = g; data[j + 2] = b; data[j + 3] = 255;
   }
 };
 
-LAYER_RENDERERS.renderPrecip = function(data, n, W) {
-  const P = S.fields.P_mm;
-  for (let i = 0; i < n; i++) {
-    const t = Math.min(P[i] / 600, 1);
-    const j = i * 4;
-    data[j]     = Math.round(255 + (0 - 255) * t);
-    data[j + 1] = Math.round(255 + (50 - 255) * t);
-    data[j + 2] = Math.round(255 + (200 - 255) * t);
-    data[j + 3] = 255;
-  }
-};
+// ── Color-wash Overlays (temp / precip / forest) ──
 
-LAYER_RENDERERS.renderForestCover = function(data, n, W) {
-  const cover = S.fields.cover;
-  const GREEN = [34, 139, 34], GRAY = [128, 128, 128];
-  for (let i = 0; i < n; i++) {
-    const t = cover[i];
-    const r = Math.round(GRAY[0] + (GREEN[0] - GRAY[0]) * t);
-    const g = Math.round(GRAY[1] + (GREEN[1] - GRAY[1]) * t);
-    const b = Math.round(GRAY[2] + (GREEN[2] - GRAY[2]) * t);
-    const j = i * 4;
-    data[j] = r; data[j + 1] = g; data[j + 2] = b; data[j + 3] = 255;
+// Build a semi-transparent colour-wash canvas at world resolution.
+function buildColorWashCanvas(which) {
+  const [W, H] = S.shape;
+
+  let srcArr, rampFn;
+  if (which === "temp") {
+    // Monthly average if month mask is active, else annual
+    if (S.monthly && S.monthly.t_monthly && !allMonthsSelected()) {
+      const avg = monthlyAverage("t_monthly");
+      if (!avg) return null;
+      const [FH, FW] = S.monthly._shapes.t_monthly;
+      return _buildRampCanvas(avg, FW, FH, temperatureRamp, W, H);
+    }
+    srcArr = S.fields.T_c; rampFn = temperatureRamp;
+  } else if (which === "precip") {
+    if (S.monthly && S.monthly.p_monthly && !allMonthsSelected()) {
+      const avg = monthlyAverage("p_monthly");
+      if (!avg) return null;
+      const [FH, FW] = S.monthly._shapes.p_monthly;
+      return _buildRampCanvas(avg, FW, FH, precipRamp, W, H);
+    }
+    srcArr = S.fields.P_mm; rampFn = precipRamp;
+  } else if (which === "forest") {
+    srcArr = S.fields.cover;
+    // Green ramp for forest cover (0=gray, 1=green)
+    rampFn = (v) => {
+      const GRAY = [128, 128, 128], GREEN = [34, 139, 34];
+      const t = Math.max(0, Math.min(1, v));
+      return [
+        Math.round(GRAY[0] + (GREEN[0] - GRAY[0]) * t),
+        Math.round(GRAY[1] + (GREEN[1] - GRAY[1]) * t),
+        Math.round(GRAY[2] + (GREEN[2] - GRAY[2]) * t),
+      ];
+    };
+  } else {
+    return null;
   }
-};
+  if (!srcArr) return null;
+  return _buildRampCanvas(srcArr, W, H, rampFn, W, H);
+}
+
+function _buildRampCanvas(arr, FW, FH, rampFn, outW, outH) {
+  const off = document.createElement("canvas");
+  off.width = outW; off.height = outH;
+  const octx = off.getContext("2d");
+  const imgData = octx.createImageData(outW, outH);
+  const d = imgData.data;
+  const scaleX = outW / FW, scaleY = outH / FH;
+  for (let y = 0; y < outH; y++) {
+    const sy = Math.floor(y / scaleY);
+    for (let x = 0; x < outW; x++) {
+      const sx = Math.floor(x / scaleX);
+      const v = arr[sy * FW + sx];
+      const j = (y * outW + x) * 4;
+      const [r, g, b] = rampFn(v);
+      d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = 128; // alpha ~0.5
+    }
+  }
+  octx.putImageData(imgData, 0, 0);
+  return off;
+}
 
 // ── Overlay Streamlines (used by wind + currents toggles) ──
 
@@ -978,13 +1036,18 @@ function buildOverlayCanvas(which) {
   return off;
 }
 
-// Ensure overlay is built and cached (keyed by field + month mask)
+// Ensure overlay is built and cached (keyed by type + month mask)
 function ensureOverlay(which) {
   const key = _overlayCacheKey(which);
   if (S.overlayCanvas[which] && S.overlayCanvas[which]._key === key) {
     return S.overlayCanvas[which].canvas;
   }
-  const canvas = buildOverlayCanvas(which);
+  let canvas = null;
+  if (which === "wind" || which === "currents") {
+    canvas = buildOverlayCanvas(which);
+  } else {
+    canvas = buildColorWashCanvas(which);
+  }
   S.overlayCanvas[which] = { canvas, _key: key };
   return canvas;
 }
@@ -1028,34 +1091,54 @@ function switchLayer(id) {
 }
 
 // ── Overlay Toggle Buttons ──
+const OVERLAY_DEFS = [
+  { id: "temp",    label: "Temp",       needs: "t_monthly",    field: "T_c" },
+  { id: "precip",  label: "Precip",     needs: "p_monthly",    field: "P_mm" },
+  { id: "forest",  label: "Forest",     needs: null,           field: "cover" },
+  { id: "wind",    label: "Wind",       needs: "wu_monthly",   field: null },
+  { id: "currents",label: "Currents",   needs: "cu_monthly",   field: null },
+];
+
 function buildOverlayButtons() {
   overlayBtns.innerHTML = "";
-  const hasWind = S.monthly && S.monthly.wu_monthly;
-  const hasCurrents = S.monthly && S.monthly.cu_monthly;
-
-  [{id: "wind", label: "Wind", has: hasWind},
-   {id: "currents", label: "Currents", has: hasCurrents}].forEach(ov => {
+  for (const ov of OVERLAY_DEFS) {
     const btn = document.createElement("button");
     btn.textContent = ov.label;
     btn.dataset.overlay = ov.id;
-    if (!ov.has) {
+    // Determine availability
+    let has = true;
+    if (ov.needs && (!S.monthly || !S.monthly[ov.needs])) has = false;
+    if (ov.field && !(ov.field in S.fields)) has = false;
+    if (!has) {
       btn.disabled = true;
-      btn.title = "No monthly vector data in this bundle";
+      btn.title = "data not in this bundle";
     } else {
-      const active = ov.id === "wind" ? S.windOverlay : S.currentsOverlay;
+      const active = overlayState(ov.id);
       if (active) btn.classList.add("active");
       btn.onclick = () => toggleOverlay(ov.id);
     }
     overlayBtns.appendChild(btn);
-  });
+  }
+}
+
+function overlayState(which) {
+  switch (which) {
+    case "temp":     return S.tempOverlay;
+    case "precip":   return S.precipOverlay;
+    case "forest":   return S.forestOverlay;
+    case "wind":     return S.windOverlay;
+    case "currents": return S.currentsOverlay;
+  }
+  return false;
 }
 
 function toggleOverlay(which) {
-  if (!S.monthly) return;
-  if (which === "wind") {
-    S.windOverlay = !S.windOverlay;
-  } else if (which === "currents") {
-    S.currentsOverlay = !S.currentsOverlay;
+  switch (which) {
+    case "temp":     S.tempOverlay     = !S.tempOverlay; break;
+    case "precip":   S.precipOverlay   = !S.precipOverlay; break;
+    case "forest":   S.forestOverlay   = !S.forestOverlay; break;
+    case "wind":     S.windOverlay     = !S.windOverlay; break;
+    case "currents": S.currentsOverlay = !S.currentsOverlay; break;
   }
   buildOverlayButtons();
   render();
@@ -1143,7 +1226,21 @@ function render() {
     if (lc) ctx.drawImage(lc, 0, 0, W, H);
   }
 
-  // Wind / currents overlays (above base layer, below search)
+  // Color-wash overlays (above base layer, below wind/currents)
+  if (S.tempOverlay) {
+    const tc = ensureOverlay("temp");
+    if (tc) ctx.drawImage(tc, 0, 0, W, H);
+  }
+  if (S.precipOverlay) {
+    const pc = ensureOverlay("precip");
+    if (pc) ctx.drawImage(pc, 0, 0, W, H);
+  }
+  if (S.forestOverlay) {
+    const fc = ensureOverlay("forest");
+    if (fc) ctx.drawImage(fc, 0, 0, W, H);
+  }
+
+  // Wind / currents overlays (above color washes, below search)
   if (S.windOverlay) {
     const wc = ensureOverlay("wind");
     if (wc) ctx.drawImage(wc, 0, 0, W, H);
@@ -1734,6 +1831,9 @@ function loadBundle(buf) {
   S.layers = LAYER_DEFS;
   S.layerCanvas = {};
   S.overlayCanvas = {};
+  S.tempOverlay = false;
+  S.precipOverlay = false;
+  S.forestOverlay = false;
   S.windOverlay = false;
   S.currentsOverlay = false;
   _maskCache = null;
@@ -1812,6 +1912,15 @@ for (const el of document.querySelectorAll(".examples span[data-expr]")) {
 // Month shift buttons
 $("month-shift-left").onclick = () => shiftMonths(-1);
 $("month-shift-right").onclick = () => shiftMonths(1);
+$("month-yr").onclick = () => selectAllMonths();
+
+function selectAllMonths() {
+  if (!S.monthly) return;
+  S.selMonths = new Set([0,1,2,3,4,5,6,7,8,9,10,11]);
+  invalidateOverlays();
+  buildMonthChips();
+  render();
+}
 
 function doSearch(expr) {
   S.searchExpr = expr;
