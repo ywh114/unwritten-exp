@@ -1,0 +1,221 @@
+# pins.toml — K14 flora Tier-1 anchors (K13 pin format).
+# Common-cover genus pins (rank = "genus", radiation = authored 3-6)
+# anchor the everyday register; landmark species pins (rank = "species",
+# no radiation) sit under their binomial genus automatically (K13
+# backbone rule). Axis overrides use the M1 registry axis names
+# (height_m, leaf_shape, flower_color, ...).
+
+# ──  trees / shrubs  ───────────────────────────────────────────────────
+[[pin]]
+preset = "tree.oak"
+label = "oaks"
+name = { binomial = "Quercus", folk = "oak" }
+rank = "genus"
+radiation = 6
+axes = { height_m = 25.0, leaf_shape = "lobed", fruit_type = "nut" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tree.conifer"
+label = "pines"
+name = { binomial = "Pinus", folk = "pine" }
+rank = "genus"
+radiation = 5
+axes = { height_m = 30.0, leaf_shape = "needle", fruit_type = "cone", fire_strategy = "seeder" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tree.birch"
+label = "birches"
+name = { binomial = "Betula", folk = "birch" }
+rank = "genus"
+radiation = 4
+axes = { height_m = 20.0, pioneer_climax = 0.15, fruit_type = "samara" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "tree.willow"
+label = "willows"
+name = { binomial = "Salix", folk = "willow" }
+rank = "genus"
+radiation = 5
+axes = { height_m = 15.0, leaf_shape = "linear", waterlogging_tolerance = 0.8 }
+flags = ["pinned"]
+
+[[pin]]
+preset = "shrub.bramble"
+label = "brambles"
+name = { binomial = "Rubus", folk = "bramble" }
+rank = "genus"
+radiation = 6
+axes = { mechanical_defense = "prickle", fruit_type = "aggregate", clonal_spread_m = 3.0 }
+flags = ["pinned"]
+
+[[pin]]
+preset = "shrub.heath"
+label = "heathers"
+name = { binomial = "Calluna", folk = "heather" }
+rank = "genus"
+radiation = 3
+axes = { leaf_shape = "scale", mycorrhizal = "ericoid", flower_color = "purple" }
+flags = ["pinned"]
+
+# ──  sward / wetland  ──────────────────────────────────────────────────
+[[pin]]
+preset = "grass_sward.tussock"
+label = "meadow-grasses"
+name = { binomial = "Festuca", folk = "fescue" }
+rank = "genus"
+radiation = 5
+axes = { height_m = 0.8, photosynthesis = "C4", drought_tolerance = 0.6 }
+flags = ["pinned"]
+
+[[pin]]
+preset = "grass_sward.reed"
+label = "reeds"
+name = { binomial = "Phragmites", folk = "reed" }
+rank = "genus"
+radiation = 3
+axes = { height_m = 2.5, waterlogging_tolerance = 0.9, clonal_spread_m = 2.0 }
+flags = ["pinned"]
+
+[[pin]]
+preset = "grass_sward.sedge"
+label = "sedges"
+name = { binomial = "Carex", folk = "sedge" }
+rank = "genus"
+radiation = 6
+axes = { height_m = 0.6, waterlogging_tolerance = 0.85 }
+flags = ["pinned"]
+
+[[pin]]
+preset = "fern_grade.bracken"
+label = "brackens"
+name = { binomial = "Pteridium", folk = "bracken" }
+rank = "genus"
+radiation = 3
+axes = { height_m = 1.5, leaf_shape = "frond", clonal_spread_m = 1.5 }
+flags = ["pinned"]
+
+[[pin]]
+preset = "moss_grade.sphagnum"
+label = "sphagna"
+name = { binomial = "Sphagnum", folk = "sphagnum" }
+rank = "genus"
+radiation = 4
+axes = { engineer_impact = 0.9, waterlogging_tolerance = 0.9 }
+flags = ["pinned"]
+
+# ──  aquatic  ──────────────────────────────────────────────────────────
+[[pin]]
+preset = "floating_leaf.waterlily"
+label = "water-lilies"
+name = { binomial = "Nymphaea", folk = "water-lily" }
+rank = "genus"
+radiation = 4
+axes = { leaf_shape = "cordate", flower_size_mm = 120.0, pollination_syndrome = "beetle" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "floating_leaf.ludwigia"
+label = "ludwigias"
+name = { binomial = "Ludwigia", folk = "ludwigia" }
+rank = "genus"
+radiation = 3
+axes = { flower_color = "yellow", clonal_spread_m = 1.5 }
+flags = ["pinned"]
+
+[[pin]]
+preset = "floating_leaf.ludwigia"
+label = "sword-plants"
+name = { binomial = "Sagittaria", folk = "sword-plant" }
+rank = "genus"
+radiation = 3
+axes = { leaf_shape = "lanceolate", flower_color = "white" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "floater.duckweed"
+label = "duckweeds"
+name = { binomial = "Lemna", folk = "duckweed" }
+rank = "genus"
+radiation = 4
+axes = { height_m = 0.005, clonal_spread_m = 1.0 }
+flags = ["pinned"]
+
+# ──  fungi  ────────────────────────────────────────────────────────────
+[[pin]]
+preset = "fungus.agaric"
+label = "field agarics"
+name = { binomial = "Agaricus", folk = "field mushroom" }
+rank = "genus"
+radiation = 5
+axes = { saprotrophy = "litter", flower_color = "brown" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "fungus.bracket"
+label = "brackets"
+name = { binomial = "Trametes", folk = "bracket fungus" }
+rank = "genus"
+radiation = 4
+axes = { saprotrophy = "white_rot" }
+generics = { signal = "mushroom_fruiting_body" }
+flags = ["pinned"]
+
+# ──  landmark species (rank = species; sit under their binomial genus) ──
+[[pin]]
+preset = "herb_forb.yarrow"
+label = "yarrow"
+name = { binomial = "Achillea millefolium", folk = "yarrow" }
+rank = "species"
+axes = { flower_symmetry = "composite_head", flower_color = "white" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "herb_forb.carrot"
+label = "wild carrot"
+name = { binomial = "Daucus carota", folk = "wild carrot" }
+rank = "species"
+axes = { inflorescence = "umbel", flower_color = "white", root_type = "tap" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "herb_forb.iris"
+label = "sword-iris"
+name = { binomial = "Iris laevigata", folk = "sword-iris" }
+rank = "species"
+axes = { flower_color = "blue", leaf_shape = "linear" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "herb_forb.chive"
+label = "thread-leaf chive"
+name = { binomial = "Allium filifolium", folk = "thread-leaf chive" }
+rank = "species"
+axes = { leaf_size_cm = 20.0, storage_organ = "bulb", inflorescence = "umbel" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "rosette_mat.ice_crown"
+label = "ice-crown"
+name = { binomial = "Saxifraga glacialis", folk = "ice-crown" }
+rank = "species"
+axes = { growing_season_req = 1.5, flower_color = "white" }
+flags = ["pinned"]
+
+[[pin]]
+preset = "rosette_mat.stonecrop"
+label = "stonecrop"
+name = { binomial = "Sedum acre", folk = "stonecrop" }
+rank = "species"
+axes = { photosynthesis = "CAM", flower_color = "yellow", succulence = 0.8 }
+flags = ["pinned"]
+
+[[pin]]
+preset = "herb_forb.grave_flower"
+label = "grave-flower"
+name = { binomial = "Monotropa uniflora", folk = "grave-flower" }
+rank = "species"
+axes = { photosynthesis = "none", mycoheterotrophy = "yes", flower_color = "white" }
+flags = ["pinned"]

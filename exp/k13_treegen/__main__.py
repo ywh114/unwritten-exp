@@ -28,6 +28,8 @@ OUT = pathlib.Path(__file__).parent / "out"
 
 def generate(seed: int, pack) -> tuple:
     tree = build(seed, pack)
+    from exp.artifacts import current_commit
+    tree.meta["commit"] = current_commit()   # provenance stamp
     assign_names(tree, pack, seed)
     for n in tree.nodes.values():
         if n.rank is Rank.SPECIES:

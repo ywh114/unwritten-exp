@@ -231,8 +231,10 @@ def _mutate_scalar(spec: AxisSpec, x: float, dg: float, g: float,
 
 # enum axes whose legal states are palette-restricted (M3: the sampler
 # must respect palettes, not just authored content — the first named
-# build produced 71 green/iridescent tetrapods without this).
-COLOR_AXES = ("base_color", "belly_color", "accent_color")
+# build produced 71 green/iridescent tetrapods without this). K14 flora:
+# flower_color is the same mechanism (plan palettes, syndrome-color
+# correlation stays a k14 constraint, not a palette cut).
+COLOR_AXES = ("base_color", "belly_color", "accent_color", "flower_color")
 
 # vertical_stratum redraw legality (user: "Canis giganteus is an aerial
 # wolf"): a stratum shift is a real adaptation, not a free redraw — it
@@ -332,7 +334,11 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
            couplings: bool = True,
            weak: list | None = None,
            rate_mult: float | None = None,
-           rank: Rank | None = None) -> Node:
+           rank: Rank | None = None,
+           rebindable: tuple | None = None,
+           unbindable: tuple | None = None,
+           rebind_rate: float | None = None,
+           derived_axes=None) -> Node:
     """Produce a descendant of *parent* after dg_base base generations.
 
     *stream* is the lineage's own substream (determinism: same lineage,
@@ -340,8 +346,14 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
     force (None = no descent). *runaway_dir* is the clade's seeded ±1
     (None = drawn from the lineage stream, so a lineage is consistent).
     *couplings* runs the M6 rule pass after mutation (False = control).
+    *rebindable* / *unbindable* / *rebind_rate* override the generic-
+    rebind tables (K14 flora passes its own set — dispersal replaces
+    locomotor); *derived_axes* overrides the module DERIVED_AXES set for
+    the same reason. Defaults are the K13 fauna tables, unchanged.
     """
     condition = condition or Condition()
+    if derived_axes is None:
+        from exp.k13_treegen.derive import DERIVED_AXES as derived_axes
     shares = share_ratios(condition)
     dg = dg_base * (1.0 + STRESS_G_BOOST * condition.stress)
     g_line = parent.g + dg
@@ -350,7 +362,6 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
         runaway_dir = 1.0 if stream.child("runaway_dir").bernoulli(
             0.5, 0) else -1.0
 
-    from exp.k13_treegen.derive import DERIVED_AXES
     axes: dict = {}
     edge_delta: dict = {}
     for clock, (name, value) in enumerate(sorted(parent.axes.items())):
@@ -358,7 +369,7 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
         if spec is None or value == "N/A":
             axes[name] = value
             continue
-        if name in DERIVED_AXES:
+        if name in derived_axes:
             axes[name] = value   # recomputed from the record, never drifts
             continue
         if not substrate_ok(name, parent):
@@ -407,14 +418,17 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
         edge_delta=edge_delta,
     )
     # generic rebind: one draw per speciation edge, plan-legal only
+    reb = REBINDABLE if rebindable is None else rebindable
+    unb = UNBINDABLE if unbindable is None else unbindable
+    rrate = REBIND_RATE if rebind_rate is None else rebind_rate
     plan_g = pack.registry.plans.get(parent.plan or "")
     table = plan_g.generics if plan_g else {}
-    cands = [g for g in REBINDABLE if g in table]
+    cands = [g for g in reb if g in table]
     rstream = stream.child("rebind")
     if cands and rstream.bernoulli(
-            1.0 - math.exp(-dg * REBIND_RATE), 0):
+            1.0 - math.exp(-dg * rrate), 0):
         g = cands[rstream.randrange(len(cands), 1)]
-        states = list(table[g]) + ([None] if g in UNBINDABLE else [])
+        states = list(table[g]) + ([None] if g in unb else [])
         cur = child.generics.get(g)
         alts = [s for s in states if s != cur]
         if alts:

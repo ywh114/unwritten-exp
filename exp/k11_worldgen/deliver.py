@@ -28,8 +28,41 @@ import numpy as np
 from kernel.complex.cells import Complex
 
 from exp.k11_worldgen.raster import upsample_bicubic
+from exp.k11_worldgen.units import DEPTH_MAX_M, ELEV_MAX_M
 
 FACTOR = 4  # 256² @ 4 km anchors -> 1024² @ 1 km delivered
+
+GLACIER_HI_FRAC = 0.5  # delivered-resolution ice extent: interpolated
+                       # mask above this fraction counts as glacier
+GLACIER_HI_FULL_M = 25.0  # anchor ice thinner than this is partial
+                          # sub-cell cover: the extent threshold rises,
+                          # thinning the rendered tongue tip
+
+
+def glacier_extent_hires(hydro: dict, factor: int) -> np.ndarray | None:
+    """Glacier extent at the delivered resolution. The extent itself is
+    an anchor-level decision (like the lake core), but kron-stamping
+    the mask turns tongue edges and tips into 4x4 km blocks. Instead
+    the mask is interpolated as a continuous field and re-thresholded:
+    the boundary lands where the anchor cells said it was, rendered on
+    the fine grid (diagonal edges) without inventing or losing area.
+    Where the (tapered) anchor thickness is thin — the snout — the
+    threshold rises toward 1, so thin tips shrink to partial sub-cell
+    cover instead of ending as full blocks. Thickness interpolation is
+    NOT the primary extent signal — full-thickness interpolation
+    bleeds a whole anchor cell past the margin and fattens thin
+    tongues; here it only modulates the thin fringe."""
+    if "glacier_mask" not in hydro:
+        return None
+    m = upsample_bicubic(hydro["glacier_mask"].astype(np.float64), factor)
+    thick = hydro.get("glacier_thick_m")
+    if thick is None:
+        return m > GLACIER_HI_FRAC
+    t = np.clip(upsample_bicubic(thick.astype(np.float64), factor),
+                0.0, None)
+    frac = GLACIER_HI_FRAC + (1.0 - GLACIER_HI_FRAC) * np.clip(
+        (GLACIER_HI_FULL_M - t) / GLACIER_HI_FULL_M, 0.0, 1.0)
+    return m > frac
 
 
 def chaikin(points: list[tuple[float, float]], rounds: int = 2) -> list[tuple[float, float]]:
@@ -161,15 +194,20 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
                  w: np.ndarray | None = None,
                  sea_level: float | None = None,
                  phantom: np.ndarray | None = None,
-                 min_edge_cells: int = 6) -> np.ndarray:
+                 quality_override: dict | None = None) -> np.ndarray:
     """Stamp the river network (scaled, smoothed polylines) onto the
-    delivered grid at width-class radius. Returns (width_class, mask).
+    delivered grid at width-class radius. Returns the width-class array.
 
-    Edges shorter than `min_edge_cells` anchor cells are NOT stamped:
-    at 1 km delivery a 2-4 cell D8 path can only render as a straight
-    diagonal — these are sub-L0 creeks whose actual formation is the
-    refinement layer's job (they still exist in the hydro fields for
-    discharge and HAND).
+    EVERY edge stamps — the network is the network; dropping short
+    edges would hole the rendered network wherever sources and
+    confluences sit close together (the "disconnected clusters"
+    artifact).
+
+    `quality_override` (edge id -> width class) drives the MONTHLY
+    stamps: the stamp radius and taper follow the month's class and
+    class-0 edges are skipped, while the PATH cosmetics (jitter,
+    meander) always use the edge's natural quality — so a permanent
+    reach renders pixel-identical every month, only its width moves.
 
     With the anchor water surface `w` passed, low-gradient edges
     MEANDER (real meanders form below ~2 m/km valley slope, at a
@@ -195,12 +233,18 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
     owner = np.full((H, W), -1, dtype=np.int32)
     own_step = np.full((H, W), -1, dtype=np.int32)
 
+    def q_of(eid: str, natural: float) -> float:
+        if quality_override is None:
+            return natural
+        return quality_override.get(eid, natural)
+
     # max quality of the edges feeding each node — width TAPER: a
     # river widens ALONG its course, never jumps a class at an edge
     # boundary (a 1-cell width-3 segment reads as a ball, not a river)
     feed_q: dict[str, float] = {}
     for e0 in complex_.edges.values():
-        feed_q[e0.node_b] = max(feed_q.get(e0.node_b, 0.0), e0.quality)
+        feed_q[e0.node_b] = max(feed_q.get(e0.node_b, 0.0),
+                                q_of(e0.id, e0.quality))
 
     def free(y: int, x: int, ei: int, step: int, r: int,
              join: bool) -> bool:
@@ -219,8 +263,9 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
 
     for ei, e in sorted(enumerate(complex_.edges.values()),
                         key=lambda kv: -kv[1].quality):
-        if len(e.polyline) < min_edge_cells:
-            continue
+        q = q_of(e.id, e.quality)
+        if q <= 0:
+            continue                # dry this month / seasonal off-view
         base = [(x * factor, y * factor) for x, y in
                 ((p[0], p[1]) for p in e.polyline)]
         # collapse 1-cell flat-routing detours BEFORE any cosmetic
@@ -230,7 +275,10 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
         # ticks bracketing the true flow angle averages to that angle
         base = _smooth_centerline(base, window=2 * factor + 1)
         # jitter scales DOWN with width class: creeks wiggle, wide
-        # rivers are smooth (a fat stamp over tight jitter is a blob)
+        # rivers are smooth (a fat stamp over tight jitter is a blob).
+        # PATH cosmetics always use the NATURAL quality — a permanent
+        # reach's path is identical every month, only the stamp
+        # radius (from q, the month's class) moves.
         wc0 = max(1, int(round(e.quality)))
         base = _jitter(base, f"k11.river|{e.id}|{e.polyline[0]}",
                        mag=1.4 / wc0)
@@ -278,14 +326,11 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
         # new point sees the path so far (self fold-back included);
         # the stamp radius TAPERs from the upstream course's width
         n = len(pts)
-        q_start = feed_q.get(e.node_a, e.quality)
+        q_start = feed_q.get(e.node_a, q)
 
         def stamp(a: tuple[float, float], b: tuple[float, float],
                   step: int, r: int) -> None:
-            steps = max(1, int(max(abs(b[0] - a[0]), abs(b[1] - a[1]))))
-            for s in range(steps + 1):
-                x = int(round(a[0] + (b[0] - a[0]) * s / steps))
-                y = int(round(a[1] + (b[1] - a[1]) * s / steps))
+            def dot(x: int, y: int) -> None:
                 rr = r
                 if phantom is not None and phantom[
                         min(y // factor, phantom.shape[0] - 1),
@@ -298,12 +343,30 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
                 owner[y0:y1, x0:x1] = ei
                 own_step[y0:y1, x0:x1] = step
 
+            # ceil, never truncate: with floor, a fractional span
+            # (2.97 -> 2 steps of 1.485) rounds onto 81, 80, 78 and
+            # SKIPS a pixel row — the 1-px holes along every reach
+            steps = max(1, int(np.ceil(max(abs(b[0] - a[0]),
+                                           abs(b[1] - a[1])))))
+            px = py = None
+            for s in range(steps + 1):
+                x = int(round(a[0] + (b[0] - a[0]) * s / steps))
+                y = int(round(a[1] + (b[1] - a[1]) * s / steps))
+                # bridge diagonal steps: a corner-touching pixel pair
+                # reads as a 1-px gap on thin (rr=0) reaches
+                if px is not None and x != px and y != py:
+                    dot(x, py)
+                dot(x, y)
+                px, py = x, y
+
         prev = (base[0] if base else pts[0])
         hold = 0   # clamp hysteresis: after a fallback, keep the
                    # reduced scale for a few points (no sawtooth)
         for i in range(1, n):
             join = i >= n - 4
-            r_i = max(0, int(round(q_start + (e.quality - q_start)
+            # radius tapers to the edge's CURRENT class (the month's
+            # when stamped with an override), from the upstream feed
+            r_i = max(0, int(round(q_start + (q - q_start)
                                    * (i / max(n - 1, 1)))) - 1)
             bx, by = base[i]
             mx, my = pts[i]
@@ -373,6 +436,7 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
                   complex_: Complex, sea_level: float,
                   aquatic: np.ndarray,
                   currents: dict | None = None,
+                  edge_monthly: dict | None = None,
                   factor: int = FACTOR) -> dict:
     """Deliver the anchor world at factor x resolution (1024² @ 1 km)."""
     from exp.k11_worldgen.biomes import classify_streaming
@@ -405,14 +469,43 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     lake_hi = _fill_lake_holes(lake_hi, ocean_hi, near_lake)
     depth_hi = np.maximum(w_hi - elev_hi, 0.0)
     depth_hi[ocean_hi] = 1.0
+    # physical depth in METERS: ocean bathymetry from terrain below sea
+    # level (the old normalized field forced every ocean cell to 1.0 —
+    # a water mask, useless in the viewer tooltip), lake fill depth from
+    # the fill surface over the bed
+    depth_m_hi = np.where(
+        ocean_hi,
+        np.maximum(sea_level - elev_hi, 0.0) / sea_level * DEPTH_MAX_M,
+        depth_hi / (1.0 - sea_level) * ELEV_MAX_M)
 
-    # rivers: vector network stamped at width class (pointwise derive)
+    # rivers: vector network stamped at width class (pointwise derive).
+    # Seasonal edges (kind "river_seasonal") carry no annual water —
+    # the annual view skips them via the override.
     width_hi = river_raster(complex_, (H, W), factor, w=hydro["w"],
                             sea_level=sea_level,
-                            phantom=(hydro["w_route"] - hydro["w"]) > 1e-9)
+                            phantom=(hydro["w_route"] - hydro["w"]) > 1e-9,
+                            quality_override={
+                                e.id: (e.quality if e.kind == "river" else 0.0)
+                                for e in complex_.edges.values()})
     # rivers are an overlay; standing water wins where they coincide
     # (lake-outlet polylines start inside the interpolated lake extent)
     river_hi = (width_hi > 0) & ~ocean_hi & ~lake_hi
+
+    # monthly river state: the SAME complex stamped once per month with
+    # that month's per-edge width class — permanent reaches render
+    # pixel-identical to the annual stamp (same path, same cosmetics),
+    # only the radius moves; seasonal edges appear in their wet months
+    river_width_monthly_hi = None
+    if edge_monthly:
+        river_width_monthly_hi = np.stack([
+            river_raster(complex_, (H, W), factor, w=hydro["w"],
+                         sea_level=sea_level,
+                         phantom=(hydro["w_route"] - hydro["w"]) > 1e-9,
+                         quality_override={eid: cls[m] for eid, cls in
+                                           edge_monthly.items()})
+            for m in range(12)]).astype(np.int8)
+        standing = ocean_hi | lake_hi
+        river_width_monthly_hi[:, standing] = 0
 
     # salinity is relational (per water body — see classify_salinity):
     # CARRY the anchor field, re-mask to the delivered water
@@ -466,9 +559,11 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     aq_hi[river_hi] = np.clip(kron_river, 0, None)[river_hi]
 
     # biomes: streaming similarity classify at the delivered resolution
+    glacier_hi = glacier_extent_hires(hydro, factor)
     biome_hi, T_hi, P_hi, p_grow_hi, t_cold_hi = classify_streaming(
         elev_hi, ocean_hi, lake_hi, river_hi, hand_hi,
-        climate, sea_level, factor, width_hi=width_hi)
+        climate, sea_level, factor, width_hi=width_hi,
+        glacier_hi=glacier_hi)
 
     # marine classes are POINTWISE (depth / temperature / rise), so per
     # the delivery rule they are recomputed on the smooth delivered
@@ -504,16 +599,19 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     lake_hi[rim] = False
     sea_hi[rim] = False
     river_hi[rim] = False
+    if river_width_monthly_hi is not None:
+        river_width_monthly_hi[:, rim] = 0
     depth_hi[rim] = 0.0
+    depth_m_hi[rim] = 0.0
     sal_hi[rim] = 0.0
     biome_hi[rim] = BIOME_ID["rock"]
     cover_hi[rim] = 0.0
 
-    return {
+    out = {
         "shape": (H, W),
         "elev": elev_hi,
         "w": w_hi,
-        "depth": depth_hi,
+        "depth": depth_m_hi,
         "ocean_mask": ocean_hi,
         "lake_mask": lake_hi,
         "river_mask": river_hi,
@@ -527,3 +625,23 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
         "biome_map": biome_hi,
         "cover": cover_hi,
     }
+    if glacier_hi is not None:
+        # first-class glacier data at the delivered resolution: the
+        # extent mask (smooth-edged, see glacier_extent_hires) and the
+        # per-cell ice thickness in meters (interpolated from the
+        # tapered anchor field, 0 off the glacier)
+        glacier_hi = glacier_hi.copy()
+        glacier_hi[rim] = False
+        out["glacier_mask"] = glacier_hi
+        thick_src = hydro.get("glacier_thick_m")
+        if thick_src is not None:
+            thick_hi = np.clip(
+                upsample_bicubic(thick_src.astype(np.float64), factor),
+                0.0, None).astype(np.float32)
+            thick_hi[~glacier_hi] = 0.0
+        else:
+            thick_hi = np.zeros((H, W), dtype=np.float32)
+        out["glacier_m"] = thick_hi
+    if river_width_monthly_hi is not None:
+        out["river_width_monthly"] = river_width_monthly_hi
+    return out

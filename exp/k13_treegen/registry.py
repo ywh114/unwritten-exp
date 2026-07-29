@@ -52,7 +52,8 @@ class MutationKind(str, Enum):
 
 class Unit(str, Enum):
     DIMENSIONLESS = "dimensionless"
-    MASS = "mass"                  # exactly one axis registry-wide
+    MASS = "mass"                  # fauna size axis (B1 convention)
+    LENGTH = "length"              # flora size axis (K14: height_m)
 
 
 class TemporalModifier(str, Enum):
@@ -338,12 +339,16 @@ class Registry:
                 if unknown:
                     errs.append(f"{a.name}: plan_scope references unknown "
                                 f"plans {sorted(unknown)}")
-        # exactly one mass axis (B1 v0.3 size convention)
-        masses = [a.name for a in self.axes.values() if a.unit is Unit.MASS]
-        if len(masses) == 0:
-            errs.append("registry: exactly one axis must have unit=mass "
-                        "(size convention); found none")
-        elif len(masses) > 1:
-            errs.append(f"registry: exactly one mass axis allowed; found "
-                        f"{sorted(masses)}")
+        # exactly one size axis (B1 v0.3 size convention): one non-
+        # dimensionless unit registry-wide — mass for fauna, length
+        # (height_m) for flora (K14 reuses this registry).
+        sizes = [a.name for a in self.axes.values()
+                 if a.unit is not Unit.DIMENSIONLESS]
+        if len(sizes) == 0:
+            errs.append("registry: exactly one size axis must be "
+                        "non-dimensionless (unit=mass for fauna, "
+                        "unit=length for flora); found none")
+        elif len(sizes) > 1:
+            errs.append(f"registry: exactly one mass axis / size axis "
+                        f"allowed; found {sorted(sizes)}")
         return errs

@@ -1,0 +1,80 @@
+# Moss Grade preset: cushion — the generalist cushion-moss archetype
+
+[preset]
+id = "moss_grade.cushion"
+plan = "moss_grade"
+grade = "cushion"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.03
+woodiness = 0.0
+growth_rate = 0.01
+longevity_yr = 5.0
+shade_tolerance = 0.5
+pioneer_climax = 0.4
+layer = "ground"
+leaf_shape = "scale"
+leaf_size_cm = 0.1
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_sla = 30.0
+root_type = "none"
+root_depth_m = 0.01
+root_special = "none"
+mycorrhizal = "none"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "green"
+flower_size_mm = 0.3
+inflorescence = "none"
+pollination_syndrome = "none"
+fruit_type = "sporangium"
+dispersal_channels = { local = 0.3, wind = 0.6, water = 0.0, animal = 0.0, jump = 0.2 }
+propagule_mass_mg = 0.001
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.2
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "none"
+clonal_spread_m = 0.2
+succulence = 0.3
+cuticle_thickness = 0.1
+pubescence = 0.0
+leafout_month = 1
+deciduous_trigger = "none"
+bloom_start_month = 4
+bloom_length_months = 1.0
+fruit_month = 6
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.6
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.4
+fertility_requirement = 0.3
+growing_season_req = 3.0
+engineer_impact = 0.2
+coloniality = 0.5
+
+[niche]
+temp_opt_c = 12
+temp_breadth_c = 10.0
+moisture_opt = 0.6
+moisture_breadth = 0.3
+
+[generics]
+support = "cushion_acrocarp"
+feeding_organ = "C3_foliage"
+signal = "spore_mass"
+dispersal = "spore_wind"
+defense = "none"
+storage = "none"
+covering = "none"
+phenology = "evergreen"
+sensor_array = "tropism_standard"

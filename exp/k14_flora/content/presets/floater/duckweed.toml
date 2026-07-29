@@ -1,0 +1,81 @@
+# Floater preset: duckweed — the free-floater archetype
+
+[preset]
+id = "floater.duckweed"
+plan = "floater"
+grade = "duckweed"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.005
+woodiness = 0.0
+growth_rate = 0.01
+longevity_yr = 0.1
+shade_tolerance = 0.5
+pioneer_climax = 0.1
+layer = "aquatic_surface"
+leaf_shape = "thalloid"
+leaf_size_cm = 0.3
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_sla = 30.0
+root_type = "fibrous"
+root_depth_m = 0.02
+root_special = "none"
+mycorrhizal = "none"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "green"
+flower_size_mm = 0.5
+inflorescence = "solitary"
+pollination_syndrome = "self"
+sexuality = "perfect"
+fruit_type = "achene"
+dispersal_channels = { local = 0.4, wind = 0.0, water = 0.4, animal = 0.1, jump = 0.15 }
+propagule_mass_mg = 0.001
+seed_bank = "transient"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.15
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.1
+storage_organ = "none"
+clonal_spread_m = 1.0
+succulence = 0.2
+cuticle_thickness = 0.4
+pubescence = 0.0
+leafout_month = 1
+deciduous_trigger = "none"
+bloom_start_month = 6
+bloom_length_months = 1.0
+fruit_month = 7
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "hydrophyte"
+drought_tolerance = 0.05
+salinity_tolerance = 0.1
+waterlogging_tolerance = 1.0
+fertility_requirement = 0.6
+growing_season_req = 3.0
+engineer_impact = 0.3
+coloniality = 0.95
+
+[niche]
+temp_opt_c = 20
+temp_breadth_c = 10.0
+moisture_opt = 0.9
+moisture_breadth = 0.1
+
+[generics]
+support = "frond_free"
+feeding_organ = "C3_foliage"
+signal = "flower_inconspicuous"
+dispersal = "clonal_spread"
+defense = "none"
+storage = "none"
+covering = "cuticle_waxy"
+phenology = "ephemeral"
+sensor_array = "tropism_standard"

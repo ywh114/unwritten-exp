@@ -78,7 +78,17 @@ def export(seed_dir: Path, out_path: Path) -> None:
     # Hydro layer's salinity-deviation signal
     a, m = _q8(d["salinity"], 0, 260)
     put("salinity", a, m)
-    a, m = _q16(d["depth"], 0, 6000)
+    a, m = _q16(d["salinity"], 0, 260)
+    put("salinity", a, m)
+    # physical depth in meters, computed from elev/w (NOT d["depth"] —
+    # older dumps carry a normalized 0/1 water mask there). Ocean
+    # bathymetry from terrain below sea level; lake/river fill depth
+    # from the water surface over the bed.
+    from exp.k11_worldgen.units import DEPTH_MAX_M, ELEV_MAX_M, elev_m
+    bathy = np.maximum(sea - d["elev"], 0.0) / sea * DEPTH_MAX_M
+    fill = np.maximum(d["w"] - d["elev"], 0.0) / (1.0 - sea) * ELEV_MAX_M
+    depth = np.where(d["ocean_mask"], bathy, fill)
+    a, m = _q16(depth, 0, 6000)
     put("depth_m", a, m)
     a, m = _q16(hand_m(d["hand"], sea), 0, 200)
     put("hand_m", a, m)
@@ -93,12 +103,24 @@ def export(seed_dir: Path, out_path: Path) -> None:
         put("order", oh, {"dtype": "u1"})
     put("biome", d["biome_map"].astype(np.uint8), {"dtype": "u1"})
     put("aquatic", d["aquatic"].astype(np.uint8), {"dtype": "u1"})
-    masks = (d["river_mask"].astype(np.uint8)
-             | (d["lake_mask"].astype(np.uint8) << 1)
-             | (d["ocean_mask"].astype(np.uint8) << 2)
-             | (d["sea_mask"].astype(np.uint8) << 3))
+    from exp.k11_worldgen.aquatic import AQUATIC
+    aquatic_names = {str(i): a_["name"] for i, a_ in enumerate(AQUATIC)}
+    aquatic_colors = {str(i): list(a_["color"])
+                      for i, a_ in enumerate(AQUATIC)}
+    mask_parts = [("river", d["river_mask"]), ("lake", d["lake_mask"]),
+                  ("ocean", d["ocean_mask"]), ("sea", d["sea_mask"])]
+    if "glacier_mask" in d:      # newer dumps: flowing-ice extent
+        mask_parts.append(("glacier", d["glacier_mask"]))
+    masks = np.zeros(shape, dtype=np.uint8)
+    for bit, (_bn, bm_) in enumerate(mask_parts):
+        masks |= bm_.astype(np.uint8) << bit
     put("masks", masks, {"dtype": "u1",
-                         "bits": ["river", "lake", "ocean", "sea"]})
+                         "bits": [bn for bn, _ in mask_parts]})
+    if "glacier_m" in d:
+        # per-cell ice thickness (m), 0 off the glacier — u16 keeps the
+        # sub-meter taper at thin snouts readable
+        a, m = _q16(d["glacier_m"], 0, 2000)
+        put("glacier_m", a, m)
     if "w_biome_d2_1" in z.files:
         d1, d2 = z["w_biome_d2_1"], z["w_biome_d2_2"]
         sim = (d2 - d1) / np.maximum(d2, 1e-9)
@@ -131,6 +153,51 @@ def export(seed_dir: Path, out_path: Path) -> None:
         a, m_ = _q8s(wv, lim)
         monthly["wv_monthly"] = a
         monthly_meta["wv_monthly"] = m_
+    # solar geometry + freezing (persisted first-class fields)
+    if "c_seaice_monthly" in z.files:
+        a, m_ = _q8(z["c_seaice_monthly"], 0, 1)
+        monthly["seaice_monthly"] = a
+        monthly_meta["seaice_monthly"] = m_
+    if "c_lakeice_monthly" in z.files:
+        a, m_ = _q8(z["c_lakeice_monthly"], 0, 1)
+        monthly["lakeice_monthly"] = a
+        monthly_meta["lakeice_monthly"] = m_
+    if "c_riverice_monthly" in z.files:
+        a, m_ = _q8(z["c_riverice_monthly"], 0, 1)
+        monthly["riverice_monthly"] = a
+        monthly_meta["riverice_monthly"] = m_
+    if "c_snow_monthly" in z.files:
+        a, m_ = _q8(z["c_snow_monthly"], 0, 500)
+        monthly["snow_monthly"] = a
+        monthly_meta["snow_monthly"] = m_
+    if "d_river_width_monthly" in z.files:
+        # monthly river networks STAMPED at delivered res (the same
+        # river_raster as the annual network — taper/meander baked in);
+        # width classes 0-3, 0 off-network
+        monthly["river_width_monthly"] = \
+            z["d_river_width_monthly"].astype(np.uint8)
+        monthly_meta["river_width_monthly"] = {"dtype": "u1"}
+    if "c_insol_monthly" in z.files:
+        # row fields (12, H) -> planes at ANCHOR res (like t_monthly)
+        w_anchor = z["c_T"].shape[1]
+        ins = z["c_insol_monthly"]
+        ins = np.broadcast_to(ins[:, :, None],
+                              (12, ins.shape[1], w_anchor))
+        a, m_ = _q8(ins, 0, 1.2)
+        monthly["insol_monthly"] = a
+        monthly_meta["insol_monthly"] = m_
+        dl = z["c_daylen_monthly"]
+        dl = np.broadcast_to(dl[:, :, None], (12, dl.shape[1], w_anchor))
+        a, m_ = _q8(dl, 0, 24)
+        monthly["daylen_monthly"] = a
+        monthly_meta["daylen_monthly"] = m_
+    if "c_lat" in z.files:
+        # row field at anchor res -> delivery rows (kron, then columns)
+        factor = shape[0] // z["c_lat"].shape[0]
+        lat_rows = np.repeat(z["c_lat"], factor)
+        lat2d = np.broadcast_to(lat_rows[:, None], shape)
+        a, m_ = _q8(lat2d, -90, 90)
+        put("lat", a, m_)
     try:
         from exp.k11_worldgen.currents import velocity_field
         from exp.k11_worldgen.persist import load_world
@@ -166,6 +233,8 @@ def export(seed_dir: Path, out_path: Path) -> None:
         "biome_names": {str(i): n for n, i in BIOME_ID.items()},
         "biome_colors": {str(BIOME_ID[b["name"]]): list(b["color"])
                          for b in BIOMES},
+        "aquatic_names": aquatic_names,
+        "aquatic_colors": aquatic_colors,
         "backdrop_png_b64": backdrop,
         "backdrop_is_square": (seed_dir / "worldmap.png").exists(),
         "monthly_shape": ([12] + list(monthly["t_monthly"].shape[1:])

@@ -1,0 +1,84 @@
+# Herb Forb preset: iris — the sword-leaved showy archetype
+
+[preset]
+id = "herb_forb.iris"
+plan = "herb_forb"
+grade = "iris"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.7
+woodiness = 0.0
+growth_rate = 0.3
+longevity_yr = 10.0
+shade_tolerance = 0.3
+pioneer_climax = 0.4
+layer = "sward"
+leaf_shape = "linear"
+leaf_size_cm = 40.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "entire"
+leaf_compoundness = "simple"
+leaf_sla = 12.0
+leaf_trap = "none"
+root_type = "fibrous"
+root_depth_m = 0.3
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "zygomorphic"
+flower_color = "purple"
+flower_size_mm = 90.0
+inflorescence = "solitary"
+pollination_syndrome = "bee"
+sexuality = "perfect"
+fruit_type = "capsule"
+dispersal_channels = { local = 0.6, wind = 0.0, water = 0.2, animal = 0.0, jump = 0.1 }
+propagule_mass_mg = 10.0
+seed_bank = "transient"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "rhizome"
+clonal_spread_m = 0.5
+succulence = 0.0
+cuticle_thickness = 0.4
+pubescence = 0.0
+leafout_month = 3
+deciduous_trigger = "winter"
+bloom_start_month = 5
+bloom_length_months = 1.5
+fruit_month = 7
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.3
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.6
+fertility_requirement = 0.5
+growing_season_req = 5.0
+fire_strategy = "resprouter"
+engineer_impact = 0.2
+coloniality = 0.5
+
+[niche]
+temp_opt_c = 16
+temp_breadth_c = 8.0
+moisture_opt = 0.6
+moisture_breadth = 0.25
+
+[generics]
+support = "basal_rosette"
+feeding_organ = "C3_foliage"
+signal = "flower_showy"
+dispersal = "gravity_drop"
+defense = "none"
+storage = "rhizome"
+covering = "cuticle_waxy"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

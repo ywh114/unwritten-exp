@@ -1,0 +1,188 @@
+# K14 flora — constraint rules (vocabulary §8.10, enforced at sampling
+# time by constraints.py in the same evolve edge: the gate pattern —
+# trigger fires -> required axes snap into compliance, recorded in
+# edge_delta; never post-hoc deletion).
+#
+# when: { axis = X, state = S }            trigger: enum axis in state
+#      or { axis = X, above = f }          trigger: scalar axis above f
+# require_min = { A = f }                  scalar A pulled up to >= f
+# require_max = { A = f }                  scalar A pulled down to <= f
+# require_enum = { A = [states] }          enum A forced into the set
+#        (snap: keep current if already legal, else first of set)
+# forbid_enum = { A = [states] }           enum A forced out of the set
+#        (snap: parent's prior value if legal, else plan default)
+
+# CAM lives on succulence (or epiphyte, deferred): CAM without water
+# storage is not a thing.
+[[rule]]
+id = "cam_succulence"
+when = { axis = "photosynthesis", state = "CAM" }
+require_min = { succulence = 0.4 }
+
+# C4 is the warm open-habitat grade: needs decent drought handling.
+[[rule]]
+id = "c4_warm_open"
+when = { axis = "photosynthesis", state = "C4" }
+require_min = { drought_tolerance = 0.4 }
+
+# Wind pollination: small, dull, petal-less flowers. Showy colors are
+# animal-advertising and are snapped out.
+[[rule]]
+id = "wind_poll_inconspicuous"
+when = { axis = "pollination_syndrome", state = "wind" }
+require_max = { flower_size_mm = 5.0 }
+forbid_enum = { flower_color = ["red", "pink", "purple", "blue", "orange"] }
+
+# Bird syndrome: red, odorless, copious (the mirror of wind).
+[[rule]]
+id = "bird_syndrome_red"
+when = { axis = "pollination_syndrome", state = "bird" }
+require_min = { flower_size_mm = 10.0 }
+require_enum = { flower_color = ["red", "orange"] }
+
+# Serotiny only exists where fire is a regime the clade answers — and
+# only on woody plans (a moss cannot be serotinous).
+[[rule]]
+id = "serotiny_fire"
+when = { axis = "serotiny", state = "yes" }
+state_plans = ["tree", "shrub"]
+require_enum = { fire_strategy = ["resprouter", "seeder"] }
+
+# Spinescence is an aridity + herbivore-pressure package (land plans —
+# a sponge's spicules are none of this rule's business).
+[[rule]]
+id = "spinescence_aridity"
+when = { axis = "mechanical_defense", state = "spine", plans = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat", "succulent", "fern_grade", "moss_grade"] }
+require_min = { drought_tolerance = 0.4 }
+
+# Large leaves are the warm-wet strategy; they cannot hold cold/dry.
+[[rule]]
+id = "large_leaves_warmwet"
+when = { axis = "leaf_size_cm", above = 80.0 }
+require_max = { drought_tolerance = 0.6 }
+
+# Toothed margins are the cold grade — a woody-dicot leaf-physiognomy
+# rule (ferns are not in the dataset; bracken fronds are toothed AND
+# huge). Inverse coupling to leaf size is NOT enforced — small toothed
+# leaves are fine anywhere.
+[[rule]]
+id = "toothed_cold"
+when = { axis = "leaf_margin", state = "toothed", plans = ["tree", "shrub", "herb_forb", "rosette_mat", "succulent"] }
+require_max = { leaf_size_cm = 100.0 }
+
+# Pneumatophores are the waterlogged-anaerobic answer, nothing else's —
+# and only woody plants grow them (off-plan the state snaps back).
+[[rule]]
+id = "pneumatophores_waterlogging"
+when = { axis = "root_special", state = "pneumatophores" }
+state_plans = ["tree", "shrub"]
+require_min = { waterlogging_tolerance = 0.7 }
+
+# Buttress roots: shallow-soil emergent trees (tropical grade) — only
+# tall things with shallow roots bother, and only woody plans at all.
+[[rule]]
+id = "buttress_emergent"
+when = { axis = "root_special", state = "buttress" }
+state_plans = ["tree", "shrub"]
+require_min = { height_m = 20.0 }
+require_max = { root_depth_m = 2.0 }
+
+# Stilt and knee roots are woody-plant parts too.
+[[rule]]
+id = "stilt_roots_woody"
+when = { axis = "root_special", state = "stilt" }
+state_plans = ["tree", "shrub"]
+
+[[rule]]
+id = "knee_roots_woody"
+when = { axis = "root_special", state = "knee" }
+state_plans = ["tree", "shrub"]
+
+# Carnivory is the herb/rosette grade (Venus flytrap, pitcher plants) —
+# the package itself is plan-gated, so a fungus redrawn into
+# "carnivore" snaps back instead of demanding a trap it cannot have.
+[[rule]]
+id = "nutrient_carnivore_plans"
+when = { axis = "nutrient_package", state = "carnivore" }
+state_plans = ["herb_forb", "rosette_mat"]
+
+# Carnivorous traps need the carnivore nutrient package (and vice versa:
+# the package without a trap is phantom). Traps are herb/rosette parts —
+# a tree cannot redraw its way into a pitcher.
+[[rule]]
+id = "trap_carnivory"
+when = { axis = "nutrient_package", state = "carnivore" }
+forbid_enum = { leaf_trap = ["none"] }
+
+[[rule]]
+id = "trap_plans"
+when = { axis = "leaf_trap", state = ["pitcher", "snap", "flypaper", "bladder"] }
+state_plans = ["herb_forb", "rosette_mat"]
+
+# Giant rosette (afroalpine/páramo convergence): high growing-season
+# demand + cushion form only — left to presets (no sampler rule; the
+# giant_rosette flag lives on rosette_mat presets).
+
+# Aquatic plans live in the aquatic layers; terrestrial plans out.
+[[rule]]
+id = "aquatic_layer"
+when = { axis = "waterlogging_tolerance", above = 0.85 }
+require_enum = { layer = ["aquatic_surface", "aquatic_benthic", "sward",
+                          "ground"] }
+
+# The mirror direction: an aquatic LAYER claims the plant lives in
+# water — it must carry the tolerance to back it (the "aerial wolf"
+# ruling; a Quercus cannot redraw its way into a lake).
+[[rule]]
+id = "aquatic_surface_needs_tolerance"
+when = { axis = "layer", state = "aquatic_surface" }
+require_min = { waterlogging_tolerance = 0.7 }
+
+[[rule]]
+id = "aquatic_benthic_needs_tolerance"
+when = { axis = "layer", state = "aquatic_benthic" }
+require_min = { waterlogging_tolerance = 0.7 }
+
+# ── reproductive display is a SEED-PLANT layer ─────────────────────────
+# Spore/decomposer plans have no flowers, no inflorescences, no
+# pollination, and no seed-fruit — their propagules are sori/sporangia
+# (or nothing). Off-plan states snap back (the "aerial wolf" class,
+# reproductive edition: a fungus may not carry berries).
+[[rule]]
+id = "flowers_seed_plans"
+when = { axis = "flower_symmetry", state = ["radial", "zygomorphic", "composite_head"] }
+state_plans = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat", "succulent", "runner_meadow", "floating_leaf", "floater"]
+
+[[rule]]
+id = "inflorescence_seed_plans"
+when = { axis = "inflorescence", state = ["raceme", "spike", "catkin", "panicle", "umbel", "head", "spadix", "solitary", "spikelet", "cone"] }
+state_plans = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat", "succulent", "runner_meadow", "floating_leaf", "floater"]
+
+[[rule]]
+id = "pollination_seed_plans"
+when = { axis = "pollination_syndrome", state = ["wind", "bee", "moth", "bird", "bat", "beetle", "fly", "self", "water"] }
+state_plans = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat", "succulent", "runner_meadow", "floating_leaf", "floater"]
+
+[[rule]]
+id = "fruit_seed_plans"
+when = { axis = "fruit_type", state = ["berry", "drupe", "capsule", "legume", "achene", "caryopsis", "nut", "samara", "pome", "aggregate", "cone"] }
+state_plans = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat", "succulent", "runner_meadow", "floating_leaf", "floater"]
+
+[[rule]]
+id = "sorus_plans"
+when = { axis = "fruit_type", state = "sorus" }
+state_plans = ["fern_grade", "macroalgae_holdfast"]
+
+[[rule]]
+id = "sporangium_plans"
+when = { axis = "fruit_type", state = "sporangium" }
+state_plans = ["moss_grade", "fungus", "lichen", "coral_grade", "sponge_grade"]
+
+# Insect-pollinated flowers ADVERTISE: green/brown/black are camouflage
+# (the wind-pollinated palette), not insect signals. Bee vision is
+# blue/yellow/white-forward; brown/green insect flowers are the wind
+# syndrome wearing the wrong label.
+[[rule]]
+id = "insect_syndrome_showy"
+when = { axis = "pollination_syndrome", state = ["bee", "moth", "beetle", "fly"] }
+forbid_enum = { flower_color = ["green", "brown", "black"] }

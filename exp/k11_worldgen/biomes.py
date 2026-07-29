@@ -248,6 +248,11 @@ def _apply_overrides(biome: np.ndarray, st: dict) -> np.ndarray:
     # ice: permanent ice cap — never above freezing at any altitude
     # (applied after rock: a frozen summit is ice-covered, not bare)
     b[(st["T_warm"] < 0.0) & land] = BIOME_ID["ice"]
+    # glacier: cells under flowing ice are ice biome regardless of the
+    # month's curves (the glacier pass's mask, persisted with hydrology)
+    gm = st.get("glacier_m")
+    if gm is not None:
+        b[gm & land] = BIOME_ID["ice"]
     # flooded grassland: a SPECIAL place (Pantanal/Okavango), not a
     # default wet lowland — the ACTIVE FLOODPLAIN of a real river
     # (within ~3 cells of a width-2+ channel and ~8 m of the drainage
@@ -321,6 +326,7 @@ def classify_biomes(elev: np.ndarray, hydro: dict, climate: dict,
     b = _altitude_swap(first, second, alt_m(elev, sea_level))
     st = _masks_state(elev, ocean_m, hydro["lake_mask"], hydro["river_mask"],
                       sea_level, hydro["hand"], hydro["width"])
+    st["glacier_m"] = hydro.get("glacier_mask")
     st.update(T_warm=acc.t_max, T_cold=acc.t_min, P_wet=acc.p_max)
     b = _mode_filter(b, passes=2)
     # smoothing must not move standing water
@@ -336,7 +342,8 @@ def classify_streaming(elev_hi: np.ndarray, ocean_hi: np.ndarray,
                        lake_hi: np.ndarray, river_hi: np.ndarray,
                        hand_hi: np.ndarray,
                        climate: dict, sea_level: float, factor: int,
-                       width_hi: np.ndarray | None = None):
+                       width_hi: np.ndarray | None = None,
+                       glacier_hi: np.ndarray | None = None):
     """Biomes at the delivered resolution.
 
     Classification is pointwise (delivery rule), so the monthly curves
@@ -356,6 +363,7 @@ def classify_streaming(elev_hi: np.ndarray, ocean_hi: np.ndarray,
     b = _altitude_swap(first, second, alt_m(elev_hi, sea_level))
     st = _masks_state(elev_hi, ocean_hi, lake_hi, river_hi, sea_level,
                       hand_hi, width_hi)
+    st["glacier_m"] = glacier_hi
     st.update(T_warm=acc.t_max, T_cold=acc.t_min, P_wet=acc.p_max)
     b = _apply_overrides(b, st)
     T_hi = acc.t_norm_sum / 12

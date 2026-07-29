@@ -1,0 +1,128 @@
+"""K14 P6 — datapack writer: the unified viewer-overlay bundle (.k11pack).
+
+One binary file the K11 map viewer (map.html) reads via drag-drop AFTER
+a .k11view bundle; overlay buttons build themselves from the header's
+declarative layer metadata — no per-layer viewer code (owner decision
+2026-07-29 #1). Same container convention as .k11view:
+
+    magic "K11P" (4B) | header_len (uint32 LE) | header (JSON UTF-8)
+    | arrays in header["order"], each shape-product items of the
+      layer's dtype
+
+Layer metadata (header["layers"]):
+    id, label, kind (continuous|categorical|points|vectors),
+    field (binary array name; absent for points), dtype, scale, offset,
+    shape, colormap ([[t, [r,g,b]], ...] for continuous; {state: [r,g,b]}
+    for categorical), alpha, mask (land|ocean|freshwater|river|lake|
+    null — evaluated against the base bundle's masks), unit,
+    month_dim (12 for monthly fields — the viewer's month mask applies),
+    points (inline list for kind=points: {y, x, ...attrs}, delivery
+    coords), color ([r,g,b] for points/vectors)
+
+Quantization mirrors viewexport: uint8/uint16 with per-layer
+scale/offset in the header.
+"""
+
+from __future__ import annotations
+
+import json
+import struct
+from pathlib import Path
+
+import numpy as np
+
+MAGIC = b"K11P"
+FORMAT = "k11pack/1"
+
+
+def _q8(v: np.ndarray, lo: float, hi: float) -> tuple[np.ndarray, dict]:
+    return (np.clip((v - lo) / (hi - lo) * 255, 0, 255).astype(np.uint8),
+            {"dtype": "u1", "scale": (hi - lo) / 255, "offset": float(lo)})
+
+
+def _q16(v: np.ndarray, lo: float, hi: float) -> tuple[np.ndarray, dict]:
+    return (np.clip((v - lo) / (hi - lo) * 65535, 0, 65535)
+            .astype(np.uint16),
+            {"dtype": "<u2", "scale": (hi - lo) / 65535,
+             "offset": float(lo)})
+
+
+def write_pack(out_path: Path, layers: list[dict],
+               arrays: dict[str, np.ndarray], meta: dict) -> Path:
+    """Write a .k11pack. *layers* is the declarative layer list (points
+    layers carry their data inline); *arrays* maps field name -> quantized
+    array; *meta* becomes the header preamble (generator, seed, ...)."""
+    header = {"format": FORMAT, **meta, "layers": layers,
+              "order": [l["field"] for l in layers if l.get("field")]}
+    blob = json.dumps(header).encode()
+    with open(out_path, "wb") as f:
+        f.write(MAGIC)
+        f.write(struct.pack("<I", len(blob)))
+        f.write(blob)
+        for name in header["order"]:
+            layer = next(l for l in layers if l.get("field") == name)
+            dt = layer["dtype"]
+            arrays[name].astype(dt.lstrip("<"), copy=False).tofile(f)
+    return out_path
+
+
+# ── P6 pack: the D0 products as viewer layers ───────────────────────────
+
+# named ramps as stop lists (t, [r,g,b]); the viewer interpolates
+RAMP_FERTILITY = [[0.0, [40, 32, 16]], [0.5, [96, 128, 48]],
+                  [1.0, [190, 230, 120]]]
+RAMP_MARINE = [[0.0, [8, 32, 64]], [0.5, [16, 128, 128]],
+               [1.0, [120, 230, 200]]]
+RAMP_FRESH = [[0.0, [16, 32, 80]], [1.0, [100, 180, 240]]]
+RAMP_SPEED = [[0.0, [30, 30, 30]], [1.0, [240, 200, 60]]]
+RAMP_VENT = [[0.0, [20, 10, 10]], [1.0, [230, 80, 40]]]
+RAMP_SEASON = [[0.0, [40, 20, 60]], [0.5, [120, 70, 160]],
+               [1.0, [220, 180, 240]]]
+
+
+def build_pack(result: dict, out_path: Path) -> Path:
+    """Serialize a derived.build() result as derived.k11pack."""
+    p = result["products"]
+    layers: list[dict] = []
+    arrays: dict[str, np.ndarray] = {}
+
+    def continuous(id_, label, field, lo, hi, ramp, alpha, mask, unit,
+                   month_dim=None):
+        arr = p[field]
+        q, m = _q8(arr, lo, hi)
+        layer = {"id": id_, "label": label, "kind": "continuous",
+                 "field": field, **m, "shape": list(arr.shape),
+                 "colormap": ramp, "alpha": alpha, "mask": mask,
+                 "unit": unit}
+        if month_dim:
+            layer["month_dim"] = month_dim
+        layers.append(layer)
+        arrays[field] = q
+
+    continuous("fertility", "Soil fertility", "soil_fertility",
+               0, 1, RAMP_FERTILITY, 0.55, "land", "")
+    continuous("marine_prod", "Marine productivity", "marine_productivity",
+               0, 1.2, RAMP_MARINE, 0.55, "ocean", "", month_dim=12)
+    continuous("fresh_prod", "Freshwater productivity",
+               "freshwater_productivity", 0, 1, RAMP_FRESH, 0.6,
+               "freshwater", "")
+    continuous("river_speed", "River speed", "river_speed",
+               0, 3, RAMP_SPEED, 0.8, "river", " m/s")
+    continuous("vents", "Vent field", "vent_field",
+               0, float(np.percentile(p["vent_field"], 99)) or 1.0,
+               RAMP_VENT, 0.5, None, "")
+    continuous("grow_season", "Growing season", "growing_season",
+               0, 12, RAMP_SEASON, 0.5, "land", " mo")
+
+    for pid, label, color in (
+            ("waterfalls", "Waterfalls", [80, 200, 240]),
+            ("vents_pts", "Marine vents", [240, 80, 50]),
+            ("springs", "Hot springs", [240, 160, 60])):
+        key = {"waterfalls": "waterfalls", "vents_pts": "vents",
+               "springs": "hot_springs"}[pid]
+        layers.append({"id": pid, "label": label, "kind": "points",
+                       "points": result["points"][key], "color": color})
+
+    return write_pack(out_path, layers, arrays,
+                      {"generator": "k14_flora", "pack": "d0_derived",
+                       "seed": result["seed"]})

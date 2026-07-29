@@ -1,0 +1,290 @@
+# K14 flora — growth-form plans (M1 PlanSpec format, mirrored from K13).
+# "Body plans" here are growth forms (flora RFC §1). phylum = line
+# (seed / spore / decomposer); frame = structural grade; class_name =
+# latin plural for nomenclature (mirrors fauna class names).
+# Generics: dispersal REPLACES locomotor (flora RFC §1); sensor_array =
+# tropism (the RESONANT ley hook); everything else mirrors fauna.
+
+[plan.tree]
+phylum = "seed"
+frame = "vascular"
+medium = "land"
+class_name = "Arbores"
+slots = ["trunk", "crown", "leaf", "root", "display", "fruit", "bark"]
+[plan.tree.generics]
+support = ["trunk_single", "trunk_multi"]
+feeding_organ = ["C3_foliage"]
+signal = ["flower_showy", "flower_inconspicuous", "cone_strobilus"]
+dispersal = ["gravity_drop", "wind_winged", "wind_plume", "fleshy_reward",
+             "hooks_burs", "ballistic"]
+defense = ["none", "thorns", "spines", "chemical_tannins",
+           "chemical_alkaloids", "chemical_essential_oil"]
+storage = ["none", "lignotuber", "endosperm"]
+covering = ["bark_thin", "bark_thick", "bark_corky"]
+phenology = ["evergreen", "winter_deciduous", "drought_deciduous"]
+sensor_array = ["tropism_standard"]
+
+[plan.shrub]
+phylum = "seed"
+frame = "vascular"
+medium = "land"
+class_name = "Frutices"
+slots = ["stems", "leaf", "root", "display", "fruit"]
+[plan.shrub.generics]
+support = ["multi_stem_woody"]
+feeding_organ = ["C3_foliage", "CAM_foliage", "mycoheterotroph"]
+signal = ["flower_showy", "flower_inconspicuous"]
+dispersal = ["gravity_drop", "fleshy_reward", "hooks_burs", "wind_plume",
+             "ballistic", "clonal_spread"]
+defense = ["none", "thorns", "spines", "prickles", "chemical_tannins",
+           "chemical_alkaloids"]
+storage = ["none", "lignotuber", "rhizome", "endosperm"]
+covering = ["bark_thin", "cuticle_waxy", "pubescent"]
+phenology = ["evergreen", "winter_deciduous", "drought_deciduous"]
+sensor_array = ["tropism_standard"]
+
+[plan.herb_forb]
+phylum = "seed"
+frame = "vascular"
+medium = "land"
+class_name = "Herbae"
+slots = ["stem", "leaf", "root", "display", "fruit"]
+[plan.herb_forb.generics]
+support = ["herbaceous_stem", "basal_rosette"]
+feeding_organ = ["C3_foliage", "C4_foliage", "carnivore_trap",
+                 "mycoheterotroph"]
+signal = ["flower_showy", "flower_inconspicuous"]
+dispersal = ["gravity_drop", "wind_plume", "wind_dust", "ballistic",
+             "hooks_burs", "fleshy_reward", "clonal_spread"]
+defense = ["none", "prickles", "spines", "trichomes",
+           "chemical_alkaloids", "chemical_cardiac", "latex"]
+storage = ["none", "tuber", "bulb", "rhizome", "endosperm"]
+covering = ["cuticle_waxy", "pubescent", "none"]
+phenology = ["evergreen", "winter_deciduous", "drought_deciduous",
+             "ephemeral"]
+sensor_array = ["tropism_standard", "tropism_rapid"]
+
+[plan.grass_sward]
+phylum = "seed"
+frame = "vascular"
+medium = "land"
+class_name = "Gramina"
+slots = ["culm", "leaf", "root", "display", "fruit"]
+[plan.grass_sward.generics]
+support = ["fibrous_culm", "woody_culm"]
+feeding_organ = ["C3_foliage", "C4_foliage"]
+signal = ["flower_inconspicuous"]
+dispersal = ["gravity_drop", "wind_plume", "wind_dust", "hooks_burs",
+             "clonal_spread"]
+defense = ["none", "silica"]
+storage = ["none", "rhizome", "endosperm"]
+covering = ["cuticle_waxy", "none"]
+phenology = ["evergreen", "winter_deciduous", "drought_deciduous",
+             "ephemeral", "synchronous_mass"]
+sensor_array = ["tropism_standard"]
+
+[plan.rosette_mat]
+phylum = "seed"
+frame = "vascular"
+medium = "land"
+class_name = "Rosulatae"
+slots = ["rosette", "root", "display", "fruit"]
+[plan.rosette_mat.generics]
+support = ["basal_rosette", "cushion_mat"]
+feeding_organ = ["C3_foliage", "CAM_foliage", "mycoheterotroph"]
+signal = ["flower_showy", "flower_inconspicuous"]
+dispersal = ["gravity_drop", "wind_plume", "wind_dust", "clonal_spread"]
+defense = ["none", "spines", "trichomes"]
+storage = ["none", "tuber", "succulent_tissue"]
+covering = ["cuticle_waxy", "pubescent", "none"]
+phenology = ["evergreen", "ephemeral"]
+sensor_array = ["tropism_standard"]
+
+[plan.succulent]
+phylum = "seed"
+frame = "vascular"
+medium = "land"
+class_name = "Succulentae"
+slots = ["stem", "leaf", "root", "display", "fruit"]
+[plan.succulent.generics]
+support = ["succulent_stem", "caudex_bottle"]
+feeding_organ = ["CAM_foliage", "C3_foliage"]
+signal = ["flower_showy", "flower_inconspicuous"]
+dispersal = ["gravity_drop", "wind_dust", "fleshy_reward", "clonal_spread"]
+defense = ["none", "spines", "chemical_alkaloids", "latex"]
+storage = ["succulent_tissue", "caudex", "tuber"]
+covering = ["cuticle_waxy", "none"]
+phenology = ["evergreen", "drought_deciduous", "ephemeral"]
+sensor_array = ["tropism_standard"]
+
+[plan.fern_grade]
+phylum = "spore"
+frame = "vascular"
+medium = "land"
+class_name = "Filices"
+slots = ["frond", "rhizome", "sorus"]
+[plan.fern_grade.generics]
+support = ["herbaceous_frond", "trunk_caudex"]
+feeding_organ = ["C3_foliage"]
+signal = ["spore_mass"]
+dispersal = ["spore_wind", "clonal_spread"]
+defense = ["none", "chemical_tannins"]
+storage = ["rhizome", "none"]
+covering = ["none", "pubescent"]
+phenology = ["evergreen", "winter_deciduous"]
+sensor_array = ["tropism_standard"]
+
+[plan.moss_grade]
+phylum = "spore"
+frame = "nonvascular"
+medium = "land"
+class_name = "Musci"
+slots = ["thallus", "sporophyte"]
+[plan.moss_grade.generics]
+support = ["cushion_acrocarp", "mat_pleurocarp"]
+feeding_organ = ["C3_foliage"]
+signal = ["spore_mass"]
+dispersal = ["spore_wind", "clonal_spread"]
+defense = ["none"]
+storage = ["none", "succulent_tissue"]
+covering = ["none"]
+phenology = ["evergreen"]
+sensor_array = ["tropism_standard"]
+
+[plan.runner_meadow]
+phylum = "seed"
+frame = "vascular"
+medium = "water"
+class_name = "Prata Aquatica"
+slots = ["runner", "leaf", "root", "display", "fruit"]
+[plan.runner_meadow.generics]
+support = ["rhizome_runner"]
+feeding_organ = ["C3_foliage"]
+signal = ["flower_inconspicuous"]
+dispersal = ["water_buoyant", "clonal_spread", "fleshy_reward"]
+defense = ["none"]
+storage = ["rhizome", "endosperm"]
+covering = ["cuticle_waxy", "none"]
+phenology = ["evergreen", "winter_deciduous"]
+sensor_array = ["tropism_standard"]
+
+[plan.floating_leaf]
+phylum = "seed"
+frame = "vascular"
+medium = "water"
+class_name = "Nymphaeae"
+slots = ["leaf", "root", "display", "fruit"]
+[plan.floating_leaf.generics]
+support = ["rhizome_submerged", "stolon_floating"]
+feeding_organ = ["C3_foliage"]
+signal = ["flower_showy", "flower_inconspicuous"]
+dispersal = ["water_buoyant", "clonal_spread", "fleshy_reward"]
+defense = ["none", "prickles"]
+storage = ["none", "rhizome", "tuber", "endosperm"]
+covering = ["cuticle_waxy"]
+phenology = ["evergreen", "winter_deciduous"]
+sensor_array = ["tropism_standard"]
+
+[plan.floater]
+phylum = "seed"
+frame = "vascular"
+medium = "water"
+class_name = "Lemnae"
+slots = ["frond", "root", "display"]
+[plan.floater.generics]
+support = ["frond_free"]
+feeding_organ = ["C3_foliage"]
+signal = ["flower_inconspicuous"]
+dispersal = ["water_buoyant", "clonal_spread", "wind_dust"]
+defense = ["none"]
+storage = ["none", "endosperm"]
+covering = ["cuticle_waxy"]
+phenology = ["evergreen", "ephemeral"]
+sensor_array = ["tropism_standard"]
+
+[plan.macroalgae_holdfast]
+phylum = "spore"
+frame = "nonvascular"
+medium = "water"
+class_name = "Algae"
+slots = ["holdfast", "stipe", "blade", "sorus"]
+[plan.macroalgae_holdfast.generics]
+support = ["holdfast_stipe", "crust_holdfast"]
+feeding_organ = ["C3_foliage"]
+signal = ["spore_mass"]
+dispersal = ["spore_wind", "water_buoyant"]
+defense = ["none", "chemical_tannins"]
+storage = ["none"]
+covering = ["none"]
+phenology = ["evergreen", "ephemeral"]
+sensor_array = ["tropism_standard"]
+
+[plan.coral_grade]
+phylum = "spore"
+frame = "sessile_colonial"
+medium = "water"
+class_name = "Corallia"
+slots = ["colony", "polyp", "skeleton"]
+[plan.coral_grade.generics]
+support = ["skeleton_massive", "skeleton_branching", "skeleton_plating",
+           "skeleton_encrusting", "soft_body"]
+feeding_organ = ["C3_foliage", "carnivore_trap"]
+signal = ["coral_spawn"]
+dispersal = ["water_buoyant"]
+defense = ["none", "chemical_alkaloids", "spines"]
+storage = ["none"]
+covering = ["none"]
+phenology = ["synchronous_mass", "evergreen"]
+sensor_array = ["tropism_standard"]
+
+[plan.sponge_grade]
+phylum = "spore"
+frame = "sessile_colonial"
+medium = "water"
+class_name = "Spongiae"
+slots = ["body", "ostia"]
+[plan.sponge_grade.generics]
+support = ["body_encrusting", "body_tube", "body_barrel"]
+feeding_organ = ["carnivore_trap"]
+signal = ["coral_spawn"]
+dispersal = ["water_buoyant"]
+defense = ["none", "spines", "chemical_alkaloids"]
+storage = ["none"]
+covering = ["none"]
+phenology = ["evergreen"]
+sensor_array = ["tropism_standard"]
+
+[plan.fungus]
+phylum = "decomposer"
+frame = "fungal"
+medium = "land"
+class_name = "Fungi"
+slots = ["mycelium", "fruiting_body"]
+[plan.fungus.generics]
+support = ["mycelium_network"]
+feeding_organ = ["saprotroph_mycelium", "mycoheterotroph",
+                 "parasitic_haustoria"]
+signal = ["mushroom_fruiting_body", "spore_mass"]
+dispersal = ["spore_wind", "fleshy_reward", "clonal_spread"]
+defense = ["none", "chemical_alkaloids", "chemical_cardiac"]
+storage = ["none", "tuber"]
+covering = ["none"]
+phenology = ["ephemeral", "evergreen"]
+sensor_array = ["tropism_standard"]
+
+[plan.lichen]
+phylum = "decomposer"
+frame = "fungal"
+medium = "land"
+class_name = "Lichenes"
+slots = ["thallus", "apothecia"]
+[plan.lichen.generics]
+support = ["crustose", "foliose", "fruticose"]
+feeding_organ = ["C3_foliage"]
+signal = ["spore_mass"]
+dispersal = ["spore_wind", "clonal_spread", "wind_dust"]
+defense = ["none", "chemical_alkaloids"]
+storage = ["none"]
+covering = ["none"]
+phenology = ["evergreen"]
+sensor_array = ["tropism_standard"]

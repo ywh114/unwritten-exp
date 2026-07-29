@@ -947,6 +947,188 @@ test("wind overlay responds to month-mask changes", async () => {
   await new Promise((r) => setTimeout(r, 400));
 });
 
+// ── New tests: ice-cover + seasonal-river tooltips ──
+
+// Hover a specific world pixel and return the tooltip text. Zooms the
+// view into the pixel first so 1-px targeting is exact at any scale.
+async function tooltipAtWorldPixel(wx, wy) {
+  await page.evaluate(({ wx, wy }) => {
+    const S = window._S;
+    const c = document.querySelector("canvas");
+    const r = c.getBoundingClientRect();
+    S.scale = 8;
+    S.ox = 200 - (wx + 0.5) * S.scale;
+    S.oy = 200 - (wy + 0.5) * S.scale;
+    const ev = new MouseEvent("mousemove", {
+      clientX: r.left + 200, clientY: r.top + 200, bubbles: true,
+    });
+    c.dispatchEvent(ev);
+  }, { wx, wy });
+  await new Promise((r) => setTimeout(r, 500));
+  return page.evaluate(() => {
+    const tt = document.getElementById("tooltip");
+    return { text: tt.textContent, display: tt.style.display,
+             html: tt.innerHTML };
+  });
+}
+
+test("ice cover appears in tooltip over frozen ocean pixel", async () => {
+  // Find an ocean pixel with substantial January sea ice (seed-1 bundle
+  // carries seaice_monthly)
+  const px = await page.evaluate(() => {
+    const S = window._S;
+    const [W, H] = S.shape;
+    const si = S.monthly.seaice_monthly;
+    const [FH, FW] = S.monthly._shapes.seaice_monthly;
+    const sc = W / FW;
+    for (let i = 0; i < W * H; i += 7) {
+      if (S.fields.ocean[i] !== 1) continue;
+      const wx = i % W, wy = Math.floor(i / W);
+      const fi = Math.floor(wy / sc) * FW + Math.floor(wx / sc);
+      if (si[0 * FW * FH + fi] > 0.3) return { wx, wy };
+    }
+    return null;
+  });
+  if (!px) throw new Error("No frozen ocean pixel found in seed-1 bundle");
+
+  const tt = await tooltipAtWorldPixel(px.wx, px.wy);
+  if (tt.display !== "block") throw new Error("Tooltip not visible over ocean pixel");
+  const m = tt.text.match(/Ice cover \(year\)\s*(\d+)%/);
+  if (!m) throw new Error(`No ice-cover line in tooltip: ${tt.text}`);
+  if (parseInt(m[1], 10) <= 0) throw new Error(`Expected positive ice cover, got: ${m[1]}`);
+  console.log(`  Ocean pixel (${px.wx},${px.wy}): ${m[0]}`);
+});
+
+test("glacier pixel is marked glacier with thickness", async () => {
+  // Find a glacier pixel with substantial thickness (seed-1 bundle
+  // carries the glacier mask bit + glacier_m)
+  const px = await page.evaluate(() => {
+    const S = window._S;
+    const [W, H] = S.shape;
+    if (!S.fields.glacier || !S.fields.glacier_m) return null;
+    let best = null, bestT = 0;
+    for (let i = 0; i < W * H; i += 5) {
+      if (S.fields.glacier[i] !== 1) continue;
+      if (S.fields.glacier_m[i] > bestT) {
+        bestT = S.fields.glacier_m[i];
+        best = { wx: i % W, wy: Math.floor(i / W), t: bestT };
+      }
+    }
+    return best;
+  });
+  if (!px) throw new Error("No glacier pixel found in seed-1 bundle");
+
+  const tt = await tooltipAtWorldPixel(px.wx, px.wy);
+  if (tt.display !== "block") throw new Error("Tooltip not visible over glacier pixel");
+  if (!/glacier/i.test(tt.text)) throw new Error(`Tooltip not marked glacier: ${tt.text}`);
+  const m = tt.text.match(/Glacier ice\s*(\d+)\s*m thick/);
+  if (!m) throw new Error(`No thickness line in tooltip: ${tt.text}`);
+  if (parseInt(m[1], 10) <= 0) throw new Error(`Expected positive thickness, got: ${m[1]}`);
+  // the biome line names it glacier, not generic ice
+  if (!/tt-biome[^>]*>\s*glacier\s*</.test(tt.html)) {
+    throw new Error(`Biome line not marked glacier: ${tt.html}`);
+  }
+  console.log(`  Glacier pixel (${px.wx},${px.wy}): ${m[0]}`);
+});
+
+test("seasonal river pixel never reports River: 0", async () => {
+  // Find a pixel on a seasonal edge: annual river mask 0, but monthly
+  // planes carry water in some (not all) months
+  const px = await page.evaluate(() => {
+    const S = window._S;
+    const [W, H] = S.shape;
+    const mw = S.monthly.river_width_monthly;
+    const [FH, FW] = S.monthly._shapes.river_width_monthly;
+    const plane = FW * FH;
+    const sc = W / FW;
+    for (let i = 0; i < W * H; i++) {
+      if (S.fields.river[i] !== 0) continue;
+      const wx = i % W, wy = Math.floor(i / W);
+      const fi = Math.floor(wy / sc) * FW + Math.floor(wx / sc);
+      let wet = 0, dryM = -1;
+      for (let m = 0; m < 12; m++) {
+        if (mw[m * plane + fi] > 0) wet++;
+        else if (dryM < 0) dryM = m;
+      }
+      if (wet > 0 && wet < 12) return { wx, wy, dryM };
+    }
+    return null;
+  });
+  if (!px) throw new Error("No seasonal river pixel found in seed-1 bundle");
+
+  // All months selected (wet overall): "River: seasonal", not "River: 0"
+  await page.evaluate(() => {
+    window._S.selMonths = new Set([0,1,2,3,4,5,6,7,8,9,10,11]);
+  });
+  let tt = await tooltipAtWorldPixel(px.wx, px.wy);
+  if (tt.display !== "block") throw new Error("Tooltip not visible over seasonal pixel");
+  if (tt.text.includes("River: 0")) {
+    throw new Error(`Seasonal pixel reported as "River: 0": ${tt.text}`);
+  }
+  if (!tt.text.includes("River: seasonal")) {
+    throw new Error(`Expected "River: seasonal" in tooltip: ${tt.text}`);
+  }
+
+  // Solo a dry month: must read "below L0 this month", still not "River: 0"
+  await page.evaluate((dryM) => {
+    window._S.selMonths = new Set([dryM]);
+  }, px.dryM);
+  tt = await tooltipAtWorldPixel(px.wx, px.wy);
+  if (tt.display !== "block") throw new Error("Tooltip not visible over dry seasonal pixel");
+  if (tt.text.includes("River: 0")) {
+    throw new Error(`Dry seasonal pixel reported as "River: 0": ${tt.text}`);
+  }
+  if (!tt.text.includes("River: seasonal (below L0 this month)")) {
+    throw new Error(`Expected "below L0 this month" in tooltip: ${tt.text}`);
+  }
+  console.log(`  Seasonal pixel (${px.wx},${px.wy}), dry month ${px.dryM}: masked+dry cases OK`);
+
+  // Restore month selection
+  await page.evaluate(() => {
+    window._S.selMonths = new Set([0,1,2,3,4,5,6,7,8,9,10,11]);
+    const chips = document.querySelectorAll("#month-chips button");
+    for (let m = 0; m < 12; m++) {
+      if (!chips[m].classList.contains("on")) chips[m].click();
+    }
+  });
+  await new Promise((r) => setTimeout(r, 200));
+});
+
+test("missing lake/river ice fields drop the line without crashing", async () => {
+  // Seed-1 bundle predates lake/river ice export — hovering a lake or
+  // river pixel must produce a normal tooltip with no ice-cover line
+  const px = await page.evaluate(() => {
+    const S = window._S;
+    const [W, H] = S.shape;
+    for (let i = 0; i < W * H; i += 3) {
+      if (S.fields.lake[i] === 1) return { wx: i % W, wy: Math.floor(i / W), kind: "lake" };
+    }
+    return null;
+  });
+  if (!px) throw new Error("No lake pixel found in seed-1 bundle");
+
+  const hasLakeIce = await page.evaluate(() =>
+    !!(window._S.monthly.lakeice_monthly || window._S.monthly.c_lakeice_monthly));
+
+  const tt = await tooltipAtWorldPixel(px.wx, px.wy);
+  if (tt.display !== "block") throw new Error("Tooltip not visible over lake pixel");
+  if (!hasLakeIce && tt.text.includes("Ice cover")) {
+    throw new Error(`Ice-cover line shown without lake ice data: ${tt.text}`);
+  }
+  console.log(`  Lake pixel (${px.wx},${px.wy}): lakeice present=${hasLakeIce}, tooltip OK`);
+});
+
+test("no page errors after tooltip feature tests", async () => {
+  if (page._consoleErrors.length > 0) {
+    throw new Error(`console errors: ${page._consoleErrors.join("; ")}`);
+  }
+  if (page._pageErrors.length > 0) {
+    throw new Error(`page errors: ${page._pageErrors.join("; ")}`);
+  }
+  // Restore a sane view for any later runs
+  await page.evaluate(() => { fitMap(); render(); });
+});
+
 // ── main ──
 
 async function main() {

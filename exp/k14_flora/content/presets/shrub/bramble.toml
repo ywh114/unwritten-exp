@@ -1,0 +1,95 @@
+# Shrub preset: bramble — the scrambling thicket archetype
+
+[preset]
+id = "shrub.bramble"
+plan = "shrub"
+grade = "bramble"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 2.0
+woodiness = 0.7
+wood_density = 0.55
+growth_rate = 0.8
+longevity_yr = 15.0
+shade_tolerance = 0.5
+pioneer_climax = 0.3
+layer = "shrub"
+halle_axes = "polyaxial"
+halle_growth = "rhythmic"
+halle_flowering = "lateral"
+halle_branching = "sympodial"
+halle_orientation = "plagiotropic"
+apical_dominance = 0.3
+branch_angle = 60.0
+tier_spacing_m = 0.3
+leaf_shape = "ovate"
+leaf_size_cm = 8.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "serrate"
+leaf_compoundness = "palmate"
+leaf_sla = 15.0
+drip_tips = 0.0
+root_type = "fibrous"
+root_depth_m = 0.8
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "radial"
+flower_color = "white"
+flower_size_mm = 20.0
+inflorescence = "panicle"
+pollination_syndrome = "bee"
+sexuality = "perfect"
+fruit_type = "aggregate"
+dispersal_channels = { local = 0.2, wind = 0.0, water = 0.0, animal = 0.7, jump = 0.1 }
+propagule_mass_mg = 10.0
+seed_bank = "persistent"
+serotiny = "no"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "prickle"
+chemical_defense = "none"
+defense_potency = 0.5
+storage_organ = "none"
+clonal_spread_m = 3.0
+succulence = 0.0
+bark_thickness_cm = 0.3
+cuticle_thickness = 0.3
+pubescence = 0.2
+leafout_month = 3
+deciduous_trigger = "winter"
+bloom_start_month = 5
+bloom_length_months = 3.0
+fruit_month = 8
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.4
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.3
+fertility_requirement = 0.5
+growing_season_req = 5.0
+fire_strategy = "resprouter"
+engineer_impact = 0.3
+coloniality = 0.7
+
+[niche]
+temp_opt_c = 14
+temp_breadth_c = 8.0
+moisture_opt = 0.6
+moisture_breadth = 0.25
+
+[generics]
+support = "multi_stem_woody"
+feeding_organ = "C3_foliage"
+signal = "flower_showy"
+dispersal = "fleshy_reward"
+defense = "prickles"
+storage = "none"
+covering = "bark_thin"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

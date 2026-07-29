@@ -1,0 +1,95 @@
+# Tree preset: palm — the tropical monoaxial unbranched archetype
+
+[preset]
+id = "tree.palm"
+plan = "tree"
+grade = "palm"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 20.0
+woodiness = 1.0
+wood_density = 0.4
+growth_rate = 0.5
+longevity_yr = 100.0
+shade_tolerance = 0.4
+pioneer_climax = 0.4
+layer = "canopy"
+halle_axes = "monoaxial"
+halle_growth = "continuous"
+halle_flowering = "terminal"
+halle_branching = "monopodial"
+halle_orientation = "orthotropic"
+apical_dominance = 1.0
+branch_angle = 10.0
+tier_spacing_m = 0.05
+leaf_shape = "frond"
+leaf_size_cm = 300.0
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_compoundness = "pinnate"
+leaf_sla = 8.0
+drip_tips = 0.6
+root_type = "adventitious"
+root_depth_m = 1.5
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "radial"
+flower_color = "cream"
+flower_size_mm = 5.0
+inflorescence = "panicle"
+pollination_syndrome = "bee"
+sexuality = "monoecious"
+fruit_type = "drupe"
+dispersal_channels = { local = 0.4, wind = 0.0, water = 0.1, animal = 0.5, jump = 0.05 }
+propagule_mass_mg = 20000.0
+seed_bank = "transient"
+serotiny = "no"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.05
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "endosperm"
+clonal_spread_m = 0.0
+succulence = 0.0
+bark_thickness_cm = 2.0
+cuticle_thickness = 0.5
+pubescence = 0.1
+leafout_month = 1
+deciduous_trigger = "none"
+bloom_start_month = 1
+bloom_length_months = 12.0
+fruit_month = 12
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.3
+salinity_tolerance = 0.3
+waterlogging_tolerance = 0.4
+fertility_requirement = 0.5
+growing_season_req = 12.0
+fire_strategy = "avoider"
+engineer_impact = 0.3
+coloniality = 0.2
+
+[niche]
+temp_opt_c = 26
+temp_breadth_c = 6.0
+moisture_opt = 0.7
+moisture_breadth = 0.2
+
+[generics]
+support = "trunk_single"
+feeding_organ = "C3_foliage"
+signal = "flower_showy"
+dispersal = "fleshy_reward"
+defense = "none"
+storage = "endosperm"
+covering = "bark_thin"
+phenology = "evergreen"
+sensor_array = "tropism_standard"

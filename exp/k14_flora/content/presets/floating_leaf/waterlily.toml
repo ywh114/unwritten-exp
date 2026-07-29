@@ -1,0 +1,81 @@
+# Floating Leaf preset: waterlily — the floating-leaf archetype
+
+[preset]
+id = "floating_leaf.waterlily"
+plan = "floating_leaf"
+grade = "waterlily"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.1
+woodiness = 0.0
+growth_rate = 0.3
+longevity_yr = 20.0
+shade_tolerance = 0.2
+pioneer_climax = 0.4
+layer = "aquatic_surface"
+leaf_shape = "cordate"
+leaf_size_cm = 30.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "entire"
+leaf_sla = 15.0
+root_type = "fibrous"
+root_depth_m = 0.5
+root_special = "none"
+mycorrhizal = "none"
+n_fixation = "none"
+flower_symmetry = "radial"
+flower_color = "white"
+flower_size_mm = 120.0
+inflorescence = "solitary"
+pollination_syndrome = "beetle"
+sexuality = "perfect"
+fruit_type = "berry"
+dispersal_channels = { local = 0.3, wind = 0.0, water = 0.6, animal = 0.0, jump = 0.1 }
+propagule_mass_mg = 20.0
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "rhizome"
+clonal_spread_m = 1.0
+succulence = 0.0
+cuticle_thickness = 0.8
+pubescence = 0.0
+leafout_month = 4
+deciduous_trigger = "winter"
+bloom_start_month = 6
+bloom_length_months = 3.0
+fruit_month = 9
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "hydrophyte"
+drought_tolerance = 0.0
+salinity_tolerance = 0.05
+waterlogging_tolerance = 1.0
+fertility_requirement = 0.5
+growing_season_req = 5.0
+engineer_impact = 0.5
+coloniality = 0.6
+
+[niche]
+temp_opt_c = 20
+temp_breadth_c = 8.0
+moisture_opt = 0.95
+moisture_breadth = 0.05
+
+[generics]
+support = "rhizome_submerged"
+feeding_organ = "C3_foliage"
+signal = "flower_showy"
+dispersal = "water_buoyant"
+defense = "none"
+storage = "rhizome"
+covering = "cuticle_waxy"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

@@ -129,6 +129,35 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     if sink is not None:
         sink.write(6, load_stage_draw(6, bag))
         sink.write(7, load_stage_draw(7, bag))
+    _step("glaciers + glacial terrain (one-shot)")
+    # Detect the ice on the pass-1 routing + climate, then let the land
+    # respond ONCE (erosion/deposition/ice raise) and re-route the water
+    # over the responded terrain. Detection is not repeated afterwards —
+    # refine_hydrology receives the state and reuses it (no iteration
+    # loop: the climate that made the ice saw the pre-glacial terrain,
+    # that second-order feedback is deliberately skipped).
+    from exp.k11_worldgen.hydrology import detect_glaciers, glacial_terrain
+    gstate = detect_glaciers(hydro, climate1)
+    if gstate is not None:
+        elev2, g_changed = glacial_terrain(elev, {**hydro, **gstate},
+                                           SEA_LEVEL)
+        if g_changed:
+            elev = elev2
+            bag["elev"] = elev
+            ocean_prev = ocean_mask
+            ocean_mask = connected_ocean(elev, SEA_LEVEL)
+            hydro = build_hydrology(elev, ocean_mask, sea_level=SEA_LEVEL,
+                                    seed=seed)
+            bag["hydro"] = hydro
+            if not np.array_equal(ocean_mask, ocean_prev):
+                # moraine/outwash changed the coastline — the current
+                # solve's boundary moved (same K1 streams, deterministic)
+                currents = build_currents(elev, ocean_mask, SEA_LEVEL,
+                                          seed=seed)
+                bag["currents"] = currents
+        # the glacier state travels WITH hydrology from here on —
+        # biomes (ice override), refine (melt), persistence all read it
+        hydro.update(gstate)
     _step("pass 1: biomes + forest cover")
     biome1, _sim1 = classify_biomes(elev, hydro, climate1, SEA_LEVEL)
     bag["biome_map"] = biome1
@@ -153,7 +182,8 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     _step("pass 2: hydrology conditioned on climate")
     bag["hydro1_lake"] = hydro["lake_mask"].copy()
     bag["hydro1_river"] = hydro["river_mask"].copy()
-    hydro = refine_hydrology(hydro, elev, climate1, SEA_LEVEL, seed=seed)
+    hydro = refine_hydrology(hydro, elev, climate1, SEA_LEVEL, seed=seed,
+                             glacier_state=gstate)
     bag["hydro"] = hydro
     if sink is not None:
         sink.write(10, load_stage_draw(10, bag))
@@ -171,6 +201,13 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     hydro["discharge"] = flow_accumulation(
         hydro["w_route"], hydro["flow_dir"], hydro["flat_depth"],
         weight=climate["P"])
+    # the final discharge supersedes refine's — refresh the annual speed
+    # to match (same K1 stream: the per-cell jitter draw is identical)
+    from exp.k11_worldgen.hydrology import river_speed, speed_jitter
+    hydro["river_speed"] = river_speed(
+        hydro["discharge"], hydro["river_mask"], hydro["w_route"],
+        hydro["flow_dir"], SEA_LEVEL,
+        speed_jitter(seed, hydro["river_mask"].shape))
     _step("pass 2: biomes + aquatic + complex")
     biome_map, biome_sim = classify_biomes(elev, hydro, climate, SEA_LEVEL)
     bag["biome_map"] = biome_map
@@ -179,7 +216,10 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
         sink.write(13, load_stage_draw(13, bag))
     cover = forest_cover(biome_map, growing_season_p(climate))
     biome_names = [b["name"] for b in BIOMES]
-    complex_ = derive_complex(hydro, biome_map, biome_names)
+    # THE river network: one month-aware complex — base edges carry
+    # per-month width classes, seasonal edges join or float beside
+    # them (complexify derives the monthly per-cell products too)
+    complex_, edge_monthly = derive_complex(hydro, biome_map, biome_names)
     from exp.k11_worldgen.aquatic import classify_aquatic
     aquatic = classify_aquatic(elev, hydro, climate, SEA_LEVEL,
                                currents=currents)
@@ -189,7 +229,7 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
     return {
         "elev": elev, "plates": plates, "hydro": hydro, "climate": climate,
         "biome_map": biome_map, "biome_sim": biome_sim, "cover": cover,
-        "complex": complex_,
+        "complex": complex_, "edge_monthly": edge_monthly,
         "biome_names": biome_names, "ocean_mask": ocean_mask,
         "aquatic": aquatic, "currents": currents, "volcanoes": volcanoes,
     }
@@ -210,7 +250,8 @@ def run_demo(seed: int, check_determinism: bool = False,
     delivered = upscale_world(world["elev"], world["hydro"], world["climate"],
                               world["complex"], SEA_LEVEL,
                               aquatic=world["aquatic"],
-                              currents=world["currents"])
+                              currents=world["currents"],
+                              edge_monthly=world["edge_monthly"])
     sink.write(15, load_stage_draw(15, {"delivered": delivered}))
     sink.write(16, load_stage_draw(16, {"delivered": delivered}))
     _step("render PNGs")
@@ -328,6 +369,50 @@ def run_demo(seed: int, check_determinism: bool = False,
         "t_mean": float(ann_t.mean()),
         "p_mm_yr": float(precip_mm(delivered["P"])[land_d].mean() * 12),
     }
+    # sea-ice extent over the year (share of ocean cells iced)
+    clim = world["climate"]
+    ocean_m = hydro["ocean_mask"]
+    if ocean_m.any() and "seaice_monthly" in clim:
+        ice_ext = [float(clim["seaice_monthly"][m][ocean_m].mean())
+                   for m in range(12)]
+        climate_trivia["seaice_frac_min"] = min(ice_ext)
+        climate_trivia["seaice_frac_max"] = max(ice_ext)
+        lat_arr = clim["lat"]
+        climate_trivia["lat_span"] = [round(float(lat_arr[-1]), 1),
+                                      round(float(lat_arr[0]), 1)]
+        dl = clim["daylen_monthly"]
+        climate_trivia["pole_daylen_range"] = [
+            round(float(dl[:, 0].min()), 1),
+            round(float(dl[:, 0].max()), 1)]
+    if "snow_monthly" in clim:
+        land_a = ~hydro["ocean_mask"] & ~hydro["lake_mask"]
+        if land_a.any():
+            snow_ann = clim["snow_monthly"].mean(axis=0)
+            climate_trivia["snowpack_max_mean_mm"] = round(
+                float(snow_ann[land_a].max()), 0)
+            melt_m = [float(clim["snowmelt_monthly"][m].sum())
+                      for m in range(12)]
+            climate_trivia["snowmelt_peak_month"] = \
+                int(np.argmax(melt_m)) + 1
+    if "river_monthly" in hydro:
+        seasonal = (hydro["river_monthly"].any(axis=0)
+                    & ~hydro["river_perm"])
+        climate_trivia["seasonal_river_cells"] = int(seasonal.sum())
+    if "glacier_mask" in hydro:
+        climate_trivia["glacier_cells"] = int(hydro["glacier_mask"].sum())
+        # termini: glacier cells whose downstream is not glacier —
+        # the melt/calving fronts
+        from exp.k11_worldgen.hydrology import _D8
+        g = hydro["glacier_mask"]
+        term = 0
+        gm = float(hydro["glacier_melt_monthly"].sum()) \
+            if "glacier_melt_monthly" in hydro else 0.0
+        for y, x in zip(*np.nonzero(g)):
+            d = hydro["flow_dir"][y, x]
+            if d < 0 or not g[y + _D8[d][0], x + _D8[d][1]]:
+                term += 1
+        climate_trivia["glacier_termini"] = term
+        climate_trivia["glacier_melt_mm_yr"] = round(gm, 0)
     salt_cells = int((hydro["salinity"][hydro["lake_mask"]] > 10.0).sum())
     salt_max = (float(hydro["salinity"][hydro["lake_mask"]].max())
                 if hydro["lake_mask"].any() else 0.0)

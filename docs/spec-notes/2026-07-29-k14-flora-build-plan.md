@@ -37,6 +37,43 @@ rounds start. Sources: `specs/unwritten-flora-engine-rfc.md` (v0.1),
 | `exp/k13_treegen/viewer/tree.html` | tree viewer | reused unchanged (reads any K13-shaped JSON) |
 | `exp/k11_worldgen` dumps | world.npz + world.json (read-only) | P6 input only, never pipeline internals |
 
+## Decisions addendum (2026-07-29, owner)
+
+1. **Viewer datapacks.** The K11 map viewer (`exp/k11_worldgen/viewer/map.html`)
+   must accept *datapacks*: self-contained layer bundles that P6 (and every
+   later world-facing layer) exports, displayed as overlays via one unified
+   format — no per-layer viewer code. Format `.k11pack` (same container
+   convention as `.k11view`: magic `"K11P"` | u32 header len | JSON header |
+   raw arrays). The header declares each layer: `{id, label, kind
+   (continuous|categorical|points|vectors), field, dtype, scale/offset,
+   shape, colormap (named ramp or stops), alpha, mask (ocean|land|river|
+   none), unit, month_dim?}`. The viewer renders generically: continuous →
+   colormap ramp, categorical → authored colors, points → markers,
+   vectors → the existing streamline pass on any u/v pair. P6 exports BOTH
+   `derived.npz` (engine form) and `derived.k11pack` (viewer form) — one
+   computation, two serializations.
+2. **Game-dt engine.** The stress/diffusion/movement system (P7–P9) is not a
+   gen-time batch script: it is an engine callable at any delta-t. Gen-time
+   rounds call it with epoch dt; the game calls the SAME code with per-day
+   dt. Consequences: (a) the stress primitive is per (species record, cell,
+   month) — rounds integrate over months, the game queries the current
+   date; (b) range/cover state is explicit and serializable (npz), no
+   hidden gen-time-only precompute the game cannot reconstruct; (c) all
+   stochastic events (jumps, establishment) draw from K1 streams keyed by
+   (seed, step-index), so both regimes are deterministic and replayable;
+   (d) movement budgets (chamfer geodesic, taper) scale with dt, never
+   hard-coded per-round;
+   (e) three clocks (owner 2026-07-29), and the ecology clock IS the game
+   tick: the global state steps at coarse cadence (seasonal); the player
+   region steps every game tick; entity AI runs on a third, SUBTICK clock
+   (individuals decide multiple times per tick — cheapest, smallest
+   scope: only materialized entities near the player). The region is
+   never a closed box — each tick it receives boundary influx driven by
+   the coarse state just outside (propagule pressure x the movement
+   operator across the boundary ring), so entities keep ENTERING an
+   already-collapsed region in real time. Collapsing/expanding a region
+   only changes representation, never freezes dynamics.
+
 ## Modules
 
 ### P0 — skeleton & contracts (S)
@@ -134,44 +171,62 @@ guaranteed naming where named, frozen axes excl. derived), `__main__.py`
 Acceptance: `uv run python -m exp.k14_flora 1` writes JSON+report OK.
 
 ### P6 — derived-products layer D0 (M) — world-facing
-`world/{derived.py, manifest}`. Reads a K11 dump (seed dir), writes
-`derived.npz` next to it: vent field + hot-spring points, river-speed
-field, waterfalls/rapids point list (drop, Strahler, basin), marine
-productivity (monthly, upwelling advected + river plumes), soil fertility,
-freshwater productivity, growing-season length. All single-pass raster/
-graph ops on the 1024²/256² fields.
-Acceptance: on seed-1 dump — deterministic rerun; waterfalls only on
-river cells with real drops; productivity > 0 at upwelling cells (r_rise_m
-maxima); soil fertility peaks on low-HAND high-accumulation cells.
-Budget ≤ 5 s.
+`world/{derived.py, datapack.py}`. Reads a K11 dump (via
+`exp.artifacts.require("k11", seed)`), writes `derived.npz` + `manifest.json`
+to `exp/k14_flora/out/world/seed_NNNNNNNN/` (gitignored; K11 out/ stays
+producer-pure), AND `derived.k11pack` (decision 1: vent/hot-spring points,
+waterfall points, marine/freshwater productivity, soil fertility,
+river-speed as viewer layers). Contents: vent field + hot-spring points,
+river-speed field, waterfalls/rapids point list (drop, Strahler, basin),
+marine productivity (monthly, upwelling advected + river plumes), soil
+fertility, freshwater productivity, growing-season length. All single-pass
+raster/graph ops on the 1024²/256² fields; growing-season/HAND re-exported
+from K11's own products, never recomputed.
+Acceptance: on seed-1 dump — deterministic rerun (manifest hashes match);
+waterfalls only on river cells with real drops; productivity > 0 at
+upwelling cells (r_rise_m maxima); soil fertility peaks on low-HAND
+high-accumulation cells; the .k11pack drops onto map.html and renders all
+layers with tooltips. Budget ≤ 5 s.
 
 ### P7 — flora stress field (M)
-`world/stress.py`: per species, 24-dim month-vector distance + flora
-extension axes (salinity band, HAND, growing season, fertility from D0) →
-stress raster → passable/costly/blocked masks (leaky thresholds, no hard
-cuts). Vectorized per species; shared precompute per world.
+`world/stress.py`: the stress PRIMITIVE is per (species record, cell,
+month) — 24-dim month-vector distance + flora extension axes (salinity
+band, HAND, growing season, fertility from D0) → per-cell cost, then
+passable/costly/blocked masks (leaky thresholds, no hard cuts). Rounds
+integrate the primitive over 12 months; the game queries one date
+(decision 2). Vectorized per species; shared precompute per world is
+explicit and persisted (game-loadable).
 Acceptance: a mangrove-grade species passes exactly the high-HAND coastal
-band of seed 1; a xeric-grade fails wetlands; determinism.
+band of seed 1; a xeric-grade fails wetlands; determinism; same primitive
+callable with month=m for arbitrary m.
 
 ### P8 — dispersal F1 (L) — the sim-diff beachhead
 `world/dispersal.py`: range update per species = stress mask ∩ chamfer
-geodesic budget ∩ analytic taper. Channels: local chamfer; wind (release
-month → stored monthly wind field lookup + windbreak shadow); water
-(downstream-only geodesic along flow_dir, lodge at low-velocity, waterfalls
-hard upstream barrier); rare jumps (seeded, clade jump-rate axis). Animal
-channel = zero-weight stub (reserved). Output: per-genus range masks at
-1024², persisted npz + a colonization PNG (hero visualization).
+geodesic budget ∩ analytic taper, as a dt-parameterized STEP (decision 2:
+gen rounds call step(state, dt=epoch); the game calls step(state,
+dt=day); budgets scale with dt, stochastic draws keyed (seed, step)).
+Channels: local chamfer; wind (release month → stored monthly wind field
+lookup + windbreak shadow); water (downstream-only geodesic along
+flow_dir, lodge at low-velocity, waterfalls hard upstream barrier); rare
+jumps (seeded, clade jump-rate axis). Animal channel = zero-weight stub
+(reserved). State (per-genus range masks at 1024²) is explicit npz,
+persisted + a colonization PNG (hero visualization) + a .k11pack
+(decision 1: range masks as categorical/continuous overlays).
 Acceptance: ranges never cross own blocked mask except via jumps; two
 same-climate separated coasts get related-but-distinct floras on ≥1 seed;
 water-riding species never appear upstream of a waterfall within its
-basin; byte-identical replay; ≤ 10 s for ~500 genera on seed 1.
+basin; byte-identical replay in BOTH dt regimes; ≤ 10 s for ~500 genera
+on seed 1.
 
 ### P9 — competition/cover/succession + provisions (L) — sim-diff core
 `world/cover.py`: layered capacity (canopy/shrub/sward/ground),
 establishment vs incumbents (suitability margin, trace abundance below),
 negative density dependence (`suit − k·share`, k × (1−site_stress)),
-disturbance reset + one-pass recolonization (pioneers first). Output:
-per-cell cover mix by layer + provisions (from P3 provision profile).
+disturbance reset + one-pass recolonization (pioneers first) — also a
+dt-parameterized engine step (decision 2: the game's per-day tick uses
+the same establishment/competition operators with small dt). Output:
+per-cell cover mix by layer + provisions (from P3 provision profile) +
+a .k11pack (decision 1: layer cover mixes as overlays).
 Acceptance: harsh cells → few dominants + diverse understory, benign →
 co-dominants (emergent gradient, measured on seed 1); trace species
 present-but-no-cover recorded; provisions match species mix; ≤ 8 s.

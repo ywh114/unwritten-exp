@@ -28,8 +28,10 @@ convects where the air is hot (Hadley-cell thunderstorms);
 the monsoon is driven by the ACTUAL land–sea temperature anomaly per
 month (temperature is computed first and transported along the
 low-layer wind — maritime moderation reaches downwind);
-refine_climate() runs damped conditioning rounds — snow-albedo
-feedback and evaporative/cloud cooling adjust T given P. Forest
+refine_climate() runs damped conditioning rounds — evaporative/cloud
+cooling and vegetation adjust T given P; snow/ice albedo is a separate
+world-grid round on the REAL cover fields (solar.albedo_round, one
+damped application, then the cover fields are recomputed). Forest
 feedback (evapotranspiration, interception, windbreak) is a
 SECOND-ORDER input: pass 1 runs bare-ground, and the coarse pipeline
 rerun (pass 2) supplies the real cover from the biome pass.
@@ -593,36 +595,34 @@ def _scale_precip(P_raw: np.ndarray, gain: float, belt: np.ndarray) -> np.ndarra
     return np.clip(P_raw * gain, 0.0, 1.0) * belt
 
 
-def refine_climate(T_m: np.ndarray, P_m: np.ndarray, T_lat: np.ndarray,
+def refine_climate(T_m: np.ndarray, P_m: np.ndarray,
                    green: np.ndarray | None = None,
                    relaxation: float = 0.7) -> np.ndarray:
     """2nd-order conditioning round: recalculate T
-    conditioned on P, snow cover, and vegetation, taking the one-pass
+    conditioned on P and vegetation, taking the one-pass
     output as the prior. Single DAMPED round — conditioning, not
     simulation; never iterated to convergence (feedback runaway is
     bounded by the relaxation factor and the small coefficients).
 
-    - snow-albedo feedback: sub-zero months carry snow; snow cools,
-      more under stronger sun (equatorward, proxied by T_lat)
     - evaporative/cloud cooling: wet months are cooler
     - vegetation (when `green` is supplied — the second-order rerun):
-      canopy MASKS snow (a boreal forest floor under snow is dark, so
-      forests lose less heat to the snow-albedo feedback than open
-      tundra) and transpiration cools the warm months (the same water
+      transpiration cools the warm months (the same water
       cycle the precipitation pass sees, from the temperature side)
     - cloud swing damping: wet cells have their seasonal swing shrunk
       toward their own annual mean (maritime character)
+
+    Snow/ice albedo is NOT here: at the coarse grid the real cover
+    fields do not exist yet (a T<_FREEZE proxy double-cooled against
+    the real round). It runs at the world grid with the actual
+    snowpack/ice/insolation fields — solar.albedo_round, called from
+    build_climate.
     """
-    snow = T_m < _FREEZE
-    sun = 0.4 + 0.6 * T_lat                      # stronger sun equatorward
-    d_alb = 0.10 * snow * sun[None, :, :]
     d_veg = 0.0
     if green is not None:
-        d_alb = d_alb * (1.0 - 0.5 * green[None])
         d_veg = (0.04 * green[None]
                  * np.clip((T_m - _FREEZE) / 0.2, 0.0, 1.0))
     d_evap = 0.03 * P_m
-    T_ref = T_m - relaxation * (d_alb + d_evap + d_veg)
+    T_ref = T_m - relaxation * (d_evap + d_veg)
     T_ann = T_ref.mean(axis=0)
     T_ref = T_ann[None] + (T_ref - T_ann[None]) * (1.0 - 0.15 * P_m)
     return np.clip(T_ref, 0.0, 1.0)
@@ -959,12 +959,18 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
         green=green_w, soil_m=soil_p)
     P_raw = _hi(P_raw)
     P_m = _scale_precip(P_raw, gain, belt)
-    # conditioning round: T adjusted given P, snow cover, vegetation
-    T_m = refine_climate(T_m, P_m, T_lat, green=green)
+    # conditioning round: T adjusted given P and vegetation
+    T_m = refine_climate(T_m, P_m, green=green)
+    # final soil schedule from the DELIVERED T/P: the bucket's standing
+    # moisture is the baseflow reservoir the second hydrology round
+    # reads (rivers do not vanish in dry months — the soil keeps
+    # leaking to streams). Persisted first-class, never re-derived.
+    soil_m = _soil_schedule(P_m, T_m)
 
     # upsample the monthly means to the world grid (smudge pass)
     T_monthly = np.stack([_upsample(np.clip(T_m[m], 0, 1), (H, W)) for m in range(12)])
     P_monthly = np.stack([_upsample(np.clip(P_m[m], 0, 1), (H, W)) for m in range(12)])
+    soil_monthly = np.stack([_upsample(soil_m[m], (H, W)) for m in range(12)])
 
     # metric wind: internal advection units -> m/s. Earth's mean
     # surface wind over ocean is ~7 m/s (WIND_MEAN_OCEAN_MS); the
@@ -983,6 +989,40 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     wind_v = (wind_v * wscale).astype(np.float32)
 
     alt = np.clip((elev - sea_level) / (1.0 - sea_level), 0.0, 1.0)
+    # solar geometry + freezing (persisted first-class — downstream
+    # never re-derives sunlight): row latitude (model field — see
+    # solar.py), monthly day length / insolation, sea/lake ice cover
+    from exp.k11_worldgen.solar import (
+        FREEZE_FRESH_C, FREEZE_SEA_C, albedo_round, day_length,
+        ice_fraction, insolation, river_ice_fraction, row_latitude,
+        snow_pack)
+    lat_deg = row_latitude(
+        H, realistic, resolve_center_lat(seed, center_lat), H * cell_km,
+        shrink, north_cold=(t_span > 0))
+    land_mask = ~hydro["ocean_mask"] & ~hydro["lake_mask"]
+    insol = insolation(lat_deg)
+    snow_m, melt_m, snowfall_m, meltpot_m = snow_pack(
+        T_monthly, P_monthly, land_mask)
+    # snow/ice-albedo feedback — ONE damped round with the real cover
+    # fields (the coarse refine_climate never saw them): white cover
+    # rejects the sun the temperature was built from; the snow/ice
+    # fields are then recomputed from the adjusted temperature
+    seaice = ice_fraction(T_monthly, hydro["ocean_mask"], FREEZE_SEA_C)
+    lakeice = ice_fraction(T_monthly, hydro["lake_mask"], FREEZE_FRESH_C)
+    T_monthly = albedo_round(T_monthly, snow_m, seaice, lakeice,
+                             insol, land_mask)
+    snow_m, melt_m, snowfall_m, meltpot_m = snow_pack(
+        T_monthly, P_monthly, land_mask)
+    # river ice: the fresh-water freeze band gated by the persisted
+    # reach-average speed (slow reaches freeze, rapids stay open). Pass 1
+    # has no speed field yet (refine_hydrology computes it) — zeros
+    # there, the pass-2 rerun writes the real field.
+    speed_m = hydro.get("river_speed_monthly")
+    if speed_m is not None and "river_mask" in hydro:
+        riverice = river_ice_fraction(
+            T_monthly, hydro["river_mask"], speed_m).astype(np.float32)
+    else:
+        riverice = np.zeros((12, H, W), dtype=np.float32)
     return {
         "T_monthly": T_monthly,
         "P_monthly": P_monthly,
@@ -990,6 +1030,34 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
         "P": P_monthly.mean(axis=0),
         "alt": alt,
         "gain": gain,
+        # latitude is a MODEL field (flat world): signed degrees per
+        # row, (H,); day length and insolation are row fields, (12, H)
+        "lat": lat_deg.astype(np.float32),
+        "daylen_monthly": day_length(lat_deg).astype(np.float32),
+        "insol_monthly": insol.astype(np.float32),
+        # monthly ice-cover fraction on sea / lake cells, (12, H, W)
+        "seaice_monthly": ice_fraction(
+            T_monthly, hydro["ocean_mask"], FREEZE_SEA_C
+            ).astype(np.float32),
+        "lakeice_monthly": ice_fraction(
+            T_monthly, hydro["lake_mask"], FREEZE_FRESH_C
+            ).astype(np.float32),
+        # monthly ice-cover fraction on river cells, (12, H, W) —
+        # speed-gated: slow reaches freeze, rapids stay open
+        "riverice_monthly": riverice,
+        # snowpack (mm water-equivalent) + meltwater release on land —
+        # a bucket with memory: the spring melt pulse is what the
+        # second hydrology round turns into snowmelt rivers. Snowfall
+        # and melt potential are persisted too — the glacier pass
+        # (hydrology.glacier_flow) reads the partition, it does not
+        # re-derive it.
+        "snow_monthly": snow_m.astype(np.float32),
+        "snowmelt_monthly": melt_m.astype(np.float32),
+        "snowfall_monthly": snowfall_m.astype(np.float32),
+        "meltpot_monthly": meltpot_m.astype(np.float32),
+        # standing soil moisture per month (normalized-P units) — the
+        # baseflow reservoir for the monthly river networks
+        "soil_monthly": soil_monthly.astype(np.float32),
         # the weather pattern proper: N fluid-simulated surface-wind
         # snapshots per month at the coarse grid, in M/S (see the
         # calibration above; `wind_scale` is the internal-units

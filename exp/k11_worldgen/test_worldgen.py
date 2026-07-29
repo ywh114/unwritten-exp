@@ -489,25 +489,42 @@ def test_aquatic_classes():
             == t("salt lake")).all()
 
 
-def test_refine_climate_conditions_on_snow_and_rain():
+def test_refine_climate_conditions_on_rain():
     from exp.k11_worldgen.climate import refine_climate
     shape = (16, 16)
-    T_lat = np.linspace(0, 1, 16)[:, None] * np.ones(shape)
     T_m = np.full((12, *shape), 0.5)   # ~2.5 degC all year
-    T_m[0] = 0.3                        # january below freezing
     P_m = np.zeros((12, *shape))
     P_m[6] = 0.8                        # wet july
-    r1 = refine_climate(T_m, P_m, T_lat)
-    r2 = refine_climate(T_m, P_m, T_lat)
+    r1 = refine_climate(T_m, P_m)
+    r2 = refine_climate(T_m, P_m)
     assert np.array_equal(r1, r2)       # deterministic
-    assert (r1[0] < T_m[0]).all()       # snow-albedo cools the freezing month
     assert (r1[6] < T_m[6]).all()       # wet month cools (evap + cloud)
+    assert np.allclose(r1[0], T_m[0])   # dry month: nothing to condition on
     assert r1.min() >= 0.0 and r1.max() <= 1.0
     # uniform rain damps the seasonal swing
     swing = np.stack([np.full(shape, 0.5 + 0.2 * math.cos(2 * math.pi * (m - 6) / 12))
                       for m in range(12)])
-    r3 = refine_climate(swing, np.ones((12, *shape)), T_lat)
+    r3 = refine_climate(swing, np.ones((12, *shape)))
     assert (r3.max(axis=0) - r3.min(axis=0)).mean() < 0.39
+
+
+def test_albedo_round_cools_under_cover():
+    """Snow/ice albedo: covered cells cool in proportion to cover x
+    insolation; bare cells are untouched; single damped round."""
+    from exp.k11_worldgen.solar import ALBEDO_COOL_K, albedo_round
+    shape = (4, 4)
+    T_m = np.full((12, *shape), 0.5)
+    pack = np.zeros((12, *shape))
+    pack[:, :2] = 1000.0                # north half deep snow (full cover)
+    zero = np.zeros((12, *shape))
+    insol = np.full((12, 4), 1.0)
+    land = np.ones(shape, bool)
+    out = albedo_round(T_m, pack, zero, zero, insol, land)
+    assert np.isclose(out[:, 2:].mean(), T_m[:, 2:].mean())   # bare: no change
+    assert np.isclose(out[:, :2].mean(), 0.5 - ALBEDO_COOL_K)  # full cover: -K
+    # no sun -> no cooling even under full cover
+    dark = albedo_round(T_m, pack, zero, zero, np.zeros((12, 4)), land)
+    assert np.array_equal(dark, T_m)
 
 
 def test_thermal_lag_wraps_the_year():
@@ -662,8 +679,8 @@ def test_derive_complex_clean_and_deterministic():
     cl = build_climate(elev, hy, 0.35)
     bm, _sim = classify_biomes(elev, hy, cl, 0.35)
     names = [b["name"] for b in BIOMES]
-    c1 = derive_complex(hy, bm, names)
-    c2 = derive_complex(hy, bm, names)
+    c1 = derive_complex(hy, bm, names)[0]
+    c2 = derive_complex(hy, bm, names)[0]
     assert [n.id for n in c1.nodes.values()] == [n.id for n in c2.nodes.values()]
     fatal = [d for d in audit(c1)
              if d.split(":")[0] in ("dangling_edge", "nodeless_intersection", "isolated_patch")]
@@ -689,7 +706,7 @@ def test_diagonal_crossings_expanded_through_corners():
     hydro = {"river_mask": river, "flow_dir": direction, "w": w,
              "ocean_mask": ocean, "lake_mask": np.zeros(shape, bool),
              "accumulation": np.ones(shape), "width": np.ones(shape, dtype=np.int16)}
-    cx = derive_complex(hydro, np.zeros(shape, int), ["ocean"])
+    cx = derive_complex(hydro, np.zeros(shape, int), ["ocean"])[0]
     defects = audit(cx)
     assert not [d for d in defects if d.startswith("nodeless_intersection")]
 
@@ -718,7 +735,7 @@ def test_deliver_smoke():
     cl = build_climate(elev, hy, 0.35, seed=SEED)
     names = [b["name"] for b in BIOMES]
     bm, _sim = classify_biomes(elev, hy, cl, 0.35)
-    cx = derive_complex(hy, bm, names)
+    cx = derive_complex(hy, bm, names)[0]
     aq = classify_aquatic(elev, hy, cl, 0.35)
     d = upscale_world(elev, hy, cl, cx, 0.35, aq, factor=4)
     H, W = elev.shape
@@ -770,7 +787,7 @@ def test_persist_roundtrip(tmp_path):
     cl = build_climate(elev, hy, 0.35, seed=SEED)
     bm, _sim = classify_biomes(elev, hy, cl, 0.35)
     names = [b["name"] for b in BIOMES]
-    cx = derive_complex(hy, bm, names)
+    cx = derive_complex(hy, bm, names)[0]
     from exp.k11_worldgen.aquatic import classify_aquatic
     from exp.k11_worldgen.currents import build_currents
     aq = classify_aquatic(elev, hy, cl, 0.35)
@@ -879,6 +896,185 @@ def test_refine_hydrology_stream_density_follows_rain():
         assert (q[north_extra] > 2.5 * 0.02 * acc[north_extra]).all()
 
 
+def _refine_monthly(h, p=0.3, melt_spec=None, soil=None):
+    """Bowl-terrain hydro with monthly climate fields. melt_spec:
+    (month, amount, southern_half_only)."""
+    from exp.k11_worldgen.hydrology import (
+        build_hydrology, connected_ocean, refine_hydrology)
+    ocean = connected_ocean(h, 0.35)
+    cl = _flat_climate(h.shape, p, 15.0)
+    cl["P_monthly"] = np.full((12,) + h.shape, p)
+    melt = np.zeros((12,) + h.shape)
+    if melt_spec is not None:
+        m, amt, south = melt_spec
+        if south:
+            melt[m, h.shape[0] // 2:, :] = amt
+        else:
+            melt[m] = amt
+    cl["snowmelt_monthly"] = melt
+    if soil is not None:
+        cl["soil_monthly"] = np.full((12,) + h.shape, soil)
+    return refine_hydrology(build_hydrology(h, ocean, sea_level=0.35,
+                                            seed=SEED),
+                            h, cl, 0.35, seed=SEED)
+
+
+def test_month_aware_complex_one_network():
+    """ONE network: base edges carry monthly width classes (location
+    never changes), seasonal edges join or float beside them, and the
+    monthly per-cell products derive from the edge state."""
+    from exp.k11_worldgen.complexify import derive_complex
+    h = _bowl_terrain()
+    hy = _refine_monthly(h, p=0.2, melt_spec=(4, 400.0, True))
+    cx, em = derive_complex(hy, np.zeros(h.shape, np.uint8), ["x"])
+    assert em                                       # month-aware
+    base = {eid: c for eid, c in em.items()
+            if cx.edges[eid].kind == "river"}
+    seas = {eid: c for eid, c in em.items()
+            if cx.edges[eid].kind == "river_seasonal"}
+    # some base edge is wet all year (emergent permanence)
+    assert any(min(c) >= 1 for c in base.values())
+    # seasonal edges exist and run in the melt month
+    assert seas and any(c[4] >= 1 for c in seas.values())
+    # monthly per-cell products come FROM the edge state
+    assert hy["river_width_monthly"].shape == (12,) + h.shape
+    assert (hy["river_monthly"] == (hy["river_width_monthly"] > 0)).all()
+    assert (hy["river_perm"] == hy["river_monthly"].all(axis=0)).all()
+    # every seasonal edge terminates at a node of the same complex
+    for eid in seas:
+        assert cx.edges[eid].node_b in cx.nodes
+
+
+def test_monthly_rivers_soil_baseflow_keeps_trunks():
+    """No rain, no melt: without the soil term every edge is dry all
+    year; with standing soil moisture the trunk keeps running
+    (baseflow)."""
+    from exp.k11_worldgen.complexify import derive_complex
+    h = _bowl_terrain()
+    hy_dry = _refine_monthly(h, p=0.0)
+    _, em_dry = derive_complex(hy_dry, np.zeros(h.shape, np.uint8), ["x"])
+    assert not hy_dry["river_monthly"].any()        # no water: all dry
+    assert all(max(c) == 0 for c in em_dry.values())
+    hy_wet = _refine_monthly(h, p=0.0, soil=2.0)
+    _, em_wet = derive_complex(hy_wet, np.zeros(h.shape, np.uint8), ["x"])
+    assert hy_wet["river_monthly"].any()            # baseflow runs
+    assert any(min(c) >= 1 for c in em_wet.values())  # ...all year
+
+
+def test_unified_complex_audit_clean():
+    """The month-aware complex (base + seasonal joins/floats) has no
+    mechanical defects: seasonal joins are real nodes, nothing
+    crosses the base network nodelessly."""
+    from exp.k11_worldgen.complexify import derive_complex
+    from kernel.complex.audit import audit
+    h = _bowl_terrain()
+    hy = _refine_monthly(h, p=0.2, melt_spec=(4, 400.0, True))
+    cx, _ = derive_complex(hy, np.zeros(h.shape, np.uint8), ["x"])
+    defects = audit(cx)
+    fatal = [d for d in defects
+             if d.split(":")[0] in (
+                 "dangling_edge", "nodeless_intersection", "isolated_patch")]
+    assert not fatal
+    # every edge's polyline truly connects its OWN nodes — an id
+    # collision leaves a polyline ending far from its node (the
+    # shredded-stamp defect). Mouth edges may extend past node_b into
+    # the receiving water cell, possibly via a diagonal corner (the
+    # waterline render rule), so node_b must appear in the last points.
+    for e in cx.edges.values():
+        assert e.polyline[0] == cx.nodes[e.node_a].pos
+        assert cx.nodes[e.node_b].pos in e.polyline[-3:]
+
+
+def test_glacier_flow_routes_ice_downslope():
+    """Glacier pass: net-growth rows export ice downslope; ablation
+    (unused melt potential) eats it below the equilibrium line; the
+    flux ends at the terminus — or calves at a pit."""
+    from exp.k11_worldgen.hydrology import _D8, glacier_flow
+    H, W = 10, 1
+    direction = np.full((H, W), -1, dtype=int)
+    direction[:9, 0] = _D8.index((1, 0))     # all flow south to a pit
+    flat = np.zeros((H, W))
+    w_route = np.linspace(1.0, 0.0, H)[:, None]
+    land = np.ones((H, W), bool)
+    meltpot = np.zeros((12, H, W))
+    meltpot[6, 4:] = 300.0                   # july heat below row 4
+    melt = np.zeros((12, H, W))
+
+    # big accumulation: the tongue reaches the pit and calves there
+    snowfall = np.zeros((12, H, W))
+    snowfall[:, :4] = 100.0                  # 1200 mm/yr on rows 0-3
+    glacier, flux, ice_melt_m = glacier_flow(
+        direction, flat, w_route, land, snowfall, meltpot, melt)
+    assert glacier[:4].all()                 # the growth zone itself
+    assert glacier.sum() > 4                 # tongue extends below it
+    assert ice_melt_m.sum() <= 4 * 1200.0 + 1e-9
+    assert ice_melt_m[6].sum() > 0           # melts only with potential
+    assert ice_melt_m[:6].sum() == 0 and ice_melt_m[7:].sum() == 0
+
+    # small accumulation: ablation consumes the flux — the cell where
+    # the last ice melts is the melt front, NOT ice-covered year-round
+    snowfall_small = np.zeros((12, H, W))
+    snowfall_small[:, :4] = 50.0 / 12        # 50 mm/yr on rows 0-3
+    g2, f2, im2 = glacier_flow(
+        direction, flat, w_route, land, snowfall_small, meltpot, melt)
+    assert g2[:4].all()                      # the year-round snowfield
+    assert not g2[4:].any()                  # melt front is not glacier
+    assert abs(im2.sum() - 200.0) < 1e-6     # all the ice still melts
+
+    # deterministic
+    g3 = glacier_flow(direction, flat, w_route, land, snowfall,
+                      meltpot, melt)
+    assert np.array_equal(glacier, g3[0]) and np.array_equal(flux, g3[1])
+
+
+def test_river_raster_continuous():
+    """Every base edge renders as a CONTINUOUS stamped path from its
+    start cell to its end cell (8-connected flood). The step-count
+    truncation bug (floor of a fractional span) skipped pixel rows
+    along the walk — 1-px holes along every reach."""
+    from exp.k11_worldgen.complexify import derive_complex
+    from exp.k11_worldgen.deliver import river_raster
+    h = _bowl_terrain()
+    hy = _refine_monthly(h, p=0.2, melt_spec=(4, 400.0, True))
+    cx, _ = derive_complex(hy, np.zeros(h.shape, np.uint8), ["x"])
+    Hh, Wh = h.shape
+    f = 4
+    phantom = (hy["w_route"] - hy["w"]) > 1e-9
+    ov = {e.id: (e.quality if e.kind == "river" else 0.0)
+          for e in cx.edges.values()}
+    width = river_raster(cx, (Hh * f, Wh * f), f, w=hy["w"],
+                         sea_level=0.35, phantom=phantom,
+                         quality_override=ov)
+    mask = width > 0
+    H, W = mask.shape
+    broken = []
+    for e in cx.edges.values():
+        if e.kind != "river":
+            continue
+        sy, sx = int(e.polyline[0][1]), int(e.polyline[0][0])
+        ey, ex = int(e.polyline[-1][1]), int(e.polyline[-1][0])
+        start = [(y, x) for y in range(sy * f, sy * f + f)
+                 for x in range(sx * f, sx * f + f)
+                 if 0 <= y < H and 0 <= x < W and mask[y, x]]
+        seen, stack = set(start), list(start)
+        reached = False
+        while stack and not reached:
+            y, x = stack.pop()
+            if ey * f <= y < ey * f + f and ex * f <= x < ex * f + f:
+                reached = True
+                break
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    ny, nx_ = y + dy, x + dx
+                    if (0 <= ny < H and 0 <= nx_ < W and mask[ny, nx_]
+                            and (ny, nx_) not in seen):
+                        seen.add((ny, nx_))
+                        stack.append((ny, nx_))
+        if not reached:
+            broken.append(e.id)
+    assert not broken
+
+
 def test_strahler_carries_through_lakes():
     from exp.k11_worldgen.hydrology import strahler_order
     # two order-1 headwaters join into order 2, cross a lake, and must
@@ -937,3 +1133,312 @@ def test_volcanoes():
     for i, (y1, x1, *_a) in enumerate(v1):
         for y2, x2, *_b in v1[i + 1:]:
             assert (y1 - y2) ** 2 + (x1 - x2) ** 2 >= 12 ** 2
+
+
+def test_river_speed_manning_and_jitter():
+    """Manning reach speed: positive on-river, zero off-river, monotone
+    in discharge and slope, leaky-capped; jitter deterministic and
+    multiplicative (the sub-grid variance around the reach average)."""
+    from exp.k11_worldgen.hydrology import (
+        SPEED_JITTER, V_RIVER_MAX, river_speed, speed_jitter)
+    H, W = 16, 16
+    sea = 0.35
+    # tilted filled surface falling SOUTH so D8 index 6 = (+1, 0) is
+    # downhill: row 0 high, bottom row low
+    tilt = np.arange(H)[:, None] / (H - 1) * np.ones((1, W))
+    w_route = 0.8 - 0.2 * tilt
+    direction = np.full((H, W), 6, dtype=np.int8)
+    river = np.ones((H, W), bool)
+    dis_low = np.full((H, W), 50.0)
+    dis_high = np.full((H, W), 500.0)
+    v_low = river_speed(dis_low, river, w_route, direction, sea)
+    v_high = river_speed(dis_high, river, w_route, direction, sea)
+    assert (v_low > 0).all() and (v_low <= V_RIVER_MAX).all()
+    assert (v_high > v_low).all()          # more water: deeper, faster
+    steep = 0.8 - 0.4 * tilt
+    v_steep = river_speed(dis_low, river, steep, direction, sea)
+    # steeper: faster, same water (last row self-clips to zero drop —
+    # both sit at the slope floor there)
+    assert (v_steep >= v_low).all() and (v_steep[:-1] > v_low[:-1]).all()
+    assert river_speed(dis_low, np.zeros((H, W), bool), w_route,
+                       direction, sea).max() == 0.0
+    j1 = speed_jitter(7, (H, W))
+    assert np.array_equal(j1, speed_jitter(7, (H, W)))
+    assert not np.array_equal(j1, speed_jitter(8, (H, W)))
+    lo, hi = np.exp(-SPEED_JITTER), np.exp(SPEED_JITTER)
+    assert j1.min() >= lo and j1.max() <= hi
+    assert np.allclose(
+        river_speed(dis_low, river, w_route, direction, sea, j1),
+        v_low * j1)
+
+
+def test_refine_persists_river_speed():
+    """refine_hydrology persists the first-class speed fields: annual
+    (H,W) + monthly (12,H,W), zero off-river, positive on it."""
+    hy = _refine_monthly(_bowl_terrain())
+    rm = hy["river_mask"]
+    assert rm.any()
+    assert hy["river_speed"].shape == rm.shape
+    assert hy["river_speed_monthly"].shape == (12,) + rm.shape
+    assert (hy["river_speed"][rm] > 0).all()
+    assert hy["river_speed"][~rm].max() == 0.0
+    assert hy["river_speed_monthly"][:, ~rm].max() == 0.0
+
+
+def test_glacier_thickness_flux_keyed():
+    """Equilibrium thickness: 0 with no ice, monotone in throughput,
+    leaky-capped at the soft ceiling (never a hard clamp)."""
+    from exp.k11_worldgen.hydrology import THICK_SOFT_M, glacier_thickness
+    assert glacier_thickness(np.zeros((2, 2))).max() == 0.0
+    f = np.array([[1e2, 1e4], [1e6, 1e8]])
+    t = glacier_thickness(f)
+    assert t[0, 0] < t[0, 1] < t[1, 0] < t[1, 1]
+    # above the soft cap tanh leaks slowly, never clips flat: still
+    # (barely) monotone, and bounded well under 2x the cap
+    assert t.max() < 2.0 * THICK_SOFT_M
+
+
+def test_terminus_taper_thins_snout():
+    """The front taper: 0 at the melt front, sqrt ramp to full
+    thickness TAPER_CELLS upstream, 1 off the glacier."""
+    from exp.k11_worldgen.hydrology import TAPER_CELLS, terminus_taper
+    H, W = 24, 24
+    g = np.zeros((H, W), bool)
+    g[2:H - 4, 10:12] = True                  # the strip, flowing south
+    direction = np.full((H, W), 6, dtype=np.int8)   # 6 = south (_D8)
+    scale = terminus_taper(g, direction)
+    term_r = H - 5                            # strip's bottom row
+    assert scale.shape == g.shape
+    assert (scale[~g] == 1.0).all()           # off-glacier untouched
+    assert (scale[term_r, 10:12] == 0.0).all()      # the melt front
+    # sqrt ramp upstream
+    for d in range(1, TAPER_CELLS):
+        want = np.sqrt(d / TAPER_CELLS)
+        assert np.allclose(scale[term_r - d, 10:12], want, atol=1e-6)
+    # far interior: full thickness
+    assert (scale[2:term_r - TAPER_CELLS, 10:12] == 1.0).all()
+    # monotone upstream
+    col = scale[2:term_r + 1, 10]
+    assert (np.diff(col) <= 1e-6).all()
+    # deterministic
+    assert np.array_equal(scale, terminus_taper(g, direction))
+    # a calving margin (downstream not glacier) is a terminus too:
+    # an isolated glacier cell is its own front
+    g2 = np.zeros((H, W), bool)
+    g2[5, 5] = True
+    s2 = terminus_taper(g2, direction)
+    assert s2[5, 5] == 0.0
+
+
+def _glacier_hydro(h, strip_cols=(10, 12), lake_cell=None):
+    """Synthetic glacier state on a south-draining tilt: a flux strip
+    growing downstream, terminus at the strip's bottom end."""
+    from exp.k11_worldgen.hydrology import glacier_thickness
+    H, W = h.shape
+    g = np.zeros((H, W), bool)
+    g[2:H - 4, strip_cols[0]:strip_cols[1]] = True
+    flux = np.zeros((H, W))
+    rows = np.broadcast_to(np.arange(H)[:, None] + 1, (H, W))
+    flux[g] = 1e4 * rows[g]                        # grows downstream
+    lake = np.zeros((H, W), bool)
+    if lake_cell is not None:
+        lake[lake_cell] = True
+    return {
+        "glacier_mask": g,
+        "glacier_flux": flux.astype(np.float32),
+        "glacier_thick_m": glacier_thickness(flux),
+        "flow_dir": np.full((H, W), 6, dtype=np.int8),   # all south
+        "lake_mask": lake,
+        "ocean_mask": np.zeros((H, W), bool),
+    }
+
+
+def test_glacial_terrain_responds_once():
+    """Erosion under ice, deposition at termini (mass-conserving), ice
+    raise by thickness; standing-water beds never eroded; deterministic.
+    """
+    from exp.k11_worldgen.hydrology import glacial_terrain
+    from exp.k11_worldgen.units import ELEV_MAX_M
+    sea = 0.35
+    scale = (1.0 - sea) / ELEV_MAX_M
+    H, W = 24, 24
+    h = 0.6 + 0.1 * (np.arange(H)[:, None] / (H - 1)) * np.ones((1, W))
+    lake_cell = (5, 11)                    # inside the strip
+    hydro = _glacier_hydro(h, lake_cell=lake_cell)
+    g = hydro["glacier_mask"]
+    h2, changed = glacial_terrain(h, hydro, sea)
+    assert changed
+    # ice raise is exactly thickness (minus erosion, plus deposit share)
+    ice_raise = np.where(g, hydro["glacier_thick_m"], 0.0) * scale
+    bed = (h2 - h) - ice_raise             # erosion + deposition only
+    assert bed[g].max() < 0.0 or bed[~g].max() > 0.0
+    # mass conserved: eroded volume == deposited volume (float64
+    # roundoff from the normalization is negligible)
+    assert abs(bed.sum()) < 1e-6 * abs(bed).sum()
+    # the strip's interior erodes (bed drops), the terminus zone gains
+    interior = np.s_[3:H - 8, 10:12]
+    assert bed[interior].mean() < 0.0
+    term_zone = np.s_[H - 6:H - 1, 8:14]
+    assert bed[term_zone].max() > 0.0
+    # the lake bed is never eroded: its change is pure ice raise
+    # (tolerance covers float64 cancellation in h+delta-h, ~1e-4 mm)
+    assert abs(bed[lake_cell]) < 1e-8
+    # deterministic: same inputs, byte-identical output
+    h3, _ = glacial_terrain(h, hydro, sea)
+    assert np.array_equal(h2, h3)
+    # no glacier state: untouched
+    h4, changed4 = glacial_terrain(h, {"glacier_mask": np.zeros_like(g)},
+                                   sea)
+    assert not changed4 and np.array_equal(h4, h)
+
+
+def test_glacier_biome_override():
+    """Cells under flowing ice classify as ice biome even when the
+    month's curves say something warmer."""
+    from exp.k11_worldgen.biomes import BIOME_ID, _apply_overrides
+    H, W = 6, 6
+    b = np.full((H, W), BIOME_ID["temperate grassland"], dtype=np.uint8)
+    gm = np.zeros((H, W), bool)
+    gm[2, 2] = True
+    st = {
+        "ocean_m": np.zeros((H, W), bool),
+        "lake_m": np.zeros((H, W), bool),
+        "river_m": np.zeros((H, W), bool),
+        "alt_m": np.full((H, W), 500.0),
+        "hand_m": np.full((H, W), 50.0),
+        "width": np.zeros((H, W), dtype=np.int16),
+        "T_warm": np.full((H, W), 20.0),
+        "T_cold": np.full((H, W), 5.0),
+        "P_wet": np.full((H, W), 50.0),
+        "glacier_m": gm,
+    }
+    out = _apply_overrides(b, st)
+    assert out[2, 2] == BIOME_ID["ice"]
+    assert (out[gm] == BIOME_ID["ice"]).all()
+    assert (out[~gm] == BIOME_ID["temperate grassland"]).all()
+
+
+def test_glacier_extent_hires_tapers_edges():
+    """Delivered-resolution glacier extent: the interpolated mask
+    re-thresholded at 0.5 — edges and tongue tips render at the fine
+    grid (diagonal, not 4x4 km blocks) while the anchor-level extent
+    decision (area) is preserved."""
+    from exp.k11_worldgen.deliver import glacier_extent_hires
+    factor = 4
+    H, W = 24, 24
+    # a diagonal tongue: 2-cell-wide band along the main diagonal
+    g = np.zeros((H, W), bool)
+    for i in range(4, H - 4):
+        g[i, i] = g[i, i + 1] = True
+    hydro = {"glacier_mask": g}
+    hi = glacier_extent_hires(hydro, factor)
+    assert hi.shape == (H * factor, W * factor)
+    kron = np.kron(g, np.ones((factor, factor), bool))
+    # area preserved (the extent is an anchor-level decision): fine
+    # boundary rounding only, no fattening of a thin tongue
+    assert abs(hi.sum() - kron.sum()) < 0.15 * kron.sum()
+    # not block-aligned: some row's glacier run starts or ends at a
+    # column that is not a multiple of the factor (a kron stamp can
+    # never do that)
+    ragged = 0
+    for row in hi:
+        cols = np.flatnonzero(row)
+        if len(cols) and (cols[0] % factor or (cols[-1] + 1) % factor):
+            ragged += 1
+    assert ragged > 0
+    # deterministic
+    assert np.array_equal(hi, glacier_extent_hires(hydro, factor))
+    # no glacier state -> None
+    assert glacier_extent_hires({}, factor) is None
+
+
+def test_glacier_extent_hires_thins_tapered_tips():
+    """A thin (tapered) snout renders as partial sub-cell cover: the
+    same mask with a thin tip cell extends less far than with a
+    full-thickness tip, while thick margins are unaffected."""
+    from exp.k11_worldgen.deliver import glacier_extent_hires
+    factor = 4
+    H, W = 24, 24
+    g = np.zeros((H, W), bool)
+    g[4:H - 4, 10:12] = True                  # south-flowing strip
+    thick_full = np.where(g, 300.0, 0.0)
+    thick_thin = thick_full.copy()
+    thick_thin[H - 5, 10:12] = 5.0            # tapered snout row
+    hi_full = glacier_extent_hires(
+        {"glacier_mask": g, "glacier_thick_m": thick_full}, factor)
+    hi_thin = glacier_extent_hires(
+        {"glacier_mask": g, "glacier_thick_m": thick_thin}, factor)
+    assert hi_thin.sum() < hi_full.sum()      # the tip shrank
+    # the difference is at the snout, not along the thick margins
+    diff = hi_full & ~hi_thin
+    rows = np.flatnonzero(diff.any(axis=1))
+    assert rows.min() >= (H - 6) * factor
+    # margins unaffected
+    assert np.array_equal(hi_thin[:(H - 7) * factor],
+                          hi_full[:(H - 7) * factor])
+
+
+def test_refine_reuses_glacier_state():
+    """A handed-in glacier state travels into hydro unchanged (the
+    detect-once rule) instead of being re-derived."""
+    from exp.k11_worldgen.hydrology import (
+        build_hydrology, connected_ocean, refine_hydrology)
+    h = _bowl_terrain()
+    H, W = h.shape
+    g = np.zeros((H, W), bool)
+    g[3:5, 3:5] = True
+    state = {
+        "glacier_mask": g,
+        "glacier_flux": np.ones((H, W), dtype=np.float32),
+        "glacier_melt_monthly": np.zeros((12, H, W), dtype=np.float32),
+        "glacier_thick_m": np.ones((H, W), dtype=np.float32) * 100.0,
+    }
+    ocean = connected_ocean(h, 0.35)
+    cl = {"P": np.full(h.shape, 0.3),
+          "T_monthly": np.full((12,) + h.shape, 0.7),
+          "P_monthly": np.full((12,) + h.shape, 0.3),
+          "snowmelt_monthly": np.zeros((12,) + h.shape)}
+    hy2 = refine_hydrology(build_hydrology(h, ocean, sea_level=0.35,
+                                           seed=SEED),
+                           h, cl, 0.35, seed=SEED, glacier_state=state)
+    assert np.array_equal(hy2["glacier_mask"], g)
+    assert np.array_equal(hy2["glacier_thick_m"], state["glacier_thick_m"])
+
+
+def test_detect_glaciers_regional_firn_rule():
+    """The growth zone is REGIONAL: a coherent block of year-round snow
+    forms ice, an isolated marginal speck with the same local surplus
+    does not, and a token-surplus background (most of the year's snow
+    melts) never seeds phantom glaciers."""
+    from exp.k11_worldgen.hydrology import detect_glaciers
+    H, W = 9, 9
+    flow = np.full((H, W), 6, dtype=np.int8)   # all south
+    flow[-1, :] = -1                           # bottom row: pits
+    hydro = {
+        "flow_dir": flow,
+        "flat_depth": np.zeros((H, W)),
+        "w_route": (1.0 - np.arange(H)[:, None] / H) * np.ones((1, W)),
+        "ocean_mask": np.zeros((H, W), bool),
+        "lake_mask": np.zeros((H, W), bool),
+    }
+    sf = np.full((12, H, W), 50.0)         # 600 mm/yr everywhere
+    melt = np.full((12, H, W), 45.0)       # background: 540 melts,
+                                           # token 60 surplus (10%)
+    block = np.s_[2:5, 2:5]
+    melt[:, block[0], block[1]] = 0.0      # coherent firn block
+    melt[:, 7, 7] = 0.0                    # isolated speck, same surplus
+    climate = {
+        "snowfall_monthly": sf.astype(np.float32),
+        "snowmelt_monthly": melt.astype(np.float32),
+        "meltpot_monthly": melt.astype(np.float32),   # no extra ablation
+    }
+    g = detect_glaciers(hydro, climate)
+    gm = g["glacier_mask"]
+    # the block forms ice (corners round off — they are regionally
+    # marginal, that IS the smoothing's job)
+    assert gm[3, 3] and gm[block].sum() >= 7
+    assert not gm[7, 7]                    # the isolated speck is not
+    assert not gm[0, 0]                    # token-surplus background: no
+    assert gm[0, 0] == gm[1, 1] == gm[0, 8] == False
+    # tongue: block ice flows south through background cells
+    assert gm[6, 3] or gm[8, 3]            # downstream of the block

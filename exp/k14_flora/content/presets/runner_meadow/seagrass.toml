@@ -1,0 +1,81 @@
+# Runner Meadow preset: seagrass — the marine meadow archetype
+
+[preset]
+id = "runner_meadow.seagrass"
+plan = "runner_meadow"
+grade = "seagrass"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.5
+woodiness = 0.0
+growth_rate = 0.5
+longevity_yr = 30.0
+shade_tolerance = 0.3
+pioneer_climax = 0.4
+layer = "aquatic_benthic"
+leaf_shape = "linear"
+leaf_size_cm = 30.0
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_sla = 10.0
+root_type = "fibrous"
+root_depth_m = 0.2
+root_special = "none"
+mycorrhizal = "none"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "green"
+flower_size_mm = 3.0
+inflorescence = "solitary"
+pollination_syndrome = "water"
+sexuality = "monoecious"
+fruit_type = "achene"
+dispersal_channels = { local = 0.2, wind = 0.0, water = 0.7, animal = 0.0, jump = 0.1 }
+propagule_mass_mg = 5.0
+seed_bank = "transient"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "rhizome"
+clonal_spread_m = 5.0
+succulence = 0.0
+cuticle_thickness = 0.5
+pubescence = 0.0
+leafout_month = 1
+deciduous_trigger = "none"
+bloom_start_month = 5
+bloom_length_months = 3.0
+fruit_month = 8
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "halophyte"
+drought_tolerance = 0.0
+salinity_tolerance = 0.9
+waterlogging_tolerance = 1.0
+fertility_requirement = 0.4
+growing_season_req = 6.0
+engineer_impact = 0.7
+coloniality = 0.95
+
+[niche]
+temp_opt_c = 18
+temp_breadth_c = 8.0
+moisture_opt = 0.95
+moisture_breadth = 0.05
+
+[generics]
+support = "rhizome_runner"
+feeding_organ = "C3_foliage"
+signal = "flower_inconspicuous"
+dispersal = "clonal_spread"
+defense = "none"
+storage = "rhizome"
+covering = "cuticle_waxy"
+phenology = "evergreen"
+sensor_array = "tropism_standard"

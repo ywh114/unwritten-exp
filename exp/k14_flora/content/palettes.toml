@@ -1,0 +1,65 @@
+# K14 flora — flower-color palettes per plan. Seed plans: full gamut
+# (syndrome-color correlation is a CONSTRAINT, not a palette cut —
+# wind-pollinated lineages stay dull via the constraint rules, not by
+# making red illegal). Spore/decomposer plans: spore-mass colors only.
+# Lint checks preset/pin flower_color against these.
+
+[palette.tree]
+colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
+          "blue", "green", "brown", "black"]
+
+[palette.shrub]
+colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
+          "blue", "green", "brown", "black"]
+
+[palette.herb_forb]
+colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
+          "blue", "green", "brown", "black"]
+
+[palette.grass_sward]
+colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
+          "blue", "green", "brown", "black"]
+
+[palette.rosette_mat]
+colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
+          "blue", "green", "brown", "black"]
+
+[palette.succulent]
+colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
+          "blue", "green", "brown", "black"]
+
+[palette.fern_grade]
+colors = ["green", "brown", "yellow", "cream"]
+
+[palette.moss_grade]
+colors = ["green", "brown", "yellow", "cream"]
+
+[palette.runner_meadow]
+colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
+          "blue", "green", "brown", "black"]
+
+[palette.floating_leaf]
+colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
+          "blue", "green", "brown", "black"]
+
+[palette.floater]
+colors = ["white", "cream", "yellow", "green", "brown"]
+
+[palette.macroalgae_holdfast]
+colors = ["green", "brown", "red", "yellow"]
+
+[palette.coral_grade]
+colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
+          "blue", "green", "brown"]
+
+[palette.sponge_grade]
+colors = ["white", "cream", "yellow", "orange", "red", "purple",
+          "brown", "green"]
+
+[palette.fungus]
+colors = ["white", "cream", "yellow", "orange", "red", "brown", "black",
+          "purple"]
+
+[palette.lichen]
+colors = ["white", "cream", "yellow", "orange", "green", "brown",
+          "black"]

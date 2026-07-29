@@ -1,0 +1,95 @@
+# Tree preset: willow — the riparian archetype
+
+[preset]
+id = "tree.willow"
+plan = "tree"
+grade = "willow"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 15.0
+woodiness = 1.0
+wood_density = 0.45
+growth_rate = 0.8
+longevity_yr = 60.0
+shade_tolerance = 0.25
+pioneer_climax = 0.25
+layer = "canopy"
+halle_axes = "polyaxial"
+halle_growth = "rhythmic"
+halle_flowering = "lateral"
+halle_branching = "monopodial"
+halle_orientation = "plagiotropic"
+apical_dominance = 0.5
+branch_angle = 50.0
+tier_spacing_m = 1.0
+leaf_shape = "linear"
+leaf_size_cm = 10.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "serrate"
+leaf_compoundness = "simple"
+leaf_sla = 15.0
+drip_tips = 0.2
+root_type = "fibrous"
+root_depth_m = 2.0
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "green"
+flower_size_mm = 2.0
+inflorescence = "catkin"
+pollination_syndrome = "wind"
+sexuality = "dioecious"
+fruit_type = "capsule"
+dispersal_channels = { local = 0.1, wind = 0.4, water = 0.5, animal = 0.0, jump = 0.1 }
+propagule_mass_mg = 0.1
+seed_bank = "transient"
+serotiny = "no"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "endosperm"
+clonal_spread_m = 0.5
+succulence = 0.0
+bark_thickness_cm = 2.0
+cuticle_thickness = 0.2
+pubescence = 0.2
+leafout_month = 3
+deciduous_trigger = "winter"
+bloom_start_month = 3
+bloom_length_months = 1.5
+fruit_month = 5
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.2
+salinity_tolerance = 0.1
+waterlogging_tolerance = 0.8
+fertility_requirement = 0.5
+growing_season_req = 5.0
+fire_strategy = "avoider"
+engineer_impact = 0.4
+coloniality = 0.5
+
+[niche]
+temp_opt_c = 12
+temp_breadth_c = 8.0
+moisture_opt = 0.85
+moisture_breadth = 0.15
+
+[generics]
+support = "trunk_multi"
+feeding_organ = "C3_foliage"
+signal = "flower_inconspicuous"
+dispersal = "wind_plume"
+defense = "none"
+storage = "endosperm"
+covering = "bark_thin"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

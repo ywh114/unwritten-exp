@@ -27,6 +27,12 @@ _PLATES_ARRAYS = ("macro_id", "fine_id", "is_ocean", "is_sea_plate",
                   "fault_kind", "fault_sub", "fine_bias")
 
 
+def _current_commit() -> str:
+    """Provenance stamp: the producing git commit ("" outside a repo)."""
+    from exp.artifacts import current_commit
+    return current_commit()
+
+
 def _complex_to_dicts(cx) -> dict:
     return {
         "nodes": [{"id": n.id, "pos": [float(n.pos[0]), float(n.pos[1])]}
@@ -121,6 +127,7 @@ def save_world(out_dir: str, world: dict, delivered: dict, seed: int,
         "experiment": "k11_worldgen",
         "k11_version": VERSION,
         "seed": seed,
+        "commit": _current_commit(),
         "shape": list(world["elev"].shape),
         "sea_level": sea_level,
         "factor": factor,

@@ -76,10 +76,15 @@ def _agree(base: str, pattern: str, gender: str) -> str:
 
 
 def _compose_genus(stream, pack: ContentPack, plan: str,
-                   used: set[str]) -> tuple[str, str]:
+                   used: set[str], plan_grades: dict | None = None
+                   ) -> tuple[str, str]:
     """Seeded style mix: mechanical descriptor+suffix or free invention.
-    Redraw on collision with committed names (K1 child stream)."""
+    Redraw on collision with committed names (K1 child stream).
+    *plan_grades* overrides PLAN_SUFFIX_GRADE (K14 flora grade map);
+    gender comes from the table's parallel ``genders`` array when the
+    stems file authors one (K14), else the SUFFIX_GENDER fallback."""
     stems = pack.stems
+    grades_map = plan_grades or PLAN_SUFFIX_GRADE
     for clock in range(50):
         if stream.bernoulli(0.5, clock, 0):
             # mechanical: color/habitat descriptor + plan suffix
@@ -87,12 +92,16 @@ def _compose_genus(stream, pack: ContentPack, plan: str,
                     if s["category"] in ("color", "habitat")]
             pick = pool[stream.randrange(len(pool), clock, 1)]
             descriptor = pick["stem"].split(" /")[0].rstrip("-")
-            grades = PLAN_SUFFIX_GRADE.get(plan, ["generic"])
+            grades = grades_map.get(plan, ["generic"])
             grade = grades[stream.randrange(len(grades), clock, 2)]
-            suffixes = stems["genus_suffix"][grade]["suffixes"]
-            suffix = suffixes[stream.randrange(len(suffixes), clock, 3)]
+            tbl = stems["genus_suffix"][grade]
+            suffixes = tbl["suffixes"]
+            sidx = stream.randrange(len(suffixes), clock, 3)
+            suffix = suffixes[sidx]
             name = (descriptor + suffix.lstrip("-")).capitalize()
-            gender = SUFFIX_GENDER.get(suffix, "m")
+            genders = tbl.get("genders")
+            gender = (genders[sidx] if genders
+                      else SUFFIX_GENDER.get(suffix, "m"))
         else:
             inv = stems["invent"]
             name = (inv["onsets"][stream.randrange(len(inv["onsets"]),
@@ -253,16 +262,25 @@ def _genus_stats(members: list, pools: list) -> dict:
             stats[axis] = (statistics.median(vals),
                            statistics.pstdev(vals) if len(vals) > 1 else 0.0)
         else:
-            stats[axis] = (max(set(vals), key=vals.count), None)
+            # sorted() first: string set iteration is hash-order (per-
+            # process randomized), so a count tie must break
+            # lexicographically or the modal pick differs across
+            # processes with the same seed (K14 CLI replay caught this).
+            stats[axis] = (max(sorted(set(vals), key=str),
+                               key=vals.count), None)
     return stats
 
 
 def assign_names(tree: Tree, pack: ContentPack, seed: int,
                  context: NameContext | None = None,
-                 round: int = 0) -> None:
-    """One naming pass over the tree (round 0 = the blind build)."""
+                 round: int = 0, plan_grades: dict | None = None,
+                 stage_stream=None) -> None:
+    """One naming pass over the tree (round 0 = the blind build).
+    *plan_grades* overrides the plan->suffix-grade map and *stage_stream*
+    the naming stream persona (K14 passes its own); defaults are K13's."""
     context = context or NameContext()
-    stream = naming_stage(seed, round)
+    stream = stage_stream if stage_stream is not None \
+        else naming_stage(seed, round)
     pin_by_label = {p["label"]: p for p in pack.pins}
     used: set[str] = set()
 
@@ -306,7 +324,7 @@ def assign_names(tree: Tree, pack: ContentPack, seed: int,
             genus_name[n.path] = (n.name.binomial, "m")
             continue
         name, gender = _compose_genus(stream.child(n.path), pack,
-                                      n.plan or "", used)
+                                      n.plan or "", used, plan_grades)
         n.name.binomial = name
         used.add(name)
         genus_name[n.path] = (name, gender)

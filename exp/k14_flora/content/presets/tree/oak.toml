@@ -1,0 +1,96 @@
+# Tree preset: oak-grade — the temperate broadleaf archetype
+
+[preset]
+id = "tree.oak"
+plan = "tree"
+grade = "oak"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 25.0
+woodiness = 1.0
+wood_density = 0.75
+growth_rate = 0.35
+longevity_yr = 400.0
+shade_tolerance = 0.35
+pioneer_climax = 0.8
+layer = "canopy"
+halle_axes = "polyaxial"
+halle_growth = "rhythmic"
+halle_flowering = "lateral"
+halle_branching = "monopodial"
+halle_orientation = "plagiotropic"
+apical_dominance = 0.4
+branch_angle = 55.0
+tier_spacing_m = 1.2
+leaf_shape = "lobed"
+leaf_size_cm = 12.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "entire"
+leaf_compoundness = "simple"
+leaf_sla = 12.0
+leaf_trap = "none"
+drip_tips = 0.0
+root_type = "tap"
+root_depth_m = 4.0
+root_special = "none"
+mycorrhizal = "ecto"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "green"
+flower_size_mm = 2.0
+inflorescence = "catkin"
+pollination_syndrome = "wind"
+sexuality = "monoecious"
+fruit_type = "nut"
+dispersal_channels = { local = 0.6, wind = 0.0, water = 0.0, animal = 0.4, jump = 0.05 }
+propagule_mass_mg = 3000.0
+seed_bank = "transient"
+serotiny = "no"
+masting_interval_yr = 3.0
+jump_rate = 0.05
+mechanical_defense = "none"
+chemical_defense = "tannin"
+defense_potency = 0.5
+storage_organ = "endosperm"
+clonal_spread_m = 0.0
+succulence = 0.0
+bark_thickness_cm = 8.0
+cuticle_thickness = 0.3
+pubescence = 0.1
+leafout_month = 4
+deciduous_trigger = "winter"
+bloom_start_month = 4
+bloom_length_months = 1.5
+fruit_month = 9
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.45
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.3
+fertility_requirement = 0.5
+growing_season_req = 5.0
+fire_strategy = "resprouter"
+engineer_impact = 0.5
+coloniality = 0.1
+
+[niche]
+temp_opt_c = 12
+temp_breadth_c = 8.0
+moisture_opt = 0.55
+moisture_breadth = 0.3
+
+[generics]
+support = "trunk_single"
+feeding_organ = "C3_foliage"
+signal = "flower_inconspicuous"
+dispersal = "gravity_drop"
+defense = "chemical_tannins"
+storage = "endosperm"
+covering = "bark_thick"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

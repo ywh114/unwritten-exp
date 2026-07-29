@@ -16,6 +16,32 @@ import numpy as np
 
 _D8 = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
+# monthly river weight: the standing soil moisture leaks to streams at
+# this rate per month (normalized-P units — the same units the bucket
+# and the precip fields share). This is the baseflow that keeps trunk
+# rivers running through rainless months.
+SOIL_BASEFLOW = 0.25
+
+# river speed (regime hydraulic geometry — literature values, MOVED
+# from K14 derived.py: K11 owns the physics and persists the field;
+# downstream reads it, never re-derives it)
+CELL_M = 4000.0                 # anchor cell = 4 km
+SECONDS_PER_MONTH = 30.4 * 24 * 3600.0
+# one discharge unit = one upstream cell's P_norm contribution:
+# P_MAX_MM over a 16 km2 cell per month, in m3/s
+Q_M3S_PER_UNIT = (400.0 / 1000.0) * (CELL_M ** 2) / SECONDS_PER_MONTH
+WIDTH_COEF = 8.0                # w = 8 Q^0.5  (m; wide-channel regime)
+DEPTH_COEF = 0.3                # d = 0.3 Q^0.4 (m)
+MANNING_N = 0.035               # gravel-bed roughness
+MIN_SLOPE = 1e-5                # numerical floor, not a physical cap
+V_RIVER_MAX = 6.0               # leaky sanity ceiling (m/s)
+# reach jitter: the relief is 4 km cells, so Manning here yields a
+# reach AVERAGE, not a local measurement — sub-grid velocity varies
+# around it. One seeded lognormal-ish draw per cell (e^+-SPEED_JITTER,
+# ~+-28%) stands in for that variance. Consumers must treat speed as
+# approximate: smooth gates, never hard thresholds on it.
+SPEED_JITTER = 0.25
+
 
 def connected_ocean(h: np.ndarray, sea_level: float) -> np.ndarray:
     """Ocean = below-sea-level cells connected (via below-sea paths) to
@@ -171,6 +197,263 @@ def flow_accumulation(w: np.ndarray, direction: np.ndarray,
             dy, dx = _D8[d]
             acc[y + dy, x + dx] += acc[y, x]
     return acc
+
+
+def glacier_flow(direction: np.ndarray, flat_depth: np.ndarray,
+                 w_route: np.ndarray, land: np.ndarray,
+                 snowfall_m: np.ndarray, meltpot_m: np.ndarray,
+                 melt_m: np.ndarray,
+                 persist: np.ndarray | None = None
+                 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Glacier pass: net-growth zones export their ice downslope.
+
+    Where annual snowfall beats annual melt the snow bucket grows
+    without bound year over year — ice does not pile up forever, it
+    FLOWS. Only the growth-zone cells and their downslope paths are
+    touched:
+
+    - local ice production = max(annual snow balance, 0) — but only
+      cells the caller marks PERSISTENT contribute (regional firn rule,
+      detect_glaciers); a marginal cell's token surplus melts out with
+      the season instead of seeding a phantom glacier
+    - ablation capacity = the year's UNUSED melt potential (heat that
+      found no snow to melt) — it eats the ice below the equilibrium
+      line
+    - ice not consumed flows to the downstream cell; where nothing
+      flows on the glacier ends (terminus — the melt front); ice
+      routed into standing water or a pit calves there
+
+    Returns (glacier_mask, ice_flux, ice_melt_monthly): the ICE-COVERED
+    cells (year-round: own snowpack survives, or ice flows on through —
+    melt-front cells whose year's ice entirely melts in place are NOT
+    glacier, though their meltwater counts), the annual ice throughput
+    per cell (mm WE/yr), and the meltwater released from ICE per month
+    (mm WE) — the caller adds it to the snowmelt pulse feeding the
+    monthly river discharge.
+    """
+    H, W = land.shape
+    balance = snowfall_m.sum(axis=0) - melt_m.sum(axis=0)
+    pot_unused = np.clip(meltpot_m - melt_m, 0.0, None)
+    abl_cap = pot_unused.sum(axis=0)
+    production = np.clip(balance, 0.0, None)
+    if persist is not None:
+        production = np.where(persist, production, 0.0)
+    flux = np.zeros((H, W))
+    glacier = np.zeros((H, W), dtype=bool)
+    ice_melt = np.zeros((H, W))
+    cells = sorted(((float(w_route[y, x]), float(flat_depth[y, x]), y, x)
+                    for y in range(H) for x in range(W)), reverse=True)
+    for _, _, y, x in cells:
+        ice = flux[y, x] + production[y, x]
+        if ice <= 0.0:
+            continue
+        melted = min(ice, abl_cap[y, x])
+        ice_melt[y, x] = melted
+        out = ice - melted
+        # glacier = ice PRESENT year-round: the cell's own snowpack
+        # never melts out (production > 0), or ice flows on through it
+        # (out > 0 — the tongue). A cell whose year's ice entirely
+        # melts in place is just the melt front passing through — its
+        # meltwater still counts, but it is not ice-covered.
+        if production[y, x] > 0.0 or out > 0.0:
+            glacier[y, x] = True
+        if out <= 0.0:
+            continue                    # terminus: nothing flows on
+        d = direction[y, x]
+        if d < 0:
+            continue                    # pit: calves in place
+        dy, dx = _D8[d]
+        ny, nx_ = y + dy, x + dx
+        if land[ny, nx_]:
+            flux[ny, nx_] += out
+        # else: calves into standing water (lake/ocean) — flux ends
+    # monthly ice melt, distributed by the unused melt potential
+    denom = np.where(abl_cap > 1e-9, abl_cap, 1.0)
+    ice_melt_m = (pot_unused / denom[None]) * ice_melt[None]
+    return glacier, flux + production, ice_melt_m
+
+
+# glacial terrain: the land's ONE-SHOT equilibrium response to its ice
+# (detect once, respond once — no iteration loop; see __main__). The
+# relations are order-of-magnitude glaciology keyed to the persisted
+# ice flux (mm WE/yr throughput) — never tuned per world.
+THICK_A = 10.0          # m of ice per (mm WE/yr)^1/3 of throughput
+THICK_SOFT_M = 1500.0   # leaky soft cap (tanh) on equilibrium thickness
+ERODE_A = 2.0           # bed erosion (m) per (mm WE/yr)^1/3 — quarrying
+                        # and abrasion scale with throughput
+DEPOSIT_DECAY = 0.5     # moraine/outwash spread: weight per ring out
+
+
+def glacier_thickness(flux: np.ndarray) -> np.ndarray:
+    """Equilibrium ice thickness (m) from throughput: thick ~ flux^1/3
+    (flow-law flavor — outlet glaciers run 100s of m, ice-cap interiors
+    ~1 km), leaky soft cap, 0 where there is no ice."""
+    t = THICK_A * np.cbrt(np.maximum(flux, 0.0))
+    return (THICK_SOFT_M * np.tanh(t / THICK_SOFT_M)).astype(np.float32)
+
+
+# terminus taper: a glacier snout is THIN. The equilibrium (flux-keyed)
+# thickness holds in the interior, but near the melt front the ice
+# thins with the square root of the distance upstream (the perfect-
+# plasticity profile). Without this the tongue ends at full thickness,
+# which renders as a wall of ice at the front.
+TAPER_CELLS = 4         # anchor cells over which the front ramps 0 -> full
+
+
+def terminus_taper(glacier: np.ndarray, direction: np.ndarray
+                   ) -> np.ndarray:
+    """Front-taper scale in [0, 1] for the thickness field: 0 at the
+    melt front, ramping to 1 over TAPER_CELLS upstream with the
+    sqrt profile. A terminus is a glacier cell whose downstream is
+    not glacier (the front, a calving margin, or a pit); distance is
+    counted upstream along the reverse flow graph. Non-glacier and
+    unreachable cells scale 1 (untouched)."""
+    H, W = glacier.shape
+    dist = np.full((H, W), -1, dtype=np.int32)
+    rev: dict[tuple[int, int], list[tuple[int, int]]] = {}
+    stack: list[tuple[int, int]] = []
+    for y, x in zip(*np.nonzero(glacier)):
+        d = int(direction[y, x])
+        term = d < 0
+        if not term:
+            dy, dx = _D8[d]
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < H and 0 <= nx < W and glacier[ny, nx]:
+                rev.setdefault((ny, nx), []).append((y, x))
+            else:
+                term = True            # calves off the ice / off-grid
+        if term:
+            dist[y, x] = 0
+            stack.append((y, x))
+    while stack:                       # multi-source BFS upstream
+        y, x = stack.pop()
+        for py, px in rev.get((y, x), ()):
+            if dist[py, px] < 0:
+                dist[py, px] = dist[y, x] + 1
+                stack.append((py, px))
+    d = np.where(dist < 0, TAPER_CELLS, dist).astype(np.float64)
+    scale = np.sqrt(np.clip(d / TAPER_CELLS, 0.0, 1.0))
+    return np.where(glacier, scale, 1.0).astype(np.float32)
+
+
+# persistence (firn) rule: a cell joins the growth zone only when the
+# REGIONAL annual surplus is a substantial share of the year's
+# snowfall. Per-cell ">0" is a knife-edge — the whole subpolar margin
+# sits within weather-sampling noise of it, which lattices the mask.
+PERSIST_FIRN = 0.5        # smoothed surplus > half the smoothed snowfall
+PERSIST_SMOOTH = 2        # 3x3 mean passes regionalizing the balance
+
+
+def _box3(a: np.ndarray, passes: int = PERSIST_SMOOTH) -> np.ndarray:
+    """3x3 mean smoothing, edge-replicated — regionalizes a per-cell
+    field (the biome modal filter's continuous cousin)."""
+    out = a.astype(np.float64)
+    for _ in range(passes):
+        p = np.pad(out, 1, mode="edge")
+        s = np.zeros_like(out)
+        for dy in range(3):
+            for dx in range(3):
+                s += p[dy:dy + a.shape[0], dx:dx + a.shape[1]]
+        out = s / 9.0
+    return out
+
+
+def detect_glaciers(hydro: dict, climate: dict) -> dict | None:
+    """The glacier pass over the current routing: growth-zone ice
+    routed downslope (glacier_flow) plus equilibrium thickness from the
+    throughput. The growth zone is judged REGIONALLY (smoothed annual
+    snow balance, firn-share threshold) — a per-cell rule lattices the
+    subpolar margin with weather-sampling noise. Returns the glacier
+    state dict, or None when the climate lacks the snow-partition
+    fields (synthetic test climates).
+    """
+    if not ("snowfall_monthly" in climate and "meltpot_monthly" in climate
+            and "snowmelt_monthly" in climate):
+        return None
+    land = ~hydro["ocean_mask"] & ~hydro["lake_mask"]
+    sf = climate["snowfall_monthly"].astype(np.float64)
+    melt = climate["snowmelt_monthly"].astype(np.float64)
+    production = np.clip(sf.sum(axis=0) - melt.sum(axis=0), 0.0, None)
+    persist = (_box3(production) > PERSIST_FIRN * _box3(sf.sum(axis=0))) \
+        & land
+    g_mask, g_flux, melt_m = glacier_flow(
+        hydro["flow_dir"], hydro["flat_depth"], hydro["w_route"], land,
+        sf, climate["meltpot_monthly"].astype(np.float64), melt,
+        persist=persist)
+    return {
+        "glacier_mask": g_mask,
+        "glacier_flux": g_flux.astype(np.float32),
+        "glacier_melt_monthly": melt_m.astype(np.float32),
+        "glacier_thick_m": np.where(
+            g_mask,
+            glacier_thickness(g_flux)
+            * terminus_taper(g_mask, hydro["flow_dir"]),
+            0.0).astype(np.float32),
+    }
+
+
+def _dilate8(mask: np.ndarray) -> np.ndarray:
+    """8-neighbor dilation, no wraparound."""
+    p = np.pad(mask, 1)
+    out = np.zeros_like(mask)
+    for dy in range(3):
+        for dx in range(3):
+            out |= p[dy:dy + mask.shape[0], dx:dx + mask.shape[1]]
+    return out
+
+
+def glacial_terrain(elev: np.ndarray, hydro: dict, sea_level: float
+                    ) -> tuple[np.ndarray, bool]:
+    """The land's one-shot response to its ice (detect-once/respond-once):
+
+    - EROSION: glacier beds deepen ∝ flux^1/3 (quarrying/abrasion scale
+      with throughput), dry land only — standing-water beds are never
+      eroded (the carve_gorges rule). Overdeepened beds refill as tarns
+      on the re-route — real glacial lakes.
+    - DEPOSITION: the eroded volume is dumped around the termini
+      (glacier cells whose downstream is not glacier) as a
+      moraine/outwash bump, decaying ring by ring — mass conserved.
+    - ICE RAISE: ice sits ON the land — glacier cells rise by the
+      equilibrium thickness (the persisted glacier_thick_m).
+
+    Pure function of the persisted glacier state — no K1 draws.
+    Returns (elev2, changed).
+    """
+    g = hydro.get("glacier_mask")
+    if g is None or not g.any():
+        return elev, False
+    from exp.k11_worldgen.units import ELEV_MAX_M
+    flux = hydro["glacier_flux"].astype(np.float64)
+    thick = hydro["glacier_thick_m"].astype(np.float64)
+    water = hydro["lake_mask"] | hydro["ocean_mask"]
+    scale = (1.0 - sea_level) / ELEV_MAX_M   # normalized units per meter
+    h = elev.astype(np.float64).copy()
+
+    erode_m = np.where(g & ~water, ERODE_A * np.cbrt(flux), 0.0)
+    removed = float(erode_m.sum())
+    h -= erode_m * scale
+
+    # termini: glacier cells whose D8 downstream is not glacier (pits
+    # and calving fronts included — their load dumps in place / at the
+    # waterline)
+    H, W = g.shape
+    direction = hydro["flow_dir"]
+    downstream_g = np.zeros_like(g)
+    for i, (dy, dx) in enumerate(_D8):
+        m = g & (direction == i)
+        ny = np.clip(np.arange(H)[:, None] + dy, 0, H - 1)
+        nx = np.clip(np.arange(W)[None, :] + dx, 0, W - 1)
+        downstream_g |= m & g[ny, nx]
+    term = g & ~downstream_g
+    ring1 = _dilate8(term) & ~term
+    ring2 = _dilate8(term | ring1) & ~term & ~ring1
+    deposit_m = (term + DEPOSIT_DECAY * ring1
+                 + DEPOSIT_DECAY ** 2 * ring2).astype(np.float64)
+    deposit_m *= removed / max(float(deposit_m.sum()), 1e-9)
+    h += deposit_m * scale
+
+    h += np.where(g, thick, 0.0) * scale
+    return h.astype(elev.dtype), True
 
 
 def _filter_small_components(mask: np.ndarray, min_cells: int) -> np.ndarray:
@@ -592,7 +875,9 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     surface flow routes on — rejected basins keep their flood surface
     so drainage can pass through), depth ((w-h)+), flow_dir,
     accumulation (= discharge), river_mask, order (Strahler), width
-    (render width class 1-3 by discharge), lake_mask, ocean_mask.
+    (interim render class 1-3 by upstream AREA — the final, water-keyed
+    classes are computed in refine_hydrology once climate exists),
+    lake_mask, ocean_mask.
     """
     from kernel.hashrng import Stream
 
@@ -670,10 +955,56 @@ def build_hydrology(h: np.ndarray, ocean_mask: np.ndarray,
     return hydro
 
 
+def speed_jitter(seed: int, shape: tuple[int, int]) -> np.ndarray:
+    """Seeded multiplicative reach jitter (e^+-SPEED_JITTER), one draw
+    per cell — the sub-grid variance around the Manning reach average.
+    Shared by the annual and monthly speed fields, so a reach keeps its
+    character year-round. K1-reproducible: same seed, same field."""
+    from kernel.hashrng import Stream
+    stream = Stream(seed, "k11.hydro.speed")
+    H, W = shape
+    u = np.array([[stream.uniform(y * W + x, 0) for x in range(W)]
+                  for y in range(H)])
+    return np.exp(SPEED_JITTER * (2.0 * u - 1.0)).astype(np.float32)
+
+
+def river_speed(discharge: np.ndarray, river_mask: np.ndarray,
+                w_route: np.ndarray, direction: np.ndarray,
+                sea_level: float,
+                jitter: np.ndarray | None = None) -> np.ndarray:
+    """Manning velocity on river cells (m/s), 0 off-river.
+
+    MOVED from K14 (derived.river_speed) — K11 owns the physics and
+    PERSISTS the field; downstream reads, never re-derives. Regime
+    geometry: width = 8 Q^0.5, depth = 0.3 Q^0.4, slope = filled-
+    surface (w_route) drop along flow_dir. With 4 km relief this is a
+    reach AVERAGE; pass `jitter` (speed_jitter) to stand in for the
+    sub-grid variance around it.
+    """
+    from exp.k11_worldgen.units import alt_m
+    dis = discharge * Q_M3S_PER_UNIT          # m3/s
+    d = np.maximum(DEPTH_COEF * np.maximum(dis, 0.0) ** 0.4, 0.05)
+    alt = alt_m(w_route, sea_level)
+    H, W = dis.shape
+    drop = np.zeros_like(dis)
+    for i, (dy, dx) in enumerate(_D8):
+        m = direction == i
+        ny = np.clip(np.arange(H)[:, None] + dy, 0, H - 1)
+        nx = np.clip(np.arange(W)[None, :] + dx, 0, W - 1)
+        drop = np.where(m, alt - alt[ny, nx], drop)
+    slope = np.maximum(drop / CELL_M, MIN_SLOPE)
+    v = (1.0 / MANNING_N) * d ** (2.0 / 3.0) * np.sqrt(slope)
+    v = V_RIVER_MAX * np.tanh(v / V_RIVER_MAX)   # leaky ceiling
+    if jitter is not None:
+        v = v * jitter
+    return np.where(river_mask, v, 0.0).astype(np.float32)
+
+
 def refine_hydrology(hydro: dict, elev: np.ndarray, climate: dict,
                      sea_level: float, seed: int = 0,
                      river_threshold: float = 40.0,
-                     alpha: float = 4.0) -> dict:
+                     alpha: float = 4.0,
+                     glacier_state: dict | None = None) -> dict:
     """Second hydrology pass, after climate: precipitation-conditioned
     small features, ADDITIVE only (nothing pass 1 made is removed).
 
@@ -693,6 +1024,16 @@ def refine_hydrology(hydro: dict, elev: np.ndarray, climate: dict,
       equivalent of the area threshold at mean land wetness — wet
       basins cross it further upstream, so drainage density follows
       the rain.
+    - glaciers: where annual snowfall beats annual melt the snow
+      bucket diverges; the surplus ice is routed downslope
+      (glacier_flow), ablation eats it below the equilibrium line,
+      and the terminus meltwater joins the monthly discharge.
+    - monthly discharge: each month's water (rain + snowmelt +
+      glacier melt + soil baseflow — the standing soil moisture keeps
+      leaking to streams, so trunks survive rainless months) is routed
+      and persisted with its monthly threshold. The monthly NETWORKS
+      are the complex builder's job (complexify.derive_complex): one
+      month-aware network, monthly width classes on its edges.
 
     Routing surfaces (w_route, flow_dir) are untouched — ponds sit on
     the flow paths they always drained through — so discharge is
@@ -786,12 +1127,76 @@ def refine_hydrology(hydro: dict, elev: np.ndarray, climate: dict,
     river &= ~lake                      # ponds swallow their through-river
 
     order = strahler_order(direction, river, acc, lake=lake)
+    # width classes are WATER-keyed, like the monthly classes and the
+    # RV labels: class 2/3 at 6x/30x the stream threshold in discharge
+    # terms — a big dry basin renders thin (Nile effect), a wet one
+    # renders wide. (Pass 1's area-keyed classes are interim only.)
     width = np.zeros((h.shape), dtype=np.int16)
     width[river] = 1
-    width[river & (acc >= river_threshold * 6)] = 2
-    width[river & (acc >= river_threshold * 30)] = 3
+    if p_mean > 1e-9:
+        thr_w = river_threshold * p_mean
+        width[river & (discharge >= thr_w * 6)] = 2
+        width[river & (discharge >= thr_w * 30)] = 3
+
+    # ---- glaciers: net-growth zones export ice downslope ----
+    # Where annual snowfall beats annual melt the snowpack bucket
+    # grows without bound year over year — ice does not pile up
+    # forever, it FLOWS (glacier_flow); its meltwater joins the monthly
+    # discharge below, so glacier-fed rivers swell in the melt season.
+    # Detection normally runs ONCE, upstream of the glacial-terrain
+    # response (__main__) — when the state is handed in, reuse it: the
+    # terrain already responded, re-detecting would be a second
+    # iteration.
+    if glacier_state is None:
+        glacier_state = detect_glaciers(hydro, climate)
+    glacier_melt_m = None
+    if glacier_state is not None:
+        hydro.update(glacier_state)
+        glacier_melt_m = glacier_state["glacier_melt_monthly"] \
+            .astype(np.float64)
+
+    # ---- monthly discharge: each month's actual water ----
+    # rain + snowmelt + glacier melt + soil BASEFLOW (the standing
+    # soil moisture keeps leaking to streams, so trunks survive
+    # rainless months). The monthly NETWORKS are not decided here:
+    # the month-aware complex builder (complexify.derive_complex)
+    # reads these planes — monthly width classes hang on the ONE
+    # network's edges, seasonal water joins or floats beside it.
     hydro.update({"w": w, "depth": depth, "river_mask": river,
                   "lake_mask": lake, "order": order, "width": width})
+    # synthetic climates (unit tests) may not carry the monthly fields;
+    # production climates always do
+    if "P_monthly" in climate and "snowmelt_monthly" in climate:
+        from exp.k11_worldgen.units import P_MAX_MM
+        P_m = climate["P_monthly"]
+        melt = climate["snowmelt_monthly"]
+        if glacier_melt_m is not None:
+            melt = melt + glacier_melt_m
+        soil = climate.get("soil_monthly")
+        dis_m = np.zeros((12, H, W), dtype=np.float32)
+        thr_m = np.zeros(12)
+        for m in range(12):
+            w_m = P_m[m] + melt[m] / P_MAX_MM
+            if soil is not None:
+                w_m = w_m + SOIL_BASEFLOW * soil[m]
+            dis_m[m] = flow_accumulation(w_route, direction, flat_depth,
+                                         weight=w_m)
+            thr_m[m] = river_threshold * (float(w_m[land].mean())
+                                          if land.any() else 0.0)
+        hydro["discharge_monthly"] = dis_m
+        hydro["river_threshold_monthly"] = thr_m
+    # ---- river speed: Manning reach-average, persisted first-class ----
+    # K14 (and anything later) reads h_river_speed / h_river_speed_monthly;
+    # it never re-derives velocity. The per-cell jitter stands in for
+    # sub-grid variance around the 4 km reach average.
+    jitter = speed_jitter(seed, river.shape)
+    hydro["river_speed"] = river_speed(
+        hydro["discharge"], river, w_route, direction, sea_level, jitter)
+    if "discharge_monthly" in hydro:
+        hydro["river_speed_monthly"] = np.stack([
+            river_speed(hydro["discharge_monthly"][m], river, w_route,
+                        direction, sea_level, jitter)
+            for m in range(12)]).astype(np.float32)
     # pass 2 knows the climate: salt concentration now feels the
     # local evaporation (mean-annual temperature through the shared
     # Clausius-Clapeyron factor) as well as the flushing ratio

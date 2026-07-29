@@ -1,0 +1,83 @@
+# Fungus preset: agaric-grade — the field mushroom archetype
+
+[preset]
+id = "fungus.agaric"
+plan = "fungus"
+grade = "agaric"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.08
+woodiness = 0.0
+growth_rate = 0.05
+longevity_yr = 0.2
+shade_tolerance = 0.9
+pioneer_climax = 0.5
+layer = "ground"
+leaf_shape = "none"
+leaf_size_cm = 0.05
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_compoundness = "simple"
+leaf_sla = 5.0
+leaf_trap = "none"
+root_type = "none"
+root_depth_m = 0.05
+root_special = "none"
+mycorrhizal = "none"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "brown"
+flower_size_mm = 0.3
+inflorescence = "none"
+pollination_syndrome = "none"
+fruit_type = "sporangium"
+dispersal_channels = { local = 0.3, wind = 0.7, water = 0.0, animal = 0.1, jump = 0.2 }
+propagule_mass_mg = 0.001
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.2
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "none"
+clonal_spread_m = 1.0
+succulence = 0.0
+cuticle_thickness = 0.0
+pubescence = 0.0
+leafout_month = 1
+deciduous_trigger = "none"
+bloom_start_month = 9
+bloom_length_months = 2.0
+fruit_month = 9
+synchronous_flowering = "no"
+photosynthesis = "none"
+parasitism = "none"
+mycoheterotrophy = "no"
+saprotrophy = "litter"
+nutrient_package = "none"
+drought_tolerance = 0.2
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.4
+fertility_requirement = 0.6
+growing_season_req = 2.0
+engineer_impact = 0.4
+coloniality = 0.7
+
+[niche]
+temp_opt_c = 12
+temp_breadth_c = 6.0
+moisture_opt = 0.75
+moisture_breadth = 0.2
+
+[generics]
+support = "mycelium_network"
+feeding_organ = "saprotroph_mycelium"
+signal = "mushroom_fruiting_body"
+dispersal = "spore_wind"
+defense = "none"
+storage = "none"
+covering = "none"
+phenology = "ephemeral"
+sensor_array = "tropism_standard"

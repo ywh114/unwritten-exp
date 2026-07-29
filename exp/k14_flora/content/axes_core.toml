@@ -1,0 +1,780 @@
+# K14 flora — core trait axes (M1 registry format, mirrored from K13).
+# block ∈ morphometrics | patternation | niche | diet | life_history |
+# behavior | ecosystem | sex_age_season. tier: invariant | steady |
+# labile. mutation: gaussian | log_gaussian | enum_redraw | ratio.
+
+# ── architecture (morphometrics) ──────────────────────────────────────
+[axis.height_m]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.5
+bounds = [0.005, 200.0]            # duckweed .. god-tree-adjacent
+unit = "length"
+plan_scope = "all"
+consumers = ["stress", "id", "name", "pop", "draw"]
+salience = 0.7
+
+[axis.woodiness]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.3
+
+[axis.wood_density]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.2
+bounds = [0.1, 1.5]                # g/cm3: balsa .. lignum vitae
+plan_scope = ["tree", "shrub", "succulent"]
+consumers = ["stress", "pop"]
+salience = 0.1
+
+[axis.growth_rate]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.4
+bounds = [0.005, 5.0]              # m/yr
+plan_scope = "all"
+consumers = ["stress", "pop"]
+salience = 0.2
+
+[axis.longevity_yr]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.5
+bounds = [0.05, 10000.0]           # ephemeral .. bristlecone tail
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.2
+
+[axis.shade_tolerance]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]                # one axis (vocab §9 ruling)
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.3
+
+[axis.pioneer_climax]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]                # 0 ruderal .. 1 climax (CSR position)
+plan_scope = "all"
+consumers = ["stress", "pop"]
+salience = 0.2
+
+[axis.layer]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["canopy", "subcanopy", "shrub", "sward", "ground",
+          "aquatic_surface", "aquatic_benthic"]
+plan_scope = "all"
+consumers = ["stress", "pop", "id"]
+salience = 0.4
+
+# ── Hallé architecture grammar (Order-rank steady tuple, vocab §14.6) ──
+[axis.halle_axes]
+block = "morphometrics"
+tier = "invariant"
+value_type = "enum"
+mutation = "none"
+states = ["monoaxial", "polyaxial"]
+plan_scope = ["tree", "shrub"]
+consumers = ["id", "draw"]
+salience = 0.2
+
+[axis.halle_growth]
+block = "morphometrics"
+tier = "invariant"
+value_type = "enum"
+mutation = "none"
+states = ["rhythmic", "continuous"]
+plan_scope = ["tree", "shrub"]
+consumers = ["id", "draw"]
+salience = 0.2
+
+[axis.halle_flowering]
+block = "morphometrics"
+tier = "invariant"
+value_type = "enum"
+mutation = "none"
+states = ["terminal", "lateral"]
+plan_scope = ["tree", "shrub"]
+consumers = ["id", "draw"]
+salience = 0.2
+
+[axis.halle_branching]
+block = "morphometrics"
+tier = "invariant"
+value_type = "enum"
+mutation = "none"
+states = ["monopodial", "sympodial"]
+plan_scope = ["tree", "shrub"]
+consumers = ["id", "draw"]
+salience = 0.2
+
+[axis.halle_orientation]
+block = "morphometrics"
+tier = "invariant"
+value_type = "enum"
+mutation = "none"
+states = ["orthotropic", "plagiotropic"]
+plan_scope = ["tree", "shrub"]
+consumers = ["id", "draw"]
+salience = 0.2
+
+[axis.apical_dominance]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = ["tree", "shrub"]
+consumers = ["id", "draw"]
+salience = 0.1
+
+[axis.branch_angle]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 5.0
+bounds = [10.0, 90.0]
+plan_scope = ["tree", "shrub"]
+consumers = ["id", "draw"]
+salience = 0.1
+
+[axis.tier_spacing_m]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.3
+bounds = [0.05, 10.0]
+plan_scope = ["tree", "shrub"]
+consumers = ["id", "draw"]
+salience = 0.1
+
+# ── leaf (morphometrics / parts) ───────────────────────────────────────
+[axis.leaf_shape]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["needle", "scale", "linear", "lanceolate", "elliptical",
+          "ovate", "cordate", "lobed", "frond", "thalloid", "blade",
+          "none"]
+plan_scope = "all"
+consumers = ["stress", "id", "name"]
+salience = 0.5
+grammar_role = "part"
+
+[axis.leaf_size_cm]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.5
+bounds = [0.05, 400.0]             # warm-wet rule coupling target
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.3
+
+[axis.leaf_persistence]
+block = "behavior"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["evergreen", "winter_deciduous", "drought_deciduous",
+          "marcescent"]
+plan_scope = "all"
+consumers = ["stress", "id", "tell"]
+salience = 0.3
+
+[axis.leaf_margin]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["entire", "serrate", "toothed", "spinose"]
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.2
+grammar_role = "part"
+
+[axis.leaf_compoundness]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["simple", "pinnate", "bipinnate", "palmate"]
+plan_scope = ["tree", "shrub", "herb_forb", "rosette_mat", "succulent",
+              "fern_grade"]
+consumers = ["id"]
+salience = 0.2
+
+[axis.leaf_sla]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.3
+bounds = [1.0, 60.0]               # leaf economics spectrum
+plan_scope = "all"
+consumers = ["stress", "pop"]
+salience = 0.1
+
+[axis.leaf_trap]
+block = "diet"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "pitcher", "snap", "flypaper", "bladder"]
+plan_scope = ["herb_forb", "rosette_mat"]
+consumers = ["stress", "id", "tell"]
+salience = 0.4
+grammar_role = "part"
+
+[axis.drip_tips]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]                # everwet flag
+plan_scope = ["tree", "shrub"]
+consumers = ["stress", "id"]
+salience = 0.1
+
+# ── root (parts) ───────────────────────────────────────────────────────
+[axis.root_type]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["tap", "fibrous", "adventitious", "aerial", "holdfast",
+          "none"]
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.2
+
+[axis.root_depth_m]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.4
+bounds = [0.01, 30.0]
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.1
+
+[axis.root_special]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "pneumatophores", "stilt", "buttress", "knee",
+          "haustoria"]
+plan_scope = "all"
+consumers = ["stress", "id", "tell"]
+salience = 0.3
+grammar_role = "part"
+
+[axis.mycorrhizal]
+block = "diet"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["arbuscular", "ecto", "ericoid", "orchid", "none"]
+plan_scope = "all"
+consumers = ["stress", "pop"]
+salience = 0.2
+
+[axis.n_fixation]
+block = "diet"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "rhizobium", "frankia", "cyanobacterial"]
+plan_scope = "all"
+consumers = ["stress", "pop"]
+salience = 0.2
+
+# ── display (signal / patternation) ────────────────────────────────────
+[axis.flower_symmetry]
+block = "patternation"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["radial", "zygomorphic", "composite_head", "none"]
+plan_scope = "all"
+consumers = ["runaway", "id", "name"]
+salience = 0.3
+
+[axis.flower_color]
+block = "patternation"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["white", "cream", "yellow", "orange", "red", "pink",
+          "purple", "blue", "green", "brown", "black"]
+plan_scope = "all"
+consumers = ["runaway", "id", "name", "tell"]
+salience = 0.6
+grammar_role = "part"
+
+[axis.flower_size_mm]
+block = "patternation"
+tier = "labile"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.5
+bounds = [0.3, 1500.0]
+plan_scope = "all"
+consumers = ["runaway", "id", "name"]
+salience = 0.4
+
+[axis.inflorescence]
+block = "patternation"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["raceme", "spike", "catkin", "panicle", "umbel", "head",
+          "spadix", "solitary", "spikelet", "cone"]
+plan_scope = "all"
+consumers = ["id", "name"]
+salience = 0.3
+grammar_role = "part"
+
+[axis.pollination_syndrome]
+block = "diet"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["wind", "bee", "moth", "bird", "bat", "beetle", "fly",
+          "self", "water", "none"]
+plan_scope = "all"
+consumers = ["stress", "id", "name", "tell"]
+salience = 0.5
+
+[axis.sexuality]
+block = "sex_age_season"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["perfect", "monoecious", "dioecious"]
+plan_scope = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat",
+              "succulent", "runner_meadow", "floating_leaf", "floater"]
+consumers = ["pop", "id"]
+salience = 0.2
+
+# ── fruit/seed (dispersal) ─────────────────────────────────────────────
+[axis.fruit_type]
+block = "life_history"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["berry", "drupe", "capsule", "legume", "achene", "caryopsis",
+          "nut", "samara", "pome", "aggregate", "cone", "sorus",
+          "sporangium", "none"]
+plan_scope = "all"
+consumers = ["id", "name", "pop"]
+salience = 0.4
+grammar_role = "part"
+
+[axis.dispersal_channels]
+block = "life_history"
+tier = "steady"
+value_type = "weighted_set"
+mutation = "weight_redraw"
+sigma = 0.1
+states = ["local", "wind", "water", "animal", "jump"]
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.3
+# kernel weights (flora RFC §3): local / wind / water / animal / jump
+
+[axis.propagule_mass_mg]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.6
+bounds = [0.0001, 100000.0]
+plan_scope = "all"
+consumers = ["stress", "pop"]
+salience = 0.2
+
+[axis.seed_bank]
+block = "life_history"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["transient", "persistent"]
+plan_scope = "all"
+consumers = ["stress", "pop"]
+salience = 0.1
+
+[axis.serotiny]
+block = "life_history"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["no", "yes"]
+plan_scope = ["tree", "shrub"]
+consumers = ["stress", "tell"]
+salience = 0.3
+
+[axis.masting_interval_yr]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.4
+bounds = [0.5, 120.0]              # <1 ~ annual; bamboo-grade cycles
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.2
+
+[axis.jump_rate]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.08
+bounds = [0.0, 1.0]                # long-distance dispersal (RFC §3)
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.1
+
+# ── defense ────────────────────────────────────────────────────────────
+[axis.mechanical_defense]
+block = "ecosystem"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "thorn", "spine", "prickle", "trichomes", "silica",
+          "sclerophylly"]
+plan_scope = "all"
+consumers = ["stress", "id", "tell"]
+salience = 0.3
+grammar_role = "part"
+
+[axis.chemical_defense]
+block = "ecosystem"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "alkaloid", "cyanogenic", "cardiac_glycoside",
+          "tannin", "latex", "essential_oil"]
+plan_scope = "all"
+consumers = ["stress", "id", "tell"]
+salience = 0.2
+
+[axis.defense_potency]
+block = "ecosystem"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.1
+
+# ── storage ────────────────────────────────────────────────────────────
+[axis.storage_organ]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "tuber", "bulb", "corm", "rhizome",
+          "succulent_tissue", "lignotuber", "endosperm"]
+plan_scope = "all"
+consumers = ["stress", "id", "tell", "name"]
+salience = 0.3
+grammar_role = "part"
+
+[axis.clonal_spread_m]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.5
+bounds = [0.01, 100.0]             # authored 0.0 = non-clonal (trusted)
+plan_scope = "all"
+consumers = ["stress", "pop", "tell"]
+salience = 0.2
+
+[axis.succulence]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.3
+
+# ── covering ───────────────────────────────────────────────────────────
+[axis.bark_thickness_cm]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.4
+bounds = [0.05, 60.0]              # the fire axis (vocab §6)
+plan_scope = ["tree", "shrub"]
+consumers = ["stress", "tell"]
+salience = 0.2
+
+[axis.cuticle_thickness]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.1
+
+[axis.pubescence]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]                # silvery reflectance
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.2
+
+# ── phenology (behavior block) ─────────────────────────────────────────
+[axis.leafout_month]
+block = "behavior"
+tier = "steady"
+value_type = "int"
+mutation = "gaussian"
+sigma = 0.7
+bounds = [1.0, 12.0]
+plan_scope = "all"
+consumers = ["stress", "tell"]
+salience = 0.1
+
+[axis.deciduous_trigger]
+block = "behavior"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "winter", "drought"]
+plan_scope = "all"
+consumers = ["stress", "id", "tell"]
+salience = 0.2
+
+[axis.bloom_start_month]
+block = "behavior"
+tier = "steady"
+value_type = "int"
+mutation = "gaussian"
+sigma = 0.7
+bounds = [1.0, 12.0]
+plan_scope = "all"
+consumers = ["stress", "tell", "name"]
+salience = 0.2
+
+[axis.bloom_length_months]
+block = "behavior"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.3
+bounds = [0.2, 12.0]
+plan_scope = "all"
+consumers = ["stress", "tell"]
+salience = 0.1
+
+[axis.fruit_month]
+block = "behavior"
+tier = "steady"
+value_type = "int"
+mutation = "gaussian"
+sigma = 0.7
+bounds = [1.0, 12.0]
+plan_scope = "all"
+consumers = ["stress", "tell", "pop"]
+salience = 0.1
+
+[axis.synchronous_flowering]
+block = "behavior"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["no", "yes"]
+plan_scope = "all"
+consumers = ["tell", "id"]
+salience = 0.3
+
+# ── nutrient economy (diet block) ──────────────────────────────────────
+[axis.photosynthesis]
+block = "diet"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["C3", "C4", "CAM", "chemosymbiosis", "none"]
+plan_scope = "all"
+consumers = ["stress", "pop", "id"]
+salience = 0.3
+
+[axis.parasitism]
+block = "diet"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "hemi", "holo"]
+plan_scope = "all"
+consumers = ["stress", "tell"]
+salience = 0.3
+
+[axis.mycoheterotrophy]
+block = "diet"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["no", "yes"]
+plan_scope = "all"
+consumers = ["stress", "tell"]
+salience = 0.3
+
+[axis.saprotrophy]
+block = "diet"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["white_rot", "brown_rot", "litter", "dung", "none"]
+plan_scope = ["fungus", "lichen"]
+consumers = ["stress", "pop", "id"]
+salience = 0.3
+
+[axis.nutrient_package]
+block = "diet"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "xerophyte", "hydrophyte", "halophyte", "carnivore"]
+plan_scope = "all"
+consumers = ["stress", "id"]
+salience = 0.3
+
+# ── niche tolerances (niche block — traits, they drift) ────────────────
+[axis.drought_tolerance]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.2
+
+[axis.salinity_tolerance]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.2
+
+[axis.waterlogging_tolerance]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]                # HAND band (mangrove/wetland grades)
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.2
+
+[axis.fertility_requirement]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.1
+
+[axis.growing_season_req]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "gaussian"
+sigma = 0.7
+bounds = [0.0, 12.0]               # months above threshold needed
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.1
+
+[axis.fire_strategy]
+block = "niche"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["avoider", "resprouter", "seeder"]
+plan_scope = ["tree", "shrub", "herb_forb", "grass_sward"]
+consumers = ["stress", "tell"]
+salience = 0.2
+
+# ── ecosystem role ─────────────────────────────────────────────────────
+[axis.engineer_impact]
+block = "ecosystem"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.06
+bounds = [0.0, 1.0]                # peat moss, kelp forest, reef builders
+plan_scope = "all"
+consumers = ["stress", "pop", "tell"]
+salience = 0.2
+
+[axis.coloniality]
+block = "ecosystem"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]                # solitary .. clonal colony (Pando tail)
+plan_scope = "all"
+consumers = ["pop", "tell"]
+salience = 0.2

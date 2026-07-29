@@ -285,6 +285,7 @@ const MONTH_LETTERS = ["J","F","M","A","M","J","J","A","S","O","N","D"];
 const KNOWN_SPEC_FIELDS = new Set([
   "elev_m","T_c","P_mm","cover","salinity","depth_m","hand_m","order",
   "biome","aquatic","masks","biome_sim","river","lake","ocean","sea",
+  "glacier","glacier_m",
 ]);
 
 // ══════════════════════════════════════════════════════════════════════
@@ -343,7 +344,14 @@ const S = {
   forestOverlay: false,
   windOverlay: false,
   currentsOverlay: false,
+  seaiceOverlay: false,
+  insolOverlay: false,
+  snowOverlay: false,
+  riversOverlay: false,
   overlayCanvas: {},   // key -> offscreen Canvas (cached by month-mask)
+
+  // Datapacks (.k11pack dropped after a bundle; unified overlay format)
+  packs: [],           // [{header, layers:[{...meta, data, _canvas}], active:{id:bool}}]
 
   // Pan / zoom
   ox: 0, oy: 0, scale: 1,
@@ -492,6 +500,26 @@ function precipRamp(p) {
     Math.round(255 + (50 - 255) * t),
     Math.round(255 + (200 - 255) * t),
   ];
+}
+
+// Sea-ice ramp: 0→transparent; 1→solid ice white-blue
+function seaiceRamp(v) {
+  const t = Math.max(0, Math.min(1, v));
+  return [Math.round(180 + 60 * t), Math.round(210 + 40 * t), 255,
+          Math.round(t * 220)];
+}
+
+// Insolation ramp: 0→deep indigo; ~1.2→bright sun yellow
+function insolRamp(v) {
+  const t = Math.max(0, Math.min(1, v / 1.2));
+  return [Math.round(20 + 235 * t), Math.round(16 + 204 * t),
+          Math.round(60 + 60 * t), Math.round(40 + 150 * t)];
+}
+
+// Snow ramp: 0→transparent; 500mm WE→solid white
+function snowRamp(v) {
+  const t = Math.max(0, Math.min(1, v / 500));
+  return [255, 255, 255, Math.round(t * 230)];
 }
 
 // Get pixel-level value from monthly data (with upscale) for a given world coord
@@ -876,6 +904,32 @@ function buildColorWashCanvas(which) {
         Math.round(t * 150),
       ];
     };
+  } else if (which === "seaice") {
+    if (S.monthly && S.monthly.seaice_monthly) {
+      const avg = monthlyAverage("seaice_monthly");
+      if (!avg) return null;
+      const [FH, FW] = S.monthly._shapes.seaice_monthly;
+      return _buildRampCanvas(avg, FW, FH, seaiceRamp, W, H);
+    }
+    return null;
+  } else if (which === "insol") {
+    if (S.monthly && S.monthly.insol_monthly) {
+      const avg = monthlyAverage("insol_monthly");
+      if (!avg) return null;
+      const [FH, FW] = S.monthly._shapes.insol_monthly;
+      return _buildRampCanvas(avg, FW, FH, insolRamp, W, H);
+    }
+    return null;
+  } else if (which === "snow") {
+    if (S.monthly && S.monthly.snow_monthly) {
+      const avg = monthlyAverage("snow_monthly");
+      if (!avg) return null;
+      const [FH, FW] = S.monthly._shapes.snow_monthly;
+      return _buildRampCanvas(avg, FW, FH, snowRamp, W, H);
+    }
+    return null;
+  } else if (which === "rivers") {
+    return _buildRiverCanvas(W, H);
   } else {
     return null;
   }
@@ -902,6 +956,43 @@ function _buildRampCanvas(arr, FW, FH, rampFn, outW, outH) {
     }
   }
   octx.putImageData(imgData, 0, 0);
+  return off;
+}
+
+// Monthly river networks, STAMPED at delivered res by river_raster in
+// the pipeline (taper/meander/self-avoidance baked in — the viewer
+// never re-geometry-fies rivers). A pixel is lit if any selected
+// month carries river there; alpha follows the max width class, so
+// permanent trunks read strong and seasonal creeks thin.
+function _buildRiverCanvas(W, H) {
+  if (!S.monthly) return null;
+  const mw = S.monthly.river_width_monthly;
+  if (!mw) return null;
+  const [FH, FW] = S.monthly._shapes.river_width_monthly;
+  const plane = FW * FH;
+  const off = document.createElement("canvas");
+  off.width = FW; off.height = FH;
+  const ctx = off.getContext("2d");
+  const imgData = ctx.createImageData(FW, FH);
+  const d = imgData.data;
+  for (let i = 0; i < plane; i++) {
+    let maxw = 0;
+    for (let m = 0; m < 12; m++) {
+      if (S.selMonths && !S.selMonths.has(m)) continue;
+      const v = mw[m * plane + i];
+      if (v > maxw) maxw = v;
+    }
+    if (maxw === 0) continue;
+    const j = i * 4;
+    // opaque — a diagnostic overlay: translucent 1-px lines vanish
+    // under canvas downscaling at full-map zoom. Color depth follows
+    // the width class (thin creeks light, trunks deep).
+    d[j] = Math.max(40, 130 - maxw * 30);
+    d[j + 1] = Math.max(120, 210 - maxw * 30);
+    d[j + 2] = 255;
+    d[j + 3] = 255;
+  }
+  ctx.putImageData(imgData, 0, 0);
   return off;
 }
 
@@ -1058,6 +1149,9 @@ function ensureOverlay(which) {
 // Invalidate overlay cache when month mask changes
 function invalidateOverlays() {
   S.overlayCanvas = {};
+  for (const pack of (S.packs || [])) {
+    for (const L of pack.layers) { L._canvas = null; L._key = null; }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1093,6 +1187,164 @@ function switchLayer(id) {
   render();
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// Datapacks (.k11pack) — unified overlay format (owner decision 2026-07-29)
+// A pack is dropped onto the viewer AFTER a .k11view bundle; overlay
+// buttons build themselves from the header's declarative layer metadata.
+// kind: continuous (colormap ramp) | categorical (authored colors) |
+//       points (markers) | vectors (reserved — not yet rendered)
+// ══════════════════════════════════════════════════════════════════════
+function parsePack(buf) {
+  const dv = new DataView(buf);
+  if (buf.byteLength < 8) throw new Error("Pack too small");
+  const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
+  if (magic !== "K11P") throw new Error(`Bad magic: ${magic}`);
+  const hdrLen = dv.getUint32(4, true);
+  const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hdrLen)));
+  if (header.format !== "k11pack/1") throw new Error(`Unknown format: ${header.format}`);
+  let offset = 8 + hdrLen;
+  const layers = header.layers.map(L => ({ ...L }));
+  for (const L of layers) {
+    if (!L.field) continue;                      // points layers: inline
+    const n = L.shape.reduce((a, b) => a * b, 1);
+    const qmax = L.dtype === "u1" ? 255 : 65535;
+    let arr;
+    if (L.dtype === "u1") {
+      arr = new Uint8Array(buf.slice(offset, offset + n));
+      offset += n;
+    } else {
+      const src = new Uint8Array(buf.slice(offset, offset + n * 2));
+      arr = new Uint16Array(src.buffer, src.byteOffset, n);
+      offset += n * 2;
+    }
+    const scale = L.scale ?? 1, off = L.offset ?? 0;
+    const f32 = new Float32Array(n);
+    for (let i = 0; i < n; i++) f32[i] = arr[i] * scale + off;
+    L.data = f32;
+    L._lo = off;
+    L._hi = off + scale * qmax;
+  }
+  return { header, layers };
+}
+
+function loadPack(buf) {
+  if (!S.fields) { toast("Load a .k11view bundle first"); return; }
+  const { header, layers } = parsePack(buf);
+  const pack = { header, layers, active: {} };
+  for (const L of layers) pack.active[L.id] = false;
+  S.packs.push(pack);
+  buildOverlayButtons();
+  toast(`Pack loaded: ${header.pack || header.generator || "?"} (${layers.length} layers)`);
+  render();
+}
+
+// Mask evaluated against the BASE bundle's unpacked mask fields
+function packMaskArray(mask) {
+  if (!mask) return null;
+  const f = S.fields, n = S.shape[0] * S.shape[1];
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    if (mask === "land")           out[i] = (!f.ocean[i] && !f.sea[i]) ? 1 : 0;
+    else if (mask === "ocean")     out[i] = (f.ocean[i] || f.sea[i]) ? 1 : 0;
+    else if (mask === "freshwater")out[i] = (f.river[i] || f.lake[i]) ? 1 : 0;
+    else if (mask === "river")     out[i] = f.river[i];
+    else if (mask === "lake")      out[i] = f.lake[i];
+  }
+  return out;
+}
+
+function rampColor(stops, t) {
+  t = Math.min(1, Math.max(0, t));
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i][0]) {
+      const t0 = stops[i - 1][0], c0 = stops[i - 1][1];
+      const t1 = stops[i][0], c1 = stops[i][1];
+      const f = (t - t0) / ((t1 - t0) || 1);
+      return [c0[0] + (c1[0] - c0[0]) * f,
+              c0[1] + (c1[1] - c0[1]) * f,
+              c0[2] + (c1[2] - c0[2]) * f];
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
+// Month-mask average for month_dim layers (same semantics as temp/precip)
+function packMonthAvg(L) {
+  const [M, Hf, Wf] = L.shape;
+  const n = Hf * Wf;
+  const out = new Float32Array(n);
+  let cnt = 0;
+  for (let m = 0; m < M; m++) {
+    if (S.selMonths && !S.selMonths.has(m)) continue;
+    const off = m * n;
+    for (let i = 0; i < n; i++) out[i] += L.data[off + i];
+    cnt++;
+  }
+  if (cnt > 0) for (let i = 0; i < n; i++) out[i] /= cnt;
+  return out;
+}
+
+function ensurePackCanvas(pack, L) {
+  const key = L.month_dim ? _overlayCacheKey("pack:" + L.id) : "static";
+  if (L._canvas && L._key === key) return L._canvas;
+  const [W, H] = S.shape;
+  const data = L.month_dim ? packMonthAvg(L) : L.data;
+  const [Hf, Wf] = L.month_dim ? [L.shape[1], L.shape[2]]
+                               : [L.shape[0], L.shape[1]];
+  const off = document.createElement("canvas");
+  off.width = W; off.height = H;
+  const octx = off.getContext("2d");
+  const img = octx.createImageData(W, H);
+  const mask = packMaskArray(L.mask);
+  const alpha = Math.round((L.alpha ?? 0.6) * 255);
+  const sx = Wf / W, sy = Hf / H;
+  for (let y = 0; y < H; y++) {
+    const fy = Math.min(Hf - 1, Math.floor(y * sy));
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (mask && !mask[i]) continue;
+      const fx = Math.min(Wf - 1, Math.floor(x * sx));
+      const v = data[fy * Wf + fx];
+      const j = i * 4;
+      if (L.kind === "categorical") {
+        const c = L.colormap[String(v)] || [128, 128, 128];
+        img.data[j] = c[0]; img.data[j + 1] = c[1]; img.data[j + 2] = c[2];
+        img.data[j + 3] = alpha;
+      } else {
+        const t = (v - L._lo) / ((L._hi - L._lo) || 1);
+        const c = rampColor(L.colormap, t);
+        img.data[j] = Math.round(c[0]); img.data[j + 1] = Math.round(c[1]);
+        img.data[j + 2] = Math.round(c[2]); img.data[j + 3] = alpha;
+      }
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  L._canvas = off;
+  L._key = key;
+  return off;
+}
+
+// Value of a continuous layer at a base-bundle pixel (nearest sample)
+function packLayerValue(L, wx, wy) {
+  const [W, H] = S.shape;
+  const [Hf, Wf] = L.month_dim ? [L.shape[1], L.shape[2]]
+                               : [L.shape[0], L.shape[1]];
+  const fx = Math.min(Wf - 1, Math.floor(wx * (Wf / W)));
+  const fy = Math.min(Hf - 1, Math.floor(wy * (Hf / H)));
+  if (L.month_dim) {
+    const [M] = L.shape;
+    const n = Hf * Wf;
+    let sum = 0, cnt = 0;
+    for (let m = 0; m < M; m++) {
+      if (S.selMonths && !S.selMonths.has(m)) continue;
+      sum += L.data[m * n + fy * Wf + fx];
+      cnt++;
+    }
+    return cnt ? sum / cnt : null;
+  }
+  return L.data[fy * Wf + fx];
+}
+
 // ── Overlay Toggle Buttons ──
 const OVERLAY_DEFS = [
   { id: "temp",    label: "Temp",       needs: "t_monthly",    field: "T_c" },
@@ -1100,6 +1352,10 @@ const OVERLAY_DEFS = [
   { id: "forest",  label: "Forest",     needs: null,           field: "cover" },
   { id: "wind",    label: "Wind",       needs: "wu_monthly",   field: null },
   { id: "currents",label: "Currents",   needs: "cu_monthly",   field: null },
+  { id: "seaice",  label: "Sea ice",    needs: "seaice_monthly", field: null },
+  { id: "insol",   label: "Sunlight",   needs: "insol_monthly", field: null },
+  { id: "snow",    label: "Snow",       needs: "snow_monthly",  field: null },
+  { id: "rivers",  label: "Rivers",     needs: "river_width_monthly", field: null },
 ];
 
 function buildOverlayButtons() {
@@ -1122,6 +1378,25 @@ function buildOverlayButtons() {
     }
     overlayBtns.appendChild(btn);
   }
+  // Datapack layers (unified format — buttons build from pack metadata)
+  for (const pack of S.packs) {
+    for (const L of pack.layers) {
+      const btn = document.createElement("button");
+      btn.textContent = L.label;
+      btn.dataset.packLayer = L.id;
+      if (L.kind === "vectors") {           // reserved, not yet rendered
+        btn.disabled = true;
+        btn.title = "vector layers not yet supported";
+      }
+      if (pack.active[L.id]) btn.classList.add("active");
+      btn.onclick = () => {
+        pack.active[L.id] = !pack.active[L.id];
+        buildOverlayButtons();
+        render();
+      };
+      overlayBtns.appendChild(btn);
+    }
+  }
 }
 
 function overlayState(which) {
@@ -1131,6 +1406,10 @@ function overlayState(which) {
     case "forest":   return S.forestOverlay;
     case "wind":     return S.windOverlay;
     case "currents": return S.currentsOverlay;
+    case "seaice":   return S.seaiceOverlay;
+    case "insol":    return S.insolOverlay;
+    case "snow":     return S.snowOverlay;
+    case "rivers":   return S.riversOverlay;
   }
   return false;
 }
@@ -1142,6 +1421,10 @@ function toggleOverlay(which) {
     case "forest":   S.forestOverlay   = !S.forestOverlay; break;
     case "wind":     S.windOverlay     = !S.windOverlay; break;
     case "currents": S.currentsOverlay = !S.currentsOverlay; break;
+    case "seaice":   S.seaiceOverlay   = !S.seaiceOverlay; break;
+    case "insol":    S.insolOverlay    = !S.insolOverlay; break;
+    case "snow":     S.snowOverlay     = !S.snowOverlay; break;
+    case "rivers":   S.riversOverlay   = !S.riversOverlay; break;
   }
   buildOverlayButtons();
   render();
@@ -1242,6 +1525,22 @@ function render() {
     const fc = ensureOverlay("forest");
     if (fc) ctx.drawImage(fc, 0, 0, W, H);
   }
+  if (S.seaiceOverlay) {
+    const sc = ensureOverlay("seaice");
+    if (sc) ctx.drawImage(sc, 0, 0, W, H);
+  }
+  if (S.insolOverlay) {
+    const ic = ensureOverlay("insol");
+    if (ic) ctx.drawImage(ic, 0, 0, W, H);
+  }
+  if (S.snowOverlay) {
+    const nc = ensureOverlay("snow");
+    if (nc) ctx.drawImage(nc, 0, 0, W, H);
+  }
+  if (S.riversOverlay) {
+    const rc = ensureOverlay("rivers");
+    if (rc) ctx.drawImage(rc, 0, 0, W, H);
+  }
 
   // Wind / currents overlays (above color washes, below search)
   if (S.windOverlay) {
@@ -1251,6 +1550,33 @@ function render() {
   if (S.currentsOverlay) {
     const cc = ensureOverlay("currents");
     if (cc) ctx.drawImage(cc, 0, 0, W, H);
+  }
+
+  // Datapack overlays (continuous/categorical), then points as markers
+  for (const pack of S.packs) {
+    for (const L of pack.layers) {
+      if (!pack.active[L.id]) continue;
+      if (L.kind === "continuous" || L.kind === "categorical") {
+        const c = ensurePackCanvas(pack, L);
+        if (c) ctx.drawImage(c, 0, 0, W, H);
+      }
+    }
+  }
+  for (const pack of S.packs) {
+    for (const L of pack.layers) {
+      if (!pack.active[L.id] || L.kind !== "points" || !L.points) continue;
+      const [cr, cg, cb] = L.color || [255, 80, 80];
+      const r = Math.max(3.0 / S.scale, 1.5);
+      for (const p of L.points) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, 6.2832);
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},0.9)`;
+        ctx.fill();
+        ctx.lineWidth = Math.max(1.0 / S.scale, 0.5);
+        ctx.strokeStyle = "rgba(0,0,0,0.7)";
+        ctx.stroke();
+      }
+    }
   }
 
   // Search mask overlay
@@ -1359,8 +1685,9 @@ const FIELD_DISPLAY = {
   hand_m:   ["HAND",         "m"],
   order:    ["Stream Order", ""],
   biome_sim:["Biome Sim",    ""],
+  lat:      ["Latitude",     "°"],
 };
-const FIELD_ORDER = ["elev_m","T_c","P_mm","cover","salinity","depth_m","hand_m","order","biome_sim"];
+const FIELD_ORDER = ["elev_m","T_c","P_mm","cover","salinity","depth_m","hand_m","order","biome_sim","lat"];
 
 function pixelAt(wx, wy) {
   const [W, H] = S.shape;
@@ -1374,15 +1701,94 @@ function pixelAt(wx, wy) {
   if (S.fields.lake  != null) out.lake  = S.fields.lake[idx];
   if (S.fields.ocean != null) out.ocean = S.fields.ocean[idx];
   if (S.fields.sea   != null) out.sea   = S.fields.sea[idx];
+  if (S.fields.glacier != null) out.glacier = S.fields.glacier[idx];
+  if (S.fields.glacier_m != null) out.glacier_m = S.fields.glacier_m[idx];
   if (S.fields.aquatic != null) out.aquatic = S.fields.aquatic[idx];
-  // Biome name
+  // Biome name (water cells: the aquatic class IS the biome — without
+  // this every ocean cell reported as "ocean")
   if (S.fields.biome != null) {
     out.biome_name = S.biomeNameById[S.fields.biome[idx]] || "?";
+  }
+  const isWater = out.river || out.lake || out.ocean || out.sea;
+  if (isWater && S.fields.aquatic != null) {
+    const aq = S.fields.aquatic[idx];
+    out.aquatic_name = S.aquaticNames[aq] || null;
+    if (out.aquatic_name) out.biome_name = out.aquatic_name;
+  }
+  // flowing ice is a glacier, not a generic "ice" cell
+  if (out.glacier) out.biome_name = "glacier";
+  // Monthly river state at this pixel (stamped monthly networks):
+  // months carrying river + max width class — the tooltip's river
+  // info must not stop at the annual mask. selw is the max width
+  // class under the current month mask (0 = dry in selected months).
+  if (S.monthly && S.monthly.river_width_monthly) {
+    const mw = S.monthly.river_width_monthly;
+    const [FH, FW] = S.monthly._shapes.river_width_monthly;
+    const scale = W / FW;
+    const sx = Math.min(FW - 1, Math.floor(wx / scale));
+    const sy = Math.min(FH - 1, Math.floor(wy / scale));
+    const plane = FW * FH, ii = sy * FW + sx;
+    const months = [];
+    let maxw = 0, selw = 0;
+    for (let m = 0; m < 12; m++) {
+      const v = mw[m * plane + ii];
+      if (v > 0) { months.push(m); if (v > maxw) maxw = v; }
+      if (v > selw && (!S.selMonths || S.selMonths.has(m))) selw = v;
+    }
+    if (months.length) out.river_monthly = { months, maxw, selw };
+  }
+  // Monthly ice-cover fraction (0..1) at this pixel, keyed by water
+  // type: ocean/sea → sea ice, lake → lake ice, river → river ice.
+  // Averaged over the selected months; a field missing from the
+  // bundle (lake/river ice are newer exports) just drops the line.
+  if (S.monthly) {
+    const kind = (out.ocean || out.sea) ? "sea"
+      : out.lake ? "lake"
+      : (out.river || out.river_monthly) ? "river" : null;
+    const iName = kind ? kind + "ice_monthly" : null;
+    const iKey = iName && (S.monthly[iName] ? iName
+      : S.monthly["c_" + iName] ? "c_" + iName : null);
+    if (iKey) {
+      const arr = S.monthly[iKey];
+      const [FH, FW] = S.monthly._shapes[iKey];
+      const scale = W / FW;
+      const sx = Math.min(FW - 1, Math.floor(wx / scale));
+      const sy = Math.min(FH - 1, Math.floor(wy / scale));
+      const plane = FW * FH, ii = sy * FW + sx;
+      let sum = 0, cnt = 0;
+      for (let m = 0; m < 12; m++) {
+        if (S.selMonths && !S.selMonths.has(m)) continue;
+        sum += arr[m * plane + ii];
+        cnt++;
+      }
+      if (cnt) out.ice_cover = sum / cnt;
+    }
   }
   // Monthly values if filtered
   if (S.monthly && !allMonthsSelected()) {
     out.T_monthly = monthlyPixelValue("t_monthly", wx, wy);
     out.P_monthly = monthlyPixelValue("p_monthly", wx, wy);
+  }
+  // Active datapack layers: continuous values + nearest point hit
+  out._pack = [];
+  out._packpt = [];
+  for (const pack of S.packs) {
+    for (const L of pack.layers) {
+      if (!pack.active[L.id]) continue;
+      if (L.kind === "continuous" && L.data) {
+        const v = packLayerValue(L, wx, wy);
+        if (v != null) out._pack.push({ label: L.label, value: v,
+                                        unit: L.unit || "" });
+      } else if (L.kind === "points" && L.points) {
+        const thr = 8.0 / S.scale;      // 8 screen px pick radius
+        let best = null, bestD = thr;
+        for (const p of L.points) {
+          const d = Math.hypot(p.x - wx, p.y - wy);
+          if (d < bestD) { bestD = d; best = p; }
+        }
+        if (best) out._packpt.push({ label: L.label, point: best });
+      }
+    }
   }
   return out;
 }
@@ -1411,16 +1817,49 @@ function showTooltip(data, ex, ey) {
       html += `<div class="tt-field"><span class="tt-name">${label}</span><span class="tt-val">${fmtNum(data[f])} ${unit}</span></div>`;
     }
   }
-  const maskNames = { river: "River", lake: "Lake", ocean: "Ocean", sea: "Sea" };
+  const maskNames = { river: "River", lake: "Lake", ocean: "Ocean", sea: "Sea", glacier: "Glacier" };
   let maskVals = [];
   for (const [mk, ml] of Object.entries(maskNames)) {
-    if (data[mk] != null) maskVals.push(`${ml}: ${data[mk]}`);
+    if (data[mk] == null) continue;
+    // Seasonal river edge: the annual river bit is 0, but the monthly
+    // planes carry water in wet months. Dry under the current month
+    // mask means flow below L0 granularity — never "River: 0".
+    if (mk === "river" && data[mk] === 0 && data.river_monthly) {
+      maskVals.push(data.river_monthly.selw > 0
+        ? "River: seasonal"
+        : "River: seasonal (below L0 this month)");
+      continue;
+    }
+    maskVals.push(`${ml}: ${data[mk]}`);
   }
   if (maskVals.length) {
     html += `<div class="tt-field"><span class="tt-name">Masks</span><span class="tt-val">${maskVals.join("  ")}</span></div>`;
   }
-  if (data.aquatic != null) {
+  if (data.river_monthly) {
+    const rm = data.river_monthly;
+    const lbl = rm.months.length === 12 ? "permanent"
+      : rm.months.map((m) => MONTH_LETTERS[m]).join(" ");
+    html += `<div class="tt-field"><span class="tt-name">River (monthly)</span><span class="tt-val">class ${rm.maxw} — ${lbl}</span></div>`;
+  }
+  if (data.ice_cover != null) {
+    html += `<div class="tt-field"><span class="tt-name">Ice cover ${mLabel}</span><span class="tt-val">${Math.round(data.ice_cover * 100)}%</span></div>`;
+  }
+  if (data.glacier) {
+    const gm = data.glacier_m != null ? `${Math.round(data.glacier_m)} m thick` : "yes";
+    html += `<div class="tt-field"><span class="tt-name">Glacier ice</span><span class="tt-val">${gm}</span></div>`;
+  }
+  if (data.aquatic != null && !data.aquatic_name) {
     html += `<div class="tt-field"><span class="tt-name">Aquatic</span><span class="tt-val">${data.aquatic}</span></div>`;
+  }
+  // Datapack rows (active layers at this pixel / nearest point)
+  for (const pv of (data._pack || [])) {
+    html += `<div class="tt-field"><span class="tt-name">${pv.label}</span><span class="tt-val">${fmtNum(pv.value)}${pv.unit}</span></div>`;
+  }
+  for (const ph of (data._packpt || [])) {
+    const attrs = Object.entries(ph.point)
+      .filter(([k]) => k !== "x" && k !== "y")
+      .map(([k, v]) => `${k}=${v}`).join(" ");
+    html += `<div class="tt-field"><span class="tt-name">${ph.label}</span><span class="tt-val">${attrs}</span></div>`;
   }
 
   tooltip.innerHTML = html;
@@ -1770,8 +2209,21 @@ function renderSearchResults(data, expr) {
 
 // File loading
 function handleFile(file) {
+  if (file.name.endsWith(".k11pack")) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        loadPack(e.target.result);
+      } catch (err) {
+        toast("Failed to load pack: " + err.message);
+      }
+    };
+    reader.onerror = () => toast("Failed to read file");
+    reader.readAsArrayBuffer(file);
+    return;
+  }
   if (!file.name.endsWith(".k11view")) {
-    toast("Expected a .k11view file");
+    toast("Expected a .k11view or .k11pack file");
     return;
   }
   loadingEl.style.display = "block";
@@ -1799,6 +2251,7 @@ function loadBundle(buf) {
   S.header = header;
   S.shape = header.shape;
   S.fields = decodeFields(header, rawFields);
+  S.packs = [];          // packs are per-world — a new bundle drops them
 
   // Build biome mappings
   S.biomeNames = {};
@@ -1812,6 +2265,10 @@ function loadBundle(buf) {
   for (const [idStr, color] of Object.entries(header.biome_colors)) {
     S.biomeColors[parseInt(idStr, 10)] = color;
   }
+  // aquatic biome vocabulary (newer bundles; older ones fall back to
+  // the raw class number in the tooltip)
+  S.aquaticNames = header.aquatic_names || {};
+  S.aquaticColors = header.aquatic_colors || {};
 
   // Backdrop image — only use if backdrop_is_square === true
   if (header.backdrop_png_b64 && header.backdrop_is_square === true) {
@@ -1863,6 +2320,10 @@ const _loadBundle = loadBundle;
 window.loadBundle = function(arrayBuffer) {
   _loadBundle(arrayBuffer);
 };
+const _loadPack = loadPack;
+window.loadPack = function(arrayBuffer) {
+  _loadPack(arrayBuffer);
+};
 
 // File-picker UI
 dropZone.addEventListener("click", () => fileInput.click());
@@ -1889,7 +2350,8 @@ document.addEventListener("dragover", (e) => { e.preventDefault(); });
 document.addEventListener("drop", (e) => {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
-  if (file && file.name.endsWith(".k11view")) handleFile(file);
+  if (file && (file.name.endsWith(".k11view")
+               || file.name.endsWith(".k11pack"))) handleFile(file);
 });
 
 // Search

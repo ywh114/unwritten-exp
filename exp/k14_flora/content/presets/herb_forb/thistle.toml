@@ -1,0 +1,84 @@
+# Herb Forb preset: thistle — the spiny ruderal archetype
+
+[preset]
+id = "herb_forb.thistle"
+plan = "herb_forb"
+grade = "thistle"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 1.2
+woodiness = 0.0
+growth_rate = 0.5
+longevity_yr = 2.0
+shade_tolerance = 0.15
+pioneer_climax = 0.15
+layer = "sward"
+leaf_shape = "lobed"
+leaf_size_cm = 20.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "spinose"
+leaf_compoundness = "simple"
+leaf_sla = 18.0
+leaf_trap = "none"
+root_type = "tap"
+root_depth_m = 0.8
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "composite_head"
+flower_color = "purple"
+flower_size_mm = 30.0
+inflorescence = "head"
+pollination_syndrome = "bee"
+sexuality = "perfect"
+fruit_type = "achene"
+dispersal_channels = { local = 0.2, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.15 }
+propagule_mass_mg = 2.0
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.15
+mechanical_defense = "spine"
+chemical_defense = "none"
+defense_potency = 0.6
+storage_organ = "none"
+clonal_spread_m = 0.0
+succulence = 0.0
+cuticle_thickness = 0.4
+pubescence = 0.3
+leafout_month = 3
+deciduous_trigger = "winter"
+bloom_start_month = 6
+bloom_length_months = 2.0
+fruit_month = 8
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.5
+salinity_tolerance = 0.1
+waterlogging_tolerance = 0.2
+fertility_requirement = 0.4
+growing_season_req = 5.0
+fire_strategy = "seeder"
+engineer_impact = 0.1
+coloniality = 0.3
+
+[niche]
+temp_opt_c = 18
+temp_breadth_c = 10.0
+moisture_opt = 0.5
+moisture_breadth = 0.3
+
+[generics]
+support = "herbaceous_stem"
+feeding_organ = "C3_foliage"
+signal = "flower_showy"
+dispersal = "wind_plume"
+defense = "prickles"
+storage = "none"
+covering = "pubescent"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

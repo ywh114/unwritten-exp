@@ -459,7 +459,9 @@ function renderSidebar() {
       html += '<hr style="border:none;border-top:1px solid #eee;margin:6px 0;">';
       html += '<div style="font-weight:600;margin-bottom:2px;">Axes</div>';
       for (const [k, v] of axesEntries) {
-        if (k === "diet_spectrum" && v && typeof v === "object") {
+        if (v && typeof v === "object") {
+          // weighted-set axes (diet_spectrum, dispersal_channels, ...):
+          // sorted percentage breakdown, not "[object Object]"
           const ds = Object.entries(v)
             .filter(([, w]) => w > 0)
             .sort((a, b) => b[1] - a[1])

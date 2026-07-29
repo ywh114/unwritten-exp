@@ -1,0 +1,81 @@
+# Fern Grade preset: bracken — the clonal fern archetype
+
+[preset]
+id = "fern_grade.bracken"
+plan = "fern_grade"
+grade = "bracken"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 1.5
+woodiness = 0.0
+growth_rate = 0.5
+longevity_yr = 20.0
+shade_tolerance = 0.4
+pioneer_climax = 0.2
+layer = "sward"
+leaf_shape = "frond"
+leaf_size_cm = 100.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "toothed"
+leaf_compoundness = "bipinnate"
+leaf_sla = 20.0
+root_type = "fibrous"
+root_depth_m = 0.3
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "brown"
+flower_size_mm = 0.3
+inflorescence = "none"
+pollination_syndrome = "none"
+fruit_type = "sorus"
+dispersal_channels = { local = 0.2, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.2 }
+propagule_mass_mg = 0.01
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.2
+mechanical_defense = "none"
+chemical_defense = "cyanogenic"
+defense_potency = 0.7
+storage_organ = "rhizome"
+clonal_spread_m = 1.5
+succulence = 0.0
+cuticle_thickness = 0.3
+pubescence = 0.2
+leafout_month = 4
+deciduous_trigger = "winter"
+bloom_start_month = 7
+bloom_length_months = 1.0
+fruit_month = 8
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.5
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.3
+fertility_requirement = 0.3
+growing_season_req = 5.0
+engineer_impact = 0.5
+coloniality = 0.8
+
+[niche]
+temp_opt_c = 14
+temp_breadth_c = 10.0
+moisture_opt = 0.55
+moisture_breadth = 0.3
+
+[generics]
+support = "herbaceous_frond"
+feeding_organ = "C3_foliage"
+signal = "spore_mass"
+dispersal = "spore_wind"
+defense = "chemical_tannins"
+storage = "rhizome"
+covering = "none"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

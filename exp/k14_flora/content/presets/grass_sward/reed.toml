@@ -1,0 +1,82 @@
+# Grass Sward preset: reed — the emergent wetland archetype
+
+[preset]
+id = "grass_sward.reed"
+plan = "grass_sward"
+grade = "reed"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 2.5
+woodiness = 0.0
+growth_rate = 1.0
+longevity_yr = 10.0
+shade_tolerance = 0.2
+pioneer_climax = 0.35
+layer = "sward"
+leaf_shape = "linear"
+leaf_size_cm = 50.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "entire"
+leaf_sla = 15.0
+root_type = "fibrous"
+root_depth_m = 0.4
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "brown"
+flower_size_mm = 2.0
+inflorescence = "panicle"
+pollination_syndrome = "wind"
+sexuality = "perfect"
+fruit_type = "caryopsis"
+dispersal_channels = { local = 0.3, wind = 0.3, water = 0.4, animal = 0.0, jump = 0.1 }
+propagule_mass_mg = 0.3
+seed_bank = "transient"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "silica"
+chemical_defense = "none"
+defense_potency = 0.3
+storage_organ = "rhizome"
+clonal_spread_m = 2.0
+succulence = 0.0
+cuticle_thickness = 0.3
+pubescence = 0.0
+leafout_month = 3
+deciduous_trigger = "winter"
+bloom_start_month = 7
+bloom_length_months = 2.0
+fruit_month = 9
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "hydrophyte"
+drought_tolerance = 0.1
+salinity_tolerance = 0.3
+waterlogging_tolerance = 0.9
+fertility_requirement = 0.5
+growing_season_req = 5.0
+fire_strategy = "resprouter"
+engineer_impact = 0.6
+coloniality = 0.9
+
+[niche]
+temp_opt_c = 16
+temp_breadth_c = 10.0
+moisture_opt = 0.9
+moisture_breadth = 0.1
+
+[generics]
+support = "fibrous_culm"
+feeding_organ = "C3_foliage"
+signal = "flower_inconspicuous"
+dispersal = "wind_plume"
+defense = "silica"
+storage = "rhizome"
+covering = "cuticle_waxy"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

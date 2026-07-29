@@ -1,0 +1,83 @@
+# Succulent preset: cactus — the stem-succulent desert archetype
+
+[preset]
+id = "succulent.cactus"
+plan = "succulent"
+grade = "cactus"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 1.5
+woodiness = 0.3
+wood_density = 0.3
+growth_rate = 0.1
+longevity_yr = 150.0
+shade_tolerance = 0.05
+pioneer_climax = 0.4
+layer = "shrub"
+leaf_shape = "none"
+leaf_size_cm = 0.05
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_compoundness = "simple"
+leaf_sla = 2.0
+root_type = "fibrous"
+root_depth_m = 0.3
+root_special = "none"
+mycorrhizal = "none"
+n_fixation = "none"
+flower_symmetry = "radial"
+flower_color = "red"
+flower_size_mm = 80.0
+inflorescence = "solitary"
+pollination_syndrome = "bee"
+sexuality = "perfect"
+fruit_type = "berry"
+dispersal_channels = { local = 0.3, wind = 0.0, water = 0.0, animal = 0.6, jump = 0.1 }
+propagule_mass_mg = 5.0
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "spine"
+chemical_defense = "none"
+defense_potency = 0.7
+storage_organ = "succulent_tissue"
+clonal_spread_m = 0.2
+succulence = 0.95
+cuticle_thickness = 0.9
+pubescence = 0.1
+leafout_month = 1
+deciduous_trigger = "none"
+bloom_start_month = 4
+bloom_length_months = 1.0
+fruit_month = 6
+synchronous_flowering = "no"
+photosynthesis = "CAM"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "xerophyte"
+drought_tolerance = 0.95
+salinity_tolerance = 0.1
+waterlogging_tolerance = 0.05
+fertility_requirement = 0.2
+growing_season_req = 3.0
+engineer_impact = 0.3
+coloniality = 0.2
+
+[niche]
+temp_opt_c = 25
+temp_breadth_c = 8.0
+moisture_opt = 0.2
+moisture_breadth = 0.15
+
+[generics]
+support = "succulent_stem"
+feeding_organ = "CAM_foliage"
+signal = "flower_showy"
+dispersal = "fleshy_reward"
+defense = "spines"
+storage = "succulent_tissue"
+covering = "cuticle_waxy"
+phenology = "evergreen"
+sensor_array = "tropism_standard"

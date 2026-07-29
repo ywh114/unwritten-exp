@@ -1,0 +1,95 @@
+# Shrub preset: heath — the acid-heath evergreen archetype
+
+[preset]
+id = "shrub.heath"
+plan = "shrub"
+grade = "heath"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.5
+woodiness = 0.8
+wood_density = 0.6
+growth_rate = 0.1
+longevity_yr = 30.0
+shade_tolerance = 0.2
+pioneer_climax = 0.4
+layer = "shrub"
+halle_axes = "polyaxial"
+halle_growth = "rhythmic"
+halle_flowering = "lateral"
+halle_branching = "sympodial"
+halle_orientation = "plagiotropic"
+apical_dominance = 0.3
+branch_angle = 45.0
+tier_spacing_m = 0.1
+leaf_shape = "scale"
+leaf_size_cm = 0.3
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_compoundness = "simple"
+leaf_sla = 4.0
+drip_tips = 0.0
+root_type = "fibrous"
+root_depth_m = 0.3
+root_special = "none"
+mycorrhizal = "ericoid"
+n_fixation = "none"
+flower_symmetry = "radial"
+flower_color = "purple"
+flower_size_mm = 5.0
+inflorescence = "raceme"
+pollination_syndrome = "bee"
+sexuality = "perfect"
+fruit_type = "capsule"
+dispersal_channels = { local = 0.6, wind = 0.3, water = 0.0, animal = 0.0, jump = 0.05 }
+propagule_mass_mg = 0.05
+seed_bank = "persistent"
+serotiny = "no"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.05
+mechanical_defense = "none"
+chemical_defense = "tannin"
+defense_potency = 0.3
+storage_organ = "none"
+clonal_spread_m = 0.3
+succulence = 0.0
+bark_thickness_cm = 0.5
+cuticle_thickness = 0.6
+pubescence = 0.3
+leafout_month = 3
+deciduous_trigger = "none"
+bloom_start_month = 7
+bloom_length_months = 2.0
+fruit_month = 9
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.6
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.5
+fertility_requirement = 0.2
+growing_season_req = 4.0
+fire_strategy = "resprouter"
+engineer_impact = 0.4
+coloniality = 0.6
+
+[niche]
+temp_opt_c = 12
+temp_breadth_c = 8.0
+moisture_opt = 0.6
+moisture_breadth = 0.25
+
+[generics]
+support = "multi_stem_woody"
+feeding_organ = "C3_foliage"
+signal = "flower_showy"
+dispersal = "gravity_drop"
+defense = "chemical_tannins"
+storage = "none"
+covering = "cuticle_waxy"
+phenology = "evergreen"
+sensor_array = "tropism_standard"

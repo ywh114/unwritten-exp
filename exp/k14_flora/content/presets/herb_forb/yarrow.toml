@@ -1,0 +1,84 @@
+# Herb Forb preset: yarrow — the composite meadow archetype
+
+[preset]
+id = "herb_forb.yarrow"
+plan = "herb_forb"
+grade = "yarrow"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.6
+woodiness = 0.0
+growth_rate = 0.3
+longevity_yr = 5.0
+shade_tolerance = 0.3
+pioneer_climax = 0.3
+layer = "sward"
+leaf_shape = "lobed"
+leaf_size_cm = 10.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "toothed"
+leaf_compoundness = "bipinnate"
+leaf_sla = 18.0
+leaf_trap = "none"
+root_type = "fibrous"
+root_depth_m = 0.3
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "composite_head"
+flower_color = "white"
+flower_size_mm = 80.0
+inflorescence = "head"
+pollination_syndrome = "bee"
+sexuality = "perfect"
+fruit_type = "achene"
+dispersal_channels = { local = 0.6, wind = 0.2, water = 0.0, animal = 0.1, jump = 0.1 }
+propagule_mass_mg = 0.3
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "none"
+chemical_defense = "alkaloid"
+defense_potency = 0.4
+storage_organ = "rhizome"
+clonal_spread_m = 0.4
+succulence = 0.0
+cuticle_thickness = 0.3
+pubescence = 0.4
+leafout_month = 3
+deciduous_trigger = "winter"
+bloom_start_month = 6
+bloom_length_months = 3.0
+fruit_month = 9
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.5
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.3
+fertility_requirement = 0.4
+growing_season_req = 5.0
+fire_strategy = "resprouter"
+engineer_impact = 0.2
+coloniality = 0.5
+
+[niche]
+temp_opt_c = 16
+temp_breadth_c = 10.0
+moisture_opt = 0.5
+moisture_breadth = 0.3
+
+[generics]
+support = "herbaceous_stem"
+feeding_organ = "C3_foliage"
+signal = "flower_showy"
+dispersal = "gravity_drop"
+defense = "chemical_alkaloids"
+storage = "rhizome"
+covering = "pubescent"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

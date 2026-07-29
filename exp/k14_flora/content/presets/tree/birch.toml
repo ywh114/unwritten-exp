@@ -1,0 +1,95 @@
+# Tree preset: birch — the pioneer hardwood archetype
+
+[preset]
+id = "tree.birch"
+plan = "tree"
+grade = "birch"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 20.0
+woodiness = 1.0
+wood_density = 0.6
+growth_rate = 0.6
+longevity_yr = 80.0
+shade_tolerance = 0.2
+pioneer_climax = 0.15
+layer = "canopy"
+halle_axes = "polyaxial"
+halle_growth = "rhythmic"
+halle_flowering = "lateral"
+halle_branching = "monopodial"
+halle_orientation = "plagiotropic"
+apical_dominance = 0.6
+branch_angle = 45.0
+tier_spacing_m = 0.8
+leaf_shape = "ovate"
+leaf_size_cm = 5.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "serrate"
+leaf_compoundness = "simple"
+leaf_sla = 18.0
+drip_tips = 0.0
+root_type = "fibrous"
+root_depth_m = 1.5
+root_special = "none"
+mycorrhizal = "ecto"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "green"
+flower_size_mm = 2.0
+inflorescence = "catkin"
+pollination_syndrome = "wind"
+sexuality = "monoecious"
+fruit_type = "samara"
+dispersal_channels = { local = 0.2, wind = 0.8, water = 0.0, animal = 0.0, jump = 0.15 }
+propagule_mass_mg = 0.5
+seed_bank = "transient"
+serotiny = "no"
+masting_interval_yr = 2.0
+jump_rate = 0.15
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "endosperm"
+clonal_spread_m = 0.0
+succulence = 0.0
+bark_thickness_cm = 1.0
+cuticle_thickness = 0.2
+pubescence = 0.1
+leafout_month = 4
+deciduous_trigger = "winter"
+bloom_start_month = 4
+bloom_length_months = 1.0
+fruit_month = 8
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.3
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.5
+fertility_requirement = 0.3
+growing_season_req = 4.0
+fire_strategy = "avoider"
+engineer_impact = 0.3
+coloniality = 0.2
+
+[niche]
+temp_opt_c = 10
+temp_breadth_c = 8.0
+moisture_opt = 0.55
+moisture_breadth = 0.3
+
+[generics]
+support = "trunk_single"
+feeding_organ = "C3_foliage"
+signal = "flower_inconspicuous"
+dispersal = "wind_winged"
+defense = "none"
+storage = "endosperm"
+covering = "bark_thin"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

@@ -1,0 +1,84 @@
+# Herb Forb preset: carrot — the umbellifer archetype
+
+[preset]
+id = "herb_forb.carrot"
+plan = "herb_forb"
+grade = "carrot"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.8
+woodiness = 0.0
+growth_rate = 0.3
+longevity_yr = 2.0
+shade_tolerance = 0.25
+pioneer_climax = 0.2
+layer = "sward"
+leaf_shape = "lobed"
+leaf_size_cm = 15.0
+leaf_persistence = "winter_deciduous"
+leaf_margin = "toothed"
+leaf_compoundness = "bipinnate"
+leaf_sla = 20.0
+leaf_trap = "none"
+root_type = "tap"
+root_depth_m = 0.5
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "radial"
+flower_color = "white"
+flower_size_mm = 100.0
+inflorescence = "umbel"
+pollination_syndrome = "bee"
+sexuality = "perfect"
+fruit_type = "achene"
+dispersal_channels = { local = 0.5, wind = 0.0, water = 0.0, animal = 0.3, jump = 0.1 }
+propagule_mass_mg = 1.0
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "tuber"
+clonal_spread_m = 0.0
+succulence = 0.0
+cuticle_thickness = 0.3
+pubescence = 0.3
+leafout_month = 3
+deciduous_trigger = "winter"
+bloom_start_month = 6
+bloom_length_months = 2.0
+fruit_month = 8
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.5
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.2
+fertility_requirement = 0.4
+growing_season_req = 5.0
+fire_strategy = "avoider"
+engineer_impact = 0.1
+coloniality = 0.2
+
+[niche]
+temp_opt_c = 18
+temp_breadth_c = 10.0
+moisture_opt = 0.5
+moisture_breadth = 0.3
+
+[generics]
+support = "herbaceous_stem"
+feeding_organ = "C3_foliage"
+signal = "flower_showy"
+dispersal = "hooks_burs"
+defense = "none"
+storage = "tuber"
+covering = "pubescent"
+phenology = "winter_deciduous"
+sensor_array = "tropism_standard"

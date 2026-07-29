@@ -1,0 +1,95 @@
+# Tree preset: conifer — the needle-leaved softwood archetype
+
+[preset]
+id = "tree.conifer"
+plan = "tree"
+grade = "conifer"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 30.0
+woodiness = 1.0
+wood_density = 0.5
+growth_rate = 0.3
+longevity_yr = 600.0
+shade_tolerance = 0.4
+pioneer_climax = 0.6
+layer = "canopy"
+halle_axes = "monoaxial"
+halle_growth = "rhythmic"
+halle_flowering = "lateral"
+halle_branching = "monopodial"
+halle_orientation = "orthotropic"
+apical_dominance = 0.9
+branch_angle = 60.0
+tier_spacing_m = 0.8
+leaf_shape = "needle"
+leaf_size_cm = 3.0
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_compoundness = "simple"
+leaf_sla = 5.0
+drip_tips = 0.0
+root_type = "tap"
+root_depth_m = 3.0
+root_special = "none"
+mycorrhizal = "ecto"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "green"
+flower_size_mm = 3.0
+inflorescence = "cone"
+pollination_syndrome = "wind"
+sexuality = "monoecious"
+fruit_type = "cone"
+dispersal_channels = { local = 0.3, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.1 }
+propagule_mass_mg = 50.0
+seed_bank = "persistent"
+serotiny = "yes"
+masting_interval_yr = 3.0
+jump_rate = 0.1
+mechanical_defense = "none"
+chemical_defense = "essential_oil"
+defense_potency = 0.6
+storage_organ = "endosperm"
+clonal_spread_m = 0.0
+succulence = 0.0
+bark_thickness_cm = 20.0
+cuticle_thickness = 0.6
+pubescence = 0.0
+leafout_month = 4
+deciduous_trigger = "none"
+bloom_start_month = 5
+bloom_length_months = 1.0
+fruit_month = 10
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.6
+salinity_tolerance = 0.1
+waterlogging_tolerance = 0.2
+fertility_requirement = 0.3
+growing_season_req = 4.0
+fire_strategy = "seeder"
+engineer_impact = 0.5
+coloniality = 0.1
+
+[niche]
+temp_opt_c = 8
+temp_breadth_c = 8.0
+moisture_opt = 0.5
+moisture_breadth = 0.3
+
+[generics]
+support = "trunk_single"
+feeding_organ = "C3_foliage"
+signal = "cone_strobilus"
+dispersal = "wind_winged"
+defense = "chemical_essential_oil"
+storage = "endosperm"
+covering = "bark_thick"
+phenology = "evergreen"
+sensor_array = "tropism_standard"

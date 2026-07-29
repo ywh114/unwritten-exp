@@ -1,0 +1,82 @@
+# Grass Sward preset: bamboo — the giant woody grass archetype
+
+[preset]
+id = "grass_sward.bamboo"
+plan = "grass_sward"
+grade = "bamboo"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 15.0
+woodiness = 0.9
+growth_rate = 2.0
+longevity_yr = 80.0
+shade_tolerance = 0.3
+pioneer_climax = 0.4
+layer = "subcanopy"
+leaf_shape = "lanceolate"
+leaf_size_cm = 15.0
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_sla = 12.0
+root_type = "fibrous"
+root_depth_m = 0.5
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "green"
+flower_size_mm = 3.0
+inflorescence = "panicle"
+pollination_syndrome = "wind"
+sexuality = "perfect"
+fruit_type = "caryopsis"
+dispersal_channels = { local = 0.8, wind = 0.0, water = 0.0, animal = 0.0, jump = 0.05 }
+propagule_mass_mg = 5.0
+seed_bank = "transient"
+masting_interval_yr = 40.0
+jump_rate = 0.05
+mechanical_defense = "silica"
+chemical_defense = "none"
+defense_potency = 0.4
+storage_organ = "rhizome"
+clonal_spread_m = 2.0
+succulence = 0.0
+cuticle_thickness = 0.4
+pubescence = 0.0
+leafout_month = 1
+deciduous_trigger = "none"
+bloom_start_month = 1
+bloom_length_months = 12.0
+fruit_month = 12
+synchronous_flowering = "yes"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.4
+salinity_tolerance = 0.05
+waterlogging_tolerance = 0.3
+fertility_requirement = 0.5
+growing_season_req = 8.0
+fire_strategy = "resprouter"
+engineer_impact = 0.6
+coloniality = 0.9
+
+[niche]
+temp_opt_c = 22
+temp_breadth_c = 8.0
+moisture_opt = 0.65
+moisture_breadth = 0.2
+
+[generics]
+support = "woody_culm"
+feeding_organ = "C3_foliage"
+signal = "flower_inconspicuous"
+dispersal = "gravity_drop"
+defense = "silica"
+storage = "rhizome"
+covering = "cuticle_waxy"
+phenology = "synchronous_mass"
+sensor_array = "tropism_standard"

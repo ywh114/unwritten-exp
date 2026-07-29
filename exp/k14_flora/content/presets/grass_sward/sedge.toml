@@ -1,0 +1,84 @@
+# Grass-sward preset: sedge — the wetland marginal archetype
+
+[preset]
+id = "grass_sward.sedge"
+plan = "grass_sward"
+grade = "sedge"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.6
+woodiness = 0.0
+growth_rate = 0.4
+longevity_yr = 8.0
+shade_tolerance = 0.3
+pioneer_climax = 0.3
+layer = "sward"
+leaf_shape = "linear"
+leaf_size_cm = 30.0
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_compoundness = "simple"
+leaf_sla = 15.0
+leaf_trap = "none"
+root_type = "fibrous"
+root_depth_m = 0.3
+root_special = "none"
+mycorrhizal = "arbuscular"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_color = "brown"
+flower_size_mm = 2.0
+inflorescence = "spikelet"
+pollination_syndrome = "wind"
+sexuality = "monoecious"
+fruit_type = "achene"
+dispersal_channels = { local = 0.5, wind = 0.2, water = 0.3, animal = 0.05, jump = 0.1 }
+propagule_mass_mg = 1.0
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "silica"
+chemical_defense = "none"
+defense_potency = 0.3
+storage_organ = "rhizome"
+clonal_spread_m = 0.5
+succulence = 0.0
+cuticle_thickness = 0.3
+pubescence = 0.0
+leafout_month = 3
+deciduous_trigger = "none"
+bloom_start_month = 5
+bloom_length_months = 2.0
+fruit_month = 7
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "hydrophyte"
+drought_tolerance = 0.2
+salinity_tolerance = 0.3
+waterlogging_tolerance = 0.85
+fertility_requirement = 0.4
+growing_season_req = 4.0
+fire_strategy = "resprouter"
+engineer_impact = 0.3
+coloniality = 0.6
+
+[niche]
+temp_opt_c = 14
+temp_breadth_c = 8.0
+moisture_opt = 0.85
+moisture_breadth = 0.15
+
+[generics]
+support = "fibrous_culm"
+feeding_organ = "C3_foliage"
+signal = "flower_inconspicuous"
+dispersal = "clonal_spread"
+defense = "silica"
+storage = "rhizome"
+covering = "cuticle_waxy"
+phenology = "evergreen"
+sensor_array = "tropism_standard"

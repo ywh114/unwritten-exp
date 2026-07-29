@@ -73,7 +73,7 @@ Status pipeline: `pending → spec-written → implemented → verified → prom
 | K11 | worldgen_l0: staged terrain pipeline (plates→hydrology→climate→biomes) + complex derivation + PNG renders | A1 §3, game-layer RFC §1 | **implemented** (`exp/k11_worldgen/`, not yet promoted; built by K3 2026-07-22 — PNG visual gate needs multimodality) |
 | K12 | naming_corpora: curated-corpus hash-seeded naming; **custom simple impl, NOT an Ara lift** | A1 §8, P5 | proposed — **deferred** (user 2026-07-21) |
 | K13 | tree-of-life (fauna): blind phylogenetic backbone, pins, organs+derive partition, generic rebinds, nomenclature, viewer | fauna RFC, B1, vocabulary PART I | **implemented** (`exp/k13_treegen/`, 201 tests; drift-and-commit ruling 2026-07-29) |
-| K14 | flora engine: growth-form backbone, constraint rules, dispersal/cover over K11 dumps (build plan: docs/spec-notes/2026-07-29-k14-flora-build-plan.md) | flora RFC, vocabulary PART II | **planned** — P0–P5 tree first, P6–P9 world-facing |
+| K14 | flora engine: growth-form backbone, constraint rules, dispersal/cover over K11 dumps (build plan: docs/spec-notes/2026-07-29-k14-flora-build-plan.md) | flora RFC, vocabulary PART II | **P0–P5 implemented** (`exp/k14_flora/`, 22 tests; world-blind tree + naming + metrics green seeds 1–8; K13 viewer-compatible) — P6–P9 world-facing pending |
 | L1 | llm_client | lab spec §3 | **promoted** (`llm/llm_client/`) |
 | L2 | prefix_bench | lab spec §3 | **promoted** (`llm/prefix_bench/`) — §7.5 envelope confirmed |
 | C1 | eventfulness | lab spec §4 | **promoted** (`capability/eventfulness/`) |

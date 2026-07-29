@@ -1,0 +1,83 @@
+# Rosette Mat preset: stonecrop — the rock-mat succulent archetype
+
+[preset]
+id = "rosette_mat.stonecrop"
+plan = "rosette_mat"
+grade = "stonecrop"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 0.05
+woodiness = 0.0
+growth_rate = 0.05
+longevity_yr = 10.0
+shade_tolerance = 0.1
+pioneer_climax = 0.2
+layer = "ground"
+leaf_shape = "ovate"
+leaf_size_cm = 0.5
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_compoundness = "simple"
+leaf_sla = 4.0
+leaf_trap = "none"
+root_type = "fibrous"
+root_depth_m = 0.05
+root_special = "none"
+mycorrhizal = "none"
+n_fixation = "none"
+flower_symmetry = "radial"
+flower_color = "yellow"
+flower_size_mm = 10.0
+inflorescence = "head"
+pollination_syndrome = "bee"
+sexuality = "perfect"
+fruit_type = "capsule"
+dispersal_channels = { local = 0.6, wind = 0.3, water = 0.0, animal = 0.0, jump = 0.1 }
+propagule_mass_mg = 0.05
+seed_bank = "persistent"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.1
+mechanical_defense = "none"
+chemical_defense = "none"
+defense_potency = 0.2
+storage_organ = "succulent_tissue"
+clonal_spread_m = 0.5
+succulence = 0.8
+cuticle_thickness = 0.7
+pubescence = 0.1
+leafout_month = 3
+deciduous_trigger = "none"
+bloom_start_month = 6
+bloom_length_months = 2.0
+fruit_month = 8
+synchronous_flowering = "no"
+photosynthesis = "CAM"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.85
+salinity_tolerance = 0.1
+waterlogging_tolerance = 0.1
+fertility_requirement = 0.2
+growing_season_req = 3.0
+engineer_impact = 0.2
+coloniality = 0.6
+
+[niche]
+temp_opt_c = 16
+temp_breadth_c = 10.0
+moisture_opt = 0.35
+moisture_breadth = 0.25
+
+[generics]
+support = "cushion_mat"
+feeding_organ = "CAM_foliage"
+signal = "flower_showy"
+dispersal = "wind_dust"
+defense = "none"
+storage = "succulent_tissue"
+covering = "cuticle_waxy"
+phenology = "evergreen"
+sensor_array = "tropism_standard"
