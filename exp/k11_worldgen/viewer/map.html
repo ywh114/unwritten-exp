@@ -388,33 +388,32 @@ function decodeFields(header, rawFields) {
 // ══════════════════════════════════════════════════════════════════════
 // Layer Pre-render
 // ══════════════════════════════════════════════════════════════════════
-function preRenderLayers() {
+// Layer definitions: each has a render function (data, n, W) or null for world.
+const LAYERS = [
+  { id: "world",       label: "World",        fn: null },
+  { id: "biomes",      label: "Biomes",       fn: renderBiomes },
+  { id: "elevation",   label: "Elevation",    fn: renderElevation },
+  { id: "biome_sim",   label: "Biome Sim",    fn: renderBiomeSim },
+  { id: "salinity",    label: "Salinity",     fn: renderSalinity },
+  { id: "temperature", label: "Temperature",  fn: renderTemperature },
+  { id: "precipitation", label: "Precip",     fn: renderPrecip },
+  { id: "forest_cover",label: "Forest Cover", fn: renderForestCover },
+];
+
+// Lazy-render a layer on demand (cached).
+function ensureLayer(id) {
+  if (S.layerCanvas[id]) return S.layerCanvas[id];
+  const layer = LAYERS.find(l => l.id === id);
+  if (!layer || !layer.fn) return null;
   const [W, H] = S.shape;
-  const n = W * H;
-
-  const LAYERS = [
-    { id: "world", label: "World", fn: null }, // backdrop
-    { id: "biomes", label: "Biomes", fn: renderBiomes },
-    { id: "elevation", label: "Elevation", fn: renderElevation },
-    { id: "biome_sim", label: "Biome Sim", fn: renderBiomeSim },
-    { id: "salinity", label: "Salinity", fn: renderSalinity },
-    { id: "temperature", label: "Temperature", fn: renderTemperature },
-    { id: "precipitation", label: "Precip", fn: renderPrecip },
-    { id: "forest_cover", label: "Forest Cover", fn: renderForestCover },
-  ];
-
-  S.layers = LAYERS;
-
-  for (const layer of LAYERS) {
-    if (layer.id === "world") continue;
-    const off = document.createElement("canvas");
-    off.width = W; off.height = H;
-    const octx = off.getContext("2d");
-    const imgData = octx.createImageData(W, H);
-    layer.fn(imgData.data, n, W);
-    octx.putImageData(imgData, 0, 0);
-    S.layerCanvas[layer.id] = off;
-  }
+  const off = document.createElement("canvas");
+  off.width = W; off.height = H;
+  const octx = off.getContext("2d");
+  const imgData = octx.createImageData(W, H);
+  layer.fn(imgData.data, W * H, W);
+  octx.putImageData(imgData, 0, 0);
+  S.layerCanvas[id] = off;
+  return off;
 }
 
 function renderBiomes(data, n, W) {
@@ -534,6 +533,8 @@ function buildLayerButtons() {
 function switchLayer(id) {
   S.layer = id;
   buildLayerButtons();
+  // Lazy-render if not the world layer
+  if (id !== "world") ensureLayer(id);
   render();
 }
 
@@ -600,12 +601,19 @@ function render() {
   ctx.translate(S.ox, S.oy);
   ctx.scale(S.scale, S.scale);
 
-  // Base layer
+  // Base layer (lazy-render non-world layers; world falls back to biomes)
   const [W, H] = S.shape;
-  if (S.layer === "world" && S.backdropImg) {
-    ctx.drawImage(S.backdropImg, 0, 0, W, H);
-  } else if (S.layerCanvas[S.layer]) {
-    ctx.drawImage(S.layerCanvas[S.layer], 0, 0, W, H);
+  if (S.layer === "world") {
+    if (S.backdropImg && S.backdropImg.complete && S.backdropImg.naturalWidth > 0) {
+      ctx.drawImage(S.backdropImg, 0, 0, W, H);
+    } else {
+      // Fallback: render biomes as the default world view
+      const bioCanvas = ensureLayer("biomes");
+      if (bioCanvas) ctx.drawImage(bioCanvas, 0, 0, W, H);
+    }
+  } else {
+    const lc = ensureLayer(S.layer);
+    if (lc) ctx.drawImage(lc, 0, 0, W, H);
   }
 
   // Search mask overlay
@@ -1136,24 +1144,26 @@ function loadBundle(buf) {
     S.biomeColors[parseInt(idStr, 10)] = color;
   }
 
-  // Backdrop image
+  // Backdrop image (load async, optional)
   if (header.backdrop_png_b64) {
     S.backdropImg = new Image();
-    S.backdropImg.onload = () => {
-      fitMap();
-      render();
-    };
+    S.backdropImg.onload = () => { if (S.layer === "world") render(); };
     S.backdropImg.src = "data:image/png;base64," + header.backdrop_png_b64;
   }
 
-  // Pre-render layers
-  preRenderLayers();
+  // Hide loading UI
+  loadingEl.style.display = "none";
+  filePicker.classList.add("hidden");
 
-  // UI
+  // UI — layers are lazy-rendered on demand
+  S.layers = LAYERS;
+  S.layerCanvas = {};
   buildLayerButtons();
   renderWorldStats(header.stats || {});
   resizeCanvas();
   fitMap();
+  // Pre-warm the default layer (biomes → world)
+  ensureLayer("biomes");
   render();
   S.searchMask = null;
   _maskCache = null;
@@ -1163,9 +1173,10 @@ function loadBundle(buf) {
   areaStats.innerHTML = `<span style="color:#667788;font-size:12px;">Shift+drag on the map to select an area.</span>`;
 }
 
-// Expose for tests
+// Expose for tests — save ref before window.loadBundle is overwritten
+const _loadBundle = loadBundle;
 window.loadBundle = function(arrayBuffer) {
-  loadBundle(arrayBuffer);
+  _loadBundle(arrayBuffer);
 };
 
 // File-picker UI
