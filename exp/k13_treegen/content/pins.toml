@@ -109,6 +109,7 @@ preset = "tetrapod.mole"
 label = "pangolin"
 name = { binomial = "Manis javanica", folk = "pangolin" }
 axes = { body_mass = 5.0, diet_spectrum = { insectivore = 1.0 }, vertical_stratum = "fossorial" }
+generics = { covering = "keratin_scales" }
 flags = ["pinned"]
 
 # ──  see-daily  ──────────────────────────────────────────────────────────

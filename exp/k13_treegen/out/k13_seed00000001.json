@@ -19810,7 +19810,7 @@
    "g": 404.8440805012258,
    "gen_time": 1.3747272746736505,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "feeding_organ": "insectivore_dentition",
     "locomotor": "fossorial",
     "reproduction": "viviparous",
@@ -19899,7 +19899,7 @@
     "vibrissae_prominence": 0.8999340362601731,
     "vocal_sac": "none"
    },
-   "description": "a medium fur mole-like insectivore with a neck frill",
+   "description": "a medium keratin-scaled mole-like insectivore with a neck frill",
    "edge_delta": {},
    "flags": [
     "pinned"
@@ -19907,7 +19907,7 @@
    "g": 438.83478102800836,
    "gen_time": 1.3742951505898893,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "feeding_organ": "insectivore_dentition",
     "locomotor": "fossorial",
     "reproduction": "viviparous",
@@ -19996,7 +19996,7 @@
     "vibrissae_prominence": 0.8505664455807873,
     "vocal_sac": "paired"
    },
-   "description": "a medium fur mole-like insectivore with a trunk",
+   "description": "a medium keratin-scaled mole-like insectivore with a trunk",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -20196,7 +20196,7 @@
    "g": 463.1664067443808,
    "gen_time": 1.359742756056548,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "feeding_organ": "insectivore_dentition",
     "locomotor": "fossorial",
     "reproduction": "viviparous",
@@ -20285,7 +20285,7 @@
     "vibrissae_prominence": 0.958738648725001,
     "vocal_sac": "none"
    },
-   "description": "a medium fur mole-like insectivore with bushy whiskers",
+   "description": "a medium keratin-scaled mole-like insectivore with bushy whiskers",
    "edge_delta": {
     "body_mass": {
      "coupling": -0.08999332464413884,
@@ -20485,7 +20485,7 @@
    "g": 465.2702860933907,
    "gen_time": 1.4063516594248187,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "feeding_organ": "insectivore_dentition",
     "locomotor": "fossorial",
     "reproduction": "viviparous",
@@ -25100,7 +25100,7 @@
     "vibrissae_prominence": 0.20258544035010043,
     "vocal_sac": "none"
    },
-   "description": "a large osteoderm armor reptile-like carnivore with a full mane",
+   "description": "a large armored reptile-like carnivore with a full mane",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -25400,7 +25400,7 @@
     "vibrissae_prominence": 0.23177233501778502,
     "vocal_sac": "none"
    },
-   "description": "a large osteoderm armor reptile-like carnivore with a full mane",
+   "description": "a large armored reptile-like carnivore with a full mane",
    "edge_delta": {
     "belly_color": {
      "descent": 0.0,
@@ -26005,7 +26005,7 @@
     "vibrissae_prominence": -0.0009767210661760363,
     "vocal_sac": "none"
    },
-   "description": "a large osteoderm armor reptile-like carnivore with a full mane",
+   "description": "a large armored reptile-like carnivore with a full mane",
    "edge_delta": {},
    "flags": [
     "pinned"
@@ -26103,7 +26103,7 @@
     "vibrissae_prominence": 0.03371674572883438,
     "vocal_sac": "median"
    },
-   "description": "a large osteoderm armor reptile-like carnivore with a full mane",
+   "description": "a large armored reptile-like carnivore with a full mane",
    "edge_delta": {
     "body_mass": {
      "coupling": -0.054770498802995005,
@@ -26388,7 +26388,7 @@
     "vibrissae_prominence": 0.0,
     "vocal_sac": "none"
    },
-   "description": "a large osteoderm armor reptile-like carnivore with erect ears",
+   "description": "a large armored reptile-like carnivore with erect ears",
    "edge_delta": {
     "base_color": {
      "descent": 0.0,
@@ -42813,7 +42813,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.47942045394706984
    },
-   "description": "a small feathers crow-like insectivore-granivore",
+   "description": "a small feathered crow-like insectivore-granivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -43058,7 +43058,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.47207336955540635
    },
-   "description": "a small feathers crow-like granivore",
+   "description": "a small feathered crow-like granivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -43303,7 +43303,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.47316353971723213
    },
-   "description": "a small feathers crow-like granivore",
+   "description": "a small feathered crow-like granivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -43798,7 +43798,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4981432932380061
    },
-   "description": "a small feathers crow-like granivore-insectivore",
+   "description": "a small feathered crow-like granivore-insectivore",
    "edge_delta": {},
    "flags": [
     "pinned"
@@ -43891,7 +43891,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.5319829323846007
    },
-   "description": "a small feathers crow-like scavenger",
+   "description": "a small feathered crow-like scavenger",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -44647,7 +44647,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.2417215973432359
    },
-   "description": "a small feathers duck-like filter_feeder",
+   "description": "a small feathered duck-like filter_feeder",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -44905,7 +44905,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.16197149039070577
    },
-   "description": "a small feathers duck-like insectivore",
+   "description": "a small feathered duck-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -45158,7 +45158,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.1736900898925129
    },
-   "description": "a medium feathers duck-like granivore",
+   "description": "a medium feathered duck-like granivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -45396,7 +45396,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.11187634303278725
    },
-   "description": "a small feathers duck-like granivore",
+   "description": "a small feathered duck-like granivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -45914,7 +45914,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.195551324933591
    },
-   "description": "a small feathers duck-like filter_feeder-granivore",
+   "description": "a small feathered duck-like filter_feeder-granivore",
    "edge_delta": {},
    "flags": [
     "pinned"
@@ -46006,7 +46006,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.16950584526206916
    },
-   "description": "a small feathers duck-like insectivore",
+   "description": "a small feathered duck-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -46771,7 +46771,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.3783999414769984
    },
-   "description": "a medium feathers eagle-like carnivore",
+   "description": "a medium feathered eagle-like carnivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -47018,7 +47018,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.42424886522494537
    },
-   "description": "a medium feathers eagle-like carnivore",
+   "description": "a medium feathered eagle-like carnivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -47507,7 +47507,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4469759178734567
    },
-   "description": "a medium feathers eagle-like carnivore",
+   "description": "a medium feathered eagle-like carnivore",
    "edge_delta": {},
    "flags": [
     "pinned"
@@ -47597,7 +47597,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.45429817610998696
    },
-   "description": "a medium feathers eagle-like carnivore",
+   "description": "a medium feathered eagle-like carnivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -47859,7 +47859,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.40578273770759166
    },
-   "description": "a medium feathers eagle-like carnivore",
+   "description": "a medium feathered eagle-like carnivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -48582,7 +48582,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.1624640964338514
    },
-   "description": "a medium feathers heron-like piscivore",
+   "description": "a medium feathered heron-like piscivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -48838,7 +48838,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.14926401566599862
    },
-   "description": "a medium feathers heron-like piscivore",
+   "description": "a medium feathered heron-like piscivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -49600,7 +49600,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.6031143628342066
    },
-   "description": "a tiny feathers hummingbird-like nectarivore",
+   "description": "a tiny feathered hummingbird-like nectarivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -49846,7 +49846,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.5826233377094453
    },
-   "description": "a tiny feathers hummingbird-like nectarivore",
+   "description": "a tiny feathered hummingbird-like nectarivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -50107,7 +50107,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.6642194929684918
    },
-   "description": "a tiny feathers hummingbird-like nectarivore",
+   "description": "a tiny feathered hummingbird-like nectarivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -50862,7 +50862,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.21553841615613684
    },
-   "description": "a medium feathers owl-like carnivore",
+   "description": "a medium feathered owl-like carnivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -51104,7 +51104,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.24730678735752945
    },
-   "description": "a medium feathers owl-like carnivore",
+   "description": "a medium feathered owl-like carnivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -51628,7 +51628,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3440459924469961
    },
-   "description": "a medium feathers owl-like carnivore",
+   "description": "a medium feathered owl-like carnivore",
    "edge_delta": {},
    "flags": [
     "pinned"
@@ -51718,7 +51718,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3259358652632591
    },
-   "description": "a medium feathers owl-like carnivore",
+   "description": "a medium feathered owl-like carnivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -52507,7 +52507,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.1
    },
-   "description": "a sizeable feathers penguin-like piscivore",
+   "description": "a sizeable feathered penguin-like piscivore",
    "edge_delta": {
     "aspect_ratio": {
      "coupling": 0.0,
@@ -52777,7 +52777,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.1
    },
-   "description": "a sizeable feathers penguin-like piscivore",
+   "description": "a sizeable feathered penguin-like piscivore",
    "edge_delta": {
     "aspect_ratio": {
      "coupling": -0.729476014873368,
@@ -53515,7 +53515,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3830518590660505
    },
-   "description": "a tiny feathers sparrow-like granivore",
+   "description": "a tiny feathered sparrow-like granivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -53772,7 +53772,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3554334278202016
    },
-   "description": "a tiny feathers sparrow-like granivore",
+   "description": "a tiny feathered sparrow-like granivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -54044,7 +54044,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.46095274423433813
    },
-   "description": "a tiny feathers sparrow-like granivore",
+   "description": "a tiny feathered sparrow-like granivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -54306,7 +54306,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4644277625301818
    },
-   "description": "a tiny feathers sparrow-like granivore",
+   "description": "a tiny feathered sparrow-like granivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -54800,7 +54800,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.40377202040492494
    },
-   "description": "a tiny feathers sparrow-like granivore",
+   "description": "a tiny feathered sparrow-like granivore",
    "edge_delta": {},
    "flags": [
     "pinned"
@@ -54890,7 +54890,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.4488882309929457
    },
-   "description": "a tiny feathers sparrow-like granivore",
+   "description": "a tiny feathered sparrow-like granivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -55142,7 +55142,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.3490653170577587
    },
-   "description": "a tiny feathers sparrow-like granivore",
+   "description": "a tiny feathered sparrow-like granivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -55790,7 +55790,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.39608080685571545
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -56044,7 +56044,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.41443945478999494
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -56288,7 +56288,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.41309442731942664
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -56537,7 +56537,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.43697569566295863
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -56766,7 +56766,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.40521134023271455
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -57015,7 +57015,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.45240470061873705
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -57274,7 +57274,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.41548984625785607
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -57807,7 +57807,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.42009673219385607
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -58071,7 +58071,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.376699301117006
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -58320,7 +58320,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4078565481284811
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -58574,7 +58574,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3575198393950326
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -58843,7 +58843,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.43020691034624026
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -59102,7 +59102,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4219356791570449
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -59361,7 +59361,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3178304798754915
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -59615,7 +59615,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.40181936123104955
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -59854,7 +59854,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.42461704592635774
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -60362,7 +60362,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.38526513587312977
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -60631,7 +60631,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.3881193363913897
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -60875,7 +60875,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.3779308823418156
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -61129,7 +61129,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4049914040240979
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -61383,7 +61383,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.36661617762192056
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -61627,7 +61627,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.3807197584995555
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -61861,7 +61861,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.37375136490390704
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -62110,7 +62110,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.3773449572372149
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -62364,7 +62364,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.34469470911905614
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -62598,7 +62598,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.38034528161531567
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -62832,7 +62832,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.3923198932041564
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -63081,7 +63081,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.39467390612208425
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -63315,7 +63315,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.40573680159109166
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -63569,7 +63569,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.39634255884237113
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -63838,7 +63838,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.40550921358246467
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -64341,7 +64341,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4100426496011208
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -64620,7 +64620,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.405719626324057
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -64869,7 +64869,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.3750046723706012
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "coupling": -0.4272994073198985,
@@ -65121,7 +65121,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.4106425332247583
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -65390,7 +65390,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.37595419189676926
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -65664,7 +65664,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.39869534699668174
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -65908,7 +65908,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3865746873534699
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -66172,7 +66172,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3734635221198385
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -66421,7 +66421,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.39802793599705094
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -66675,7 +66675,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4170706315726967
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -66934,7 +66934,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.39260932594138886
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -67173,7 +67173,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.4447170041156738
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -67671,7 +67671,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4034119333119093
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -67920,7 +67920,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.41477169907356365
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -68169,7 +68169,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.40680883773775284
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -68413,7 +68413,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.39394805395707744
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -68672,7 +68672,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.41162871384336175
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -68921,7 +68921,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.45034988323924663
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -69160,7 +69160,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.39264187952473045
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -69404,7 +69404,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3772995833856008
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -69653,7 +69653,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.39631551949463023
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -69907,7 +69907,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.40395850476328665
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -70146,7 +70146,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.39821952572733704
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -70674,7 +70674,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.41055738064487746
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -70908,7 +70908,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.3993934840100282
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -71152,7 +71152,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.4310477963359863
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -71391,7 +71391,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.4271400186188179
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -71640,7 +71640,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.33405096599098466
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -71899,7 +71899,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.43273299673364474
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -72158,7 +72158,7 @@
     "winged_foot_webbing_grade": "lobate",
     "winged_tail_length_ratio": 0.47895828382812977
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -72666,7 +72666,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3176657303880046
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -72925,7 +72925,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3926099141904001
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -73179,7 +73179,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.44080887845613
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -73428,7 +73428,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.44594786210923365
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -73662,7 +73662,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3706718860358535
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -73921,7 +73921,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.39908780618725603
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -74165,7 +74165,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.43317027158800975
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -74419,7 +74419,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4272462993883445
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -74673,7 +74673,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3910946569268912
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -74927,7 +74927,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3322136556531285
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -75425,7 +75425,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.41993803265121943
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -75674,7 +75674,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4482134684564241
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -75928,7 +75928,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.34984131089446485
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -76177,7 +76177,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.37133066090027583
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -76421,7 +76421,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4089191366534317
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -76670,7 +76670,7 @@
     "winged_foot_webbing_grade": "totipalmate",
     "winged_tail_length_ratio": 0.4251067658228502
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -76904,7 +76904,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.39719321487754433
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -77153,7 +77153,7 @@
     "winged_foot_webbing_grade": "semipalmate",
     "winged_tail_length_ratio": 0.4364871738616295
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -77407,7 +77407,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.389770845048143
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -77910,7 +77910,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.38930527067505827
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -78184,7 +78184,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.4563413996465957
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -78471,7 +78471,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.38975842115484843
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -78730,7 +78730,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3837289879055496
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -78969,7 +78969,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.36462462054865247
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -79213,7 +79213,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.43735903981261587
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -79462,7 +79462,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4078044359821114
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -79970,7 +79970,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3805464096514341
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -80214,7 +80214,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.388132643269998
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -80458,7 +80458,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.35150737547158967
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "activity_period": {
      "descent": 0.0,
@@ -80707,7 +80707,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.3806482310221839
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -80961,7 +80961,7 @@
     "winged_foot_webbing_grade": "palmate",
     "winged_tail_length_ratio": 0.4045207150693074
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -81220,7 +81220,7 @@
     "winged_foot_webbing_grade": "none",
     "winged_tail_length_ratio": 0.4263628938298637
    },
-   "description": "a tiny feathers sparrow-like insectivore",
+   "description": "a tiny feathered sparrow-like insectivore",
    "edge_delta": {
     "aspect_ratio": {
      "descent": 0.0,
@@ -81915,7 +81915,7 @@
     "wing_count": "0",
     "wing_span_ratio": 0.0
    },
-   "description": "a tiny chitin cuticle ant-like nectarivore-detritivore",
+   "description": "a tiny chitin-plated ant-like nectarivore-detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -82119,7 +82119,7 @@
     "wing_count": "0",
     "wing_span_ratio": 0.0
    },
-   "description": "a tiny chitin cuticle ant-like nectarivore-carnivore",
+   "description": "a tiny chitin-plated ant-like nectarivore-carnivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -82313,7 +82313,7 @@
     "wing_count": "0",
     "wing_span_ratio": 0.05896384129196288
    },
-   "description": "a tiny chitin cuticle ant-like carnivore",
+   "description": "a tiny chitin-plated ant-like carnivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -82512,7 +82512,7 @@
     "wing_count": "0",
     "wing_span_ratio": 0.045310332555959384
    },
-   "description": "a tiny chitin cuticle ant-like nectarivore-carnivore",
+   "description": "a tiny chitin-plated ant-like nectarivore-carnivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -83020,7 +83020,7 @@
     "wing_count": "4",
     "wing_span_ratio": 2.0732494219757327
    },
-   "description": "a tiny chitin cuticle bee-like nectarivore",
+   "description": "a tiny chitin-plated bee-like nectarivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -83217,7 +83217,7 @@
     "wing_count": "4",
     "wing_span_ratio": 2.027685604591642
    },
-   "description": "a tiny chitin cuticle bee-like nectarivore",
+   "description": "a tiny chitin-plated bee-like nectarivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -83820,7 +83820,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.9110610382279039
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -84014,7 +84014,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6592496035428055
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -84218,7 +84218,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5761137445626234
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -84407,7 +84407,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6803026346676897
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -84611,7 +84611,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.818344157317059
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -84810,7 +84810,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7190699876362205
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -84999,7 +84999,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7558275341772682
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -85218,7 +85218,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6509374149159692
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -85432,7 +85432,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7505352076942668
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -85621,7 +85621,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4335802447573376
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -85815,7 +85815,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7400705113836215
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -86019,7 +86019,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.9646042343686985
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -86427,7 +86427,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5782618253835767
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -86641,7 +86641,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 2.969048777335301
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -86850,7 +86850,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2620965394501489
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -87044,7 +87044,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5724443804853472
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -87238,7 +87238,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.0805331259166915
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -87442,7 +87442,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3735436594649046
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -87646,7 +87646,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.345088742481468
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -87845,7 +87845,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4539375393475835
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -88044,7 +88044,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3498386545712182
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -88238,7 +88238,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.8520982055069601
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -88447,7 +88447,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5249587642532874
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -88646,7 +88646,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5583440159931992
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -88855,7 +88855,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7155736252712512
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -89273,7 +89273,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4248515793160776
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -89467,7 +89467,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6604742884490085
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -89666,7 +89666,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4790758359273066
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -89870,7 +89870,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.775117979114482
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -90074,7 +90074,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5876164395515566
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -90283,7 +90283,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6020427491999998
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -90477,7 +90477,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.601192036350546
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -90661,7 +90661,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5501615737277041
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -90855,7 +90855,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6003630296080553
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -91049,7 +91049,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5251496771238722
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -91243,7 +91243,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 2.0462293824417683
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -91457,7 +91457,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5514079335194533
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -91860,7 +91860,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5637300893806416
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -92049,7 +92049,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6211009607313864
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -92238,7 +92238,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4146980963400906
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -92437,7 +92437,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.8667328803446404
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -92651,7 +92651,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.439077151068333
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -92850,7 +92850,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6979764546483982
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -93049,7 +93049,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2954868442687686
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -93248,7 +93248,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4128009758444253
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -93447,7 +93447,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.638723122121401
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -93646,7 +93646,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5290090097767648
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -93845,7 +93845,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4687094499301503
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -94034,7 +94034,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5447489878223029
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -94238,7 +94238,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.8207872691365588
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -94631,7 +94631,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3178495139057946
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -94820,7 +94820,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5488835643916254
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -95014,7 +95014,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2953662744670997
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -95218,7 +95218,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3200214256906355
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -95412,7 +95412,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3106227881018742
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -95631,7 +95631,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2554174947096182
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -95825,7 +95825,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3784400975739057
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -96019,7 +96019,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5804878884708786
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -96218,7 +96218,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3268409482620234
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -96631,7 +96631,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4044702424670505
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -96840,7 +96840,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.228397704799553
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -97044,7 +97044,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3659411627744171
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -97248,7 +97248,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5774045013403986
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -97447,7 +97447,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4613832332619492
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -97641,7 +97641,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3222458811435667
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -97850,7 +97850,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2464679705531445
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -98054,7 +98054,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5884626200227392
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -98263,7 +98263,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.9794642845094144
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -98472,7 +98472,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7555214895940152
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -98661,7 +98661,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.176187735174826
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -98850,7 +98850,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5018971990118668
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -99044,7 +99044,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.410051908294215
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -99467,7 +99467,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2371783864858266
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -99676,7 +99676,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3563865368568937
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -99885,7 +99885,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3347189900512884
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -100079,7 +100079,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.1377623530179148
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -100268,7 +100268,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 0.9949637437402655
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -100467,7 +100467,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2292788366116012
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -100671,7 +100671,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2164923328898094
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -100885,7 +100885,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7241117900223022
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -101084,7 +101084,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.164736073371082
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -101298,7 +101298,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6462425965251153
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -101502,7 +101502,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4458055155143374
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -101905,7 +101905,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5817952714403412
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -102114,7 +102114,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.638200925727859
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -102308,7 +102308,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7250511464137912
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -102507,7 +102507,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7031142901446228
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -102701,7 +102701,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6157190813673319
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -102915,7 +102915,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7828544480992763
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -103114,7 +103114,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6692653302814822
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -103303,7 +103303,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3712961787066702
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -103721,7 +103721,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4741121489290583
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -103925,7 +103925,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3049384840090674
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -104124,7 +104124,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5776954168234925
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -104328,7 +104328,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3356316142803195
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -104532,7 +104532,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.2325162203303823
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -104736,7 +104736,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3604408663283507
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -104930,7 +104930,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 0.7344042103989011
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -105119,7 +105119,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.345505818595589
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -105318,7 +105318,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 0.9699609590902404
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -105527,7 +105527,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.365941423610746
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -105736,7 +105736,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.0759889412663783
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -105930,7 +105930,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.1212195024388185
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -106343,7 +106343,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.468439023626753
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -106552,7 +106552,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.346259798408644
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -106766,7 +106766,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5369425589019923
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -106960,7 +106960,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.7000203316696192
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -107169,7 +107169,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5645643586139064
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -107368,7 +107368,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3464822155086915
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -107582,7 +107582,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.4517334124385313
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -107791,7 +107791,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.987934282523789
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -108005,7 +108005,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.6925777462393943
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -108194,7 +108194,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.3202405883658608
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -108398,7 +108398,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.651968642326241
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -108617,7 +108617,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5005892391317115
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -108821,7 +108821,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5386575958765631
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -109010,7 +109010,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5443940766557336
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -109214,7 +109214,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.5385988095322705
    },
-   "description": "a tiny chitin cuticle sclerotized beetle-like detritivore",
+   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -109807,7 +109807,7 @@
     "wing_count": "4",
     "wing_span_ratio": 2.9383936105831445
    },
-   "description": "a tiny chitin cuticle scaled butterfly-like nectarivore",
+   "description": "a tiny chitin cuticle scaled-covered butterfly-like nectarivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -109999,7 +109999,7 @@
     "wing_count": "4",
     "wing_span_ratio": 3.0242238673585393
    },
-   "description": "a tiny chitin cuticle scaled butterfly-like nectarivore",
+   "description": "a tiny chitin cuticle scaled-covered butterfly-like nectarivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -110191,7 +110191,7 @@
     "wing_count": "4",
     "wing_span_ratio": 2.9179440026501435
    },
-   "description": "a tiny chitin cuticle scaled butterfly-like nectarivore",
+   "description": "a tiny chitin cuticle scaled-covered butterfly-like nectarivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -110804,7 +110804,7 @@
     "wing_count": "4",
     "wing_span_ratio": 3.7227003937399736
    },
-   "description": "a tiny chitin cuticle dragonfly-like carnivore",
+   "description": "a tiny chitin-plated dragonfly-like carnivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -110995,7 +110995,7 @@
     "wing_count": "4",
     "wing_span_ratio": 3.24982891693647
    },
-   "description": "a tiny chitin cuticle dragonfly-like carnivore",
+   "description": "a tiny chitin-plated dragonfly-like carnivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -111628,7 +111628,7 @@
     "wing_count": "4",
     "wing_span_ratio": 2.4083648184342534
    },
-   "description": "a tiny chitin cuticle grasshopper-like folivore",
+   "description": "a tiny chitin-plated grasshopper-like folivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -111836,7 +111836,7 @@
     "wing_count": "4",
     "wing_span_ratio": 2.1844742983384156
    },
-   "description": "a tiny chitin cuticle grasshopper-like folivore",
+   "description": "a tiny chitin-plated grasshopper-like folivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,

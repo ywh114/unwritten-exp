@@ -65,6 +65,19 @@ def _size_class(mass: float) -> str:
     return "enormous"
 
 
+_COVERING_ADJ = {
+    # generic id -> adjective form for the one-liner ("a medium fur X"
+    # reads fine; "a medium keratin scales X" does not)
+    "fur": "fur", "scales": "scaled", "keratin_scales": "keratin-scaled",
+    "osteoderm_armor": "armored", "feathers": "feathered",
+    "chitin_cuticle": "chitin-plated", "skinned": "skinned",
+}
+
+
+def _covering_word(generic: str) -> str:
+    return _COVERING_ADJ.get(generic, generic.replace("_", " ") + "-covered")
+
+
 def _diet_word(spectrum) -> str:
     if not isinstance(spectrum, dict) or not spectrum:
         return "feeder"
@@ -120,7 +133,7 @@ def describe(node: Node, pack: ContentPack) -> tuple[str, dict]:
     size = _size_class(float(mass)) if isinstance(mass, (int, float)) \
         else "medium"
     trace["size"] = "axes.body_mass"
-    covering = node.generics.get("covering", "skinned").replace("_", " ")
+    covering = _covering_word(node.generics.get("covering", "skinned"))
     trace["covering"] = "generics.covering"
     grade = (pack.presets.get(node.preset or "", {})
              .get("preset", {}).get("grade", "creature"))
