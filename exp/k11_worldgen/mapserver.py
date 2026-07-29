@@ -15,7 +15,7 @@ Serves the viewer page (map.html) and a JSON/PNG API over saved worlds:
 
 Search expressions: comparisons `field OP value` (OP in > >= < <= == !=)
 joined by `&` `|` `!` and parens. Fields: elev_m, T, P, cover, salinity,
-depth_m, hand_m, width_m, biome ("name" or id), aquatic ("name" or id),
+depth_m, hand_m, width_km, biome ("name" or id), aquatic ("name" or id),
 biome_sim, and bare mask names river|lake|ocean|sea (== 1 implied).
 """
 
@@ -79,7 +79,7 @@ class World:
             "cover": d["cover"], "salinity": d["salinity"],
             "depth_m": d["depth"], "hand_m": hand_m(d["hand"],
                                                     self.sea_level),
-            "width_m": d["width"], "biome": d["biome_map"],
+            "width_km": d["width"], "biome": d["biome_map"],
             "aquatic": d["aquatic"],
             "river": d["river_mask"], "lake": d["lake_mask"],
             "ocean": d["ocean_mask"], "sea": d["sea_mask"],

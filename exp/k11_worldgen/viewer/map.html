@@ -244,7 +244,7 @@ body {
 // ══════════════════════════════════════════════════════════════════════
 const MONTH_LETTERS = ["J","F","M","A","M","J","J","A","S","O","N","D"];
 const KNOWN_SPEC_FIELDS = new Set([
-  "elev_m","T_c","P_mm","cover","salinity","depth_m","hand_m","width_m",
+  "elev_m","T_c","P_mm","cover","salinity","depth_m","hand_m","order",
   "biome","aquatic","masks","biome_sim","river","lake","ocean","sea",
 ]);
 
@@ -798,8 +798,12 @@ function switchLayer(id) {
 // ══════════════════════════════════════════════════════════════════════
 // World Stats
 // ══════════════════════════════════════════════════════════════════════
-function renderWorldStats(stats) {
+function renderWorldStats(stats, seed) {
   const lines = [];
+  if (seed !== undefined && seed !== null) {
+    document.title = `K11 World Viewer — seed ${seed}`;
+    lines.push(`<div class="stat-row"><span class="stat-key">seed</span><span class="stat-val">${seed}</span></div>`);
+  }
   for (const [k, v] of Object.entries(stats)) {
     if (k === "complex" && typeof v === "object" && v !== null && !Array.isArray(v)) {
       lines.push(`<div class="stat-row"><span class="stat-key">complex</span><span class="stat-val">—</span></div>`);
@@ -930,7 +934,10 @@ function screenToWorld(sx, sy) {
   const rect = canvas.getBoundingClientRect();
   const x = (sx - rect.left - S.ox) / S.scale;
   const y = (sy - rect.top  - S.oy) / S.scale;
-  return [Math.round(x), Math.round(y)];
+  // floor, not round: with imageSmoothing off, world pixel i covers the
+  // continuous interval [i, i+1) — round() sampled the next pixel for the
+  // upper half of every cell (the "off-by-one, sometimes" tooltip bug)
+  return [Math.floor(x), Math.floor(y)];
 }
 
 function worldToScreen(wx, wy) {
@@ -974,10 +981,10 @@ const FIELD_DISPLAY = {
   salinity: ["Salinity",     "g/kg"],
   depth_m:  ["Depth",        "m"],
   hand_m:   ["HAND",         "m"],
-  width_m:  ["River Width",  "m"],
+  order:    ["Stream Order", ""],
   biome_sim:["Biome Sim",    ""],
 };
-const FIELD_ORDER = ["elev_m","T_c","P_mm","cover","salinity","depth_m","hand_m","width_m","biome_sim"];
+const FIELD_ORDER = ["elev_m","T_c","P_mm","cover","salinity","depth_m","hand_m","order","biome_sim"];
 
 function pixelAt(wx, wy) {
   const [W, H] = S.shape;
@@ -1081,7 +1088,7 @@ function computeAreaStats(x0, y0, x1, y1) {
 
   const fieldLabels = { elev_m:["Elevation","m"], T_c:["Temperature","°C"], P_mm:["Precip","mm/yr"],
     cover:["Forest Cover",""], salinity:["Salinity","g/kg"], depth_m:["Depth","m"],
-    hand_m:["HAND","m"], width_m:["River Width","m"], biome_sim:["Biome Sim",""] };
+    hand_m:["HAND","m"], order:["Stream Order",""], biome_sim:["Biome Sim",""] };
 
   for (const [fname, finfo] of Object.entries(fieldLabels)) {
     const arr = S.fields[fname];
@@ -1124,7 +1131,7 @@ function renderAreaStatsPanel(data, x0, y0, x1, y1) {
 
   const fieldLabels = { elev_m:["Elevation","m"], T_c:["Temperature","°C"], P_mm:["Precip","mm/yr"],
     cover:["Forest Cover",""], salinity:["Salinity","g/kg"], depth_m:["Depth","m"],
-    hand_m:["HAND","m"], width_m:["River Width","m"], biome_sim:["Biome Sim",""] };
+    hand_m:["HAND","m"], order:["Stream Order",""], biome_sim:["Biome Sim",""] };
 
   for (const [fname, finfo] of Object.entries(fieldLabels)) {
     if (!data[fname]) continue;
@@ -1313,7 +1320,7 @@ function computeSearchStats(mask, count) {
   // Field stats
   const fieldLabels = { elev_m:["Elevation","m"], T_c:["Temperature","°C"], P_mm:["Precip","mm/yr"],
     cover:["Forest Cover",""], salinity:["Salinity","g/kg"], depth_m:["Depth","m"],
-    hand_m:["HAND","m"], width_m:["River Width","m"], biome_sim:["Biome Sim",""] };
+    hand_m:["HAND","m"], order:["Stream Order",""], biome_sim:["Biome Sim",""] };
 
   for (const [fname] of Object.entries(fieldLabels)) {
     const arr = S.fields[fname];
@@ -1359,7 +1366,7 @@ function renderSearchResults(data, expr) {
 
   const fieldLabels = { elev_m:["Elevation","m"], T_c:["Temperature","°C"], P_mm:["Precip","mm/yr"],
     cover:["Forest Cover",""], salinity:["Salinity","g/kg"], depth_m:["Depth","m"],
-    hand_m:["HAND","m"], width_m:["River Width","m"], biome_sim:["Biome Sim",""] };
+    hand_m:["HAND","m"], order:["Stream Order",""], biome_sim:["Biome Sim",""] };
 
   for (const [fname, finfo] of Object.entries(fieldLabels)) {
     if (!data[fname]) continue;
@@ -1453,7 +1460,7 @@ function loadBundle(buf) {
   _maskCacheKey = null;
   buildLayerButtons();
   buildMonthChips();
-  renderWorldStats(header.stats || {});
+  renderWorldStats(header.stats || {}, header.seed);
   resizeCanvas();
   fitMap();
   // Pre-warm the default layer (biomes → world)

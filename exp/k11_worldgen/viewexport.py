@@ -70,8 +70,15 @@ def export(seed_dir: Path, out_path: Path) -> None:
     put("depth_m", a, m)
     a, m = _q16(hand_m(d["hand"], sea), 0, 200)
     put("hand_m", a, m)
-    a, m = _q16(d["width"], 0, 500)
-    put("width_m", a, m)
+    # Strahler stream order (anchor res, kron-upsampled, masked to the
+    # delivered river corridor; 0 off-river). d["width"] stays unexported:
+    # it is a 1-3 render corridor class, not a physical width
+    if "h_order" in z.files:
+        ho = z["h_order"]
+        factor = shape[0] // ho.shape[0]
+        oh = np.repeat(np.repeat(ho, factor, 0), factor, 1)
+        oh = np.where(d["river_mask"], oh, 0).astype(np.uint8)
+        put("order", oh, {"dtype": "u1"})
     put("biome", d["biome_map"].astype(np.uint8), {"dtype": "u1"})
     put("aquatic", d["aquatic"].astype(np.uint8), {"dtype": "u1"})
     masks = (d["river_mask"].astype(np.uint8)
