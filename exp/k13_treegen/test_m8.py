@@ -149,3 +149,74 @@ def test_context_hook(pack):
                  context=NameContext(facts={"region": "boreal"}))
     assert any(n.name.binomial and n.name.binomial.endswith("borealis")
                for n in species(t2))
+
+
+def _synthetic_genus(pack, n_species, axes):
+    t = Tree(seed=9)
+    t.add(Node(path="k1", rank=Rank.KINGDOM, parent=None, sid="0" * 16,
+               flags=["animalia"]))
+    t.add(Node(path="k1.g1", rank=Rank.GENUS, parent="k1", sid="3" * 16,
+               plan="tetrapod", axes={}))
+    for i in range(1, n_species + 1):
+        t.add(Node(path=f"k1.g1.s{i}", rank=Rank.SPECIES, parent="k1.g1",
+                   sid=f"{i:016x}", plan="tetrapod", preset="tetrapod.cat",
+                   axes=dict(axes)))
+    return t
+
+
+def test_synonym_chain_depth(pack):
+    """M-c: five IDENTICAL rufous congeners get five distinct epithets —
+    the pool is walked (rufus/russus/rufinus/...), never a forced sid."""
+    axes = dict(body_mass=5.0, base_color="rufous", tail_length_ratio=0.9,
+                ear_size_ratio=0.2, pattern_motif="striped")
+    t = _synthetic_genus(pack, 5, axes)
+    assign_names(t, pack, 9)
+    eps = [t.nodes[f"k1.g1.s{i}"].name.binomial.split()[-1]
+           for i in range(1, 6)]
+    assert len(set(eps)) == 5, eps
+    import re
+    assert not any(re.fullmatch(r"sp[0-9a-f]+", e) for e in eps), eps
+    # the color pool must appear among the five (direct-match floor)
+    assert any(e.startswith(("ruf", "russ")) for e in eps), eps
+
+
+def test_guaranteed_naming(pack):
+    """M-c: a species with NO usable axes still gets a well-formed name
+    (flavor pool or invented fallback) — unnamed by construction is
+    impossible."""
+    t = _synthetic_genus(pack, 2, {})
+    assign_names(t, pack, 9)
+    import re
+    for i in (1, 2):
+        b = t.nodes[f"k1.g1.s{i}"].name.binomial
+        assert b and " " in b
+        assert not re.search(r"\bsp[0-9a-f]{4,}", b), b
+
+
+def test_population_status_stems(pack):
+    """M-c: vulgaris class is population-gated — silent in the blind
+    build, live when the round supplies the fact."""
+    t1 = build(1, pack)
+    assign_names(t1, pack, 1)
+    assert not any(n.name.binomial and
+                   n.name.binomial.split()[-1] in
+                   ("vulgaris", "communis", "frequens")
+                   for n in species(t1))
+    t2 = build(1, pack)
+    assign_names(t2, pack, 1,
+                 context=NameContext(facts={"population": "high"}))
+    assert any(n.name.binomial and
+               n.name.binomial.split()[-1] in
+               ("vulgaris", "communis", "frequens") for n in species(t2))
+
+
+def test_age_and_habitat_stems(pack):
+    t2 = build(1, pack)
+    assign_names(t2, pack, 1,
+                 context=NameContext(facts={"clade_age": "old",
+                                            "habitat": "montane"}))
+    eps = {n.name.binomial.split()[-1] for n in species(t2)
+           if n.name.binomial}
+    assert eps & {"antiquus", "antiqua", "antiquum", "priscus", "prisca",
+                  "priscum"}
+    assert eps & {"montanus", "montana", "montanum"}

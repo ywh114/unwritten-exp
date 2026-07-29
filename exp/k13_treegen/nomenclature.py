@@ -41,6 +41,12 @@ SUFFIX_GENDER = {
 # salience of a context-fact stem (geography/habitat-of-occurrence) —
 # strong, but beatable by a truly discriminating trait.
 CONTEXT_SALIENCE = 0.85
+# enum direct-match floor: a trait matching the genus modal still names
+# (real taxonomy allows rufus in a red genus); deviation scores full.
+ENUM_DIRECT_FLOOR = 0.4
+# flavor stems (regis, draco, mirabilis...): the bottom of the pool —
+# they win when nothing else scores, replacing most sid fallbacks.
+FLAVOR_SALIENCE = 0.05
 
 
 @dataclass
@@ -130,17 +136,22 @@ def _salience(node_axes: dict, axis: str, pool_entries: list,
         if side not in directions:
             return 0.0
         return z * weight
-    # enum: salient iff it differs from the genus modal and is covered
-    if med is not None and str(v) == str(med):
-        return 0.0
+    # enum: salient iff some pool entry covers the value; full weight on
+    # deviation from the genus modal, a floor on a direct match (real
+    # taxonomy allows rufus even in a red genus).
     if str(v) not in {e.get("value") for e in pool_entries}:
         return 0.0
+    if med is not None and str(v) == str(med):
+        return weight * ENUM_DIRECT_FLOOR
     return weight
 
 
 def _pick_stem(entries: list, node_axes: dict, axis: str,
-               stats: dict, stream, clock: int):
-    """Filter the pool to the species' value/direction; seeded pick."""
+               stats: dict, stream, gender: str,
+               skip: set[str]) -> str | None:
+    """Walk the value/direction pool in a seeded order; return the first
+    epithet (gender-agreed) not in *skip*. The synonym chain: rufus
+    taken -> ruber from the SAME pool, never a forced trait change."""
     v = _axis_value(node_axes, axis)
     if isinstance(v, (int, float)):
         med, _ = stats.get(axis, (0.0, 1.0))
@@ -148,21 +159,32 @@ def _pick_stem(entries: list, node_axes: dict, axis: str,
         cand = [e for e in entries if e.get("direction") == side]
     else:
         cand = [e for e in entries if e.get("value") == str(v)]
-    if not cand:
-        return None
-    return cand[stream.randrange(len(cand), clock)]
+    order = list(range(len(cand)))
+    for i in range(len(order) - 1, 0, -1):
+        j = stream.randrange(i + 1, 20, i)      # seeded Fisher-Yates
+        order[i], order[j] = order[j], order[i]
+    for idx in order:
+        ep = _agree(cand[idx]["base"], cand[idx]["pattern"], gender)
+        if ep not in skip:
+            return ep
+    return None
 
 
 def _epithet(node_axes: dict, pack: ContentPack, gender: str,
              stats: dict, stream, skip: set[str],
              context: NameContext | None = None) -> str | None:
     """Salience-ordered epithet; *skip* holds epithets already taken in
-    this genus (collision chain: descend the salience order). Context
-    stems (geography/habitat-of-occurrence) join the pool only when the
-    NameContext supplies their fact."""
+    this genus. Context stems (habitat/population/age-of-clade) join the
+    pool only when the NameContext supplies their fact. Flavor stems sit
+    at the bottom; the invented fallback guarantees a name BY
+    CONSTRUCTION (sid fragments are the unreachable last resort)."""
     pools: dict[str, list] = {}
+    flavor: list = []
     for e in pack.stems["axis_stem"]:
-        pools.setdefault(e["axis"], []).append(e)
+        if e["axis"] == "_flavor":
+            flavor.append(e)
+        else:
+            pools.setdefault(e["axis"], []).append(e)
     scored: list[tuple[float, str, object]] = []
     for axis, entries in pools.items():
         spec = pack.registry.axes.get(
@@ -175,16 +197,44 @@ def _epithet(node_axes: dict, pack: ContentPack, gender: str,
         for cs in pack.stems.get("context_stem", []):
             if context.facts.get(cs["fact"]) == cs["value"]:
                 scored.append((CONTEXT_SALIENCE, "stem", cs))
+    if flavor:
+        scored.append((FLAVOR_SALIENCE, "flavor", None))
     scored.sort(key=lambda t: (-t[0], str(t[2])))
     for rank, (_, kind, payload) in enumerate(scored):
         if kind == "axis":
-            stem = _pick_stem(pools[payload], node_axes, payload, stats,
-                              stream.child("pick"), rank)
+            ep = _pick_stem(pools[payload], node_axes, payload, stats,
+                            stream.child("pick"), gender, skip)
+            if ep is not None:
+                return ep
+        elif kind == "flavor":
+            order = list(range(len(flavor)))
+            fs = stream.child("flavor")
+            for i in range(len(order) - 1, 0, -1):
+                j = fs.randrange(i + 1, 20, i)
+                order[i], order[j] = order[j], order[i]
+            for idx in order:
+                e = flavor[idx]
+                ep = _agree(e["base"], e["pattern"], gender)
+                if ep not in skip:
+                    return ep
         else:
-            stem = payload
-        if stem is None:
-            continue
-        ep = _agree(stem["base"], stem["pattern"], gender)
+            ep = _agree(payload["base"], payload["pattern"], gender)
+            if ep not in skip:
+                return ep
+    # guaranteed by construction: invented epithet, lengthened until
+    # unique — a species ALWAYS gets a name, never a forced sid fragment
+    inv = pack.stems["invent"]
+    istream = stream.child("invented")
+    for attempt in range(80):
+        ep = (inv["onsets"][istream.randrange(len(inv["onsets"]), 0,
+                                               attempt)]
+              + inv["link"][istream.randrange(len(inv["link"]), 1,
+                                              attempt)]
+              + inv["rimes"][istream.randrange(len(inv["rimes"]), 2,
+                                               attempt)]).lower()
+        if attempt >= 40:
+            ep += inv["rimes"][istream.randrange(len(inv["rimes"]), 3,
+                                                 attempt)]
         if ep not in skip:
             return ep
     return None
