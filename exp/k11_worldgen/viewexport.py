@@ -42,6 +42,15 @@ def _q16(v: np.ndarray, lo: float, hi: float) -> tuple[np.ndarray, dict]:
             {"dtype": "<u2", "scale": (hi - lo) / 65535, "offset": float(lo)})
 
 
+def _q8s(v: np.ndarray, lim: float) -> tuple[np.ndarray, dict]:
+    """Signed symmetric int8 quantization: zero is EXACT (uint8 maps 0 to
+    127.5, which truncates to a constant nonzero vector — over land that
+    drew perfectly straight 'currents' across whole continents)."""
+    lim = max(float(lim), 1e-12)
+    return (np.clip(np.round(v / lim * 127), -127, 127).astype(np.int8),
+            {"dtype": "i1", "scale": lim / 127, "offset": 0.0})
+
+
 def export(seed_dir: Path, out_path: Path) -> None:
     manifest = json.loads((seed_dir / "world.json").read_text())
     z = np.load(seed_dir / "world.npz")
@@ -113,10 +122,10 @@ def export(seed_dir: Path, out_path: Path) -> None:
         wu = z["c_wind_u"].mean(axis=1)
         wv = z["c_wind_v"].mean(axis=1)
         lim = float(np.abs(np.stack([wu, wv])).max())
-        a, m_ = _q8(wu, -lim, lim)
+        a, m_ = _q8s(wu, lim)
         monthly["wu_monthly"] = a
         monthly_meta["wu_monthly"] = m_
-        a, m_ = _q8(wv, -lim, lim)
+        a, m_ = _q8s(wv, lim)
         monthly["wv_monthly"] = a
         monthly_meta["wv_monthly"] = m_
     try:
@@ -126,10 +135,10 @@ def export(seed_dir: Path, out_path: Path) -> None:
         cu = np.stack([velocity_field(cur, mm)[0] for mm in range(12)])
         cv = np.stack([velocity_field(cur, mm)[1] for mm in range(12)])
         lim = float(np.abs(np.stack([cu, cv])).max())
-        a, m_ = _q8(cu, -lim, lim)
+        a, m_ = _q8s(cu, lim)
         monthly["cu_monthly"] = a
         monthly_meta["cu_monthly"] = m_
-        a, m_ = _q8(cv, -lim, lim)
+        a, m_ = _q8s(cv, lim)
         monthly["cv_monthly"] = a
         monthly_meta["cv_monthly"] = m_
     except (KeyError, ValueError):

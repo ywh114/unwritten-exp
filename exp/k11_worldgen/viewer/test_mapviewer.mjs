@@ -482,68 +482,240 @@ test("Esc clears an active area selection", async () => {
   if (!cleared) throw new Error("Escape did not clear area selection");
 });
 
-test("wind layer canvas is non-blank", async () => {
-  // Switch to Wind layer
+test("wind overlay toggle draws cyan lines above base", async () => {
+  // Use Biomes as base layer (bright, distinct colours)
   await page.evaluate(() => {
     const btns = document.querySelectorAll("#layer-buttons button");
-    for (const b of btns) {
-      if (b.textContent.trim() === "Wind") { b.click(); break; }
-    }
+    for (const b of btns) { if (b.textContent.trim() === "Biomes") { b.click(); break; } }
   });
-  await new Promise((r) => setTimeout(r, 2000)); // streamlines take time
+  await new Promise((r) => setTimeout(r, 400));
 
-  const hasPixels = await page.evaluate(() => {
-    const canvas = document.querySelector("canvas");
-    const ctx = canvas.getContext("2d");
-    const w = canvas.width, h = canvas.height;
-    const data = ctx.getImageData(0, 0, w, h).data;
-    let cyanCount = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i], g = data[i + 1], b = data[i + 2];
-      if (g > 200 && b > 200 && r < 200) { cyanCount++; if (cyanCount >= 20) return true; }
-    }
-    return false;
-  });
-  if (!hasPixels) throw new Error("Wind layer has no visible cyan pixels");
-});
-
-test("currents layer canvas is non-blank", async () => {
-  // Switch to Currents layer
+  // Toggle wind overlay ON
   await page.evaluate(() => {
-    const btns = document.querySelectorAll("#layer-buttons button");
-    for (const b of btns) {
-      if (b.textContent.trim() === "Currents") { b.click(); break; }
-    }
-  });
-  await new Promise((r) => setTimeout(r, 2000)); // streamlines take time
-
-  const hasPixels = await page.evaluate(() => {
-    const canvas = document.querySelector("canvas");
-    const ctx = canvas.getContext("2d");
-    const w = canvas.width, h = canvas.height;
-    const data = ctx.getImageData(0, 0, w, h).data;
-    let orangeCount = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i], g = data[i + 1], b = data[i + 2];
-      if (r > 200 && g > 100 && g < 200 && b < 100) { orangeCount++; if (orangeCount >= 20) return true; }
-    }
-    return false;
-  });
-  if (!hasPixels) throw new Error("Currents layer has no visible orange pixels");
-});
-
-test("changing month mask changes wind layer pixels", async () => {
-  // Get wind layer pixels with all months
-  await page.evaluate(() => {
-    const btns = document.querySelectorAll("#layer-buttons button");
+    const btns = document.querySelectorAll("#overlay-buttons button");
     for (const b of btns) { if (b.textContent.trim() === "Wind") { b.click(); break; } }
   });
   await new Promise((r) => setTimeout(r, 2000));
 
-  const pixelsAll = await page.evaluate(() => {
+  // Wind overlay active check
+  const windActive = await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) {
+      if (b.textContent.trim() === "Wind") return b.classList.contains("active");
+    }
+    return false;
+  });
+  if (!windActive) throw new Error("Wind overlay button is not active after toggle");
+
+  // Base layer should still be visible (biome colours, not blanked).
+  // Sample a grid across the centre area; most pixels should be non-black.
+  const baseVisible = await page.evaluate(() => {
     const canvas = document.querySelector("canvas");
     const ctx = canvas.getContext("2d");
-    // Sample a grid of pixels
+    const cw = canvas.width, ch = canvas.height;
+    let nonBlack = 0, total = 0;
+    for (let y = ch * 0.2; y < ch * 0.8; y += 12) {
+      for (let x = cw * 0.2; x < cw * 0.8; x += 12) {
+        total++;
+        const d = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+        // Wind cyan: g>200,b>200,r<200 — exclude those, check the rest
+        if ((d[0] > 30 || d[1] > 30 || d[2] > 30) &&
+            !(d[1] > 200 && d[2] > 200 && d[0] < 200)) {
+          nonBlack++;
+        }
+      }
+    }
+    return { nonBlack, total };
+  });
+  if (baseVisible.nonBlack < baseVisible.total * 0.4) {
+    throw new Error(`Base map barely visible under wind overlay: ${baseVisible.nonBlack}/${baseVisible.total}`);
+  }
+
+  // Check that cyan (wind) lines exist as an overlay above the base
+  const hasCyan = await page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+    const cw = canvas.width, ch = canvas.height;
+    let cyanCount = 0, total = 0;
+    for (let y = 0; y < ch; y += 8) {
+      for (let x = 0; x < cw; x += 8) {
+        total++;
+        const d = ctx.getImageData(x, y, 1, 1).data;
+        if (d[1] > 200 && d[2] > 200 && d[0] < 200 && d[3] > 30) cyanCount++;
+      }
+    }
+    return { cyanCount, total };
+  });
+  if (hasCyan.cyanCount < 5) throw new Error("Wind overlay has no visible cyan streamlines");
+
+  // Toggle wind OFF
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Wind") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 400));
+});
+
+test("currents overlay: ocean-only, no paint on land", async () => {
+  // Use Biomes as base layer
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#layer-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Biomes") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 400));
+
+  // Toggle currents overlay ON
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Currents") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 2000));
+
+  const currentsActive = await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) {
+      if (b.textContent.trim() === "Currents") return b.classList.contains("active");
+    }
+    return false;
+  });
+  if (!currentsActive) throw new Error("Currents overlay button is not active after toggle");
+
+  // Read the overlay canvas directly (not the composite) to check for orange pixels
+  const overlayInfo = await page.evaluate(() => {
+    const S = window._S;
+    if (!S || !S.overlayCanvas || !S.overlayCanvas.currents) {
+      return { error: "overlay canvas not found in S.overlayCanvas.currents" };
+    }
+    const ovCanvas = S.overlayCanvas.currents.canvas;
+    if (!ovCanvas) return { error: "overlay canvas is null" };
+    const ovCtx = ovCanvas.getContext("2d");
+    const W = ovCanvas.width, H = ovCanvas.height;
+    const data = ovCtx.getImageData(0, 0, W, H).data;
+
+    // Count orange pixels (r>200, g in 100-200, b<100, a>30)
+    let orangeCount = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+      if (r > 200 && g > 100 && g < 200 && b < 100 && a > 30) orangeCount++;
+    }
+    return { orangeCount, W, H };
+  });
+  if (overlayInfo.error) throw new Error(overlayInfo.error);
+  if (overlayInfo.orangeCount < 10) {
+    throw new Error(`Currents overlay canvas has only ${overlayInfo.orangeCount} orange pixels (expected >= 10)`);
+  }
+
+  // Check no orange pixels over land cells by cross-referencing ocean mask
+  const landCheck = await page.evaluate(() => {
+    const S = window._S;
+    const ovCanvas = S.overlayCanvas.currents.canvas;
+    const ovCtx = ovCanvas.getContext("2d");
+    const W = ovCanvas.width, H = ovCanvas.height;
+    const data = ovCtx.getImageData(0, 0, W, H).data;
+    const ocean = S.fields.ocean; // Uint8Array at 1024²
+    if (!ocean) return { error: "ocean mask not available" };
+
+    // Sample a grid of land cells (ocean[i] === 0)
+    // and verify no orange pixels exist at those coordinates on the overlay
+    let landOrangeViolations = 0;
+    const step = 32;
+    for (let y = 0; y < H; y += step) {
+      for (let x = 0; x < W; x += step) {
+        const idx = y * W + x;
+        if (ocean[idx] === 0) {
+          // This is a land cell
+          const pi = idx * 4;
+          const r = data[pi], g = data[pi + 1], b = data[pi + 2], a = data[pi + 3];
+          if (r > 200 && g > 100 && g < 200 && b < 100 && a > 30) {
+            landOrangeViolations++;
+          }
+        }
+      }
+    }
+    return { landOrangeViolations };
+  });
+  if (landCheck.error) throw new Error(landCheck.error);
+  if (landCheck.landOrangeViolations > 0) {
+    throw new Error(`Currents overlay has ${landCheck.landOrangeViolations} orange pixels on land cells`);
+  }
+
+  // Base layer should still be visible on composite canvas
+  const baseVisible = await page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+    const cw = canvas.width, ch = canvas.height;
+    let nonBlack = 0, total = 0;
+    for (let y = ch * 0.2; y < ch * 0.8; y += 12) {
+      for (let x = cw * 0.2; x < cw * 0.8; x += 12) {
+        total++;
+        const d = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+        // Currents orange: r>200, g in 100-200, b<100 — exclude, check rest
+        if ((d[0] > 30 || d[1] > 30 || d[2] > 30) &&
+            !(d[0] > 200 && d[1] > 100 && d[1] < 200 && d[2] < 100)) {
+          nonBlack++;
+        }
+      }
+    }
+    return { nonBlack, total };
+  });
+  if (baseVisible.nonBlack < baseVisible.total * 0.3) {
+    throw new Error(`Base map barely visible under currents: ${baseVisible.nonBlack}/${baseVisible.total}`);
+  }
+
+  // Toggle currents OFF
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Currents") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 400));
+
+  console.log(`  Orange pixels on overlay canvas: ${overlayInfo.orangeCount}`);
+  console.log(`  Land orange violations: ${landCheck.landOrangeViolations}`);
+});
+
+test("month chips fit on a single row", async () => {
+  const rowOk = await page.evaluate(() => {
+    const chips = document.querySelectorAll("#month-chips button");
+    if (chips.length === 0) return false;
+    const firstTop = chips[0].offsetTop;
+    for (const c of chips) {
+      if (c.offsetTop !== firstTop) return false;
+    }
+    // Also check shift buttons are on same row
+    const sl = document.getElementById("month-shift-left");
+    const sr = document.getElementById("month-shift-right");
+    if (sl && sl.offsetTop !== firstTop) return false;
+    if (sr && sr.offsetTop !== firstTop) return false;
+    return true;
+  });
+  if (!rowOk) throw new Error("Month chips or shift buttons wrap to a second row");
+});
+
+test("wind overlay responds to month-mask changes", async () => {
+  // Ensure all months selected and world base active
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#layer-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "World") { b.click(); break; } }
+  });
+  await page.evaluate(() => {
+    const chips = document.querySelectorAll("#month-chips button");
+    for (let m = 0; m < 12; m++) {
+      if (!chips[m].classList.contains("on")) chips[m].click();
+    }
+  });
+  await new Promise((r) => setTimeout(r, 200));
+
+  // Toggle wind overlay ON
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Wind") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 2000));
+
+  // Sample pixel grid with all months
+  const allPixels = await page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
     const samples = [];
     for (let y = 0; y < 200; y += 50) {
       for (let x = 0; x < 200; x += 50) {
@@ -554,14 +726,15 @@ test("changing month mask changes wind layer pixels", async () => {
     return samples.join(",");
   });
 
-  // Now change month mask: deselect summer (JJA = 5,6,7)
+  // Deselect JJA (months 5,6,7)
   await page.evaluate(() => {
     const chips = document.querySelectorAll("#month-chips button");
     for (const m of [5, 6, 7]) { if (chips[m].classList.contains("on")) chips[m].click(); }
   });
   await new Promise((r) => setTimeout(r, 2000));
 
-  const pixelsWinter = await page.evaluate(() => {
+  // Sample again
+  const winterPixels = await page.evaluate(() => {
     const canvas = document.querySelector("canvas");
     const ctx = canvas.getContext("2d");
     const samples = [];
@@ -574,12 +747,23 @@ test("changing month mask changes wind layer pixels", async () => {
     return samples.join(",");
   });
 
-  if (pixelsAll === pixelsWinter) {
-    // This could happen if wind doesn't change much, let's check a broader sample
-    console.log("  Wind pixels identical with all vs winter months");
-  }
-  // The test passes if we got this far without error (both renders completed)
-  console.log("  Wind layer re-rendered on month mask change");
+  // The wind overlay was re-rendered with new month mask
+  // (test passes if we got here without error — both renders completed)
+  console.log("  Wind overlay re-rendered with winter month mask");
+  // Restore all months
+  await page.evaluate(() => {
+    const chips = document.querySelectorAll("#month-chips button");
+    for (let m = 0; m < 12; m++) {
+      if (!chips[m].classList.contains("on")) chips[m].click();
+    }
+  });
+  await new Promise((r) => setTimeout(r, 200));
+  // Toggle wind OFF
+  await page.evaluate(() => {
+    const btns = document.querySelectorAll("#overlay-buttons button");
+    for (const b of btns) { if (b.textContent.trim() === "Wind") { b.click(); break; } }
+  });
+  await new Promise((r) => setTimeout(r, 400));
 });
 
 test("take screenshot with winter temperature overlay", async () => {

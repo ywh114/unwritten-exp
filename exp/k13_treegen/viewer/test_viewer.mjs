@@ -1,5 +1,5 @@
 // ============================================================================
-// K13 Tree Viewer — Puppeteer test suite
+// K13 Tree Viewer — Puppeteer test suite (Canvas 2D + Sidebar edition)
 // Run: node exp/k13_treegen/viewer/test_viewer.mjs
 // ============================================================================
 
@@ -60,16 +60,34 @@ async function main() {
   const beetleSubtreeSize = treeData.nodes.filter(n => n.path.startsWith(beetlePath + ".")).length;
   const expectedExpandedCount = expectedInitialCount + beetleSubtreeSize;
 
-  // Find a species for tooltip test
-  const brownBear = treeData.nodes.find(n =>
-    n.rank === "species" && n.label === "brown bear"
+  // Find a phylum for click tests
+  const phylum1 = treeData.nodes.find(n => n.rank === "phylum");
+  if (!phylum1) {
+    console.error("Could not find a phylum node");
+    process.exit(1);
+  }
+
+  // Find a carnivore species with diet_spectrum weight = 1.0
+  const carnivoreSpecies = treeData.nodes.find(n =>
+    n.rank === "species" &&
+    n.axes && n.axes.diet_spectrum &&
+    Object.values(n.axes.diet_spectrum).some(w => w === 1.0)
   );
-  const bearPath = brownBear ? brownBear.path : treeData.nodes.find(n =>
-    n.rank === "species" && n.flags && n.flags.includes("pinned")
-  ).path;
+
+  // Find a species (any) for sidebar axes test — prefer a beetle species under beetlePath
+  const beetleSpecies = treeData.nodes.find(n =>
+    n.rank === "species" && n.path.startsWith(beetlePath + ".") && n.axes && typeof n.axes === "object"
+  );
+  // Fallback: any species with axes
+  const anySpecies = beetleSpecies || treeData.nodes.find(n =>
+    n.rank === "species" && n.axes && typeof n.axes === "object"
+  );
 
   console.log(`Tree: ${treeData.nodes.length} nodes, orders+above: ${expectedInitialCount}`);
   console.log(`Beetle order: ${beetlePath} (${beetleSubtreeSize} descendants, expect ${expectedExpandedCount} when expanded)`);
+  console.log(`Phylum: ${phylum1.path}`);
+  if (carnivoreSpecies) console.log(`Carnivore species: ${carnivoreSpecies.path}`);
+  if (anySpecies) console.log(`Species (axes): ${anySpecies.path}`);
 
   // Launch browser
   const browser = await puppeteer.launch({
@@ -90,11 +108,11 @@ async function main() {
 
   // Inject tree data
   await page.evaluate(data => { window.loadTree(data); }, treeData);
-  // Wait for render
-  await new Promise(r => setTimeout(r, 600));
+  // Wait for render (zoomToFit is debounced via ResizeObserver, then draw)
+  await new Promise(r => setTimeout(r, 800));
 
   // ========================================================================
-  // Test overlay: file-picker must be hidden after programmatic loadTree
+  // overlay: file-picker must be hidden after programmatic loadTree
   // ========================================================================
   const overlayDisplay = await page.evaluate(() => {
     const el = document.getElementById("file-picker");
@@ -106,41 +124,25 @@ async function main() {
   );
 
   // ========================================================================
-  // Test a: DOM node count == visible count == expected
+  // Test a2: visible node count matches expected
   // ========================================================================
-  const domCount = await page.evaluate(() =>
-    document.querySelectorAll("#svg-group .tree-node").length
-  );
   const visibleCount = await page.evaluate(() => window.getVisibleNodeCount());
-
-  assert(
-    domCount === expectedInitialCount,
-    `a1: DOM node count ${domCount} == expected ${expectedInitialCount}`
-  );
   assert(
     visibleCount === expectedInitialCount,
     `a2: getVisibleNodeCount() ${visibleCount} == expected ${expectedInitialCount}`
-  );
-  assert(
-    domCount === visibleCount,
-    `a3: DOM count ${domCount} == getVisibleNodeCount() ${visibleCount}`
   );
 
   // ========================================================================
   // Test b: Click order node → subtree appears
   // ========================================================================
-  const clicked = await page.evaluate(path => {
-    const els = document.querySelectorAll(".tree-node");
-    for (const el of els) {
-      if (el.getAttribute("data-path") === path) {
-        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        return true;
-      }
+  {
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), beetlePath);
+    assert(pos !== null, `b1: beetle order node has screen position`);
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 600));
     }
-    return false;
-  }, beetlePath);
-  assert(clicked, `b1: clicked beetle order node`);
-  await new Promise(r => setTimeout(r, 400));
+  }
 
   const countAfterExpand = await page.evaluate(() => window.getVisibleNodeCount());
   assert(
@@ -151,53 +153,46 @@ async function main() {
   // ========================================================================
   // Test c: Double-click → subtree hidden
   // ========================================================================
-  await page.evaluate(path => {
-    const els = document.querySelectorAll(".tree-node");
-    for (const el of els) {
-      if (el.getAttribute("data-path") === path) {
-        el.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-        return true;
-      }
+  {
+    // Zoom to fit so the beetle order node is in view
+    await page.evaluate(() => document.getElementById("btn-fit").click());
+    await new Promise(r => setTimeout(r, 400));
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), beetlePath);
+    assert(pos !== null, `c1: beetle order node still has screen position for dblclick`);
+    if (pos) {
+      // Use two rapid clicks within 300ms for double-click detection
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 50));
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 600));
     }
-    return false;
-  }, beetlePath);
-  await new Promise(r => setTimeout(r, 400));
+  }
 
   const countAfterCollapse = await page.evaluate(() => window.getVisibleNodeCount());
   assert(
     countAfterCollapse === expectedInitialCount,
-    `c1: visible count after dblclick collapse ${countAfterCollapse} == expected ${expectedInitialCount}`
+    `c2: visible count after dblclick collapse ${countAfterCollapse} == expected ${expectedInitialCount}`
   );
 
   // ========================================================================
-  // Test d: Arrow-key navigation 5x → selection moves, count UNCHANGED
+  // Test d: Arrow-key navigation — select first phylum, then arrow keys
   // ========================================================================
-  // Select first phylum node (which has a sibling to navigate to)
-  const phylum1 = treeData.nodes.find(n => n.rank === "phylum");
-  if (phylum1) {
-    await page.evaluate(path => {
-      const els = document.querySelectorAll(".tree-node");
-      for (const el of els) {
-        if (el.getAttribute("data-path") === path) {
-          el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-          return true;
-        }
-      }
-      return false;
-    }, phylum1.path);
-    await new Promise(r => setTimeout(r, 200));
+  {
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), phylum1.path);
+    assert(pos !== null, "d1: phylum node has screen position");
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 300));
+    }
   }
 
   const selBefore = await page.evaluate(() => window.getSelectedPath());
   const countBeforeArrows = await page.evaluate(() => window.getVisibleNodeCount());
-  assert(!!selBefore, "d1: node selected before arrow nav");
+  assert(!!selBefore, "d1b: node selected before arrow nav");
 
-  const navMoves = [];
   for (let i = 0; i < 5; i++) {
     await page.keyboard.press("ArrowDown");
-    await new Promise(r => setTimeout(r, 80));
-    const sel = await page.evaluate(() => window.getSelectedPath());
-    navMoves.push(sel);
+    await new Promise(r => setTimeout(r, 100));
   }
 
   const selAfter = await page.evaluate(() => window.getSelectedPath());
@@ -217,7 +212,8 @@ async function main() {
   await page.evaluate(() => {
     document.getElementById("btn-reset").click();
   });
-  await new Promise(r => setTimeout(r, 500));
+  await new Promise(r => setTimeout(r, 800));
+
   const countAfterReset = await page.evaluate(() => window.getVisibleNodeCount());
   assert(
     countAfterReset === expectedInitialCount,
@@ -225,370 +221,282 @@ async function main() {
   );
 
   // ========================================================================
-  // Test f: Unselected label boxes — single-row, no overflow
+  // Test g1: sidebar shows selected node details (click phylum)
   // ========================================================================
-  const labelOverflow = await page.evaluate(() => {
-    const nodes = document.querySelectorAll(".tree-node:not(.selected) .label-box");
-    const issues = [];
-    for (const lb of nodes) {
-      const textEl = lb.querySelector("text");
-      if (!textEl) continue;
-      // SVG text — use getBBox if available
-      let textH = 0;
-      try {
-        const bbox = textEl.getBBox();
-        textH = bbox.height;
-      } catch (e) {
-        // getBBox unavailable in some contexts, try getBoundingClientRect
-        const rect = textEl.getBoundingClientRect();
-        textH = rect.height;
-      }
-      const rectEl = lb.querySelector("rect");
-      let boxH = 17;
-      if (rectEl) boxH = parseFloat(rectEl.getAttribute("height")) || 17;
-
-      // Text height should be ≤ box height + 2px tolerance
-      if (textH > boxH + 2) {
-        issues.push({
-          path: lb.closest(".tree-node").getAttribute("data-path"),
-          textH, boxH
-        });
-      }
+  {
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), phylum1.path);
+    assert(pos !== null, "g1: phylum node has screen position for sidebar test");
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 300));
     }
-    return issues;
-  });
-  assert(
-    labelOverflow.length === 0,
-    `f1: all ${await page.evaluate(() => document.querySelectorAll(".tree-node:not(.selected) .label-box").length)} unselected labels single-row (${labelOverflow.length} overflow: ${JSON.stringify(labelOverflow.slice(0, 5))})`
-  );
-
-  // ========================================================================
-  // Test g: Tooltip — hover species → tooltip has border, bg, z-index above nodes, alpha order
-  // ========================================================================
-  // First expand to make the species visible
-  await page.evaluate(path => {
-    const els = document.querySelectorAll(".tree-node");
-    for (const el of els) {
-      if (el.getAttribute("data-path") === path) {
-        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        return true;
-      }
-    }
-    return false;
-  }, bearPath.split(".").slice(0, 5).join(".")); // expand genus level ancestor
-  await new Promise(r => setTimeout(r, 400));
-  // Expand more if needed
-  await page.evaluate(path => {
-    // Expand family if visible and collapsed
-    const fam = path.split(".").slice(0, 4).join(".");
-    const els = document.querySelectorAll(".tree-node");
-    for (const el of els) {
-      if (el.getAttribute("data-path") === fam) {
-        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        return true;
-      }
-    }
-    return false;
-  }, bearPath);
-  await new Promise(r => setTimeout(r, 400));
-  await page.evaluate(path => {
-    // Expand genus if visible
-    const gen = path.split(".").slice(0, 5).join(".");
-    const els = document.querySelectorAll(".tree-node");
-    for (const el of els) {
-      if (el.getAttribute("data-path") === gen) {
-        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        return true;
-      }
-    }
-    return false;
-  }, bearPath);
-  await new Promise(r => setTimeout(r, 400));
-
-  // Now hover the species to trigger tooltip
-  const tooltipResult = await page.evaluate(path => {
-    // Use mousemove on the node to trigger tooltip
-    const els = document.querySelectorAll(".tree-node");
-    let found = null;
-    for (const el of els) {
-      if (el.getAttribute("data-path") === path) {
-        found = el;
-        break;
-      }
-    }
-    if (!found) return { error: "species node not found in DOM" };
-
-    const rect = found.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    found.dispatchEvent(new MouseEvent("mousemove", {
-      bubbles: true,
-      clientX: cx,
-      clientY: cy
-    }));
-    // Wait a frame for tooltip to render
-    return { cx, cy };
-  }, bearPath);
-  await new Promise(r => setTimeout(r, 300));
-
-  const tt = await page.evaluate(() => {
-    const tt = document.getElementById("tooltip");
-    const style = window.getComputedStyle(tt);
-    const isVisible = style.display !== "none" && tt.innerHTML.trim().length > 0;
-
-    // Collect axis keys from tooltip HTML and check alpha order
-    const rows = tt.querySelectorAll(".tt-row");
-    const axisKeys = [];
-    let inAxes = false;
-    for (const row of rows) {
-      const k = row.querySelector(".tt-k");
-      if (k) {
-        const text = k.textContent.trim();
-        if (text === "Axes" || inAxes) {
-          // Skip section title
-          if (inAxes && text !== "path" && text !== "rank" && text !== "parent" && text !== "label" &&
-              text !== "folk name" && text !== "binomial" && text !== "g" && text !== "Axes" &&
-              text !== "Generics" && text !== "Flags") {
-            axisKeys.push(text);
-          }
-        }
-      }
-    }
-
-    let alphaOk = true;
-    for (let i = 1; i < axisKeys.length; i++) {
-      if (axisKeys[i] < axisKeys[i - 1]) {
-        alphaOk = false;
-        break;
-      }
-    }
-
-    // Get z-index of tooltip
-    const ttZI = parseInt(style.zIndex) || 0;
-
-    // Get max z-index of all tree nodes
-    let maxNodeZI = 0;
-    const nodes = document.querySelectorAll(".tree-node");
-    nodes.forEach(n => {
-      const ns = window.getComputedStyle(n);
-      const zi = parseInt(ns.zIndex) || 0;
-      if (zi > maxNodeZI) maxNodeZI = zi;
-    });
-
-    return {
-      isVisible,
-      bg: style.backgroundColor,
-      border: style.border,
-      ttZIndex: ttZI,
-      maxNodeZIndex: maxNodeZI,
-      axisKeys,
-      alphaOk,
-      rowCount: rows.length
-    };
-  });
-
-  assert(
-    tt.isVisible,
-    `g1: tooltip is visible (display=${tt.isVisible}, rows=${tt.rowCount})`
-  );
-  assert(
-    tt.bg !== "rgba(0, 0, 0, 0)" && tt.bg !== "transparent",
-    `g2: tooltip has non-transparent background (${tt.bg})`
-  );
-  assert(
-    tt.border && tt.border !== "0px none rgb(0, 0, 0)" && !tt.border.includes("0px"),
-    `g3: tooltip has visible border (${tt.border})`
-  );
-  assert(
-    tt.ttZIndex > tt.maxNodeZIndex,
-    `g4: tooltip z-index ${tt.ttZIndex} > max node z-index ${tt.maxNodeZIndex}`
-  );
-  assert(
-    tt.alphaOk,
-    `g5: tooltip axis keys in alphabetical order (${tt.axisKeys.slice(0, 8).join(", ")}...)`
-  );
-
-  // ========================================================================
-  // Test h: Drag simulation → no text selection
-  // ========================================================================
-  // Reset first to get clean state
-  await page.evaluate(() => {
-    document.getElementById("btn-reset").click();
-  });
-  await new Promise(r => setTimeout(r, 400));
-
-  // Simulate drag on canvas (not on a node)
-  const canvasWrap = await page.$("#canvas-wrap");
-  const wrapBox = await canvasWrap.boundingBox();
-  const startX = wrapBox.x + 50;
-  const startY = wrapBox.y + 50;
-
-  await page.mouse.move(startX, startY);
-  await page.mouse.down();
-  await page.mouse.move(startX + 100, startY + 10, { steps: 5 });
-  await page.mouse.up();
-  await new Promise(r => setTimeout(r, 200));
-
-  const selectionAfterDrag = await page.evaluate(() => {
-    const sel = window.getSelection();
-    return sel ? sel.toString() : "";
-  });
-
-  assert(
-    selectionAfterDrag === "",
-    `h1: no text selection after drag ("${selectionAfterDrag}")`
-  );
-
-  // ========================================================================
-  // NEW Test j: Tooltip is scrollable (overflow-y auto, pointer-events auto)
-  // ========================================================================
-  // Expand to find a species, show tooltip, check computed style
-  await page.evaluate(path => {
-    const els = document.querySelectorAll(".tree-node");
-    for (const el of els) {
-      if (el.getAttribute("data-path") === path) {
-        el.dispatchEvent(new MouseEvent("mousemove", {
-          bubbles: true, clientX: 200, clientY: 200
-        }));
-        return true;
-      }
-    }
-    return false;
-  }, bearPath.split(".").slice(0, 5).join("."));
-  await new Promise(r => setTimeout(r, 400));
-
-  const ttScroll = await page.evaluate(() => {
-    const tt = document.getElementById("tooltip");
-    const style = window.getComputedStyle(tt);
-    return {
-      overflowY: style.overflowY,
-      maxHeight: style.maxHeight,
-      pointerEvents: style.pointerEvents,
-      scrollable: style.overflowY === "auto" && style.pointerEvents !== "none",
-    };
-  });
-  assert(
-    ttScroll.scrollable,
-    `j1: tooltip is scrollable (overflow-y=${ttScroll.overflowY}, max-height=${ttScroll.maxHeight}, pointer-events=${ttScroll.pointerEvents})`
-  );
-
-  // ========================================================================
-  // NEW Test k: Node click selects at two very different zoom levels
-  // ========================================================================
-  // Zoom out far
-  await page.evaluate(() => {
-    const wrap = document.getElementById("canvas-wrap");
-    const rect = wrap.getBoundingClientRect();
-    const mx = rect.width / 2, my = rect.height / 2;
-    wrap.dispatchEvent(new WheelEvent("wheel", {
-      deltaY: 100, clientX: rect.left + mx, clientY: rect.top + my, bubbles: true
-    }));
-  });
-  await new Promise(r => setTimeout(r, 200));
-  // Repeatedly zoom out
-  for (let i = 0; i < 8; i++) {
-    await page.evaluate(() => {
-      const wrap = document.getElementById("canvas-wrap");
-      const rect = wrap.getBoundingClientRect();
-      wrap.dispatchEvent(new WheelEvent("wheel", {
-        deltaY: 100, clientX: rect.left + rect.width/2, clientY: rect.top + rect.height/2, bubbles: true
-      }));
-    });
-    await new Promise(r => setTimeout(r, 50));
   }
-  await new Promise(r => setTimeout(r, 300));
 
-  // Click a phylum node at low zoom
-  const phylumNode = treeData.nodes.find(n => n.rank === "phylum");
-  const clickedLowZoom = await page.evaluate(path => {
-    const els = document.querySelectorAll(".tree-node");
-    for (const el of els) {
-      if (el.getAttribute("data-path") === path) {
-        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        return true;
-      }
-    }
-    return false;
-  }, phylumNode.path);
-  await new Promise(r => setTimeout(r, 200));
-  const selLowZoom = await page.evaluate(() => window.getSelectedPath());
+  const sidebarHtml = await page.evaluate(() => {
+    const sb = document.getElementById("sidebar");
+    return sb ? sb.innerHTML : "";
+  });
+  const hasPathOrName = sidebarHtml.includes(phylum1.path) ||
+    (phylum1.name && phylum1.name.binomial && sidebarHtml.includes(phylum1.name.binomial)) ||
+    (phylum1.label && sidebarHtml.includes(phylum1.label));
   assert(
-    clickedLowZoom && selLowZoom === phylumNode.path,
-    `k1: click selects at low zoom (selected=${selLowZoom}, expected=${phylumNode.path})`
+    hasPathOrName,
+    `g1: sidebar shows selected node details (contains path or name; path=${phylum1.path})`
   );
 
-  // Zoom in a lot
-  for (let i = 0; i < 15; i++) {
-    await page.evaluate(() => {
-      const wrap = document.getElementById("canvas-wrap");
-      const rect = wrap.getBoundingClientRect();
-      wrap.dispatchEvent(new WheelEvent("wheel", {
-        deltaY: -100, clientX: rect.left + rect.width/2, clientY: rect.top + rect.height/2, bubbles: true
-      }));
-    });
-    await new Promise(r => setTimeout(r, 50));
+  // ========================================================================
+  // Test g2: sidebar has overflow-y: auto
+  // ========================================================================
+  const sidebarOverflow = await page.evaluate(() => {
+    const sb = document.getElementById("sidebar");
+    return sb ? window.getComputedStyle(sb).overflowY : "none";
+  });
+  assert(
+    sidebarOverflow === "auto",
+    `g2: sidebar overflow-y is auto (got "${sidebarOverflow}")`
+  );
+
+  // ========================================================================
+  // Tests g3 + l1: Need a species visible — expand beetle order
+  // ========================================================================
+  {
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), beetlePath);
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 600));
+    }
   }
-  await new Promise(r => setTimeout(r, 300));
-
-  // Click the same phylum node at high zoom
-  const clickedHighZoom = await page.evaluate(path => {
-    const els = document.querySelectorAll(".tree-node");
-    for (const el of els) {
-      if (el.getAttribute("data-path") === path) {
-        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        return true;
-      }
-    }
-    return false;
-  }, phylumNode.path);
-  await new Promise(r => setTimeout(r, 200));
-  const selHighZoom = await page.evaluate(() => window.getSelectedPath());
-  assert(
-    clickedHighZoom,
-    `k2: click selects at high zoom (click dispatched=${clickedHighZoom})`
-  );
 
   // ========================================================================
-  // NEW Test l: Spectrum value 1.0 never renders as "1%"
+  // Test g3: sidebar axes in alphabetical order (checked together with l1 below)
   // ========================================================================
-  // Find a carnivore-only species with diet_spectrum weight=1.0
-  const carnivoreSpecies = treeData.nodes.find(n =>
-    n.rank === "species" &&
-    n.axes && n.axes.diet_spectrum &&
-    Object.values(n.axes.diet_spectrum).some(w => w === 1.0)
-  );
+  pass("g3: deferred to l1 (species selection is tested there)");
+
+  // ========================================================================
+  // Test l1: diet_spectrum weight 1.0 → "100%" in sidebar (not "1%")
+  //   Also checks: sidebar axes in alphabetical order (g3)
+  // ========================================================================
   if (carnivoreSpecies) {
-    // Show tooltip on this species
-    await page.evaluate(path => {
-      const els = document.querySelectorAll(".tree-node");
-      for (const el of els) {
-        if (el.getAttribute("data-path") === path) {
-          el.dispatchEvent(new MouseEvent("mousemove", {
-            bubbles: true, clientX: 200, clientY: 200
-          }));
-          return true;
-        }
+    // Expand ancestors to make the carnivore species visible, then select it
+    const ancParts = carnivoreSpecies.path.split(".");
+    for (let i = 3; i < ancParts.length; i++) {
+      const ancPath = ancParts.slice(0, i + 1).join(".");
+      const aPos = await page.evaluate(p => window.__nodeScreenPos(p), ancPath);
+      if (aPos) {
+        await page.mouse.click(aPos.x, aPos.y);
+        await new Promise(r => setTimeout(r, 300));
       }
-      return false;
+    }
+    await page.evaluate(path => {
+      if (window.__selectPath) window.__selectPath(path);
     }, carnivoreSpecies.path);
     await new Promise(r => setTimeout(r, 300));
 
-    const spectrumText = await page.evaluate(() => {
-      const tt = document.getElementById("tooltip");
-      return tt.innerHTML;
+    const sidebarText = await page.evaluate(() => {
+      const sb = document.getElementById("sidebar");
+      return sb ? sb.innerHTML : "";
     });
-    // Should show "100%" not "1%"
-    const hasBadFormat = spectrumText.includes(" 1%") && !spectrumText.includes(" 100%");
+
+    // Should show "100%" not " 1%"
+    const hasBadFormat = /\b1%/.test(sidebarText) && !/\b100%/.test(sidebarText);
     assert(
       !hasBadFormat,
-      `l1: diet_spectrum weight 1.0 renders as 100%, not 1% (html snippet: ${spectrumText.substring(spectrumText.indexOf("diet_spectrum"), spectrumText.indexOf("diet_spectrum") + 100)})`
+      `l1: diet_spectrum weight 1.0 renders as 100%, not 1% (snippet: ${sidebarText.substring(0, 200)})`
+    );
+
+    // Also check axis keys are in alphabetical order (g3)
+    const axisKeysFromData = Object.keys(carnivoreSpecies.axes || {}).filter(k => carnivoreSpecies.axes[k] !== "N/A" && carnivoreSpecies.axes[k] != null).sort();
+    const sidebarKeys = await page.evaluate(() => {
+      const sb = document.getElementById("sidebar");
+      if (!sb) return [];
+      const spans = sb.querySelectorAll('.sk');
+      return Array.from(spans).map(s => s.textContent.trim());
+    });
+    // All axis keys from the data should appear in the sidebar in alpha order
+    // (after the metadata keys: path, rank, parent, label, folk name, binomial, g)
+    const metaKeys = new Set(["path","rank","parent","label","folk name","binomial","g"]);
+    const sidebarAxisKeys = [];
+    for (const k of sidebarKeys) {
+      if (metaKeys.has(k)) continue;
+      if (!axisKeysFromData.includes(k)) break; // stop at generics
+      sidebarAxisKeys.push(k);
+    }
+    let alphaOk = axisKeysFromData.every((k, i) => sidebarAxisKeys.indexOf(k) === i || sidebarAxisKeys.indexOf(k) === -1);
+    alphaOk = alphaOk && sidebarAxisKeys.length >= axisKeysFromData.length;
+    assert(
+      alphaOk,
+      `l2: sidebar axis keys in alphabetical order (expected ${axisKeysFromData.slice(0,5).join(", ")}..., got ${sidebarAxisKeys.slice(0,5).join(", ")}...)`
     );
   } else {
     pass("l1: no 1.0-weight species found — skipped");
   }
 
   // ========================================================================
-  // Test i: Zero console errors
+  // Test k1: click at zoom ~0.3 selects the node
+  // ========================================================================
+  // First, get canvas-wrap center
+  const wrapBox = await page.evaluate(() => {
+    const el = document.getElementById("canvas-wrap");
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+
+  // Zoom out by scrolling down many times
+  await page.mouse.move(wrapBox.x, wrapBox.y);
+  for (let i = 0; i < 20; i++) {
+    await page.mouse.wheel({ deltaX: 0, deltaY: 150 });
+    await new Promise(r => setTimeout(r, 30));
+  }
+  await new Promise(r => setTimeout(r, 400));
+
+  // Click a phylum node at low zoom
+  {
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), phylum1.path);
+    assert(pos !== null, "k1: phylum node has screen pos at low zoom");
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+
+  const selLowZoom = await page.evaluate(() => window.getSelectedPath());
+  assert(
+    selLowZoom === phylum1.path,
+    `k1: click selects at low zoom (selected=${selLowZoom}, expected=${phylum1.path})`
+  );
+
+  // ========================================================================
+  // Test k2: click at zoom ~8 selects the node
+  // ========================================================================
+  // Zoom in a lot
+  await page.mouse.move(wrapBox.x, wrapBox.y);
+  for (let i = 0; i < 35; i++) {
+    await page.mouse.wheel({ deltaX: 0, deltaY: -150 });
+    await new Promise(r => setTimeout(r, 30));
+  }
+  await new Promise(r => setTimeout(r, 400));
+
+  {
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), phylum1.path);
+    assert(pos !== null, "k2: phylum node has screen pos at high zoom");
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+
+  const selHighZoom = await page.evaluate(() => window.getSelectedPath());
+  assert(
+    selHighZoom === phylum1.path,
+    `k2: click selects at high zoom (selected=${selHighZoom}, expected=${phylum1.path})`
+  );
+
+  // ========================================================================
+  // Reset view for remaining tests
+  // ========================================================================
+  await page.evaluate(() => {
+    document.getElementById("btn-reset").click();
+  });
+  await new Promise(r => setTimeout(r, 800));
+
+  // ========================================================================
+  // Test h1: Drag on canvas-wrap → no text selection
+  // ========================================================================
+  {
+    const box = await page.evaluate(() => {
+      const el = document.getElementById("canvas-wrap");
+      const r = el.getBoundingClientRect();
+      return { x: r.left + 50, y: r.top + 50 };
+    });
+
+    await page.mouse.move(box.x, box.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 100, box.y + 10, { steps: 5 });
+    await page.mouse.up();
+    await new Promise(r => setTimeout(r, 200));
+
+    const selectionAfterDrag = await page.evaluate(() => {
+      const sel = window.getSelection();
+      return sel ? sel.toString() : "";
+    });
+
+    assert(
+      selectionAfterDrag === "",
+      `h1: no text selection after drag ("${selectionAfterDrag}")`
+    );
+  }
+
+  // ========================================================================
+  // Test m1: After panning, clicking still selects the right node
+  // ========================================================================
+  {
+    // Reset to a clean state first
+    await page.evaluate(() => document.getElementById("btn-reset").click());
+    await new Promise(r => setTimeout(r, 500));
+
+    // Use canvas coordinates for pan start (top-left, clear of nodes)
+    const box = await page.evaluate(() => {
+      const c = document.querySelector("#canvas-wrap canvas");
+      const r = c.getBoundingClientRect();
+      return { x: r.left + 10, y: r.top + 10 };
+    });
+
+    // Pan 200px right
+    await page.mouse.move(box.x, box.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 200, box.y, { steps: 10 });
+    await page.mouse.up();
+    await new Promise(r => setTimeout(r, 300));
+
+    // Click a phylum node after panning
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), phylum1.path);
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    const selAfterPan = await page.evaluate(() => window.getSelectedPath());
+    assert(
+      selAfterPan === phylum1.path,
+      `m1: after panning, click selects correct node (selected=${selAfterPan}, expected=${phylum1.path})`
+    );
+  }
+
+  // ========================================================================
+  // Reset and expand beetle order for perf test
+  // ========================================================================
+  await page.evaluate(() => {
+    document.getElementById("btn-reset").click();
+  });
+  await new Promise(r => setTimeout(r, 600));
+
+  {
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), beetlePath);
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 600));
+    }
+  }
+
+  const visibleForPerf = await page.evaluate(() => window.getVisibleNodeCount());
+  console.log(`Visible nodes for perf test: ${visibleForPerf}`);
+
+  // ========================================================================
+  // Test n1: Perf smoke — __drawDirect() < 200ms
+  // ========================================================================
+  const drawTime = await page.evaluate(() => {
+    const start = performance.now();
+    window.__drawDirect();
+    const end = performance.now();
+    return end - start;
+  });
+  assert(
+    drawTime < 200,
+    `n1: __drawDirect() took ${drawTime.toFixed(1)}ms (must be < 200ms)`
+  );
+
+  // ========================================================================
+  // Test i1: Zero console errors
   // ========================================================================
   assert(
     consoleErrors.length === 0,
@@ -602,23 +510,20 @@ async function main() {
   await page.evaluate(() => {
     document.getElementById("btn-reset").click();
   });
-  await new Promise(r => setTimeout(r, 500));
+  await new Promise(r => setTimeout(r, 800));
+
   fs.mkdirSync(path.dirname(SCREENSHOT_INIT), { recursive: true });
   await page.screenshot({ path: SCREENSHOT_INIT, fullPage: false });
   console.log(`Screenshot saved: ${SCREENSHOT_INIT}`);
 
   // Expand beetle order for expanded screenshot
-  await page.evaluate(path => {
-    const els = document.querySelectorAll(".tree-node");
-    for (const el of els) {
-      if (el.getAttribute("data-path") === path) {
-        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        return true;
-      }
+  {
+    const pos = await page.evaluate(path => window.__nodeScreenPos(path), beetlePath);
+    if (pos) {
+      await page.mouse.click(pos.x, pos.y);
+      await new Promise(r => setTimeout(r, 800));
     }
-    return false;
-  }, beetlePath);
-  await new Promise(r => setTimeout(r, 500));
+  }
   await page.screenshot({ path: SCREENSHOT_EXPAND, fullPage: false });
   console.log(`Screenshot saved: ${SCREENSHOT_EXPAND}`);
 

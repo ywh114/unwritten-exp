@@ -11,13 +11,14 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 13px; line-height: 1.4; color: #222; background: #f8f8f6;
   overflow: hidden; height: 100vh; user-select: none;
+  display: flex; flex-direction: column;
 }
 
 /* ===== Header ===== */
 #header {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 6px 10px; background: #eee; border-bottom: 1px solid #ccc;
-  min-height: 36px; user-select: none;
+  min-height: 36px; user-select: none; flex-shrink: 0;
 }
 #header .seed-badge { font-weight: 700; white-space: nowrap; }
 #header .counts { color: #555; font-size: 11px; white-space: nowrap; }
@@ -41,53 +42,33 @@ body {
 #file-picker .drop-zone h2 { margin-bottom: 10px; font-weight: 500; }
 #file-picker .drop-zone p { color: #777; font-size: 12px; }
 
+/* ===== Main row ===== */
+#main-row {
+  display: flex; flex: 1; overflow: hidden;
+}
+
 /* ===== Canvas ===== */
 #canvas-wrap {
-  height: calc(100vh - 36px); overflow: hidden; position: relative;
+  flex: 1; overflow: hidden; position: relative;
   background: #fdfdfd; cursor: grab;
 }
 #canvas-wrap.panning { cursor: grabbing; }
-#tree-svg {
-  width: 100%; height: 100%; display: block;
+#tree-canvas {
+  display: block; position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
 }
 
-/* ===== Tooltip ===== */
-#tooltip {
-  position: fixed; z-index: 9999; pointer-events: auto;
-  display: none; background: #fff; border: 1px solid #888;
-  border-radius: 4px; padding: 8px 10px; font-size: 11px; line-height: 1.5;
-  max-width: 360px; max-height: 70vh; overflow-y: auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-  color: #222;
+/* ===== Sidebar ===== */
+#sidebar {
+  width: 320px; min-width: 320px; overflow-y: auto;
+  border-left: 1px solid #ccc; padding: 10px 12px;
+  font-size: 12px; line-height: 1.5; user-select: text;
+  background: #fafafa;
 }
-#tooltip.show { display: block; }
-#tooltip .tt-title { font-weight: 600; font-size: 12px; margin-bottom: 4px; }
-#tooltip .tt-row { display: flex; gap: 6px; }
-#tooltip .tt-row .tt-k { color: #777; min-width: 130px; flex-shrink: 0; }
-#tooltip .tt-row .tt-v { word-break: break-all; }
-#tooltip .tt-sep {
-  border-top: 1px solid #eee; margin: 4px 0;
-}
-
-/* SVG node styling */
-.tree-node { cursor: pointer; }
-.tree-node circle { stroke: #333; stroke-width: 1; }
-.tree-node .collapse-badge { font-size: 9px; fill: #fff; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.tree-node .collapse-badge-bg { fill: #666; }
-.tree-edge { stroke: #bbb; stroke-width: 1; fill: none; }
-
-.label-box { pointer-events: none; }
-.label-box rect {
-  fill: rgba(255,255,255,0.92); stroke: #ccc; stroke-width: 0.8;
-  rx: 4; ry: 4;
-}
-.label-box text {
-  font-size: 10px; fill: #333;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-.label-box text.pin-star { fill: #e67e22; }
-.tree-node.selected .label-box rect { stroke: #e74c3c; stroke-width: 2; }
-.tree-node.selected circle { stroke: #e74c3c; stroke-width: 2.5; }
+#sidebar .sk { color: #777; min-width: 90px; display: inline-block; }
+#sidebar::-webkit-scrollbar { width: 6px; }
+#sidebar::-webkit-scrollbar-track { background: transparent; }
+#sidebar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
 
 /* Drag body class */
 body.dragging { user-select: none; -webkit-user-select: none; }
@@ -112,13 +93,15 @@ body.dragging { user-select: none; -webkit-user-select: none; }
   <button id="btn-fit" title="Zoom to fit">Fit</button>
 </div>
 
-<!-- Canvas -->
-<div id="canvas-wrap">
-  <svg id="tree-svg"><text x="50%" y="50%" text-anchor="middle" fill="#ccc" font-size="14" id="placeholder-text">No tree loaded — drop a tree.json file</text></svg>
+<!-- Main row: canvas + sidebar -->
+<div id="main-row">
+  <div id="canvas-wrap">
+    <canvas id="tree-canvas"></canvas>
+  </div>
+  <div id="sidebar">
+    <p style="color:#999;font-style:italic;">Click a node to see details</p>
+  </div>
 </div>
-
-<!-- Tooltip (HTML overlay, z-index above everything) -->
-<div id="tooltip"></div>
 
 <script>
 (function() {
@@ -145,19 +128,23 @@ let positions = new Map();      // path -> {x, y}
 let leafCount = 0;
 let collapsed = new Set();
 let selectedPath = null;
-let tooltipPath = null;         // path being hovered
 
 // Zoom/pan
 let zoomScale = 1;
 let panX = 0, panY = 0;
-let svgEl, svgGroup;
+
+// Canvas
+let canvas, ctx;
+let dirty = false;
+let hitRegions = new Map();     // path -> {cx, cy, r, bx, by, bw, bh}
 
 // Dragging state
 let isDragging = false;
 let dragMoved = false;
+let dragStartX, dragStartY, dragPanX, dragPanY;
 
-// Event binding guard
-let svgEventsSetup = false;
+// Click timer for single vs double click
+let pendingClick = null;        // {path, timer}
 
 // ============================================================================
 // Helpers
@@ -188,6 +175,11 @@ function descendantCount(path) {
   return count - 1;
 }
 
+function esc(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 // ============================================================================
 // Data loading
 // ============================================================================
@@ -198,7 +190,6 @@ function buildTree(data) {
   roots = [];
   collapsed.clear();
   selectedPath = null;
-  tooltipPath = null;
   zoomScale = 1; panX = 0; panY = 0;
 
   for (const nd of data.nodes) {
@@ -267,36 +258,53 @@ function visibleNodes() {
 }
 
 // ============================================================================
-// SVG Rendering
+// Layout helpers
 // ============================================================================
 function svgX(lx) { return MARGIN.left + lx * RANK_X; }
 function svgY(ly) { return MARGIN.top + ly * LEAF_DY; }
 function svgTotalW() { return MARGIN.left + 7 * RANK_X + MARGIN.right; }
 function svgTotalH() { return MARGIN.top + Math.max(1, leafCount) * LEAF_DY + MARGIN.bottom; }
 
-function renderTree() {
+// ============================================================================
+// Canvas rendering
+// ============================================================================
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function draw() {
+  if (!dirty) return;
+  if (!ctx || !canvas) return;
+
   computeVisibleLayout();
-  svgEl = document.getElementById("tree-svg");
-  const ph = document.getElementById("placeholder-text");
-  if (ph) ph.remove();
 
-  const totalW = svgTotalW();
-  const totalH = svgTotalH();
-  svgEl.setAttribute("viewBox", `0 0 ${totalW} ${totalH}`);
-  svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
-  svgEl.removeAttribute("width");
-  svgEl.removeAttribute("height");
-  svgEl.innerHTML = "";
+  const w = canvas.width, h = canvas.height;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, w, h);
 
-  svgGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  svgGroup.setAttribute("id", "svg-group");
-  applyTransform();
-  svgEl.appendChild(svgGroup);
+  ctx.setTransform(zoomScale, 0, 0, zoomScale, panX, panY);
 
+  hitRegions.clear();
   const vis = visibleNodes();
-  const labelH = 17;  // single row height
+  const labelH = 17;
+  const labelPadX = 6;
+  const labelPadY = 3;
+  const maxChars = 40;
+  const FONT = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
-  // Draw edges (elbows: horizontal from parent, vertical to child)
+  // Draw edges
+  ctx.strokeStyle = "#bbb";
+  ctx.lineWidth = 1;
   for (const path of vis) {
     const node = nodeMap.get(path);
     if (!node || !node.parent) continue;
@@ -310,10 +318,11 @@ function renderTree() {
     const childR = RANK_NODE_R[rankIdx(node.rank)] || 3;
     const parentR = RANK_NODE_R[rankIdx(nodeMap.get(node.parent).rank)] || 3;
 
-    const edge = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    edge.setAttribute("d", `M ${x1 + parentR} ${y1} L ${x2 - childR} ${y1} L ${x2 - childR} ${y2}`);
-    edge.setAttribute("class", "tree-edge");
-    svgGroup.appendChild(edge);
+    ctx.beginPath();
+    ctx.moveTo(x1 + parentR, y1);
+    ctx.lineTo(x2 - childR, y1);
+    ctx.lineTo(x2 - childR, y2);
+    ctx.stroke();
   }
 
   // Draw nodes
@@ -328,97 +337,111 @@ function renderTree() {
     const r = Math.max(RANK_NODE_R[ri] || 3, 7 / zoomScale);
     const color = RANK_COLORS[ri] || "#999";
     const pinned = isPinned(node);
-
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("class", "tree-node" + (path === selectedPath ? " selected" : ""));
-    g.setAttribute("data-path", path);
+    const isSel = (path === selectedPath);
 
     // Circle
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("cx", cx); circle.setAttribute("cy", cy);
-    circle.setAttribute("r", r); circle.setAttribute("fill", color);
-    g.appendChild(circle);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = isSel ? "#e74c3c" : "#333";
+    ctx.lineWidth = isSel ? 2.5 : 1;
+    ctx.stroke();
 
     // Collapse badge
     if (collapsed.has(path)) {
       const count = descendantCount(path);
       const badgeR = 8;
       const bx = cx - r - badgeR - 2, by = cy;
-      const bg = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      bg.setAttribute("cx", bx); bg.setAttribute("cy", by); bg.setAttribute("r", badgeR);
-      bg.setAttribute("class", "collapse-badge-bg");
-      g.appendChild(bg);
-      const bt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      bt.textContent = String(count);
-      bt.setAttribute("x", bx); bt.setAttribute("y", by);
-      bt.setAttribute("class", "collapse-badge");
-      g.appendChild(bt);
+      ctx.beginPath();
+      ctx.arc(bx, by, badgeR, 0, Math.PI * 2);
+      ctx.fillStyle = "#666";
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "9px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(count), bx, by);
     }
 
-    // Label box (single-row for all nodes, with ellipsis for unselected)
+    // Label
     const name = nodeDisplayName(node);
     const prefix = pinned ? "★ " : "";
     const fullText = prefix + name;
-    const padX = 6, padY = 3;
-    const maxChars = 40;
-    let displayText = fullText.length > maxChars ? fullText.substring(0, maxChars - 1) + "…" : fullText;
-    const estW = Math.max(displayText.length * 6 + padX * 2 + 4, 50);
-    const boxH = labelH;
-    const boxX = cx + r + 5, boxY = cy - boxH / 2;
+    let displayText = fullText.length > maxChars
+      ? fullText.substring(0, maxChars - 1) + "\u2026"
+      : fullText;
+    const estW = Math.max(displayText.length * 6 + labelPadX * 2 + 4, 50);
+    const boxX = cx + r + 5, boxY = cy - labelH / 2;
 
-    // Label box group
-    const lb = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    lb.setAttribute("class", "label-box");
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rect.setAttribute("x", boxX); rect.setAttribute("y", boxY);
-    rect.setAttribute("width", estW); rect.setAttribute("height", boxH);
-    lb.appendChild(rect);
-    const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    txt.setAttribute("x", boxX + padX); txt.setAttribute("y", boxY + padY + 10);
+    // Label background
+    roundRect(ctx, boxX, boxY, estW, labelH, 4);
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fill();
+    ctx.strokeStyle = isSel ? "#e74c3c" : "#ccc";
+    ctx.lineWidth = isSel ? 2 : 0.8;
+    ctx.stroke();
+
+    // Label text
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.font = FONT;
     if (pinned) {
-      const star = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
-      star.textContent = "★ "; star.setAttribute("class", "pin-star");
-      txt.appendChild(star);
-      const nameT = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
-      nameT.textContent = name.length > maxChars - 2 ? name.substring(0, maxChars - 3) + "…" : name;
-      txt.appendChild(nameT);
+      ctx.fillStyle = "#e67e22";
+      ctx.fillText("★ ", boxX + labelPadX, boxY + labelPadY);
+      const nameText = name.length > maxChars - 2
+        ? name.substring(0, maxChars - 3) + "\u2026"
+        : name;
+      ctx.fillStyle = "#333";
+      ctx.fillText(nameText, boxX + labelPadX + 12, boxY + labelPadY);
     } else {
-      txt.textContent = displayText;
+      ctx.fillStyle = "#333";
+      ctx.fillText(displayText, boxX + labelPadX, boxY + labelPadY);
     }
-    lb.appendChild(txt);
-    g.appendChild(lb);
 
-    svgGroup.appendChild(g);
+    // Record hit region
+    hitRegions.set(path, {
+      cx, cy, r,
+      bx: boxX, by: boxY, bw: estW, bh: labelH
+    });
   }
-}
 
-function applyTransform() {
-  if (!svgGroup) return;
-  svgGroup.setAttribute("transform", `translate(${panX},${panY}) scale(${zoomScale})`);
+  dirty = false;
 }
 
 // ============================================================================
-// Tooltip (HTML overlay)
+// Sidebar
 // ============================================================================
-const tooltipEl = document.getElementById("tooltip");
-
-function renderTooltip(path, clientX, clientY) {
-  const node = nodeMap.get(path);
-  if (!node) return;
+function renderSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  if (!selectedPath) {
+    sidebar.innerHTML = '<p style="color:#999;font-style:italic;">Click a node to see details</p>';
+    return;
+  }
+  const node = nodeMap.get(selectedPath);
+  if (!node) {
+    sidebar.innerHTML = '<p style="color:#999;font-style:italic;">Click a node to see details</p>';
+    return;
+  }
 
   let html = "";
   const name = nodeDisplayName(node);
   const pinned = isPinned(node);
 
-  // Title
-  html += `<div class="tt-title">${pinned ? "★ " : ""}${name}</div>`;
-  html += `<div class="tt-row"><span class="tt-k">path</span><span class="tt-v">${esc(node.path)}</span></div>`;
-  html += `<div class="tt-row"><span class="tt-k">rank</span><span class="tt-v">${esc(node.rank)}</span></div>`;
-  if (node.parent) html += `<div class="tt-row"><span class="tt-k">parent</span><span class="tt-v">${esc(node.parent)}</span></div>`;
-  if (node.label && !pinned) html += `<div class="tt-row"><span class="tt-k">label</span><span class="tt-v">${esc(node.label)}</span></div>`;
-  if (pinned && node.name.folk) html += `<div class="tt-row"><span class="tt-k">folk name</span><span class="tt-v">${esc(node.name.folk)}</span></div>`;
-  if (pinned && node.name.binomial) html += `<div class="tt-row"><span class="tt-k">binomial</span><span class="tt-v"><i>${esc(node.name.binomial)}</i></span></div>`;
-  html += `<div class="tt-row"><span class="tt-k">g</span><span class="tt-v">${typeof node.g === "number" ? node.g.toFixed(4) : "—"}</span></div>`;
+  html += '<div style="font-weight:600;font-size:13px;margin-bottom:6px;">'
+    + (pinned ? "★ " : "") + esc(name) + '</div>';
+
+  const row = (k, v) =>
+    '<div style="margin-bottom:2px;"><span class="sk">' + esc(k) + '</span> ' + v + '</div>';
+
+  html += row("path", esc(node.path));
+  html += row("rank", esc(node.rank));
+  if (node.parent) html += row("parent", esc(node.parent));
+  if (node.label && !pinned) html += row("label", esc(node.label));
+  if (pinned && node.name.folk) html += row("folk name", esc(node.name.folk));
+  if (pinned && node.name.binomial)
+    html += row("binomial", '<i>' + esc(node.name.binomial) + '</i>');
+  html += row("g", typeof node.g === "number" ? node.g.toFixed(4) : "—");
 
   // Axes — sorted alphabetically, N/A hidden, diet_spectrum special
   if (node.axes && typeof node.axes === "object") {
@@ -427,19 +450,18 @@ function renderTooltip(path, clientX, clientY) {
       .sort((a, b) => a[0].localeCompare(b[0]));
 
     if (axesEntries.length > 0) {
-      html += `<div class="tt-sep"></div>`;
-      html += `<div style="font-weight:600;margin-bottom:2px;">Axes</div>`;
+      html += '<hr style="border:none;border-top:1px solid #eee;margin:6px 0;">';
+      html += '<div style="font-weight:600;margin-bottom:2px;">Axes</div>';
       for (const [k, v] of axesEntries) {
         if (k === "diet_spectrum" && v && typeof v === "object") {
-          // diet_spectrum: "guild weight%" sorted by weight desc
           const ds = Object.entries(v)
             .filter(([, w]) => w > 0)
             .sort((a, b) => b[1] - a[1])
-            .map(([g, w]) => `${g} ${(w * 100).toFixed(0)}%`)
+            .map(([g, w]) => g + " " + (w * 100).toFixed(0) + "%")
             .join(", ");
-          html += `<div class="tt-row"><span class="tt-k">${esc(k)}</span><span class="tt-v">${esc(ds)}</span></div>`;
+          html += row(k, esc(ds));
         } else {
-          html += `<div class="tt-row"><span class="tt-k">${esc(k)}</span><span class="tt-v">${esc(String(v))}</span></div>`;
+          html += row(k, esc(String(v)));
         }
       }
     }
@@ -447,41 +469,24 @@ function renderTooltip(path, clientX, clientY) {
 
   // Generics
   if (node.generics && typeof node.generics === "object" && Object.keys(node.generics).length > 0) {
-    html += `<div class="tt-sep"></div>`;
-    html += `<div style="font-weight:600;margin-bottom:2px;">Generics</div>`;
+    html += '<hr style="border:none;border-top:1px solid #eee;margin:6px 0;">';
+    html += '<div style="font-weight:600;margin-bottom:2px;">Generics</div>';
     for (const [k, v] of Object.entries(node.generics).sort((a, b) => a[0].localeCompare(b[0]))) {
-      html += `<div class="tt-row"><span class="tt-k">${esc(k)}</span><span class="tt-v">${esc(String(v))}</span></div>`;
+      html += row(k, esc(String(v)));
     }
   }
 
   // Flags
   if (node.flags && node.flags.length > 0) {
-    html += `<div class="tt-sep"></div>`;
-    html += `<div style="font-weight:600;margin-bottom:2px;">Flags</div>`;
-    html += `<div>${node.flags.map(f => `<span style="display:inline-block;font-size:10px;padding:1px 5px;border-radius:3px;margin:1px 2px;background:#d5f5e3;color:#1e8449;">${esc(f)}</span>`).join("")}</div>`;
+    html += '<hr style="border:none;border-top:1px solid #eee;margin:6px 0;">';
+    html += '<div style="font-weight:600;margin-bottom:2px;">Flags</div>';
+    html += '<div>' + node.flags.map(f =>
+      '<span style="display:inline-block;font-size:10px;padding:1px 5px;border-radius:3px;margin:1px 2px;background:#d5f5e3;color:#1e8449;">'
+      + esc(f) + '</span>'
+    ).join("") + '</div>';
   }
 
-  tooltipEl.innerHTML = html;
-  tooltipEl.classList.add("show");
-
-  // Position: offset from cursor
-  let tx = clientX + 14, ty = clientY + 14;
-  const tw = tooltipEl.offsetWidth, th = tooltipEl.offsetHeight;
-  if (tx + tw > window.innerWidth - 10) tx = clientX - tw - 14;
-  if (ty + th > window.innerHeight - 10) ty = clientY - th - 14;
-  if (tx < 5) tx = 5;
-  if (ty < 5) ty = 5;
-  tooltipEl.style.left = tx + "px";
-  tooltipEl.style.top = ty + "px";
-}
-
-function hideTooltip() {
-  tooltipEl.classList.remove("show");
-}
-
-function esc(s) {
-  if (s === null || s === undefined) return "";
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  sidebar.innerHTML = html;
 }
 
 // ============================================================================
@@ -496,16 +501,16 @@ function onNodeClick(path) {
     // Expand
     collapsed.delete(path);
     selectNode(path);
-    renderTree();
   } else if (kids && kids.length > 0 && !collapsed.has(path)) {
     // Already expanded: just select
     selectNode(path);
-    renderTree();
   } else {
     // Leaf or no children: just select
     selectNode(path);
-    renderTree();
   }
+  dirty = true;
+  draw();
+  renderSidebar();
 }
 
 function onNodeDblClick(path) {
@@ -520,7 +525,9 @@ function onNodeDblClick(path) {
     if (selectedPath && isDescendantOf(selectedPath, path)) {
       selectedPath = path;
     }
-    renderTree();
+    dirty = true;
+    draw();
+    renderSidebar();
   }
 }
 
@@ -533,28 +540,79 @@ function selectNode(path) {
 }
 
 // ============================================================================
+// Hit-testing
+// ============================================================================
+function hitTest(worldX, worldY) {
+  // Collect all candidates, pick the closest circle hit or the best label-box hit
+  let bestDist = Infinity, bestPath = null;
+  for (const [path, region] of hitRegions) {
+    // Circle hit — prefer closest
+    const dx = worldX - region.cx, dy = worldY - region.cy;
+    const dist = dx * dx + dy * dy;
+    const r2 = (region.r + 1) * (region.r + 1);
+    if (dist < r2 && dist < bestDist) { bestDist = dist; bestPath = path; }
+  }
+  if (bestPath) return bestPath;
+  // Fall back to label-box hit (closest center x)
+  for (const [path, region] of hitRegions) {
+    if (worldX >= region.bx && worldX <= region.bx + region.bw &&
+        worldY >= region.by && worldY <= region.by + region.bh) {
+      const dx = Math.abs(worldX - (region.bx + region.bw / 2));
+      if (dx < bestDist) { bestDist = dx; bestPath = path; }
+    }
+  }
+  return bestPath;
+}
+
+// ============================================================================
 // Zoom / Pan
 // ============================================================================
 function setupZoomPan() {
   const wrap = document.getElementById("canvas-wrap");
+  const canvasEl = document.getElementById("tree-canvas");
 
+  // Wheel zoom
   wrap.addEventListener("wheel", function(e) {
     e.preventDefault();
-    const rect = wrap.getBoundingClientRect();
+    const rect = canvasEl.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     const newScale = Math.max(0.1, Math.min(10, zoomScale * factor));
     panX = mx - (mx - panX) * (newScale / zoomScale);
     panY = my - (my - panY) * (newScale / zoomScale);
     zoomScale = newScale;
-    applyTransform();
+    dirty = true;
+    draw();
   }, { passive: false });
 
-  // Mouse events on canvas
+  // Mouse down on canvas
   wrap.addEventListener("mousedown", function(e) {
     if (e.button !== 0) return;
-    // Don't start drag on node clicks or tooltip interactions
-    if (e.target.closest(".tree-node") || e.target.closest("#tooltip")) return;
+
+    const canvasRect = canvasEl.getBoundingClientRect();
+    const wx = (e.clientX - canvasRect.left - panX) / zoomScale;
+    const wy = (e.clientY - canvasRect.top - panY) / zoomScale;
+    const hitPath = hitTest(wx, wy);
+
+    if (hitPath) {
+      // Double-click: native dblclick OR synthetic (detail >= 2)
+      if (e.detail >= 2 || (pendingClick && pendingClick.path === hitPath)) {
+        if (pendingClick) { clearTimeout(pendingClick.timer); pendingClick = null; }
+        onNodeDblClick(hitPath);
+        return;
+      }
+      if (pendingClick) clearTimeout(pendingClick.timer);
+      pendingClick = {
+        path: hitPath,
+        timer: setTimeout(function() {
+          onNodeClick(pendingClick.path);
+          pendingClick = null;
+        }, 300)
+      };
+      return;
+    }
+
+    // Start pan drag
     isDragging = true;
     dragMoved = false;
     wrap.classList.add("panning");
@@ -566,6 +624,19 @@ function setupZoomPan() {
     window.getSelection().removeAllRanges();
   });
 
+  // Native dblclick handler (for test compatibility and real double-clicks)
+  wrap.addEventListener("dblclick", function(e) {
+    const canvasRect = canvasEl.getBoundingClientRect();
+    const wx = (e.clientX - canvasRect.left - panX) / zoomScale;
+    const wy = (e.clientY - canvasRect.top - panY) / zoomScale;
+    const hitPath = hitTest(wx, wy);
+    if (hitPath) {
+      if (pendingClick) { clearTimeout(pendingClick.timer); pendingClick = null; }
+      onNodeDblClick(hitPath);
+    }
+  });
+
+  // Mouse move for pan (on window for smooth tracking)
   window.addEventListener("mousemove", function(e) {
     if (!isDragging) return;
     const dx = e.clientX - dragStartX;
@@ -573,9 +644,11 @@ function setupZoomPan() {
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved = true;
     panX = dragPanX + dx;
     panY = dragPanY + dy;
-    applyTransform();
+    dirty = true;
+    draw();
   });
 
+  // Mouse up
   window.addEventListener("mouseup", function() {
     const wasDragging = isDragging;
     isDragging = false;
@@ -584,66 +657,28 @@ function setupZoomPan() {
     if (wasDragging && !dragMoved) {
       // Click on empty canvas: deselect
       selectedPath = null;
-      hideTooltip();
-      renderTree();
+      dirty = true;
+      draw();
+      renderSidebar();
     }
   });
 }
 
-let dragStartX, dragStartY, dragPanX, dragPanY;
-
 // ============================================================================
-// SVG event delegation (click, dblclick, hover, mousemove for tooltip)
+// Canvas resize
 // ============================================================================
-function setupSVGEvents() {
-  if (svgEventsSetup) return;
-  svgEventsSetup = true;
-
-  svgEl.addEventListener("click", function(e) {
-    const nodeEl = e.target.closest(".tree-node");
-    if (!nodeEl) return;
-    e.stopPropagation();
-    const path = nodeEl.getAttribute("data-path");
-    if (path) onNodeClick(path);
-  });
-
-  svgEl.addEventListener("dblclick", function(e) {
-    const nodeEl = e.target.closest(".tree-node");
-    if (!nodeEl) return;
-    e.stopPropagation();
-    const path = nodeEl.getAttribute("data-path");
-    if (path) onNodeDblClick(path);
-  });
-
-  svgEl.addEventListener("mousemove", function(e) {
-    const nodeEl = e.target.closest(".tree-node");
-    if (nodeEl) {
-      const path = nodeEl.getAttribute("data-path");
-      if (path && path !== tooltipPath) {
-        tooltipPath = path;
-        renderTooltip(path, e.clientX, e.clientY);
-      }
-    } else {
-      if (tooltipPath !== null && !tooltipHovered) {
-        tooltipPath = null;
-        hideTooltip();
-      }
-    }
-  });
-
-  svgEl.addEventListener("mouseleave", function() {
-    tooltipPath = null;
-    hideTooltip();
-  });
+function resizeCanvas() {
+  const wrap = document.getElementById("canvas-wrap");
+  if (!canvas || !wrap) return;
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if (w <= 0 || h <= 0) return;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+    dirty = true;
+    draw();
+  }
 }
-
-// Tooltip interaction: stay open while mouse is over it
-let tooltipHovered = false;
-tooltipEl.addEventListener("mouseenter", () => { tooltipHovered = true; });
-tooltipEl.addEventListener("mouseleave", () => {
-  tooltipHovered = false;
-  hideTooltip();
-});
 
 // ============================================================================
 // Keyboard navigation (arrows only — no collapse toggle)
@@ -682,9 +717,9 @@ function setupKeyboard() {
 
     if (newSel && newSel !== selectedPath) {
       selectedPath = newSel;
-      renderTree();
-      // Update tooltip position to selected node
-      updateTooltipForSelection();
+      dirty = true;
+      draw();
+      renderSidebar();
     }
   });
 }
@@ -707,38 +742,30 @@ function nextSibling(path) {
   return null;
 }
 
-function updateTooltipForSelection() {
-  if (!selectedPath) { hideTooltip(); return; }
-  const g = svgGroup.querySelector(`.tree-node[data-path="${CSS.escape(selectedPath)}"]`);
-  if (!g) { hideTooltip(); return; }
-  const rect = g.getBoundingClientRect();
-  renderTooltip(selectedPath, rect.right, rect.top);
-}
-
 // ============================================================================
 // Zoom to fit
 // ============================================================================
 function zoomToFit() {
   const wrap = document.getElementById("canvas-wrap");
-  if (!wrap || !svgGroup) return;
-  const rect = wrap.getBoundingClientRect();
-  const cw = rect.width, ch = rect.height;
+  if (!wrap) return;
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
   if (cw <= 0 || ch <= 0) return;
 
-  const circles = svgGroup.querySelectorAll(".tree-node circle");
-  if (circles.length === 0) return;
+  computeVisibleLayout();
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  circles.forEach(c => {
-    const cx = parseFloat(c.getAttribute("cx"));
-    const cy = parseFloat(c.getAttribute("cy"));
-    const r = parseFloat(c.getAttribute("r")) || 3;
-    if (isNaN(cx) || isNaN(cy)) return;
+  for (const [path, pos] of positions) {
+    const node = nodeMap.get(path);
+    if (!node) continue;
+    const cx = svgX(pos.x), cy = svgY(pos.y);
+    const ri = rankIdx(node.rank);
+    const r = RANK_NODE_R[ri] || 3;
+    if (isNaN(cx) || isNaN(cy)) continue;
     minX = Math.min(minX, cx - r);
     minY = Math.min(minY, cy - r);
     maxX = Math.max(maxX, cx + r);
     maxY = Math.max(maxY, cy + r);
-  });
+  }
   if (!isFinite(minX)) return;
 
   const bw = maxX - minX || 1, bh = maxY - minY || 1;
@@ -748,7 +775,8 @@ function zoomToFit() {
   zoomScale = Math.min(sx, sy, 2.0);
   panX = (cw - bw * zoomScale) / 2 - minX * zoomScale;
   panY = (ch - bh * zoomScale) / 2 - minY * zoomScale;
-  applyTransform();
+  dirty = true;
+  draw();
 }
 
 // ============================================================================
@@ -840,19 +868,18 @@ function loadTree(data) {
   document.getElementById("header-seed").textContent = "Seed " + (meta.seed !== undefined ? meta.seed : "?");
   const c = meta.counts || {};
   document.getElementById("header-counts").textContent =
-    RANKS.map(r => `${r[0].toUpperCase()}:${c[r] || 0}`).join("  ");
+    RANKS.map(r => r[0].toUpperCase() + ":" + (c[r] || 0)).join("  ");
 
-  // Hide the file-picker overlay (any load path)
+  // Hide the file-picker overlay
   hideFilePicker();
 
   // Default: collapse everything below order (collapsed at order level)
   collapseAtRank("order");
   selectedPath = null;
-  tooltipPath = null;
 
-  svgEl = document.getElementById("tree-svg");
-  renderTree();
-  setupSVGEvents();
+  dirty = true;
+  draw();
+  renderSidebar();
   zoomToFit();
 }
 
@@ -875,37 +902,59 @@ window.getSelectedPath = function() {
   return selectedPath;
 };
 
+window.__drawDirect = function() {
+  draw();
+};
+
+window.__selectPath = function(path) {
+  onNodeClick(path);
+};
+
+window.__nodeScreenPos = function(path) {
+  const region = hitRegions.get(path);
+  if (!region) return null;
+  const canvasRect = canvas.getBoundingClientRect();
+  const sx = region.cx * zoomScale + panX + canvasRect.left;
+  const sy = region.cy * zoomScale + panY + canvasRect.top;
+  return { x: sx, y: sy };
+};
+
 // ============================================================================
 // Init
 // ============================================================================
 function init() {
-  svgEl = document.getElementById("tree-svg");
+  canvas = document.getElementById("tree-canvas");
+  ctx = canvas.getContext("2d");
 
   setupFilePicker();
   setupKeyboard();
+  setupZoomPan();
+
+  // Resize observer
+  const wrap = document.getElementById("canvas-wrap");
+  if (window.ResizeObserver) {
+    new ResizeObserver(function() { resizeCanvas(); }).observe(wrap);
+  } else {
+    window.addEventListener("resize", resizeCanvas);
+  }
 
   // Reset button
   document.getElementById("btn-reset").addEventListener("click", function() {
     collapsed.clear();
     collapseAtRank("order");
     selectedPath = null;
-    tooltipPath = null;
-    hideTooltip();
     zoomScale = 1; panX = 0; panY = 0;
-    applyTransform();
-    renderTree();
+    dirty = true;
+    draw();
+    renderSidebar();
     zoomToFit();
   });
 
   // Fit button
   document.getElementById("btn-fit").addEventListener("click", zoomToFit);
 
-  // On first render, we need to handle svgEl for events. But svgEl may be
-  // recreated by renderTree. We'll defer event binding to after first render.
-  // For now, show the file picker.
+  // Show file picker
   document.getElementById("file-picker").classList.add("show");
-
-  setupZoomPan();
 }
 
 document.addEventListener("DOMContentLoaded", init);

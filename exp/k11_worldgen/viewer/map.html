@@ -84,13 +84,13 @@ body {
 .stat-sub .stat-key { color: #667788; }
 
 /* ── Month Chips ── */
-#month-chips-row { display: flex; align-items: center; gap: 4px; }
-#month-chips { display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 4px; }
+#month-chips-row { display: flex; align-items: center; gap: 3px; flex-wrap: nowrap; }
+#month-chips { display: flex; gap: 2px; flex-wrap: nowrap; margin-bottom: 0; }
 #month-chips button {
-  width: 22px; height: 22px; border: 1px solid #0f3460; background: #1a1a2e;
-  color: #8899aa; border-radius: 3px; cursor: pointer; font-size: 10px;
-  padding: 0; line-height: 20px; text-align: center;
-  transition: all 0.12s;
+  width: 20px; height: 20px; border: 1px solid #0f3460; background: #1a1a2e;
+  color: #8899aa; border-radius: 3px; cursor: pointer; font-size: 9px;
+  padding: 0; line-height: 18px; text-align: center;
+  transition: all 0.12s; flex-shrink: 0;
 }
 #month-chips button:hover { border-color: #1a5276; color: #c0c0c0; }
 #month-chips button.on {
@@ -100,9 +100,9 @@ body {
   background: #1a1a2e; border-color: #0f3460; color: #556;
 }
 .month-shift {
-  width: 22px; height: 22px; border: 1px solid #0f3460; background: #1a1a2e;
-  color: #8899aa; border-radius: 3px; cursor: pointer; font-size: 12px;
-  padding: 0; line-height: 20px; text-align: center; flex-shrink: 0;
+  width: 20px; height: 20px; border: 1px solid #0f3460; background: #1a1a2e;
+  color: #8899aa; border-radius: 3px; cursor: pointer; font-size: 11px;
+  padding: 0; line-height: 18px; text-align: center; flex-shrink: 0;
   transition: all 0.12s;
 }
 .month-shift:hover { border-color: #1a5276; color: #c0c0c0; }
@@ -114,6 +114,24 @@ body {
 }
 .area-clear:hover { color: #ff8080; text-decoration: underline; }
 #month-note { font-size: 10px; color: #556; margin-top: 2px; }
+
+/* ── Overlay Toggle Buttons ── */
+#overlay-buttons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+#overlay-buttons button {
+  padding: 4px 9px; border: 1px solid #0f3460; background: #1a1a2e;
+  color: #667788; border-radius: 3px; cursor: pointer; font-size: 10px;
+  transition: all 0.15s;
+}
+#overlay-buttons button:hover { border-color: #1a5276; color: #c0c0c0; }
+#overlay-buttons button.active {
+  background: #1a5276; border-color: #2980b9; color: #fff;
+}
+#overlay-buttons button:disabled {
+  opacity: 0.35; cursor: not-allowed;
+}
+#overlay-buttons button:disabled:hover {
+  border-color: #0f3460; background: #1a1a2e;
+}
 
 /* ── Search ── */
 #search-input {
@@ -198,6 +216,7 @@ body {
   <div class="panel-section">
     <h2>Layer</h2>
     <div id="layer-buttons"></div>
+    <div id="overlay-buttons"></div>
   </div>
 
   <div class="panel-section">
@@ -290,6 +309,7 @@ const searchErr = $("search-error");
 const areaStats = $("area-stats");
 const monthChips = $("month-chips");
 const monthNote = $("month-note");
+const overlayBtns = $("overlay-buttons");
 
 // ══════════════════════════════════════════════════════════════════════
 // State
@@ -315,6 +335,11 @@ const S = {
 
   // Month selection (Set of indices 0-11; all 12 by default)
   selMonths: null,     // Set<number>
+
+  // Overlay state
+  windOverlay: false,
+  currentsOverlay: false,
+  overlayCanvas: {},   // key -> offscreen Canvas (cached by month-mask)
 
   // Pan / zoom
   ox: 0, oy: 0, scale: 1,
@@ -511,10 +536,9 @@ function buildMonthChips() {
       }
       delete S.layerCanvas["temperature"];
       delete S.layerCanvas["precipitation"];
-      delete S.layerCanvas["wind"];
-      delete S.layerCanvas["currents"];
+      invalidateOverlays();
       buildMonthChips();
-      if (S.layer === "temperature" || S.layer === "precipitation" || S.layer === "wind" || S.layer === "currents") {
+      if (S.layer === "temperature" || S.layer === "precipitation") {
         ensureLayer(S.layer);
       }
       render();
@@ -535,13 +559,12 @@ function toggleMonth(m) {
   } else {
     S.selMonths.add(m);
   }
-  // Invalidate temperature/precipitation/wind/currents layer cache
+  // Invalidate temperature/precipitation layer cache
   delete S.layerCanvas["temperature"];
   delete S.layerCanvas["precipitation"];
-  delete S.layerCanvas["wind"];
-  delete S.layerCanvas["currents"];
+  invalidateOverlays();
   buildMonthChips();
-  if (S.layer === "temperature" || S.layer === "precipitation" || S.layer === "wind" || S.layer === "currents") {
+  if (S.layer === "temperature" || S.layer === "precipitation") {
     ensureLayer(S.layer);
   }
   render();
@@ -556,10 +579,9 @@ function shiftMonths(delta) {
   S.selMonths = newSet;
   delete S.layerCanvas["temperature"];
   delete S.layerCanvas["precipitation"];
-  delete S.layerCanvas["wind"];
-  delete S.layerCanvas["currents"];
+  invalidateOverlays();
   buildMonthChips();
-  if (S.layer === "temperature" || S.layer === "precipitation" || S.layer === "wind" || S.layer === "currents") {
+  if (S.layer === "temperature" || S.layer === "precipitation") {
     ensureLayer(S.layer);
   }
   render();
@@ -614,16 +636,26 @@ function parseBundle(buf) {
     monthly = { _shapes: {} };
     for (const name of header.monthly_order) {
       const meta = mf[name];
-      if (!meta || meta.dtype !== "u1") continue;
+      if (!meta) continue;
+      const dtype = meta.dtype;
+      if (dtype !== "u1" && dtype !== "i1") continue;
       const shape = meta.shape; // [12, H, W]
       const [MT, MH, MW] = shape;
       const planeSize = MH * MW;
       const totalMonthly = MT * planeSize;
-      const raw = new Uint8Array(buf, offset, totalMonthly);
-      offset += totalMonthly;
-      const f32 = new Float32Array(totalMonthly);
       const scale = meta.scale ?? 1, off = meta.offset ?? 0;
-      for (let i = 0; i < totalMonthly; i++) f32[i] = raw[i] * scale + off;
+      let f32;
+      if (dtype === "i1") {
+        const raw = new Int8Array(buf, offset, totalMonthly);
+        offset += totalMonthly;
+        f32 = new Float32Array(totalMonthly);
+        for (let i = 0; i < totalMonthly; i++) f32[i] = raw[i] * scale + off;
+      } else {
+        const raw = new Uint8Array(buf, offset, totalMonthly);
+        offset += totalMonthly;
+        f32 = new Float32Array(totalMonthly);
+        for (let i = 0; i < totalMonthly; i++) f32[i] = raw[i] * scale + off;
+      }
       monthly[name] = f32;
       monthly._shapes[name] = [MH, MW];
     }
@@ -684,8 +716,6 @@ const LAYER_DEFS = [
   { id: "temperature", label: "Temperature",  fn: "renderTemperature",field: "T_c" },
   { id: "precipitation", label: "Precip",     fn: "renderPrecip",     field: "P_mm" },
   { id: "forest_cover",label: "Forest Cover", fn: "renderForestCover",field: "cover" },
-  { id: "wind",        label: "Wind",         fn: "renderWind",       field: null },
-  { id: "currents",    label: "Currents",     fn: "renderCurrents",   field: null },
 ];
 
 // Lazy-render a layer on demand (cached).
@@ -703,30 +733,6 @@ function ensureLayer(id) {
     const off = renderMonthlyLayer("p_monthly", precipRamp);
     if (off) { S.layerCanvas[id] = off; return off; }
   }
-  // Wind and currents always use monthly streamlines
-  if (id === "wind" && S.monthly && S.monthly.wu_monthly) {
-    const [W, H] = S.shape;
-    const off = document.createElement("canvas");
-    off.width = W; off.height = H;
-    const octx = off.getContext("2d");
-    const imgData = octx.createImageData(W, H);
-    LAYER_RENDERERS.renderWind(imgData.data, W * H, W);
-    octx.putImageData(imgData, 0, 0);
-    S.layerCanvas[id] = off;
-    return off;
-  }
-  if (id === "currents" && S.monthly && S.monthly.cu_monthly) {
-    const [W, H] = S.shape;
-    const off = document.createElement("canvas");
-    off.width = W; off.height = H;
-    const octx = off.getContext("2d");
-    const imgData = octx.createImageData(W, H);
-    LAYER_RENDERERS.renderCurrents(imgData.data, W * H, W);
-    octx.putImageData(imgData, 0, 0);
-    S.layerCanvas[id] = off;
-    return off;
-  }
-
   const [W, H] = S.shape;
   const off = document.createElement("canvas");
   off.width = W; off.height = H;
@@ -838,43 +844,96 @@ LAYER_RENDERERS.renderForestCover = function(data, n, W) {
   }
 };
 
-// ── Streamlines helper ──
-function renderStreamlines(data, uField, vField, color) {
+// ── Overlay Streamlines (used by wind + currents toggles) ──
+
+// Cache key that captures the current month mask + field identity
+function _overlayCacheKey(which) {
+  if (!S.selMonths) return null;
+  const sel = [];
+  for (let m = 0; m < 12; m++) if (S.selMonths.has(m)) sel.push(m);
+  return which + ":" + sel.join(",");
+}
+
+// Build a single overlaid streamline canvas.  Returns an offscreen <canvas>
+// at world resolution (1024×1024), or null when no monthly data is available.
+function buildOverlayCanvas(which) {
+  const uField = which === "wind" ? "wu_monthly" : "cu_monthly";
+  const vField = which === "wind" ? "wv_monthly" : "cv_monthly";
+  const oceanOnly = (which === "currents");
+
+  if (!S.monthly) return null;
   const uArr = S.monthly[uField];
   const vArr = S.monthly[vField];
-  if (!uArr || !vArr) return;
+  if (!uArr || !vArr) return null;
   const [Hf, Wf] = S.monthly._shapes[uField];
   const nf = Hf * Wf;
 
   // Compute selected-month average u/v at native resolution
   const uAvg = new Float32Array(nf), vAvg = new Float32Array(nf);
-  let count = 0;
+  let selCount = 0;
   for (let m = 0; m < 12; m++) {
     if (!S.selMonths || S.selMonths.has(m)) {
       const off = m * nf;
       for (let i = 0; i < nf; i++) { uAvg[i] += uArr[off + i]; vAvg[i] += vArr[off + i]; }
-      count++;
+      selCount++;
     }
   }
-  if (count === 0) return;
-  for (let i = 0; i < nf; i++) { uAvg[i] /= count; vAvg[i] /= count; }
+  if (selCount === 0) return null;
+  for (let i = 0; i < nf; i++) { uAvg[i] /= selCount; vAvg[i] /= selCount; }
 
-  const step = 24;
-  const upscale = 1024 / Hf;
+  // Compute global max speed (for the ~2 % threshold)
+  let maxSpeed = 0;
+  for (let i = 0; i < nf; i++) {
+    const s = Math.sqrt(uAvg[i] * uAvg[i] + vAvg[i] * vAvg[i]);
+    if (s > maxSpeed) maxSpeed = s;
+  }
+  const speedCutoff = maxSpeed * 0.02;
+
+  // Ocean mask (1024²) for currents-only
+  const ocean = S.fields.ocean;
+
+  const [W, H] = S.shape; // 1024×1024
+  const off = document.createElement("canvas");
+  off.width = W; off.height = H;
+  const octx = off.getContext("2d");
+  octx.imageSmoothingEnabled = false;
+
+  const upscale = W / Wf;
+  const seedStep = 48;       // px at 1024²
   const maxSteps = 400;
-  const stepPx = 1.5;
+  const stepPx = 1.0;
 
-  for (let sy = step / 2; sy < 1024; sy += step) {
-    for (let sx = step / 2; sx < 1024; sx += step) {
+  // Colour per overlay (alpha ≈ 0.7 → 179/255)
+  const color = which === "wind"
+    ? "rgba(128,224,255,0.80)"
+    : "rgba(255,153,68,0.80)";
+
+  octx.strokeStyle = color;
+  octx.lineWidth = 1;
+
+  for (let sy = seedStep / 2; sy < W; sy += seedStep) {
+    for (let sx = seedStep / 2; sx < W; sx += seedStep) {
+      // Deterministic jitter
       const jx = ((sx * 2654435761) >>> 0) % 1000 / 1000 - 0.5;
       const jy = ((sy * 2654435761) >>> 0) % 1000 / 1000 - 0.5;
-      let x = sx + jx * step * 0.5;
-      let y = sy + jy * step * 0.5;
+      let x = sx + jx * seedStep * 0.5;
+      let y = sy + jy * seedStep * 0.5;
+
+      // Ocean-only: skip seed on land (sample nearest ocean mask at 1024²)
+      if (oceanOnly) {
+        const px = Math.floor(x), py = Math.floor(y);
+        if (px < 0 || px >= W || py < 0 || py >= W) continue;
+        if (!ocean[py * W + px]) continue;
+      }
+
+      const points = [];
+      let brokenByLand = false;
 
       for (let k = 0; k < maxSteps; k++) {
         const ix = Math.floor(x), iy = Math.floor(y);
-        if (ix < 0 || ix >= 1024 || iy < 0 || iy >= 1024) break;
+        if (ix < 0 || ix >= W || iy < 0 || iy >= W) break;
 
+        // Bilinear sample at native resolution
         const fx = x / upscale, fy = y / upscale;
         const fxi = Math.floor(fx), fyi = Math.floor(fy);
         if (fxi < 0 || fxi >= Wf - 1 || fyi < 0 || fyi >= Hf - 1) break;
@@ -886,30 +945,54 @@ function renderStreamlines(data, uField, vField, color) {
                 + (1 - tx) * ty * vAvg[idx00 + Wf] + tx * ty * vAvg[idx00 + Wf + 1];
 
         const speed = Math.sqrt(u * u + v * v);
-        if (speed < 1e-6) break;
+        if (speed < speedCutoff) break;
 
-        const px = Math.floor(x), py = Math.floor(y);
-        if (px >= 0 && px < 1024 && py >= 0 && py < 1024) {
-          const pi = (py * 1024 + px) * 4;
-          data[pi] = color[0]; data[pi + 1] = color[1]; data[pi + 2] = color[2]; data[pi + 3] = color[3];
+        // Ocean-only: stop on land
+        if (oceanOnly) {
+          const px = Math.floor(x), py = Math.floor(y);
+          if (px >= 0 && px < W && py >= 0 && py < W && !ocean[py * W + px]) {
+            brokenByLand = true;
+          }
         }
+
+        points.push([x, y]);
 
         const dt = stepPx / Math.max(speed, 1e-9);
         x += u * dt; y += v * dt;
+
+        if (brokenByLand) break;
+      }
+
+      // Draw the streamline as connected line segments
+      if (points.length >= 2) {
+        octx.beginPath();
+        octx.moveTo(points[0][0], points[0][1]);
+        for (let pi = 1; pi < points.length; pi++) {
+          octx.lineTo(points[pi][0], points[pi][1]);
+        }
+        octx.stroke();
       }
     }
   }
+
+  return off;
 }
 
-LAYER_RENDERERS.renderWind = function(data, n, W) {
-  if (!S.monthly || !S.monthly.wu_monthly) return;
-  renderStreamlines(data, "wu_monthly", "wv_monthly", [128, 224, 255, 200]);
-};
+// Ensure overlay is built and cached (keyed by field + month mask)
+function ensureOverlay(which) {
+  const key = _overlayCacheKey(which);
+  if (S.overlayCanvas[which] && S.overlayCanvas[which]._key === key) {
+    return S.overlayCanvas[which].canvas;
+  }
+  const canvas = buildOverlayCanvas(which);
+  S.overlayCanvas[which] = { canvas, _key: key };
+  return canvas;
+}
 
-LAYER_RENDERERS.renderCurrents = function(data, n, W) {
-  if (!S.monthly || !S.monthly.cu_monthly) return;
-  renderStreamlines(data, "cu_monthly", "cv_monthly", [255, 153, 68, 200]);
-};
+// Invalidate overlay cache when month mask changes
+function invalidateOverlays() {
+  S.overlayCanvas = {};
+}
 
 // ══════════════════════════════════════════════════════════════════════
 // Layer Buttons
@@ -941,6 +1024,40 @@ function switchLayer(id) {
   buildLayerButtons();
   // Lazy-render if not the world layer
   if (id !== "world") ensureLayer(id);
+  render();
+}
+
+// ── Overlay Toggle Buttons ──
+function buildOverlayButtons() {
+  overlayBtns.innerHTML = "";
+  const hasWind = S.monthly && S.monthly.wu_monthly;
+  const hasCurrents = S.monthly && S.monthly.cu_monthly;
+
+  [{id: "wind", label: "Wind", has: hasWind},
+   {id: "currents", label: "Currents", has: hasCurrents}].forEach(ov => {
+    const btn = document.createElement("button");
+    btn.textContent = ov.label;
+    btn.dataset.overlay = ov.id;
+    if (!ov.has) {
+      btn.disabled = true;
+      btn.title = "No monthly vector data in this bundle";
+    } else {
+      const active = ov.id === "wind" ? S.windOverlay : S.currentsOverlay;
+      if (active) btn.classList.add("active");
+      btn.onclick = () => toggleOverlay(ov.id);
+    }
+    overlayBtns.appendChild(btn);
+  });
+}
+
+function toggleOverlay(which) {
+  if (!S.monthly) return;
+  if (which === "wind") {
+    S.windOverlay = !S.windOverlay;
+  } else if (which === "currents") {
+    S.currentsOverlay = !S.currentsOverlay;
+  }
+  buildOverlayButtons();
   render();
 }
 
@@ -1024,6 +1141,16 @@ function render() {
   } else {
     const lc = ensureLayer(S.layer);
     if (lc) ctx.drawImage(lc, 0, 0, W, H);
+  }
+
+  // Wind / currents overlays (above base layer, below search)
+  if (S.windOverlay) {
+    const wc = ensureOverlay("wind");
+    if (wc) ctx.drawImage(wc, 0, 0, W, H);
+  }
+  if (S.currentsOverlay) {
+    const cc = ensureOverlay("currents");
+    if (cc) ctx.drawImage(cc, 0, 0, W, H);
   }
 
   // Search mask overlay
@@ -1606,9 +1733,13 @@ function loadBundle(buf) {
   // UI — layers are lazy-rendered on demand
   S.layers = LAYER_DEFS;
   S.layerCanvas = {};
+  S.overlayCanvas = {};
+  S.windOverlay = false;
+  S.currentsOverlay = false;
   _maskCache = null;
   _maskCacheKey = null;
   buildLayerButtons();
+  buildOverlayButtons();
   buildMonthChips();
   renderWorldStats(header.stats || {}, header.seed);
   resizeCanvas();
@@ -1620,6 +1751,8 @@ function loadBundle(buf) {
   searchRes.innerHTML = "";
   searchErr.textContent = "";
   areaStats.innerHTML = `<span style="color:#667788;font-size:12px;">Shift+drag on the map to select an area.</span>`;
+  // Expose state for E2E tests
+  window._S = S;
 }
 
 // Expose for tests — save ref before window.loadBundle is overwritten
