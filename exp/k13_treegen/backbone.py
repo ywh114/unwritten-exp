@@ -64,9 +64,10 @@ def _apply_pin(node: Node, pack: ContentPack, pin: dict) -> None:
 
 def _evolve_edge(parent: Node, pack: ContentPack, stream, dg: float,
                  path: str, rate: float, rdir: float,
-                 rank: Rank) -> Node:
+                 rank: Rank, center: dict | None = None) -> Node:
     return evolve(parent, pack, stream, dg, path=path, condition=_BENIGN,
-                  runaway_dir=rdir, rate_mult=rate, rank=rank)
+                  clade_center=center, runaway_dir=rdir, rate_mult=rate,
+                  rank=rank)
 
 
 def _apply_drift(child: Node, pack: ContentPack, drift: dict) -> None:
@@ -139,14 +140,29 @@ def _build_order(tree: Tree, root_stream, pack: ContentPack, cpath: str,
     fam_pins = [p for p in pins if p.get("rank") == "family"]
     genus_pins = [p for p in pins if p.get("rank") == "genus"]
     # species pins with parent_pin are hosted inside that genus pin's
-    # clade (horse -> equines); the rest go to the default genus.
+    # clade (horse -> equines); the rest group by AUTHORED BINOMIAL
+    # GENUS — Ursus arctos anchors a genus named Ursus and never sits
+    # beside Myrmecophaga in one composed genus (the first blind build
+    # dumped every loose species pin of an order into a single default
+    # genus: seals next to anteaters).
     hosted: dict[str, list] = {}
-    species_pins = []
+    by_genus: dict[str, list] = {}
+    loose: list = []
     for sp in [p for p in pins if p.get("rank", "species") == "species"]:
         if sp.get("parent_pin"):
             hosted.setdefault(sp["parent_pin"], []).append(sp)
+            continue
+        binomial = (sp.get("name") or {}).get("binomial")
+        genus_part = binomial.split()[0] if binomial else None
+        if genus_part:
+            by_genus.setdefault(genus_part, []).append(sp)
         else:
-            species_pins.append(sp)
+            loose.append(sp)
+    # a group matching a genus pin's own binomial is hosted by that pin
+    for gp in genus_pins:
+        gb = (gp.get("name") or {}).get("binomial")
+        if gb and gb in by_genus:
+            hosted.setdefault(gp["label"], []).extend(by_genus.pop(gb))
 
     # families: default f1 (background + genus/species pins + order
     # radiation), then one per family pin.
@@ -157,7 +173,8 @@ def _build_order(tree: Tree, root_stream, pack: ContentPack, cpath: str,
     for fi, (_, fam_pin) in enumerate(families, 1):
         _build_family(tree, ostream, pack, order, fi, fam_pin,
                       genus_pins if fi == 1 else [],
-                      species_pins if fi == 1 else [],
+                      loose if fi == 1 else [],
+                      list(by_genus.items()) if fi == 1 else [],
                       order_radiation if fi == 1 else 0,
                       hosted if fi == 1 else {})
 
@@ -171,24 +188,31 @@ def _family_streams(ostream, fi: int):
 
 def _build_family(tree: Tree, ostream, pack: ContentPack, order: Node,
                   fi: int, fam_pin: dict | None, genus_pins: list,
-                  species_pins: list, order_radiation: int,
+                  loose: list, pin_genera: list, order_radiation: int,
                   hosted: dict[str, list]) -> None:
     fam_stream, rate, rdir = _family_streams(ostream, fi)
     fpath = f"{order.path}.f{fi}"
+    # descent center: the clade anchor — the order's committed record
+    # (the world-blind build still mean-reverts; a pure random walk gave
+    # beetles spanning 0.1 g .. 6 kg).
+    anchor = order.axes
     family = _evolve_edge(order, pack, fam_stream.child("node"),
                           _dg(fam_stream, DG_ORDER_MEDIAN), fpath,
-                          rate, rdir, Rank.FAMILY)
+                          rate, rdir, Rank.FAMILY, center=anchor)
     radiation = 0
-    drift: dict = {}
     if fam_pin:
         _apply_pin(family, pack, fam_pin)
         radiation = fam_pin.get("radiation", 0)
     if fi == 1:
         radiation = order_radiation
     tree.add(family)
+    # a pinned family re-anchors its descendants (murids around Muridae)
+    fam_anchor = family.axes if fam_pin else anchor
 
     # genera: the default genus g1 takes the first radiation share (never
-    # left empty), genus pins anchor their own, then spread genera.
+    # left empty) plus loose species pins; genus pins anchor their own;
+    # each binomial-genus group anchors its own genus (named after the
+    # authored binomial); then spread genera.
     if radiation:
         count = _radiation_count(fam_stream.child("rad"), radiation)
         n_spread = max(1, round(math.sqrt(count)))
@@ -198,36 +222,44 @@ def _build_family(tree: Tree, ostream, pack: ContentPack, order: Node,
     else:
         n_spread, per_genus = 0, []
 
-    genera: list[tuple[dict | None, int]] = [
-        (None, per_genus[0] if per_genus else 0)]
-    genera += [(p, p.get("radiation", 0)) for p in genus_pins]
-    genera += [(None, per_genus[i]) for i in range(1, n_spread)]
+    genera: list[tuple[dict | None, int, str | None, list]] = [
+        (None, per_genus[0] if per_genus else 0, None, loose)]
+    genera += [(p, p.get("radiation", 0), None,
+                hosted.get(p["label"], [])) for p in genus_pins]
+    genera += [(None, 0, gname, grp) for gname, grp in pin_genera]
+    genera += [(None, per_genus[i], None, []) for i in range(1, n_spread)]
 
     bg = (BG_RADIATION_LO + fam_stream.child("bg").randrange(
         BG_RADIATION_HI - BG_RADIATION_LO + 1, 0)) if fi == 1 else 0
 
-    for gi, (gen_pin, gen_radiation) in enumerate(genera, 1):
-        hosted_here = hosted.get(gen_pin["label"], []) if gen_pin else []
+    for gi, (gen_pin, gen_radiation, gname, gspecies) in \
+            enumerate(genera, 1):
         _build_genus(tree, fam_stream, pack, family, gi, gen_pin,
-                     gen_radiation, rate, rdir,
-                     (species_pins if gi == 1 else []) + hosted_here,
-                     bg if gi == 1 else 0)
+                     gen_radiation, rate, rdir, gspecies, fam_anchor,
+                     bg if gi == 1 else 0, name_hint=gname)
 
 
 def _build_genus(tree: Tree, fam_stream, pack: ContentPack, family: Node,
                  gi: int, gen_pin: dict | None, radiation: int,
                  rate: float, rdir: float, species_pins: list,
-                 background: int) -> None:
+                 anchor: dict, background: int,
+                 name_hint: str | None = None) -> None:
     gen_stream = fam_stream.child(f"g{gi}")
     gpath = f"{family.path}.g{gi}"
     genus = _evolve_edge(family, pack, gen_stream.child("node"),
                          _dg(gen_stream, DG_FAMILY_MEDIAN), gpath,
-                         rate, rdir, Rank.GENUS)
+                         rate, rdir, Rank.GENUS, center=anchor)
     drift: dict = {}
     if gen_pin:
         _apply_pin(genus, pack, gen_pin)
         drift = gen_pin.get("drift", {})
+    elif name_hint:
+        # binomial-anchored genus (from its pinned species): the name is
+        # committed NOW so nomenclature never composes over it (Ursus
+        # arctos must sit under Ursus, not under a composed Veladra).
+        genus.name.binomial = name_hint
     tree.add(genus)
+    gen_anchor = genus.axes if gen_pin else anchor
 
     n_species = background
     if radiation:
@@ -257,7 +289,7 @@ def _build_genus(tree: Tree, fam_stream, pack: ContentPack, family: Node,
         sstream = gen_stream.child(f"s{si}")
         species = _evolve_edge(genus, pack, sstream,
                                _dg(sstream, DG_GENUS_MEDIAN), spath,
-                               rate, rdir, Rank.SPECIES)
+                               rate, rdir, Rank.SPECIES, center=gen_anchor)
         if drift:
             _apply_drift(species, pack, drift)
         tree.add(species)

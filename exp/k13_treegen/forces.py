@@ -61,6 +61,10 @@ ENUM_RATE = 0.004      # enum redraw probability rate per generation
 # resemblance scrambles; 0.004 keeps clade texture coherent)
 
 # ── share-ratio raw weights (RFC §4 condition table) ─────────────────────
+# descent baseline: even a benign clade mean-reverts toward its anchor
+# (OU-style; without it the blind build is a pure random walk and one
+# genus spanned 0.1 g .. 6 kg of "beetles").
+SHARE_DESCENT_BASE = 0.5
 SHARE_DESCENT_PER_STRESS = 2.0
 SHARE_DRIFT_BASE = 1.0
 SHARE_DRIFT_PER_ISOLATION = 2.0
@@ -99,7 +103,7 @@ def share_ratios(c: Condition) -> Shares:
     # RFC §4: large+stressed -> adaptive (drift quiets, descent dominates);
     # small isolate -> drift; benign -> slow mixed. Drift scales DOWN with
     # stress: under full stress selection is nearly the only force.
-    raw = (SHARE_DESCENT_PER_STRESS * c.stress,
+    raw = (SHARE_DESCENT_BASE + SHARE_DESCENT_PER_STRESS * c.stress,
            SHARE_DRIFT_BASE * (1 + SHARE_DRIFT_PER_ISOLATION * c.isolation)
            * (1.0 - c.stress),
            SHARE_RUNAWAY)

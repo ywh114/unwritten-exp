@@ -238,6 +238,17 @@ def check_nomenclature(tree: Tree, pack: ContentPack) -> list[str]:
                 errs.append(f"{n.path}: generated name collides with pin "
                             f"name {n.name.binomial!r}")
         by_genus.setdefault(n.path.rsplit(".s", 1)[0], []).append(n)
+    # taxonomic coherence: a species sits under the genus its binomial
+    # names — "Ursus arctos under Veladra" and "seals beside anteaters in
+    # Candidomys" are this check's reason to exist.
+    for n in sp:
+        if not n.name.binomial or " " not in n.name.binomial:
+            continue
+        genus = tree.nodes.get(n.path.rsplit(".s", 1)[0])
+        if genus is not None and genus.name.binomial and \
+                genus.name.binomial != n.name.binomial.split()[0]:
+            errs.append(f"{n.path}: {n.name.binomial!r} under genus "
+                        f"{genus.name.binomial!r}")
     for gpath, members in by_genus.items():
         eps = [m.name.binomial.split()[-1] for m in members
                if m.name.binomial and " " in m.name.binomial]

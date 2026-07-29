@@ -150,6 +150,11 @@ def test_diversity_within_tolerance(pack):
             orders.setdefault(n.path.rsplit(".f", 1)[0], []).append(n)
         per_axis: dict[str, list] = {ax: [] for ax in scalar_axes}
         for members in genera.values():
+            # pinned records are byte-exact authored commits (a 220 kg
+            # tiger next to its cat-anchor relatives is DESIGN, not
+            # sampler spread) — the acceptance metric measures the
+            # sampler, so pinned nodes sit this one out.
+            members = [m for m in members if "pinned" not in m.flags]
             for a, b in zip(members, members[1:]):
                 for ax in scalar_axes:
                     spec = pack.registry.axes[ax]

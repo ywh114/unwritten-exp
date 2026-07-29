@@ -137,6 +137,30 @@ def _z(delta: float, sigma: float) -> float:
     return delta / sigma if sigma > 0 else 0.0
 
 
+def _z_own(spec, parent_v: float, child_v: float) -> float:
+    """σ-distance of a parent→child step in the axis's OWN space: log for
+    multiplicative axes, raw for additive ones. Raw-unit transfer on a
+    log_gaussian axis reads a beetle's +2x mass step as ~0 σ and a
+    whale's as +40 σ (and applied backwards it shoved beetles by whole
+    KILOGRAMS — the 0.1 g .. 6 kg 'beetle' explosion)."""
+    import math
+    if spec.sigma <= 0:
+        return 0.0
+    if spec.mutation_kind.value != "gaussian" and parent_v > 0 \
+            and child_v > 0:
+        return (math.log(child_v) - math.log(parent_v)) / spec.sigma
+    return (child_v - parent_v) / spec.sigma
+
+
+def _apply_z(spec, v: float, z: float) -> float:
+    """The inverse of _z_own: apply a σ-transfer in the axis's own
+    space, then clip to authored bounds."""
+    import math
+    if spec.mutation_kind.value != "gaussian" and v > 0:
+        return _clip(v * math.exp(z * spec.sigma), spec)
+    return _clip(v + z * spec.sigma, spec)
+
+
 def _sigma(pack: ContentPack, axis: str) -> float:
     spec = pack.registry.axes.get(axis)
     return spec.sigma if spec is not None else 0.0
@@ -166,22 +190,24 @@ def apply_couplings(parent: Node, child: Node, pack: ContentPack,
         """Signed σ-transfer in BOTH directions (user ruling: knobs and
         results are equal citizens — a coupling links two axes, it does
         not make one cause the other). Both transfers are computed from
-        the un-adjusted deltas, then applied, so no same-step feedback."""
+        the un-adjusted deltas, then applied, so no same-step feedback.
+        σ is measured/applied in each axis's OWN space (log for
+        multiplicative axes)."""
         induced: dict[str, float] = {}
         for x, y in ((a, b), (b, a)):
             px, cx = parent.axes.get(x), child.axes.get(x)
             if not all(isinstance(v, (int, float)) for v in (px, cx)):
                 continue
-            zx = _z(float(cx) - float(px), _sigma(pack, x))
+            xspec = pack.registry.axes.get(x)
+            if xspec is None:
+                continue
+            zx = _z_own(xspec, float(px), float(cx))
             if zx != 0.0:
                 induced[y] = induced.get(y, 0.0) + strength * zx
         for y, zy in induced.items():
             spec = pack.registry.axes.get(y)
             if isinstance(child.axes.get(y), (int, float)) and spec:
-                # couplings nudge within authored bounds (the un-clipped
-                # version let fecundity/lifespan walk negative)
-                child.axes[y] = _clip(
-                    float(child.axes[y]) + zy * _sigma(pack, y), spec)
+                child.axes[y] = _apply_z(spec, float(child.axes[y]), zy)
                 record(y, zy)
 
     for rule in pack.couplings:
@@ -238,7 +264,8 @@ def apply_couplings(parent: Node, child: Node, pack: ContentPack,
             pv, cv = parent.axes.get(axis), child.axes.get(axis)
             if not all(isinstance(v, (int, float)) for v in (pv, cv)):
                 continue
-            z = _z(float(cv) - float(pv), _sigma(pack, axis))
+            tspec = pack.registry.axes.get(axis)
+            z = _z_own(tspec, float(pv), float(cv)) if tspec else 0.0
             if direction * z < float(trig.get("min_z", 0.5)):
                 continue
             # one event, correlated set: every effect fires together
@@ -251,8 +278,8 @@ def apply_couplings(parent: Node, child: Node, pack: ContentPack,
                     v = child.axes.get(eax)
                     espec = pack.registry.axes.get(eax)
                     if isinstance(v, (int, float)) and espec:
-                        child.axes[eax] = _clip(
-                            float(v) + eff["z"] * _sigma(pack, eax), espec)
+                        child.axes[eax] = _apply_z(
+                            espec, float(v), float(eff["z"]))
                         record(eax, float(eff["z"]))
 
     for wb in weak or []:
