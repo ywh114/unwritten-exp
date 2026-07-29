@@ -196,7 +196,7 @@
     "accent_color": "gray",
     "activity_period": "cathemeral",
     "base_color": "black",
-    "belly_color": "dark_green",
+    "belly_color": "orange",
     "body_mass": 200.0,
     "brachial_index": 85,
     "claw_retractability": "fixed",
@@ -389,8 +389,8 @@
    "axes": {
     "accent_color": "black",
     "activity_period": "cathemeral",
-    "base_color": "orange",
-    "belly_color": "dark_green",
+    "base_color": "white",
+    "belly_color": "orange",
     "body_mass": 2787.577003764743,
     "brachial_index": 87.15644423056216,
     "claw_retractability": "semi",
@@ -711,8 +711,8 @@
    "axes": {
     "accent_color": "black",
     "activity_period": "cathemeral",
-    "base_color": "orange",
-    "belly_color": "dark_green",
+    "base_color": "white",
+    "belly_color": "orange",
     "body_mass": 2309.0821425511335,
     "brachial_index": 80.97991338622441,
     "claw_retractability": "semi",
@@ -1006,10 +1006,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "cathemeral",
-    "base_color": "orange",
-    "belly_color": "dark_green",
+    "base_color": "white",
+    "belly_color": "orange",
     "body_mass": 4224.7030979252295,
     "brachial_index": 83.85816602968842,
     "claw_retractability": "retractile",
@@ -1315,7 +1315,7 @@
    "axes": {
     "accent_color": "black",
     "activity_period": "cathemeral",
-    "base_color": "orange",
+    "base_color": "white",
     "belly_color": "gray",
     "body_mass": 2257.9415926868187,
     "brachial_index": 85.07018677609062,
@@ -2344,7 +2344,7 @@
     "accent_color": "tan",
     "activity_period": "cathemeral",
     "base_color": "dark_brown",
-    "belly_color": "rufous",
+    "belly_color": "gray",
     "body_mass": 318.28992639699214,
     "brachial_index": 84.04990462948425,
     "claw_retractability": "fixed",
@@ -3029,7 +3029,7 @@
    "axes": {
     "accent_color": "white",
     "activity_period": "crepuscular",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "cream",
     "body_mass": 3.0,
     "brachial_index": 75,
@@ -3235,7 +3235,7 @@
    "axes": {
     "accent_color": "tan",
     "activity_period": "crepuscular",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "cream",
     "body_mass": 3.0287459671091277,
     "brachial_index": 73.54811149939005,
@@ -3549,7 +3549,7 @@
    "axes": {
     "accent_color": "tan",
     "activity_period": "crepuscular",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "cream",
     "body_mass": 3.471187525912385,
     "brachial_index": 72.70330642068241,
@@ -3838,7 +3838,7 @@
    "axes": {
     "accent_color": "tan",
     "activity_period": "crepuscular",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "cream",
     "body_mass": 2.4592966395582825,
     "brachial_index": 76.1811497947649,
@@ -4117,7 +4117,7 @@
    "axes": {
     "accent_color": "tan",
     "activity_period": "crepuscular",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "cream",
     "body_mass": 2.9058735272731138,
     "brachial_index": 73.77486575093555,
@@ -4463,11 +4463,6 @@
      "runaway": 0.0
     },
     "base_color": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "belly_color": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -6252,10 +6247,10 @@
   },
   {
    "axes": {
-    "accent_color": "white",
+    "accent_color": "cream",
     "activity_period": "diurnal",
-    "base_color": "rufous",
-    "belly_color": "cream",
+    "base_color": "gray",
+    "belly_color": "tan",
     "body_mass": 80.0,
     "brachial_index": 95,
     "claw_retractability": "fixed",
@@ -6437,10 +6432,10 @@
   },
   {
    "axes": {
-    "accent_color": "white",
+    "accent_color": "cream",
     "activity_period": "crepuscular",
     "base_color": "cream",
-    "belly_color": "rufous",
+    "belly_color": "gray",
     "body_mass": 74.74065895821586,
     "brachial_index": 94.88848181730361,
     "claw_retractability": "semi",
@@ -6745,10 +6740,10 @@
   },
   {
    "axes": {
-    "accent_color": "white",
+    "accent_color": "cream",
     "activity_period": "crepuscular",
-    "base_color": "tan",
-    "belly_color": "rufous",
+    "base_color": "rufous",
+    "belly_color": "gray",
     "body_mass": 78.32034980652489,
     "brachial_index": 94.71881594759805,
     "claw_retractability": "semi",
@@ -7038,9 +7033,9 @@
   },
   {
    "axes": {
-    "accent_color": "white",
+    "accent_color": "cream",
     "activity_period": "crepuscular",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "dark_brown",
     "body_mass": 76.93080935858848,
     "brachial_index": 91.61324875319922,
@@ -7103,6 +7098,11 @@
    },
    "description": "a sizeable fur boar-like carnivore with bushy whiskers",
    "edge_delta": {
+    "base_color": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "belly_color": {
      "descent": 0.0,
      "drift": 1.0,
@@ -7391,11 +7391,6 @@
    },
    "description": "",
    "edge_delta": {
-    "belly_color": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "body_mass": {
      "coupling": -0.0224604915636214,
      "descent": 0.0,
@@ -7735,9 +7730,9 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "cathemeral",
-    "base_color": "dark_green",
+    "base_color": "orange",
     "belly_color": "gray",
     "body_mass": 68.14877698312125,
     "brachial_index": 97.54544731324954,
@@ -8066,7 +8061,7 @@
     "accent_color": "gray",
     "activity_period": "diurnal",
     "base_color": "dark_brown",
-    "belly_color": "rufous",
+    "belly_color": "gray",
     "body_mass": 94.65551767984282,
     "brachial_index": 96.51078419630161,
     "claw_retractability": "retractile",
@@ -8457,7 +8452,7 @@
   },
   {
    "axes": {
-    "accent_color": "dark_green",
+    "accent_color": "orange",
     "activity_period": "nocturnal",
     "base_color": "gray",
     "belly_color": "tan",
@@ -8659,7 +8654,7 @@
   },
   {
    "axes": {
-    "accent_color": "orange",
+    "accent_color": "white",
     "activity_period": "nocturnal",
     "base_color": "gray",
     "belly_color": "tan",
@@ -8974,7 +8969,7 @@
   },
   {
    "axes": {
-    "accent_color": "orange",
+    "accent_color": "white",
     "activity_period": "nocturnal",
     "base_color": "gray",
     "belly_color": "tan",
@@ -9254,7 +9249,7 @@
   },
   {
    "axes": {
-    "accent_color": "orange",
+    "accent_color": "white",
     "activity_period": "nocturnal",
     "base_color": "gray",
     "belly_color": "tan",
@@ -9529,7 +9524,7 @@
   },
   {
    "axes": {
-    "accent_color": "orange",
+    "accent_color": "white",
     "activity_period": "cathemeral",
     "base_color": "gray",
     "belly_color": "tan",
@@ -10227,7 +10222,7 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "nocturnal",
     "base_color": "gray",
     "belly_color": "tan",
@@ -10532,7 +10527,7 @@
   },
   {
    "axes": {
-    "accent_color": "tan",
+    "accent_color": "rufous",
     "activity_period": "nocturnal",
     "base_color": "gray",
     "belly_color": "cream",
@@ -11243,7 +11238,7 @@
     "accent_color": "gray",
     "activity_period": "nocturnal",
     "base_color": "orange",
-    "belly_color": "dark_brown",
+    "belly_color": "black",
     "body_mass": 280.2882483117715,
     "brachial_index": 100.36307358962708,
     "claw_retractability": "retractile",
@@ -11647,7 +11642,7 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "nocturnal",
     "base_color": "black",
     "belly_color": "rufous",
@@ -12783,7 +12778,7 @@
   },
   {
    "axes": {
-    "accent_color": "white",
+    "accent_color": "cream",
     "activity_period": "nocturnal",
     "base_color": "dark_brown",
     "belly_color": "rufous",
@@ -13514,7 +13509,7 @@
     "accent_color": "white",
     "activity_period": "cathemeral",
     "base_color": "rufous",
-    "belly_color": "rufous",
+    "belly_color": "gray",
     "body_mass": 298.8021071432167,
     "brachial_index": 105.94217588591512,
     "claw_retractability": "fixed",
@@ -14137,7 +14132,7 @@
   },
   {
    "axes": {
-    "accent_color": "white",
+    "accent_color": "cream",
     "activity_period": "diurnal",
     "base_color": "rufous",
     "belly_color": "cream",
@@ -14200,6 +14195,11 @@
    },
    "description": "a large fur deer-like grazer with a neck frill",
    "edge_delta": {
+    "accent_color": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "body_mass": {
      "coupling": -0.037307336007140146,
      "descent": 0.0,
@@ -14410,7 +14410,7 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "diurnal",
     "base_color": "rufous",
     "belly_color": "cream",
@@ -14710,7 +14710,7 @@
    "axes": {
     "accent_color": "tan",
     "activity_period": "diurnal",
-    "base_color": "white",
+    "base_color": "cream",
     "belly_color": "cream",
     "body_mass": 224.27259569729324,
     "brachial_index": 105.92690485498514,
@@ -17751,7 +17751,7 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "diurnal",
     "base_color": "dark_brown",
     "belly_color": "cream",
@@ -18160,7 +18160,7 @@
     "accent_color": "dark_brown",
     "activity_period": "diurnal",
     "base_color": "dark_brown",
-    "belly_color": "rufous",
+    "belly_color": "gray",
     "body_mass": 0.08,
     "brachial_index": 65,
     "claw_retractability": "semi",
@@ -18684,7 +18684,7 @@
    "axes": {
     "accent_color": "rufous",
     "activity_period": "crepuscular",
-    "base_color": "dark_green",
+    "base_color": "orange",
     "belly_color": "cream",
     "body_mass": 0.0990035492390776,
     "brachial_index": 66.50257536760255,
@@ -18968,7 +18968,7 @@
    "axes": {
     "accent_color": "rufous",
     "activity_period": "crepuscular",
-    "base_color": "white",
+    "base_color": "cream",
     "belly_color": "dark_brown",
     "body_mass": 0.08490942440482235,
     "brachial_index": 66.25624901770033,
@@ -19262,7 +19262,7 @@
    "axes": {
     "accent_color": "rufous",
     "activity_period": "crepuscular",
-    "base_color": "white",
+    "base_color": "cream",
     "belly_color": "cream",
     "body_mass": 0.04987360025772856,
     "brachial_index": 67.88515228326489,
@@ -19627,6 +19627,11 @@
      "drift": 1.0,
      "runaway": 0.0
     },
+    "belly_color": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "body_mass": {
      "coupling": 0.06600013840976504,
      "descent": 0.0,
@@ -19967,8 +19972,8 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "crepuscular",
-    "base_color": "cream",
-    "belly_color": "white",
+    "base_color": "tan",
+    "belly_color": "cream",
     "body_mass": 4.8312468391181405,
     "brachial_index": 65.0,
     "claw_retractability": "fixed",
@@ -20643,9 +20648,9 @@
   },
   {
    "axes": {
-    "accent_color": "tan",
+    "accent_color": "rufous",
     "activity_period": "diurnal",
-    "base_color": "white",
+    "base_color": "cream",
     "belly_color": "rufous",
     "body_mass": 8.0,
     "brachial_index": 100,
@@ -20706,6 +20711,11 @@
    },
    "description": "",
    "edge_delta": {
+    "accent_color": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "base_color": {
      "descent": 0.0,
      "drift": 1.0,
@@ -20834,7 +20844,7 @@
   },
   {
    "axes": {
-    "accent_color": "tan",
+    "accent_color": "rufous",
     "activity_period": "diurnal",
     "base_color": "cream",
     "belly_color": "black",
@@ -20897,11 +20907,6 @@
    },
    "description": "",
    "edge_delta": {
-    "base_color": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "belly_color": {
      "descent": 0.0,
      "drift": 1.0,
@@ -21133,7 +21138,7 @@
   },
   {
    "axes": {
-    "accent_color": "tan",
+    "accent_color": "rufous",
     "activity_period": "diurnal",
     "base_color": "cream",
     "belly_color": "black",
@@ -21422,7 +21427,7 @@
   },
   {
    "axes": {
-    "accent_color": "tan",
+    "accent_color": "rufous",
     "activity_period": "diurnal",
     "base_color": "cream",
     "belly_color": "black",
@@ -21696,7 +21701,7 @@
   },
   {
    "axes": {
-    "accent_color": "tan",
+    "accent_color": "rufous",
     "activity_period": "diurnal",
     "base_color": "cream",
     "belly_color": "black",
@@ -22066,10 +22071,10 @@
   },
   {
    "axes": {
-    "accent_color": "white",
+    "accent_color": "cream",
     "activity_period": "crepuscular",
     "base_color": "black",
-    "belly_color": "dark_green",
+    "belly_color": "orange",
     "body_mass": 2.0,
     "brachial_index": 85,
     "claw_retractability": "retractile",
@@ -22129,6 +22134,11 @@
    },
    "description": "",
    "edge_delta": {
+    "accent_color": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "base_color": {
      "descent": 0.0,
      "drift": 1.0,
@@ -22871,7 +22881,7 @@
     "accent_color": "rufous",
     "activity_period": "crepuscular",
     "base_color": "black",
-    "belly_color": "dark_green",
+    "belly_color": "orange",
     "body_mass": 1.6921902122447172,
     "brachial_index": 90.66491406382767,
     "claw_retractability": "retractile",
@@ -23171,7 +23181,7 @@
     "accent_color": "rufous",
     "activity_period": "crepuscular",
     "base_color": "black",
-    "belly_color": "rufous",
+    "belly_color": "gray",
     "body_mass": 1.9732284821432082,
     "brachial_index": 89.65881439562881,
     "claw_retractability": "retractile",
@@ -23476,7 +23486,7 @@
     "accent_color": "rufous",
     "activity_period": "diurnal",
     "base_color": "black",
-    "belly_color": "rufous",
+    "belly_color": "gray",
     "body_mass": 1.9172822247681975,
     "brachial_index": 87.81724157653511,
     "claw_retractability": "retractile",
@@ -26751,8 +26761,8 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "crepuscular",
-    "base_color": "orange",
-    "belly_color": "dark_green",
+    "base_color": "white",
+    "belly_color": "orange",
     "body_mass": 0.5,
     "brachial_index": 85,
     "claw_retractability": "fixed",
@@ -26959,8 +26969,8 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "crepuscular",
-    "base_color": "orange",
-    "belly_color": "orange",
+    "base_color": "white",
+    "belly_color": "white",
     "body_mass": 0.4644556239568062,
     "brachial_index": 84.92757000195253,
     "claw_retractability": "fixed",
@@ -27258,10 +27268,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "crepuscular",
-    "base_color": "orange",
-    "belly_color": "orange",
+    "base_color": "white",
+    "belly_color": "white",
     "body_mass": 0.4937354370735418,
     "brachial_index": 83.46828341566909,
     "claw_retractability": "fixed",
@@ -27541,8 +27551,8 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "crepuscular",
-    "base_color": "orange",
-    "belly_color": "orange",
+    "base_color": "white",
+    "belly_color": "white",
     "body_mass": 0.3433204963165867,
     "brachial_index": 83.30722421454485,
     "claw_retractability": "fixed",
@@ -27822,8 +27832,8 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "crepuscular",
-    "base_color": "orange",
-    "belly_color": "orange",
+    "base_color": "white",
+    "belly_color": "white",
     "body_mass": 0.40106180194109975,
     "brachial_index": 85.08829511369332,
     "claw_retractability": "retractile",
@@ -29352,11 +29362,6 @@
      "drift": 1.0,
      "runaway": 0.0
     },
-    "base_color": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "belly_color": {
      "descent": 0.0,
      "drift": 1.0,
@@ -30091,7 +30096,7 @@
   },
   {
    "axes": {
-    "accent_color": "orange",
+    "accent_color": "white",
     "activity_period": "crepuscular",
     "base_color": "dark_brown",
     "belly_color": "cream",
@@ -30402,7 +30407,7 @@
     "accent_color": "dark_brown",
     "activity_period": "nocturnal",
     "base_color": "dark_brown",
-    "belly_color": "white",
+    "belly_color": "cream",
     "body_mass": 0.031445091810377857,
     "brachial_index": 98.49996652769957,
     "claw_retractability": "retractile",
@@ -30462,11 +30467,6 @@
    },
    "description": "a tiny fur squirrel-like granivore with a stub tail",
    "edge_delta": {
-    "belly_color": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "body_mass": {
      "coupling": -0.2966860266989664,
      "descent": 0.0,
@@ -30980,7 +30980,7 @@
   },
   {
    "axes": {
-    "accent_color": "dark_green",
+    "accent_color": "orange",
     "activity_period": "nocturnal",
     "base_color": "dark_brown",
     "belly_color": "cream",
@@ -31273,10 +31273,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "diurnal",
     "base_color": "dark_brown",
-    "belly_color": "cream",
+    "belly_color": "tan",
     "body_mass": 0.04899785219165925,
     "brachial_index": 83.18295346318881,
     "claw_retractability": "fixed",
@@ -31342,6 +31342,11 @@
      "runaway": 0.0
     },
     "base_color": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "belly_color": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -31596,10 +31601,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "diurnal",
     "base_color": "dark_brown",
-    "belly_color": "cream",
+    "belly_color": "tan",
     "body_mass": 0.05406425116298075,
     "brachial_index": 86.64777812650178,
     "claw_retractability": "fixed",
@@ -31884,10 +31889,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "diurnal",
     "base_color": "dark_brown",
-    "belly_color": "dark_green",
+    "belly_color": "orange",
     "body_mass": 0.045786242447349176,
     "brachial_index": 82.45336356662602,
     "claw_retractability": "fixed",
@@ -32182,10 +32187,10 @@
   },
   {
    "axes": {
-    "accent_color": "rufous",
+    "accent_color": "gray",
     "activity_period": "cathemeral",
     "base_color": "dark_brown",
-    "belly_color": "cream",
+    "belly_color": "tan",
     "body_mass": 0.06382203143544012,
     "brachial_index": 81.97563564289591,
     "claw_retractability": "fixed",
@@ -32478,7 +32483,7 @@
     "accent_color": "gray",
     "activity_period": "diurnal",
     "base_color": "rufous",
-    "belly_color": "cream",
+    "belly_color": "tan",
     "body_mass": 0.04480697546181724,
     "brachial_index": 87.35411150925508,
     "claw_retractability": "semi",
@@ -32788,10 +32793,10 @@
   },
   {
    "axes": {
-    "accent_color": "orange",
+    "accent_color": "white",
     "activity_period": "diurnal",
     "base_color": "dark_brown",
-    "belly_color": "rufous",
+    "belly_color": "gray",
     "body_mass": 0.0491025048119983,
     "brachial_index": 81.41158051236712,
     "claw_retractability": "fixed",
@@ -33096,10 +33101,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "diurnal",
     "base_color": "cream",
-    "belly_color": "cream",
+    "belly_color": "tan",
     "body_mass": 0.05010839202514306,
     "brachial_index": 80.87155836565765,
     "claw_retractability": "fixed",
@@ -33384,10 +33389,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "diurnal",
     "base_color": "dark_brown",
-    "belly_color": "cream",
+    "belly_color": "tan",
     "body_mass": 0.03772422731183769,
     "brachial_index": 82.92201368656194,
     "claw_retractability": "fixed",
@@ -33677,10 +33682,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "crepuscular",
     "base_color": "dark_brown",
-    "belly_color": "cream",
+    "belly_color": "tan",
     "body_mass": 0.057301085890756116,
     "brachial_index": 83.51856326798993,
     "claw_retractability": "fixed",
@@ -33970,10 +33975,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "diurnal",
-    "base_color": "rufous",
-    "belly_color": "cream",
+    "base_color": "gray",
+    "belly_color": "tan",
     "body_mass": 0.041898744717849684,
     "brachial_index": 82.2252117609466,
     "claw_retractability": "fixed",
@@ -34278,10 +34283,10 @@
   },
   {
    "axes": {
-    "accent_color": "cream",
+    "accent_color": "tan",
     "activity_period": "diurnal",
     "base_color": "dark_brown",
-    "belly_color": "cream",
+    "belly_color": "tan",
     "body_mass": 0.060359087806248546,
     "brachial_index": 85.09543531638798,
     "claw_retractability": "fixed",
@@ -34561,7 +34566,7 @@
   },
   {
    "axes": {
-    "accent_color": "dark_green",
+    "accent_color": "orange",
     "activity_period": "nocturnal",
     "base_color": "rufous",
     "belly_color": "cream",
@@ -34874,9 +34879,9 @@
   },
   {
    "axes": {
-    "accent_color": "dark_green",
+    "accent_color": "orange",
     "activity_period": "nocturnal",
-    "base_color": "white",
+    "base_color": "cream",
     "belly_color": "cream",
     "body_mass": 0.057188119370956865,
     "brachial_index": 88.57360299661278,
@@ -35167,7 +35172,7 @@
   },
   {
    "axes": {
-    "accent_color": "dark_green",
+    "accent_color": "orange",
     "activity_period": "nocturnal",
     "base_color": "white",
     "belly_color": "cream",
@@ -35470,7 +35475,7 @@
   },
   {
    "axes": {
-    "accent_color": "dark_green",
+    "accent_color": "orange",
     "activity_period": "nocturnal",
     "base_color": "rufous",
     "belly_color": "cream",
@@ -35753,7 +35758,7 @@
   },
   {
    "axes": {
-    "accent_color": "dark_green",
+    "accent_color": "orange",
     "activity_period": "crepuscular",
     "base_color": "rufous",
     "belly_color": "cream",
@@ -36051,7 +36056,7 @@
   },
   {
    "axes": {
-    "accent_color": "dark_green",
+    "accent_color": "orange",
     "activity_period": "cathemeral",
     "base_color": "rufous",
     "belly_color": "cream",
@@ -37854,7 +37859,7 @@
   },
   {
    "axes": {
-    "accent_color": "orange",
+    "accent_color": "white",
     "activity_period": "nocturnal",
     "base_color": "black",
     "belly_color": "rufous",
@@ -39314,10 +39319,10 @@
   },
   {
    "axes": {
-    "accent_color": "orange",
+    "accent_color": "white",
     "activity_period": "cathemeral",
-    "base_color": "cream",
-    "belly_color": "tan",
+    "base_color": "tan",
+    "belly_color": "rufous",
     "body_mass": 0.0943823333314519,
     "brachial_index": 89.08426212405475,
     "claw_retractability": "semi",
@@ -39377,11 +39382,6 @@
    },
    "description": "a tiny fur squirrel-like granivore with a stub tail",
    "edge_delta": {
-    "accent_color": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "base_color": {
      "descent": 0.0,
      "drift": 1.0,
@@ -39933,7 +39933,7 @@
     "accent_color": "white",
     "activity_period": "cathemeral",
     "base_color": "rufous",
-    "belly_color": "orange",
+    "belly_color": "white",
     "body_mass": 0.08138783367067355,
     "brachial_index": 82.37225125630901,
     "claw_retractability": "fixed",
@@ -40518,7 +40518,7 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "nocturnal",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "gray",
     "body_mass": 0.048497137404532854,
     "brachial_index": 82.29215815540665,
@@ -40841,8 +40841,8 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "crepuscular",
-    "base_color": "cream",
-    "belly_color": "white",
+    "base_color": "tan",
+    "belly_color": "cream",
     "body_mass": 0.043586897511146874,
     "brachial_index": 88.34829058807797,
     "claw_retractability": "retractile",
@@ -41144,7 +41144,7 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "nocturnal",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "gray",
     "body_mass": 0.057945875218402304,
     "brachial_index": 79.12866510046118,
@@ -41720,7 +41720,7 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "nocturnal",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "gray",
     "body_mass": 0.035184260919278516,
     "brachial_index": 85.24146224966933,
@@ -42003,7 +42003,7 @@
    "axes": {
     "accent_color": "gray",
     "activity_period": "cathemeral",
-    "base_color": "cream",
+    "base_color": "tan",
     "belly_color": "tan",
     "body_mass": 0.02386945530052752,
     "brachial_index": 82.38937132204897,

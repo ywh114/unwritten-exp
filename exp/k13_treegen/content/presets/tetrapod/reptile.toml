@@ -12,7 +12,7 @@ source = "addendum-B1 §2 + §13.3 (new, crocodile-grade)"
 # gamut — xanthophores/erythrophores (red/orange/yellow), iridophores
 # (structural blue, iridescent), and green (yellow pigment over blue
 # structural). Mammal grades stay melanin-only.
-palette_extra = ["red", "orange", "yellow", "blue", "green", "iridescent"]
+palette_extra = ["red", "orange", "yellow", "blue", "green", "dark_green", "iridescent"]
 
 [knobs]
 # Core B1 §2 — crocodile-grade: sprawling, elongated trunk, heavy tail

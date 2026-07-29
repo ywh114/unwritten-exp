@@ -9,16 +9,17 @@
 
 [palette.tetrapod]
 # Mammalian melanin range (black..white through brown/rufous/tan/cream) plus
-# herp greens (the reptile grade is a tetrapod here) and tiger orange
-# (pheomelanin-rich). NOT red/blue/green/iridescent — no fur pigment or
-# structural mechanism reaches those. Herp grades widen to the full gamut
-# via preset-level palette_extra (see presets/tetrapod/reptile.toml).
+# tiger orange (pheomelanin-rich). NOT red/blue/green/dark_green/iridescent —
+# no fur pigment or structural mechanism reaches those. Herp grades widen to
+# the full gamut via preset-level palette_extra (see
+# presets/tetrapod/reptile.toml); dark_green lives ONLY there (it leaked
+# into the base palette and bears grew dark-green bellies).
 #
 # Documented exclusion: sloth-green (symbiotic algae in fur) is deliberately
 # NOT modeled — an ecological tint, not a pigment; if it is ever wanted it
 # belongs to a niche/coupling effect, not the palette.
 colors = ["black", "dark_brown", "gray", "rufous", "tan", "cream", "white",
-          "dark_green", "orange"]
+          "orange"]
 
 [palette.winged_biped]
 # Full avian reach: melanins + carotenoids (red/orange/yellow) + structural
