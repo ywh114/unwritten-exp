@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from exp.k11_worldgen.biomes import PALETTE
@@ -308,6 +310,9 @@ def render_world(path: str, delivered: dict, plates, factor: int,
 
     sheet = np.concatenate([left, right], axis=1)
     write_png_rgb(path, sheet)
+    # the bare map (no infographic panel) — the viewer backdrop and any
+    # consumer that needs a square world map
+    write_png_rgb(str(Path(path).with_name("worldmap.png")), left)
 
 
 _LOAD_STAGE_NAMES = (

@@ -88,6 +88,26 @@ def export(seed_dir: Path, out_path: Path) -> None:
         a, m = _q8(sim, 0, 1)
         put("biome_sim", a, m)
 
+    # monthly climate at ANCHOR res (12 planes each; the viewer averages
+    # selected months and upscales x4 for the overlay)
+    monthly: dict[str, np.ndarray] = {}
+    monthly_meta: dict[str, dict] = {}
+    if "c_T_monthly" in z.files:
+        tq, tm = _q8(temp_c(z["c_T_monthly"]), -40, 40)
+        monthly["t_monthly"] = tq
+        monthly_meta["t_monthly"] = tm
+        pq, pm = _q8(precip_mm(z["c_P_monthly"]), 0, 300)
+        monthly["p_monthly"] = pq
+        monthly_meta["p_monthly"] = pm
+
+    backdrop = None
+    for name in ("worldmap.png", "world.png"):
+        p_ = seed_dir / name
+        if p_.exists():
+            backdrop = __import__("base64").b64encode(
+                p_.read_bytes()).decode()
+            break
+
     header = {
         "format": "k11view/1",
         "seed": manifest["seed"],
@@ -97,9 +117,11 @@ def export(seed_dir: Path, out_path: Path) -> None:
         "biome_names": {str(i): n for n, i in BIOME_ID.items()},
         "biome_colors": {str(BIOME_ID[b["name"]]): list(b["color"])
                          for b in BIOMES},
-        "backdrop_png_b64": __import__("base64").b64encode(
-            (seed_dir / "world.png").read_bytes()).decode()
-        if (seed_dir / "world.png").exists() else None,
+        "backdrop_png_b64": backdrop,
+        "backdrop_is_square": (seed_dir / "worldmap.png").exists(),
+        "monthly_shape": ([12] + list(monthly["t_monthly"].shape[1:])
+                          if monthly else None),
+        "monthly_fields": monthly_meta,
         "pngs": sorted(p.stem for p in seed_dir.glob("*.png")
                        if p.stem != "load"),
         "order": list(fields),
@@ -113,6 +135,8 @@ def export(seed_dir: Path, out_path: Path) -> None:
         for name in header["order"]:
             fields[name].astype(meta[name]["dtype"].lstrip("<"),
                                 copy=False).tofile(f)
+        for name, arr in monthly.items():
+            arr.tofile(f)
     mb = out_path.stat().st_size / 1e6
     print(f"{out_path}  {mb:.1f} MB  fields: {', '.join(header['order'])}")
 
