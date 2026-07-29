@@ -576,7 +576,7 @@ def test_climate_and_biome_overrides():
     # (0.12 normalized ~= 480 mm/yr)
     assert cl["P_monthly"][:, land].std(axis=0).mean() > 0.01
     assert cl["P"][land].mean() > 0.12
-    bm = classify_biomes(elev, hy, cl, 0.35)
+    bm, _sim = classify_biomes(elev, hy, cl, 0.35)
     names = [b["name"] for b in BIOMES]
     # only standing water is a water biome — except mangrove, which
     # legitimately stands on shallow SEA (tidal flats) by override;
@@ -660,7 +660,7 @@ def test_derive_complex_clean_and_deterministic():
     elev, ocean = _tiny_world()
     hy = build_hydrology(elev, ocean)
     cl = build_climate(elev, hy, 0.35)
-    bm = classify_biomes(elev, hy, cl, 0.35)
+    bm, _sim = classify_biomes(elev, hy, cl, 0.35)
     names = [b["name"] for b in BIOMES]
     c1 = derive_complex(hy, bm, names)
     c2 = derive_complex(hy, bm, names)
@@ -717,7 +717,7 @@ def test_deliver_smoke():
     hy = build_hydrology(elev, ocean)
     cl = build_climate(elev, hy, 0.35, seed=SEED)
     names = [b["name"] for b in BIOMES]
-    bm = classify_biomes(elev, hy, cl, 0.35)
+    bm, _sim = classify_biomes(elev, hy, cl, 0.35)
     cx = derive_complex(hy, bm, names)
     aq = classify_aquatic(elev, hy, cl, 0.35)
     d = upscale_world(elev, hy, cl, cx, 0.35, aq, factor=4)
@@ -768,7 +768,7 @@ def test_persist_roundtrip(tmp_path):
     ocean = elev < 0.35
     hy = build_hydrology(elev, ocean)
     cl = build_climate(elev, hy, 0.35, seed=SEED)
-    bm = classify_biomes(elev, hy, cl, 0.35)
+    bm, _sim = classify_biomes(elev, hy, cl, 0.35)
     names = [b["name"] for b in BIOMES]
     cx = derive_complex(hy, bm, names)
     from exp.k11_worldgen.aquatic import classify_aquatic

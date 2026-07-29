@@ -130,7 +130,7 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
         sink.write(6, load_stage_draw(6, bag))
         sink.write(7, load_stage_draw(7, bag))
     _step("pass 1: biomes + forest cover")
-    biome1 = classify_biomes(elev, hydro, climate1, SEA_LEVEL)
+    biome1, _sim1 = classify_biomes(elev, hydro, climate1, SEA_LEVEL)
     bag["biome_map"] = biome1
     bag["climate1"] = climate1
     bag["biome1"] = biome1
@@ -172,8 +172,9 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
         hydro["w_route"], hydro["flow_dir"], hydro["flat_depth"],
         weight=climate["P"])
     _step("pass 2: biomes + aquatic + complex")
-    biome_map = classify_biomes(elev, hydro, climate, SEA_LEVEL)
+    biome_map, biome_sim = classify_biomes(elev, hydro, climate, SEA_LEVEL)
     bag["biome_map"] = biome_map
+    bag["biome_sim"] = biome_sim
     if sink is not None:
         sink.write(13, load_stage_draw(13, bag))
     cover = forest_cover(biome_map, growing_season_p(climate))
@@ -187,7 +188,8 @@ def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
         sink.write(14, load_stage_draw(14, bag))
     return {
         "elev": elev, "plates": plates, "hydro": hydro, "climate": climate,
-        "biome_map": biome_map, "cover": cover, "complex": complex_,
+        "biome_map": biome_map, "biome_sim": biome_sim, "cover": cover,
+        "complex": complex_,
         "biome_names": biome_names, "ocean_mask": ocean_mask,
         "aquatic": aquatic, "currents": currents, "volcanoes": volcanoes,
     }

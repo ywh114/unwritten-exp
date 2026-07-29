@@ -196,11 +196,19 @@ class _Acc:
         self.t_norm_sum += t_norm
         self.p_norm_sum += p_norm
 
-    def classify2(self) -> tuple[np.ndarray, np.ndarray]:
-        """(nearest, second-nearest) prototype ids per cell."""
+    def classify2(self) -> tuple[np.ndarray, np.ndarray, np.ndarray,
+                                 np.ndarray]:
+        """(nearest id, nearest d2, second id, second d2) per cell.
+
+        The d2 values are the smooth assignment field behind the hard 1NN
+        label (biosphere_conv: "the label is piecewise-constant; the match
+        is smooth") — persisted in the npz so consumers (ecotone blending,
+        abundance, the viewer) can compute similarity without re-matching.
+        """
         d2 = self.s2[None] - 2 * self.dot + _PROTO_C[:, None, None]
         i2 = np.argpartition(d2, 1, axis=0)[:2]
-        return _PROTO_IDS[i2[0]], _PROTO_IDS[i2[1]]
+        return (_PROTO_IDS[i2[0]], np.take_along_axis(d2, i2[:1], 0)[0],
+                _PROTO_IDS[i2[1]], np.take_along_axis(d2, i2[1:2], 0)[0])
 
     def classify(self) -> np.ndarray:
         return self.classify2()[0]
@@ -292,8 +300,12 @@ def _masks_state(elev: np.ndarray, ocean_m: np.ndarray, lake_m: np.ndarray,
 
 
 def classify_biomes(elev: np.ndarray, hydro: dict, climate: dict,
-                    sea_level: float) -> np.ndarray:
+                    sea_level: float) -> tuple[np.ndarray, dict]:
     """Anchor-grid biome map: vector match + modal smoothing + overrides.
+
+    Returns (biome_map, sim) where sim carries the smooth assignment
+    field behind the labels: {"d2_1", "d2_2", "second"} (anchor res,
+    persisted in the npz — see _Acc.classify2).
 
     Smoothing runs on the climate-matched classes only; the geographic
     overrides (rock, ice, flooded grassland, mangrove) apply last so
@@ -305,7 +317,8 @@ def classify_biomes(elev: np.ndarray, hydro: dict, climate: dict,
         acc.add(temp_c(climate["T_monthly"][m]),
                 precip_mm(climate["P_monthly"][m]),
                 climate["T_monthly"][m], climate["P_monthly"][m], m)
-    b = _altitude_swap(*acc.classify2(), alt_m(elev, sea_level))
+    first, d2_1, second, d2_2 = acc.classify2()
+    b = _altitude_swap(first, second, alt_m(elev, sea_level))
     st = _masks_state(elev, ocean_m, hydro["lake_mask"], hydro["river_mask"],
                       sea_level, hydro["hand"], hydro["width"])
     st.update(T_warm=acc.t_max, T_cold=acc.t_min, P_wet=acc.p_max)
@@ -314,7 +327,9 @@ def classify_biomes(elev: np.ndarray, hydro: dict, climate: dict,
     b[ocean_m] = BIOME_ID["ocean"]
     b[hydro["lake_mask"]] = BIOME_ID["lake"]
     b = _apply_overrides(b, st)
-    return b
+    sim = {"d2_1": d2_1.astype(np.float32), "d2_2": d2_2.astype(np.float32),
+           "second": second}
+    return b, sim
 
 
 def classify_streaming(elev_hi: np.ndarray, ocean_hi: np.ndarray,
@@ -337,7 +352,8 @@ def classify_streaming(elev_hi: np.ndarray, ocean_hi: np.ndarray,
         t_n = upsample_bicubic(climate["T_monthly"][m], factor)
         p_n = upsample_bicubic(climate["P_monthly"][m], factor)
         acc.add(temp_c(t_n), precip_mm(p_n), t_n, p_n, m)
-    b = _altitude_swap(*acc.classify2(), alt_m(elev_hi, sea_level))
+    first, _, second, _ = acc.classify2()
+    b = _altitude_swap(first, second, alt_m(elev_hi, sea_level))
     st = _masks_state(elev_hi, ocean_hi, lake_hi, river_hi, sea_level,
                       hand_hi, width_hi)
     st.update(T_warm=acc.t_max, T_cold=acc.t_min, P_wet=acc.p_max)

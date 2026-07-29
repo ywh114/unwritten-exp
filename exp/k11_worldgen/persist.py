@@ -20,7 +20,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-VERSION = 1
+VERSION = 2  # + biome similarity (d2) arrays
 
 _PLATES_ARRAYS = ("macro_id", "fine_id", "is_ocean", "is_sea_plate",
                   "is_sea_pocket", "fault_dist", "fault_conv",
@@ -71,6 +71,13 @@ def save_world(out_dir: str, world: dict, delivered: dict, seed: int,
     arrays: dict[str, np.ndarray] = {}
     for k in ("elev", "biome_map", "cover", "ocean_mask", "aquatic"):
         arrays[f"w_{k}"] = world[k]
+    # the smooth assignment field behind the labels (biosphere_conv d2
+    # ruling): top-2 prototype distances + second id, anchor res only —
+    # similarity is a consume-time transform (softmax over -d2).
+    sim = world["biome_sim"]
+    arrays["w_biome_d2_1"] = sim["d2_1"]
+    arrays["w_biome_d2_2"] = sim["d2_2"]
+    arrays["w_biome_second"] = sim["second"]
     for k, v in world["hydro"].items():
         arrays[f"h_{k}"] = v
     for k, v in world["climate"].items():
