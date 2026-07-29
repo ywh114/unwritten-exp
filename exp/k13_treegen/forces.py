@@ -235,6 +235,20 @@ ARB_STRATA = {"understorey", "canopy"}
 AQUATIC_STRATA = {"benthic", "demersal", "pelagic"}
 
 
+def substrate_ok(name: str, node: Node) -> bool:
+    """Part-dial substrate check (user: manes only for fur; no webbed
+    feet on horses): without the substrate the dial is inapplicable — the
+    R11 "N/A" class, enforced by the sampler/renderer instead of
+    per-preset authoring."""
+    if name == "mane_ruff_extent":
+        return node.generics.get("covering") == "fur"
+    if name == "foot_webbing_grade":
+        loco = str(node.generics.get("locomotor", ""))
+        return "aquatic" in loco or \
+            node.axes.get("vertical_stratum") in AQUATIC_STRATA
+    return True
+
+
 def _legal_states(spec: AxisSpec, name: str, pack: ContentPack,
                   parent: Node) -> list[str] | None:
     """Restricted legal states for enum redraws; None = unrestricted."""
@@ -331,6 +345,9 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
         spec = pack.registry.axes.get(name)
         if spec is None or value == "N/A":
             axes[name] = value
+            continue
+        if not substrate_ok(name, parent):
+            axes[name] = value   # no substrate: the dial is frozen
             continue
         gate = _tier_gate(spec, parent.g)
         if gate == 0.0:

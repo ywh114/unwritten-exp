@@ -89,11 +89,14 @@ def _diet_word(spectrum) -> str:
 
 def _part_phrase(node: Node, pack: ContentPack) -> tuple[str | None, str | None]:
     """Highest salience x deviation PART axis; returns (phrase, axis)."""
+    from exp.k13_treegen.forces import substrate_ok
     preset = pack.presets.get(node.preset or "", {})
     best: tuple[float, str, str] | None = None
     for name, spec in pack.registry.axes.items():
         if spec.grammar_role is not GrammarRole.PART:
             continue
+        if not substrate_ok(name, node):
+            continue   # no substrate (mane w/o fur, webbing w/o water)
         phrases = PART_PHRASES.get(name)
         if not phrases:
             continue

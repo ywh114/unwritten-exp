@@ -35,7 +35,10 @@ def parent_node(g: float = 0.0, **axes) -> Node:
     base.update(axes)
     return Node(path="k1.p1.c1.o1.f1.g1.s1", rank=Rank.SPECIES,
                 parent="k1.p1.c1.o1.f1.g1", sid="0" * 16,
-                plan="tetrapod", preset="tetrapod.deer", g=g, axes=base)
+                plan="tetrapod", preset="tetrapod.deer", g=g, axes=base,
+                # deer-realistic generics: mane_ruff_extent's substrate
+                # gate (manes need fur) must not freeze the ornament
+                generics={"covering": "fur"})
 
 
 # ──  clock  ───────────────────────────────────────────────────────────────

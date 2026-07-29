@@ -214,7 +214,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 2.0,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.3,
     "horn_cover_texture": "N/A",
@@ -289,11 +289,6 @@
      "runaway": 0.0
     },
     "fat_depot": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -408,7 +403,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 0.5651669039000823,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.816983580114986,
     "head_size_ratio": 0.29864967384886504,
     "horn_cover_texture": "N/A",
@@ -517,11 +512,6 @@
      "coupling": -3.0794487017738446,
      "descent": 0.0,
      "drift": -0.08000471544179955,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -821,11 +811,6 @@
      "drift": 1.0,
      "runaway": 0.0
     },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.6679372393660047,
@@ -1022,7 +1007,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 0.34851745115082955,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.643614660252386,
     "head_size_ratio": 0.30287829459434235,
     "horn_cover_texture": "N/A",
@@ -1329,7 +1314,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 0.6461995364601038,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 2.4615099567432703,
     "head_size_ratio": 0.30082693070664884,
     "horn_cover_texture": "N/A",
@@ -1588,7 +1573,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Veladra brevirostris",
+    "binomial": "Veladra unicolor",
     "folk": null,
     "history": []
    },
@@ -1626,7 +1611,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 0.44934798548688853,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.6139219301170222,
     "head_size_ratio": 0.2975610702783262,
     "horn_cover_texture": "N/A",
@@ -1725,11 +1710,6 @@
      "coupling": -0.0726875613862935,
      "descent": 0.0,
      "drift": -0.5006211429461735,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -2661,7 +2641,7 @@
     "fat_depot": "none",
     "fecundity": 2.102196631208375,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.3624966592112533,
     "head_size_ratio": 0.30112324836195636,
     "horn_cover_texture": "N/A",
@@ -2703,7 +2683,7 @@
     "vibrissae_prominence": 0.1750022509763902,
     "vocal_sac": "none"
    },
-   "description": "a large fur bear-like frugivore with webbed feet",
+   "description": "a large fur bear-like frugivore with a neck frill",
    "edge_delta": {
     "belly_color": {
      "descent": 0.0,
@@ -2750,11 +2730,6 @@
      "coupling": 0.21338955961866926,
      "descent": 0.0,
      "drift": -0.08880047877312626,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -6453,7 +6428,7 @@
     "fat_depot": "double_hump",
     "fecundity": 9.291557988786295,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 7.5849919647133195,
     "head_size_ratio": 0.3494252358521599,
     "horn_cover_texture": "N/A",
@@ -6557,11 +6532,6 @@
      "coupling": 0.031288729463944634,
      "descent": 0.0,
      "drift": 0.3428730282605916,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -6761,7 +6731,7 @@
     "fat_depot": "double_hump",
     "fecundity": 6.784025958456116,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 9.877980799448693,
     "head_size_ratio": 0.34888236345522666,
     "horn_cover_texture": "N/A",
@@ -7054,7 +7024,7 @@
     "fat_depot": "none",
     "fecundity": 6.171840868886514,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 9.744744687877054,
     "head_size_ratio": 0.3495228865222701,
     "horn_cover_texture": "N/A",
@@ -8471,7 +8441,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 4.0,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.28,
     "horn_cover_texture": "N/A",
@@ -8546,11 +8516,6 @@
      "runaway": 0.0
     },
     "fat_depot": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -8673,7 +8638,7 @@
     "fat_depot": "double_hump",
     "fecundity": 2.1682284993760064,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.28692350195042216,
     "horn_cover_texture": "N/A",
@@ -8988,7 +8953,7 @@
     "fat_depot": "double_hump",
     "fecundity": 1.7150455284286539,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.1886145464887292,
     "head_size_ratio": 0.29078972421575044,
     "horn_cover_texture": "N/A",
@@ -9268,7 +9233,7 @@
     "fat_depot": "double_hump",
     "fecundity": 1.7872332345415418,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.283480194009936,
     "horn_cover_texture": "N/A",
@@ -9543,7 +9508,7 @@
     "fat_depot": "double_hump",
     "fecundity": 1.3895025812042738,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.4101362803646629,
     "head_size_ratio": 0.2859012397226065,
     "horn_cover_texture": "N/A",
@@ -10241,7 +10206,7 @@
     "fat_depot": "fat_tail",
     "fecundity": 2.3938120669047915,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 8.826174514870985,
     "head_size_ratio": 0.28098275783390675,
     "horn_cover_texture": "N/A",
@@ -10345,11 +10310,6 @@
      "coupling": -0.47359392149955126,
      "descent": 0.0,
      "drift": -0.8099242254408066,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -11656,7 +11616,7 @@
     "fat_depot": "none",
     "fecundity": 1.5,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 20.0,
     "head_size_ratio": 0.3,
     "horn_cover_texture": "bare_keratin",
@@ -11741,11 +11701,6 @@
      "runaway": 0.0
     },
     "ear_posture": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -11983,11 +11938,6 @@
      "coupling": 0.2243238979546766,
      "descent": 0.0,
      "drift": -0.2720498938332301,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -13823,7 +13773,7 @@
     "fat_depot": "none",
     "fecundity": 0.6796244772560781,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 19.574017169644755,
     "head_size_ratio": 0.303216034782768,
     "horn_cover_texture": "bare_keratin",
@@ -13917,11 +13867,6 @@
      "coupling": -0.09730648918270676,
      "descent": 0.0,
      "drift": -1.9110980485704439,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -14707,7 +14652,7 @@
     "fat_depot": "none",
     "fecundity": 1.6577655336088537,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 10.85295477840601,
     "head_size_ratio": 0.3037110233077499,
     "horn_cover_texture": "velvet",
@@ -14749,7 +14694,7 @@
     "vibrissae_prominence": 0.10972748950477383,
     "vocal_sac": "none"
    },
-   "description": "a large fur deer-like grazer with webbed feet",
+   "description": "a large fur deer-like grazer with crescent pupils",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -14801,11 +14746,6 @@
      "coupling": 0.3143514241024074,
      "descent": 0.0,
      "drift": -0.09354220135326194,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -15127,11 +15067,6 @@
      "runaway": 0.0
     },
     "foot_posture": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -15736,7 +15671,7 @@
     "fat_depot": "none",
     "fecundity": 1.0034032451002546,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 14.74334475527625,
     "head_size_ratio": 0.3018775923727571,
     "horn_cover_texture": "velvet",
@@ -15778,7 +15713,7 @@
     "vibrissae_prominence": 0.11640163726195173,
     "vocal_sac": "none"
    },
-   "description": "a large fur deer-like browser with webbed feet",
+   "description": "a large fur deer-like browser with a long snout",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -15833,11 +15768,6 @@
      "runaway": 0.0
     },
     "foot_posture": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -16121,11 +16051,6 @@
      "coupling": 0.42407768392211115,
      "descent": 0.0,
      "drift": -0.7421950304969871,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -16733,7 +16658,7 @@
     "fat_depot": "none",
     "fecundity": 2.670168808293897,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 8.338183189980931,
     "head_size_ratio": 0.3154855678519228,
     "horn_cover_texture": "shed",
@@ -16830,11 +16755,6 @@
      "runaway": 0.0
     },
     "foot_posture": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -17126,11 +17046,6 @@
      "runaway": 0.0
     },
     "foot_posture": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -18146,7 +18061,7 @@
     "fat_depot": "single_hump",
     "fecundity": 5.0,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.3,
     "horn_cover_texture": "N/A",
@@ -18231,11 +18146,6 @@
      "runaway": 0.0
     },
     "fat_depot": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -18362,7 +18272,7 @@
     "fat_depot": "fat_tail",
     "fecundity": 4.4643117276313244,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.301602225445827,
     "horn_cover_texture": "N/A",
@@ -18671,7 +18581,7 @@
     "fat_depot": "fat_tail",
     "fecundity": 2.231800325868361,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.4606563215881272,
     "head_size_ratio": 0.30344110710645616,
     "horn_cover_texture": "N/A",
@@ -18955,7 +18865,7 @@
     "fat_depot": "fat_tail",
     "fecundity": 6.927505464926553,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.30524859082261513,
     "horn_cover_texture": "N/A",
@@ -19249,7 +19159,7 @@
     "fat_depot": "fat_tail",
     "fecundity": 5.436527702589113,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.3046164996623372,
     "horn_cover_texture": "N/A",
@@ -19961,7 +19871,7 @@
     "intermembral_index": 84.24324650125227,
     "lifespan_yr": 2.989378405483694,
     "limb_length_to_trunk": 0.44278812950072766,
-    "mane_ruff_extent": 0.06127558434601618,
+    "mane_ruff_extent": 0.0,
     "metapodial_proximal_ratio": 0.24988733572520994,
     "neck_frill": 0.0,
     "neck_length_ratio": 0.05,
@@ -20080,11 +19990,6 @@
      "descent": 0.0,
      "drift": 0.6791766587417085,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": -0.1623200486401157,
-     "runaway": 0.6729499181902506
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -20250,7 +20155,7 @@
     "intermembral_index": 80.49872509974468,
     "lifespan_yr": 3.2683127436790516,
     "limb_length_to_trunk": 0.4081468513538233,
-    "mane_ruff_extent": 0.019244552774955594,
+    "mane_ruff_extent": 0.0,
     "metapodial_proximal_ratio": 0.2516121486937928,
     "neck_frill": 0.04612473114942459,
     "neck_length_ratio": 0.05,
@@ -20364,11 +20269,6 @@
      "descent": 0.0,
      "drift": 0.1293151008543372,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": -0.536854176015735,
-     "runaway": 0.697225449140365
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -20627,7 +20527,7 @@
     "fat_depot": "single_hump",
     "fecundity": 1.0,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 25.0,
     "head_size_ratio": 0.3,
     "horn_cover_texture": "N/A",
@@ -20702,11 +20602,6 @@
      "runaway": 0.0
     },
     "fat_depot": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -20823,7 +20718,7 @@
     "fat_depot": "single_hump",
     "fecundity": 1.1381499233333847,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 22.562335390184227,
     "head_size_ratio": 0.29900583069998915,
     "horn_cover_texture": "N/A",
@@ -21117,7 +21012,7 @@
     "fat_depot": "single_hump",
     "fecundity": 0.47142088880828004,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 24.890194744664132,
     "head_size_ratio": 0.3021225771544876,
     "horn_cover_texture": "N/A",
@@ -21406,7 +21301,7 @@
     "fat_depot": "single_hump",
     "fecundity": 1.1194672338540408,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 32.722187537957225,
     "head_size_ratio": 0.30213952643486913,
     "horn_cover_texture": "N/A",
@@ -21680,7 +21575,7 @@
     "fat_depot": "single_hump",
     "fecundity": 1.14162473603166,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 20.99598402937689,
     "head_size_ratio": 0.2996409756885943,
     "horn_cover_texture": "N/A",
@@ -22050,7 +21945,7 @@
     "fat_depot": "double_hump",
     "fecundity": 25.0,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 4.0,
     "head_size_ratio": 0.28,
     "horn_cover_texture": "N/A",
@@ -22130,11 +22025,6 @@
      "runaway": 0.0
     },
     "fat_depot": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -22247,7 +22137,7 @@
     "fat_depot": "nuchal_hump",
     "fecundity": 26.91594944497676,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 3.2294055424467243,
     "head_size_ratio": 0.2806732527308701,
     "horn_cover_texture": "N/A",
@@ -22552,7 +22442,7 @@
     "fat_depot": "nuchal_hump",
     "fecundity": 67.7136529432591,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 3.650091036816406,
     "head_size_ratio": 0.28041556704322207,
     "horn_cover_texture": "N/A",
@@ -22857,7 +22747,7 @@
     "fat_depot": "nuchal_hump",
     "fecundity": 39.09254002415587,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 3.465142569573717,
     "head_size_ratio": 0.27874716249190357,
     "horn_cover_texture": "N/A",
@@ -23162,7 +23052,7 @@
     "fat_depot": "nuchal_hump",
     "fecundity": 27.054354857234113,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 2.867107858770357,
     "head_size_ratio": 0.27733459892419643,
     "horn_cover_texture": "N/A",
@@ -23467,7 +23357,7 @@
     "fat_depot": "nuchal_hump",
     "fecundity": 33.24609145853402,
     "foot_posture": "digitigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 2.977665147662216,
     "head_size_ratio": 0.27981282229551596,
     "horn_cover_texture": "N/A",
@@ -23561,11 +23451,6 @@
      "coupling": -0.3620650242045541,
      "descent": 0.0,
      "drift": 0.8901104817056517,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -24528,7 +24413,7 @@
     "intermembral_index": 70,
     "lifespan_yr": 70.0,
     "limb_length_to_trunk": 0.45,
-    "mane_ruff_extent": 0.8670156379053601,
+    "mane_ruff_extent": 0.0,
     "metapodial_proximal_ratio": 0.22,
     "neck_frill": 0.0,
     "neck_length_ratio": 0.18,
@@ -24604,11 +24489,6 @@
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": 3.553990427607985,
-     "runaway": 3.671139888270017
     },
     "neck_frill": {
      "descent": 0.0,
@@ -24730,7 +24610,7 @@
     "intermembral_index": 69.14915598360074,
     "lifespan_yr": 56.230638798317244,
     "limb_length_to_trunk": 0.41271093044878,
-    "mane_ruff_extent": 1.0,
+    "mane_ruff_extent": 0.0,
     "metapodial_proximal_ratio": 0.22791867629555382,
     "neck_frill": 0.026548274875348627,
     "neck_length_ratio": 0.18186612866027502,
@@ -24874,11 +24754,6 @@
      "descent": 0.0,
      "drift": -0.5918899928765083,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": -0.3804059659180962,
-     "runaway": 2.15149797634345
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -25065,7 +24940,7 @@
     "intermembral_index": 72.259071675812,
     "lifespan_yr": 71.55714676789826,
     "limb_length_to_trunk": 0.40271205344918165,
-    "mane_ruff_extent": 1.0,
+    "mane_ruff_extent": 0.0,
     "metapodial_proximal_ratio": 0.21510950363051728,
     "neck_frill": 0.022527599412890523,
     "neck_length_ratio": 0.17783871715544494,
@@ -25100,7 +24975,7 @@
     "vibrissae_prominence": 0.20258544035010043,
     "vocal_sac": "none"
    },
-   "description": "a large armored reptile-like carnivore with a full mane",
+   "description": "a large armored reptile-like carnivore with a trunk",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -25189,11 +25064,6 @@
      "descent": 0.0,
      "drift": -0.1587123333269575,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": 1.3429374947699384,
-     "runaway": 0.7123388287911971
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -25365,7 +25235,7 @@
     "intermembral_index": 61.996508469303976,
     "lifespan_yr": 51.209917667181756,
     "limb_length_to_trunk": 0.4149737850276568,
-    "mane_ruff_extent": 1.0,
+    "mane_ruff_extent": 0.0,
     "metapodial_proximal_ratio": 0.23078856192557523,
     "neck_frill": 0.02281539773892446,
     "neck_length_ratio": 0.18227096554349673,
@@ -25400,7 +25270,7 @@
     "vibrissae_prominence": 0.23177233501778502,
     "vocal_sac": "none"
    },
-   "description": "a large armored reptile-like carnivore with a full mane",
+   "description": "a large armored reptile-like carnivore with a trunk",
    "edge_delta": {
     "belly_color": {
      "descent": 0.0,
@@ -25484,11 +25354,6 @@
      "descent": 0.0,
      "drift": 0.03591832664883802,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": 1.735603491993041,
-     "runaway": 0.4606649731821192
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -25790,11 +25655,6 @@
      "drift": 0.35047832770630727,
      "runaway": 0.0
     },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": 0.21337564370428327,
-     "runaway": 1.4758593362136132
-    },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
      "drift": 1.1178625741562773,
@@ -26005,7 +25865,7 @@
     "vibrissae_prominence": -0.0009767210661760363,
     "vocal_sac": "none"
    },
-   "description": "a large armored reptile-like carnivore with a full mane",
+   "description": "a large armored reptile-like carnivore with a stub tail",
    "edge_delta": {},
    "flags": [
     "pinned"
@@ -26068,7 +25928,7 @@
     "intermembral_index": 65.43258090712871,
     "lifespan_yr": 76.28643746401622,
     "limb_length_to_trunk": 0.5242449040678351,
-    "mane_ruff_extent": 0.05687010294877271,
+    "mane_ruff_extent": 0.0,
     "metapodial_proximal_ratio": 0.21513623572818397,
     "neck_frill": 0.0,
     "neck_length_ratio": 0.17611668152582757,
@@ -26103,7 +25963,7 @@
     "vibrissae_prominence": 0.03371674572883438,
     "vocal_sac": "median"
    },
-   "description": "a large armored reptile-like carnivore with a full mane",
+   "description": "a large armored reptile-like carnivore with bushy whiskers",
    "edge_delta": {
     "body_mass": {
      "coupling": -0.054770498802995005,
@@ -26172,11 +26032,6 @@
      "descent": 0.0,
      "drift": 1.1784905407592874,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": -0.0768641537289703,
-     "runaway": 0.5507816783020762
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -26483,11 +26338,6 @@
      "drift": -0.037947608163756495,
      "runaway": 0.0
     },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": -1.606979098401935,
-     "runaway": 0.6743065518901487
-    },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
      "drift": -0.03386373900619177,
@@ -26743,7 +26593,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 10.0,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.25,
     "horn_cover_texture": "N/A",
@@ -26823,11 +26673,6 @@
      "runaway": 0.0
     },
     "fat_depot": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
@@ -26951,7 +26796,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 9.579516914458395,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.0994398703730384,
     "head_size_ratio": 0.24765858528625828,
     "horn_cover_texture": "N/A",
@@ -27045,11 +26890,6 @@
      "coupling": -0.026194679560919476,
      "descent": 0.0,
      "drift": -0.08120014231021631,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -27252,7 +27092,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 9.390133670157418,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.425404596282777,
     "head_size_ratio": 0.24954533575191903,
     "horn_cover_texture": "N/A",
@@ -27619,11 +27459,6 @@
      "drift": 0.12106964070097577,
      "runaway": 0.0
     },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
-     "runaway": 0.0
-    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.5446380176798871,
@@ -27814,7 +27649,7 @@
     "fat_depot": "fat_rump",
     "fecundity": 11.341010812704733,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.5435029850084407,
     "head_size_ratio": 0.24572885709530476,
     "horn_cover_texture": "N/A",
@@ -27908,11 +27743,6 @@
      "coupling": 0.26066493185276307,
      "descent": 0.0,
      "drift": 0.16133073565816458,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -31580,7 +31410,7 @@
     "fat_depot": "none",
     "fecundity": 75.51573606575688,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.24518159839466075,
     "horn_cover_texture": "N/A",
@@ -31669,11 +31499,6 @@
      "coupling": 0.23054234081831104,
      "descent": 0.0,
      "drift": 0.4572826234744607,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -31868,7 +31693,7 @@
     "fat_depot": "fat_tail",
     "fecundity": 82.27257101389185,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.290185601852171,
     "head_size_ratio": 0.24998128109266032,
     "horn_cover_texture": "N/A",
@@ -31957,11 +31782,6 @@
      "coupling": 0.315149144099783,
      "descent": 0.0,
      "drift": 0.5869176011217676,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -33661,7 +33481,7 @@
     "fat_depot": "fat_tail",
     "fecundity": 56.53128232563432,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.1898116848443474,
     "head_size_ratio": 0.2471724862371832,
     "horn_cover_texture": "N/A",
@@ -33755,11 +33575,6 @@
      "coupling": -0.24865241993926043,
      "descent": 0.0,
      "drift": 0.21261012214372296,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -33954,7 +33769,7 @@
     "fat_depot": "fat_tail",
     "fecundity": 67.36287495266586,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.0990696096458175,
     "head_size_ratio": 0.24871009964644214,
     "horn_cover_texture": "N/A",
@@ -34048,11 +33863,6 @@
      "coupling": 0.30191862177850737,
      "descent": 0.0,
      "drift": 0.10028881798275402,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -34540,7 +34350,7 @@
     "fat_depot": "none",
     "fecundity": 41.8119337379014,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.3975682040052115,
     "head_size_ratio": 0.25075549927259333,
     "horn_cover_texture": "N/A",
@@ -34639,11 +34449,6 @@
      "coupling": 0.03898746187808891,
      "descent": 0.0,
      "drift": 0.02910056023661125,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -34853,7 +34658,7 @@
     "fat_depot": "none",
     "fecundity": 43.37510992292082,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.0526723128429973,
     "head_size_ratio": 0.25194200818582896,
     "horn_cover_texture": "N/A",
@@ -34942,11 +34747,6 @@
      "coupling": -0.17864865686624026,
      "descent": 0.0,
      "drift": 0.2704086008745763,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -35146,7 +34946,7 @@
     "fat_depot": "double_hump",
     "fecundity": 27.697214870126214,
     "foot_posture": "unguligrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.1931870330503513,
     "head_size_ratio": 0.25015423870441234,
     "horn_cover_texture": "N/A",
@@ -35449,7 +35249,7 @@
     "fat_depot": "none",
     "fecundity": 41.298654382434115,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.931649544292801,
     "head_size_ratio": 0.2512602461798189,
     "horn_cover_texture": "N/A",
@@ -35538,11 +35338,6 @@
      "coupling": -0.2613985462588926,
      "descent": 0.0,
      "drift": 0.23051885373534492,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -35732,7 +35527,7 @@
     "fat_depot": "none",
     "fecundity": 26.930407805605963,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.1694894265360551,
     "head_size_ratio": 0.2533332114278638,
     "horn_cover_texture": "N/A",
@@ -36030,7 +35825,7 @@
     "fat_depot": "none",
     "fecundity": 47.05041997557929,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.2830260994787872,
     "head_size_ratio": 0.2527872649278113,
     "horn_cover_texture": "N/A",
@@ -36323,7 +36118,7 @@
     "fat_depot": "none",
     "fecundity": 33.674140300144494,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.2517726219401746,
     "head_size_ratio": 0.24990308773422254,
     "horn_cover_texture": "N/A",
@@ -36437,11 +36232,6 @@
      "coupling": -0.5221039783802377,
      "descent": 0.0,
      "drift": 0.049062994854748805,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -36656,7 +36446,7 @@
     "fat_depot": "none",
     "fecundity": 46.14033870927676,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.2540491239817658,
     "horn_cover_texture": "N/A",
@@ -36959,7 +36749,7 @@
     "fat_depot": "none",
     "fecundity": 28.309787003049525,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.4898123788911362,
     "head_size_ratio": 0.24471202483639046,
     "horn_cover_texture": "N/A",
@@ -37267,7 +37057,7 @@
     "fat_depot": "none",
     "fecundity": 22.611667486230136,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 2.5370513222865987,
     "head_size_ratio": 0.24844399379629584,
     "horn_cover_texture": "N/A",
@@ -37560,7 +37350,7 @@
     "fat_depot": "none",
     "fecundity": 26.574330860032234,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.24983958004850162,
     "horn_cover_texture": "N/A",
@@ -37838,7 +37628,7 @@
     "fat_depot": "double_hump",
     "fecundity": 30.283907790138915,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.24734283142245525,
     "horn_cover_texture": "N/A",
@@ -38141,7 +37931,7 @@
     "fat_depot": "none",
     "fecundity": 31.50125612694706,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0975528777703953,
     "head_size_ratio": 0.2455712955296349,
     "horn_cover_texture": "N/A",
@@ -38429,7 +38219,7 @@
     "fat_depot": "none",
     "fecundity": 36.87333234796126,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "partial",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.25337180456273123,
     "horn_cover_texture": "N/A",
@@ -39298,7 +39088,7 @@
     "fat_depot": "nuchal_hump",
     "fecundity": 31.39432596760718,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.0,
     "head_size_ratio": 0.25166902217920495,
     "horn_cover_texture": "N/A",
@@ -39402,11 +39192,6 @@
      "coupling": 0.012541225661495847,
      "descent": 0.0,
      "drift": 0.5468780809563779,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
@@ -41980,7 +41765,7 @@
     "fat_depot": "none",
     "fecundity": 101.8247404904684,
     "foot_posture": "plantigrade",
-    "foot_webbing_grade": "full",
+    "foot_webbing_grade": "none",
     "group_size": 1.4364248165235591,
     "head_size_ratio": 0.2510810651546463,
     "horn_cover_texture": "N/A",
@@ -42079,11 +41864,6 @@
      "coupling": 0.7368900162056963,
      "descent": 0.0,
      "drift": 1.1419711616085755,
-     "runaway": 0.0
-    },
-    "foot_webbing_grade": {
-     "descent": 0.0,
-     "drift": 1.0,
      "runaway": 0.0
     },
     "group_size": {
