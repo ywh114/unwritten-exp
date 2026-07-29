@@ -177,6 +177,8 @@ def test_runaway_targets_ornaments_only(pack):
                runaway_dir=1.0)
     assert c.edge_delta["mane_ruff_extent"]["runaway"] > 0
     for ax, d in c.edge_delta.items():
+        if ax == "generic_rebind":
+            continue   # generic rebinds are not a force decomposition
         if ax != "mane_ruff_extent":
             assert d["runaway"] == 0.0
 
@@ -212,3 +214,30 @@ def test_determinism(pack):
     assert a.to_json() == b.to_json()
     c = evolve(p, pack, stage_stream(10, "det", "s"), 10.0, path="x")
     assert a.to_json() != c.to_json()       # different seed differs
+
+
+# ──  generic rebinds  ─────────────────────────────────────────────────────
+
+
+def test_generic_rebinds_fire(pack):
+    """RFC §2: regular evolution rebinds WITHIN plan limits — over many
+    speciation edges some generic must rebind, always to a plan-legal
+    realization (or unbound where None is legal)."""
+    from exp.k13_treegen.forces import REBINDABLE, UNBINDABLE
+    p = parent_node()
+    plan_g = pack.registry.plans["tetrapod"]
+    rebinds = 0
+    cur = p
+    for i in range(60):
+        cur = evolve(cur, pack, stage_stream(9, "rb", str(i)), 60.0,
+                     path=f"x.{i}")
+        rb = cur.edge_delta.get("generic_rebind")
+        if rb:
+            rebinds += 1
+            for g, (old, new) in rb.items():
+                assert g in REBINDABLE
+                if new is None:
+                    assert g in UNBINDABLE
+                else:
+                    assert new in plan_g.generics[g]
+    assert rebinds > 3, f"only {rebinds} rebinds in 60 edges"

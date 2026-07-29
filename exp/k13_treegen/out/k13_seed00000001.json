@@ -1577,6 +1577,12 @@
      "drift": 0.4218020626677492,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "defense": [
+      null,
+      "escape_aquatic"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -1.466001977817583,
@@ -1744,6 +1750,7 @@
    "gen_time": 5.543761297725549,
    "generics": {
     "covering": "fur",
+    "defense": "escape_aquatic",
     "feeding_organ": "bunodont_molars",
     "locomotor": "plantigrade",
     "metabolism": "endotherm",
@@ -2276,6 +2283,12 @@
      "descent": 0.0,
      "drift": 0.19445674237068197,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "sustenance": [
+      "simple_gut",
+      "hindgut_cecum"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -5000,6 +5013,12 @@
      "drift": 1.0,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "signal": [
+      null,
+      "antlers"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.36597774934221466,
@@ -6866,7 +6885,7 @@
      "detritivore": 0.3,
      "frugivore": 0.4
     },
-    "dimorphism_direction": "male",
+    "dimorphism_direction": "none",
     "dorsal_crest_spines": "none",
     "ear_posture": "pendant",
     "ear_size_ratio": 0.09,
@@ -6899,7 +6918,7 @@
     "reproductive_mode": "gonochoric",
     "seasonal_molt": "none",
     "seasonality_mode": "resident",
-    "size_dimorphism_ratio": 1.3000316823370701,
+    "size_dimorphism_ratio": 1.0,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.7491346219742718,
     "snout_ratio": 0.5434394420740618,
@@ -6960,6 +6979,12 @@
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "covering": [
+      "fur",
+      "keratin_scales"
+     ]
     },
     "mane_ruff_extent": {
      "descent": 0.0,
@@ -7054,7 +7079,7 @@
    "g": 221.81332346215032,
    "gen_time": 1.9991899227097294,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "defense": "escape_cursorial",
     "feeding_organ": "bunodont_molars",
     "locomotor": "cursorial_unguligrade",
@@ -7103,7 +7128,7 @@
      "detritivore": 0.271898320510671,
      "frugivore": 0.49529542375640023
     },
-    "dimorphism_direction": "male",
+    "dimorphism_direction": "none",
     "dorsal_crest_spines": "none",
     "ear_posture": "pendant",
     "ear_size_ratio": 0.09010601662545642,
@@ -7117,7 +7142,7 @@
     "intermembral_index": 93.53966257382153,
     "lifespan_yr": 12.678454949695082,
     "limb_length_to_trunk": 1.0938853861879103,
-    "mane_ruff_extent": 0.3833104202989427,
+    "mane_ruff_extent": 0.30003168233707,
     "maturity_age_yr": 6.067302640785592,
     "metapodial_proximal_ratio": 0.5968611453021611,
     "neck_frill": 0.10752552298047635,
@@ -7136,7 +7161,7 @@
     "reproductive_mode": "gonochoric",
     "seasonal_molt": "none",
     "seasonality_mode": "resident",
-    "size_dimorphism_ratio": 1.3833104202989426,
+    "size_dimorphism_ratio": 1.0,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.787275322450632,
     "snout_ratio": 0.5439385282993809,
@@ -7249,11 +7274,6 @@
      "descent": 0.0,
      "drift": -0.09705736209666387,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": 3.8497151668975484,
-     "runaway": -1.80840615940435
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -7380,7 +7400,7 @@
    "g": 378.54185727719397,
    "gen_time": 2.037461021257767,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "defense": "escape_cursorial",
     "feeding_organ": "bunodont_molars",
     "locomotor": "cursorial_unguligrade",
@@ -7429,7 +7449,7 @@
      "detritivore": 0.5154838403085867,
      "frugivore": 0.29511232237352086
     },
-    "dimorphism_direction": "male",
+    "dimorphism_direction": "none",
     "dorsal_crest_spines": "none",
     "ear_posture": "pendant",
     "ear_size_ratio": 0.0905156286589053,
@@ -7443,7 +7463,7 @@
     "intermembral_index": 95.53340887037521,
     "lifespan_yr": 12.885349601468016,
     "limb_length_to_trunk": 1.056154880078083,
-    "mane_ruff_extent": 0.35540325788550386,
+    "mane_ruff_extent": 0.30003168233707,
     "maturity_age_yr": 6.025892285969501,
     "metapodial_proximal_ratio": 0.5952700667896823,
     "neck_frill": 0.10570322485418733,
@@ -7462,7 +7482,7 @@
     "reproductive_mode": "gonochoric",
     "seasonal_molt": "none",
     "seasonality_mode": "resident",
-    "size_dimorphism_ratio": 1.355403257885504,
+    "size_dimorphism_ratio": 1.0,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.8079268526862246,
     "snout_ratio": 0.5419213576466421,
@@ -7486,7 +7506,7 @@
     "vocal_sac": "paired",
     "wariness": 0.4017258934173192
    },
-   "description": "a sizeable fur boar-like detritivore with pendant ears",
+   "description": "a sizeable keratin-scaled boar-like detritivore with pendant ears",
    "edge_delta": {
     "base_color": {
      "descent": 0.0,
@@ -7545,6 +7565,12 @@
      "drift": -0.12478939561239183,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "storage": [
+      "fat_depot_seasonal",
+      "caching_scatter_hoard"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.11781621884374877,
@@ -7570,11 +7596,6 @@
      "descent": 0.0,
      "drift": -0.5988969223782126,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": -0.0166898354354399,
-     "runaway": -0.6132441252104898
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -7696,7 +7717,7 @@
    "g": 431.68968146210307,
    "gen_time": 2.0084153436805834,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "defense": "escape_cursorial",
     "feeding_organ": "bunodont_molars",
     "locomotor": "cursorial_unguligrade",
@@ -7705,7 +7726,7 @@
     "reproduction": "viviparous",
     "respiration": "lungs",
     "sensor_array": "camera_eye_lateral",
-    "storage": "fat_depot_seasonal",
+    "storage": "caching_scatter_hoard",
     "support": "endoskeleton",
     "sustenance": "simple_gut"
    },
@@ -7745,7 +7766,7 @@
      "detritivore": 0.21785679917441228,
      "frugivore": 0.5126814914827663
     },
-    "dimorphism_direction": "male",
+    "dimorphism_direction": "none",
     "dorsal_crest_spines": "none",
     "ear_posture": "pendant",
     "ear_size_ratio": 0.09054993745089084,
@@ -7759,7 +7780,7 @@
     "intermembral_index": 89.9091305650942,
     "lifespan_yr": 16.189878623889243,
     "limb_length_to_trunk": 1.0443484951026978,
-    "mane_ruff_extent": 0.3260571095390926,
+    "mane_ruff_extent": 0.30003168233707,
     "maturity_age_yr": 6.172456310116852,
     "metapodial_proximal_ratio": 0.5918719051949712,
     "neck_frill": 0.11856672943529771,
@@ -7778,7 +7799,7 @@
     "reproductive_mode": "gonochoric",
     "seasonal_molt": "none",
     "seasonality_mode": "resident",
-    "size_dimorphism_ratio": 1.3260571095390925,
+    "size_dimorphism_ratio": 1.0,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.8352612257597349,
     "snout_ratio": 0.5415403507532008,
@@ -7802,7 +7823,7 @@
     "vocal_sac": "paired",
     "wariness": 0.395539949674308
    },
-   "description": "a sizeable fur boar-like frugivore with pendant ears",
+   "description": "a sizeable keratin-scaled boar-like frugivore with pendant ears",
    "edge_delta": {
     "base_color": {
      "descent": 0.0,
@@ -7886,11 +7907,6 @@
      "descent": 0.0,
      "drift": -0.786299858495437,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": -0.5746083506135334,
-     "runaway": -0.7734967253050761
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -8027,7 +8043,7 @@
    "g": 445.5782401369672,
    "gen_time": 2.040305226688481,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "defense": "escape_cursorial",
     "feeding_organ": "bunodont_molars",
     "locomotor": "cursorial_unguligrade",
@@ -8218,11 +8234,6 @@
      "descent": 0.0,
      "drift": 0.19468558108027734,
      "runaway": 0.0
-    },
-    "mane_ruff_extent": {
-     "descent": 0.0,
-     "drift": -2.0411911637420594,
-     "runaway": -2.294262042688421
     },
     "metapodial_proximal_ratio": {
      "descent": 0.0,
@@ -12086,6 +12097,12 @@
      "drift": 0.49241600672809666,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sustenance": [
+      "simple_gut",
+      "hindgut_cecum"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 1.1163360681610643,
@@ -12535,6 +12552,12 @@
      "drift": -0.3152504845709553,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sensor_array": [
+      "camera_eye_binocular",
+      "camera_eye_lateral"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 1.1374316596183884,
@@ -12709,7 +12732,7 @@
     "osmoreg": "standard",
     "reproduction": "viviparous",
     "respiration": "lungs",
-    "sensor_array": "camera_eye_binocular",
+    "sensor_array": "camera_eye_lateral",
     "support": "endoskeleton",
     "sustenance": "simple_gut"
    },
@@ -12961,6 +12984,12 @@
      "drift": 1.0,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "locomotor": [
+      "cursorial_unguligrade",
+      "plantigrade"
+     ]
+    },
     "mane_ruff_extent": {
      "descent": 0.0,
      "drift": -2.7520721916784248,
@@ -13044,7 +13073,7 @@
     "covering": "fur",
     "defense": "escape_cursorial",
     "feeding_organ": "hypsodont_molars",
-    "locomotor": "cursorial_unguligrade",
+    "locomotor": "plantigrade",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "viviparous",
@@ -13218,6 +13247,12 @@
      "descent": 0.0,
      "drift": -0.5429738747719534,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "sustenance": [
+      "rumen_4chamber",
+      "hindgut_cecum"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -13398,7 +13433,7 @@
     "covering": "fur",
     "defense": "escape_cursorial",
     "feeding_organ": "hypsodont_molars",
-    "locomotor": "cursorial_unguligrade",
+    "locomotor": "plantigrade",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "viviparous",
@@ -13406,7 +13441,7 @@
     "sensor_array": "camera_eye_lateral",
     "signal": "antlers",
     "support": "endoskeleton",
-    "sustenance": "rumen_4chamber"
+    "sustenance": "hindgut_cecum"
    },
    "label": null,
    "name": {
@@ -13736,7 +13771,7 @@
     "covering": "fur",
     "defense": "escape_cursorial",
     "feeding_organ": "hypsodont_molars",
-    "locomotor": "cursorial_unguligrade",
+    "locomotor": "plantigrade",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "viviparous",
@@ -13744,7 +13779,7 @@
     "sensor_array": "camera_eye_lateral",
     "signal": "antlers",
     "support": "endoskeleton",
-    "sustenance": "rumen_4chamber"
+    "sustenance": "hindgut_cecum"
    },
    "label": null,
    "name": {
@@ -14074,7 +14109,7 @@
     "covering": "fur",
     "defense": "escape_cursorial",
     "feeding_organ": "hypsodont_molars",
-    "locomotor": "cursorial_unguligrade",
+    "locomotor": "plantigrade",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "viviparous",
@@ -14082,7 +14117,7 @@
     "sensor_array": "camera_eye_lateral",
     "signal": "antlers",
     "support": "endoskeleton",
-    "sustenance": "rumen_4chamber"
+    "sustenance": "hindgut_cecum"
    },
    "label": null,
    "name": {
@@ -14418,7 +14453,7 @@
     "covering": "fur",
     "defense": "escape_cursorial",
     "feeding_organ": "hypsodont_molars",
-    "locomotor": "cursorial_unguligrade",
+    "locomotor": "plantigrade",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "viviparous",
@@ -14426,7 +14461,7 @@
     "sensor_array": "camera_eye_lateral",
     "signal": "antlers",
     "support": "endoskeleton",
-    "sustenance": "rumen_4chamber"
+    "sustenance": "hindgut_cecum"
    },
    "label": null,
    "name": {
@@ -16407,6 +16442,12 @@
      "drift": -0.6155726527409845,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "locomotor": [
+      "cursorial_unguligrade",
+      "scansorial_climbing"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 1.263131737246129,
@@ -16568,7 +16609,7 @@
     "covering": "fur",
     "defense": "escape_cursorial",
     "feeding_organ": "hypsodont_molars",
-    "locomotor": "cursorial_unguligrade",
+    "locomotor": "scansorial_climbing",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "viviparous",
@@ -16753,6 +16794,12 @@
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "sensor_array": [
+      "camera_eye_lateral",
+      "camera_eye_binocular"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -17120,7 +17167,7 @@
     "reproductive_mode": "simultaneous_hermaphrodite",
     "seasonal_molt": "none",
     "seasonality_mode": "migrant_latitudinal",
-    "size_dimorphism_ratio": 1.3027043583101567,
+    "size_dimorphism_ratio": 1.3,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.0,
     "snout_ratio": 0.507462471666759,
@@ -17144,7 +17191,7 @@
     "vocal_sac": "none",
     "wariness": 0.5088856101298517
    },
-   "description": "a large fur deer-like browser with folded ears",
+   "description": "a large keratin-scaled deer-like browser with folded ears",
    "edge_delta": {
     "blubber_thickness": {
      "descent": 0.0,
@@ -17207,6 +17254,12 @@
      "descent": 0.0,
      "drift": -0.03703478195708004,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "covering": [
+      "fur",
+      "keratin_scales"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -17379,7 +17432,7 @@
    "g": 660.987819474202,
    "gen_time": 4.9620429453576795,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "defense": "escape_cursorial",
     "feeding_organ": "hypsodont_molars",
     "locomotor": "cursorial_unguligrade",
@@ -20389,7 +20442,7 @@
     "reproductive_mode": "gonochoric",
     "seasonal_molt": "none",
     "seasonality_mode": "resident",
-    "size_dimorphism_ratio": 1.4432660880372497,
+    "size_dimorphism_ratio": 1.7432660880372497,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.18328861871579968,
     "snout_ratio": 0.4887804158279915,
@@ -20481,6 +20534,12 @@
      "descent": 0.0,
      "drift": -0.29965842828445527,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "signal": [
+      null,
+      "mane"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -20656,6 +20715,7 @@
     "reproduction": "viviparous",
     "respiration": "lungs",
     "sensor_array": "reduced_eye",
+    "signal": "mane",
     "support": "endoskeleton",
     "sustenance": "simple_gut"
    },
@@ -20726,7 +20786,7 @@
     "reproductive_mode": "gonochoric",
     "seasonal_molt": "eclipse",
     "seasonality_mode": "resident",
-    "size_dimorphism_ratio": 1.4563594869501175,
+    "size_dimorphism_ratio": 1.7563594869501173,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.16010057200590988,
     "snout_ratio": 0.47907945450679407,
@@ -20983,6 +21043,7 @@
     "reproduction": "viviparous",
     "respiration": "lungs",
     "sensor_array": "reduced_eye",
+    "signal": "mane",
     "support": "endoskeleton",
     "sustenance": "simple_gut"
    },
@@ -21150,6 +21211,12 @@
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "signal": [
+      "mane",
+      null
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -21375,7 +21442,7 @@
     "reproductive_mode": "sequential_protogynous",
     "seasonal_molt": "none",
     "seasonality_mode": "nomadic",
-    "size_dimorphism_ratio": 1.5100954438551075,
+    "size_dimorphism_ratio": 1.8100954438551073,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.21677113598160327,
     "snout_ratio": 0.4774424758499081,
@@ -21627,6 +21694,7 @@
     "reproduction": "viviparous",
     "respiration": "lungs",
     "sensor_array": "reduced_eye",
+    "signal": "mane",
     "support": "endoskeleton",
     "sustenance": "simple_gut"
    },
@@ -21790,6 +21858,12 @@
      "descent": 0.0,
      "drift": -0.22950876874169365,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "storage": [
+      null,
+      "caching_scatter_hoard"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -24021,7 +24095,7 @@
     "diet_spectrum": {
      "frugivore": 1.0
     },
-    "dimorphism_direction": "male",
+    "dimorphism_direction": "none",
     "dorsal_crest_spines": "sail",
     "ear_posture": "semi-erect",
     "ear_size_ratio": 0.05039370738234443,
@@ -24054,7 +24128,7 @@
     "reproductive_mode": "simultaneous_hermaphrodite",
     "seasonal_molt": "none",
     "seasonality_mode": "resident",
-    "size_dimorphism_ratio": 1.741721679632906,
+    "size_dimorphism_ratio": 1.0,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.18725222756636206,
     "snout_ratio": 0.2546129640769744,
@@ -24078,7 +24152,7 @@
     "vocal_sac": "median",
     "wariness": 0.6012043901832188
    },
-   "description": "a medium fur monkey-like frugivore with a full mane",
+   "description": "a medium scaled monkey-like frugivore with a trunk",
    "edge_delta": {
     "blubber_thickness": {
      "descent": 0.0,
@@ -24126,6 +24200,12 @@
      "descent": 0.0,
      "drift": -0.4643325005836597,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "covering": [
+      "fur",
+      "scales"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -24293,7 +24373,7 @@
    "g": 389.88512338768817,
    "gen_time": 1.774807266695317,
    "generics": {
-    "covering": "fur",
+    "covering": "scales",
     "feeding_organ": "bunodont_molars",
     "locomotor": "scansorial_arboreal",
     "metabolism": "endotherm",
@@ -26832,6 +26912,12 @@
      "drift": 0.2092455779307829,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sensor_array": [
+      "camera_eye_lateral",
+      "camera_eye_binocular"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.32342149370415063,
@@ -26991,7 +27077,7 @@
     "osmoreg": "standard",
     "reproduction": "viviparous",
     "respiration": "lungs",
-    "sensor_array": "camera_eye_lateral",
+    "sensor_array": "camera_eye_binocular",
     "support": "endoskeleton",
     "sustenance": "hindgut_cecum"
    },
@@ -28164,6 +28250,12 @@
      "drift": -0.29118792270271865,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "storage": [
+      null,
+      "caching_scatter_hoard"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.22244092001003343,
@@ -28337,6 +28429,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "caching_scatter_hoard",
     "support": "endoskeleton",
     "sustenance": "simple_gut"
    },
@@ -35639,7 +35732,7 @@
     "vocal_sac": "median",
     "wariness": 0.4711477104860454
    },
-   "description": "a tiny fur squirrel-like granivore with folded ears",
+   "description": "a tiny keratin-scaled squirrel-like granivore with folded ears",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -35702,6 +35795,12 @@
      "descent": 0.0,
      "drift": -0.6742723451116271,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "covering": [
+      "fur",
+      "keratin_scales"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -35861,7 +35960,7 @@
    "g": 485.1681400459125,
    "gen_time": 0.47903350969564157,
    "generics": {
-    "covering": "fur",
+    "covering": "keratin_scales",
     "defense": "escape_arboreal",
     "feeding_organ": "ever_growing_incisors_1pair",
     "locomotor": "scansorial_climbing",
@@ -40557,7 +40656,7 @@
     "reproductive_mode": "sequential_protogynous",
     "seasonal_molt": "eclipse",
     "seasonality_mode": "resident",
-    "size_dimorphism_ratio": 1.122174965118017,
+    "size_dimorphism_ratio": 1.0,
     "skin_texture": "N/A",
     "skin_wrinkle_looseness": 0.2400433209668601,
     "snout_ratio": 0.395235402534766,
@@ -40581,7 +40680,7 @@
     "vocal_sac": "median",
     "wariness": 0.5274935938677313
    },
-   "description": "a tiny fur squirrel-like granivore with a full mane",
+   "description": "a tiny scaled squirrel-like granivore with pendant ears",
    "edge_delta": {
     "accent_color": {
      "descent": 0.0,
@@ -40650,6 +40749,12 @@
      "descent": 0.0,
      "drift": 1.0,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "covering": [
+      "fur",
+      "scales"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -40827,7 +40932,7 @@
    "g": 560.4196475762477,
    "gen_time": 0.49376641002443394,
    "generics": {
-    "covering": "fur",
+    "covering": "scales",
     "defense": "escape_arboreal",
     "feeding_organ": "ever_growing_incisors_1pair",
     "locomotor": "scansorial_climbing",
@@ -41994,6 +42099,12 @@
      "drift": 1.0,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "ever_growing_incisors_1pair",
+      "insectivore_dentition"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -1.1115753319275683,
@@ -42182,7 +42293,7 @@
    "generics": {
     "covering": "fur",
     "defense": "escape_arboreal",
-    "feeding_organ": "ever_growing_incisors_1pair",
+    "feeding_organ": "insectivore_dentition",
     "locomotor": "scansorial_climbing",
     "metabolism": "endotherm",
     "osmoreg": "standard",
@@ -44629,6 +44740,12 @@
      "drift": -0.13465988289326536,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "storage": [
+      "caching_scatter_hoard",
+      "fat_depot_seasonal"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.8706634951267345,
@@ -44804,7 +44921,7 @@
     "reproduction": "viviparous",
     "respiration": "lungs",
     "sensor_array": "camera_eye_lateral",
-    "storage": "caching_scatter_hoard",
+    "storage": "fat_depot_seasonal",
     "support": "endoskeleton",
     "sustenance": "hindgut_cecum"
    },
@@ -49079,6 +49196,12 @@
      "drift": -1.211092131872832,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "locomotor": [
+      "feathered_wing",
+      "flipper_aquatic"
+     ]
+    },
     "leg_feathering": {
      "descent": 0.0,
      "drift": 1.0,
@@ -49126,7 +49249,7 @@
    "generics": {
     "covering": "feathers",
     "feeding_organ": "beak_lamellate_filter",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -49397,7 +49520,7 @@
    "generics": {
     "covering": "feathers",
     "feeding_organ": "beak_lamellate_filter",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -49673,7 +49796,7 @@
    "generics": {
     "covering": "feathers",
     "feeding_organ": "beak_lamellate_filter",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -49949,7 +50072,7 @@
    "generics": {
     "covering": "feathers",
     "feeding_organ": "beak_lamellate_filter",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -50235,7 +50358,7 @@
    "generics": {
     "covering": "feathers",
     "feeding_organ": "beak_lamellate_filter",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -50516,7 +50639,7 @@
    "generics": {
     "covering": "feathers",
     "feeding_organ": "beak_lamellate_filter",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -50679,6 +50802,12 @@
      "descent": 0.0,
      "drift": 0.6766233787806364,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "feeding_organ": [
+      "beak_lamellate_filter",
+      "beak_piscivore"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -51400,6 +51529,12 @@
      "drift": 1.0,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sensor_array": [
+      "camera_eye_binocular",
+      "camera_eye_lateral"
+     ]
+    },
     "head_casque": {
      "descent": 0.0,
      "drift": 1.0,
@@ -51453,7 +51588,7 @@
     "osmoreg": "standard",
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
-    "sensor_array": "camera_eye_binocular",
+    "sensor_array": "camera_eye_lateral",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -51624,6 +51759,12 @@
      "drift": -0.6908386347813955,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "storage": [
+      null,
+      "subcutaneous_fat"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.3181092993688384,
@@ -51753,7 +51894,8 @@
     "osmoreg": "standard",
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
-    "sensor_array": "camera_eye_binocular",
+    "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -52018,7 +52160,8 @@
     "osmoreg": "standard",
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
-    "sensor_array": "camera_eye_binocular",
+    "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -52179,6 +52322,12 @@
      "drift": -0.9954575348778644,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "defense": [
+      "talons",
+      "escape_flight"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.5422448222989444,
@@ -52291,14 +52440,15 @@
    "gen_time": 0.7520013147330704,
    "generics": {
     "covering": "feathers",
-    "defense": "talons",
+    "defense": "escape_flight",
     "feeding_organ": "beak_hooked_flesh",
     "locomotor": "feathered_wing",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
-    "sensor_array": "camera_eye_binocular",
+    "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -52862,6 +53012,12 @@
      "drift": -0.7734473155529337,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "defense": [
+      "talons",
+      "mobbing"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.6790054042542232,
@@ -52989,7 +53145,7 @@
    "gen_time": 1.1211278764877655,
    "generics": {
     "covering": "feathers",
-    "defense": "talons",
+    "defense": "mobbing",
     "feeding_organ": "beak_hooked_flesh",
     "locomotor": "feathered_wing",
     "metabolism": "endotherm",
@@ -53992,6 +54148,12 @@
      "drift": 0.8181469888622279,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "defense": [
+      null,
+      "escape_flight"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.3458241415374057,
@@ -54094,6 +54256,7 @@
    "gen_time": 1.224295485726068,
    "generics": {
     "covering": "feathers",
+    "defense": "escape_flight",
     "feeding_organ": "beak_spear_probe",
     "locomotor": "feathered_wing",
     "metabolism": "endotherm",
@@ -54266,6 +54429,12 @@
      "drift": -0.8584859489928653,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "signal": [
+      null,
+      "facial_disc"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.8891164513617074,
@@ -54375,6 +54544,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_binocular",
+    "signal": "facial_disc",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -59110,6 +59280,12 @@
      "drift": -2.8444631920347994,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sustenance": [
+      "crop_gizzard",
+      "simple_gut"
+     ]
+    },
     "head_casque": {
      "descent": 0.0,
      "drift": 1.0,
@@ -59160,7 +59336,7 @@
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
     "support": "endoskeleton_pneumatic",
-    "sustenance": "crop_gizzard"
+    "sustenance": "simple_gut"
    },
    "label": null,
    "name": {
@@ -59450,7 +59626,7 @@
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
     "support": "endoskeleton_pneumatic",
-    "sustenance": "crop_gizzard"
+    "sustenance": "simple_gut"
    },
    "label": null,
    "name": {
@@ -59745,7 +59921,7 @@
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
     "support": "endoskeleton_pneumatic",
-    "sustenance": "crop_gizzard"
+    "sustenance": "simple_gut"
    },
    "label": null,
    "name": {
@@ -59904,6 +60080,12 @@
      "drift": -0.029015090131271466,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "beak_conical_seed",
+      "beak_lamellate_filter"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -1.6033558446620206,
@@ -60017,7 +60199,7 @@
    "generics": {
     "covering": "feathers",
     "defense": "escape_flight",
-    "feeding_organ": "beak_conical_seed",
+    "feeding_organ": "beak_lamellate_filter",
     "locomotor": "feathered_wing",
     "metabolism": "endotherm",
     "osmoreg": "standard",
@@ -60025,7 +60207,7 @@
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
     "support": "endoskeleton_pneumatic",
-    "sustenance": "crop_gizzard"
+    "sustenance": "simple_gut"
    },
    "label": null,
    "name": {
@@ -60315,7 +60497,7 @@
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
     "support": "endoskeleton_pneumatic",
-    "sustenance": "crop_gizzard"
+    "sustenance": "simple_gut"
    },
    "label": null,
    "name": {
@@ -60595,7 +60777,7 @@
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
     "support": "endoskeleton_pneumatic",
-    "sustenance": "crop_gizzard"
+    "sustenance": "simple_gut"
    },
    "label": null,
    "name": {
@@ -61660,6 +61842,12 @@
      "drift": 1.05064009731,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "signal": [
+      null,
+      "display_plumage"
+     ]
+    },
     "head_casque": {
      "descent": 0.0,
      "drift": 1.0,
@@ -61872,6 +62060,12 @@
      "drift": 0.1712668338229599,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "locomotor": [
+      "feathered_wing",
+      "flipper_aquatic"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.05589215917096019,
@@ -61988,7 +62182,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -62073,7 +62267,7 @@
     "toe_arrangement": "syndactyl",
     "torpor_mode": "none",
     "trophic_level": 1.8308303302367044,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "pelagic",
     "wariness": 0.4569686836810765,
     "wattle_snood": 0.0,
     "wing_loading": 1.5519384290637024,
@@ -62235,6 +62429,11 @@
      "drift": -0.8085237644361108,
      "runaway": 0.0
     },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "wariness": {
      "descent": 0.0,
      "drift": 0.788504704337262,
@@ -62265,7 +62464,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -62532,7 +62731,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -62819,7 +63018,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -62904,7 +63103,7 @@
     "toe_arrangement": "pamprodactyl",
     "torpor_mode": "none",
     "trophic_level": 2.109703981367971,
-    "vertical_stratum": "aerial",
+    "vertical_stratum": "demersal",
     "wariness": 0.4250973103746408,
     "wattle_snood": 0.0,
     "wing_loading": 2.4566792399149144,
@@ -63061,6 +63260,11 @@
      "drift": 0.5858444912202223,
      "runaway": 0.0
     },
+    "vertical_stratum": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
     "wariness": {
      "descent": 0.0,
      "drift": 0.06553716052689909,
@@ -63096,7 +63300,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -63107,7 +63311,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Cindethon audax",
+    "binomial": "Cindethon demersus",
     "folk": null,
     "history": []
    },
@@ -63393,7 +63597,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -63660,7 +63864,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -63947,7 +64151,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -64944,6 +65148,12 @@
      "drift": -0.35211274432354706,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sensor_array": [
+      "camera_eye_lateral",
+      "camera_eye_binocular"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.2933451630812333,
@@ -65070,7 +65280,7 @@
     "osmoreg": "standard",
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
-    "sensor_array": "camera_eye_lateral",
+    "sensor_array": "camera_eye_binocular",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -65221,6 +65431,12 @@
      "drift": 0.06465926988992812,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "locomotor": [
+      "feathered_wing",
+      "flipper_aquatic"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.508364736416688,
@@ -65322,7 +65538,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -66878,6 +67094,12 @@
      "drift": 0.007436597148504802,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "storage": [
+      null,
+      "subcutaneous_fat"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.09995871339791977,
@@ -66990,6 +67212,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -67150,6 +67373,12 @@
      "drift": -0.04055561506668675,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sensor_array": [
+      "camera_eye_lateral",
+      "camera_eye_binocular"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.1994528851552756,
@@ -67271,7 +67500,8 @@
     "osmoreg": "standard",
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
-    "sensor_array": "camera_eye_lateral",
+    "sensor_array": "camera_eye_binocular",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -67549,6 +67779,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -67829,6 +68060,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -68111,6 +68343,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -68388,6 +68621,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -68548,6 +68782,12 @@
      "drift": 0.2274684674449218,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "defense": [
+      "escape_flight",
+      "talons"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.48583778583832665,
@@ -68652,7 +68892,7 @@
    "gen_time": 0.357400856639609,
    "generics": {
     "covering": "feathers",
-    "defense": "escape_flight",
+    "defense": "talons",
     "feeding_organ": "beak_generalist",
     "locomotor": "feathered_wing",
     "metabolism": "endotherm",
@@ -68660,6 +68900,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -68927,6 +69168,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -69087,6 +69329,12 @@
      "drift": 0.3879487113961057,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "signal": [
+      null,
+      "facial_disc"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.3836070012428021,
@@ -69209,6 +69457,8 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "signal": "facial_disc",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -69363,6 +69613,12 @@
      "descent": 0.0,
      "drift": -0.5927272292104185,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "storage": [
+      "subcutaneous_fat",
+      null
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -69753,6 +70009,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -70020,6 +70277,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -70292,6 +70550,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -70574,6 +70833,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -70861,6 +71121,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -71133,6 +71394,7 @@
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
+    "storage": "subcutaneous_fat",
     "support": "endoskeleton_pneumatic",
     "sustenance": "crop_gizzard"
    },
@@ -72431,6 +72693,12 @@
      "drift": -0.06094850982879529,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "beak_generalist",
+      "beak_spear_probe"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.06736524976326651,
@@ -72556,7 +72824,7 @@
    "generics": {
     "covering": "feathers",
     "defense": "escape_flight",
-    "feeding_organ": "beak_generalist",
+    "feeding_organ": "beak_spear_probe",
     "locomotor": "feathered_wing",
     "metabolism": "endotherm",
     "osmoreg": "standard",
@@ -74410,6 +74678,12 @@
      "drift": 0.9765285893774739,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "beak_generalist",
+      "beak_lamellate_filter"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.2899337226415639,
@@ -74535,7 +74809,7 @@
    "generics": {
     "covering": "feathers",
     "defense": "escape_flight",
-    "feeding_organ": "beak_generalist",
+    "feeding_organ": "beak_lamellate_filter",
     "locomotor": "feathered_wing",
     "metabolism": "endotherm",
     "osmoreg": "standard",
@@ -76392,6 +76666,12 @@
      "drift": -0.05920473673068994,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "beak_generalist",
+      "beak_hooked_flesh"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.5421814307747167,
@@ -76497,7 +76777,7 @@
    "generics": {
     "covering": "feathers",
     "defense": "escape_flight",
-    "feeding_organ": "beak_generalist",
+    "feeding_organ": "beak_hooked_flesh",
     "locomotor": "feathered_wing",
     "metabolism": "endotherm",
     "osmoreg": "standard",
@@ -78326,6 +78606,12 @@
      "drift": 0.16651244707770743,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "locomotor": [
+      "feathered_wing",
+      "flipper_aquatic"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.0046888731384456235,
@@ -78447,7 +78733,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -78608,6 +78894,12 @@
      "drift": -0.3097026537350577,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sustenance": [
+      "crop_gizzard",
+      "simple_gut"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.5240565941582267,
@@ -78709,14 +79001,14 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
     "respiration": "lungs_air_sacs",
     "sensor_array": "camera_eye_lateral",
     "support": "endoskeleton_pneumatic",
-    "sustenance": "crop_gizzard"
+    "sustenance": "simple_gut"
    },
    "label": null,
    "name": {
@@ -78996,7 +79288,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -79081,7 +79373,7 @@
     "toe_arrangement": "anisodactyl",
     "torpor_mode": "none",
     "trophic_level": 2.106950657973563,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "benthic",
     "wariness": 0.8524171765302533,
     "wattle_snood": 0.04742590528807815,
     "wing_loading": 12.863173392657057,
@@ -79273,7 +79565,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -79535,7 +79827,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -79620,7 +79912,7 @@
     "toe_arrangement": "anisodactyl",
     "torpor_mode": "daily",
     "trophic_level": 2.0420224554942923,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "benthic",
     "wariness": 0.5326494356867072,
     "wattle_snood": 0.13590141411833612,
     "wing_loading": 1.0833791297234017,
@@ -79842,7 +80134,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -80149,7 +80441,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -80234,7 +80526,7 @@
     "toe_arrangement": "anisodactyl",
     "torpor_mode": "hibernation",
     "trophic_level": 1.9748973123664706,
-    "vertical_stratum": "ground",
+    "vertical_stratum": "benthic",
     "wariness": 0.5763148199509887,
     "wattle_snood": 0.0,
     "wing_loading": 3.507636154903677,
@@ -80441,7 +80733,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -80452,7 +80744,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Violaceavis terrestris",
+    "binomial": "Violaceavis ferox",
     "folk": null,
     "history": []
    },
@@ -85404,6 +85696,12 @@
      "drift": 0.1547043509324415,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "locomotor": [
+      "feathered_wing",
+      "flipper_aquatic"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.21706716713985347,
@@ -85515,7 +85813,7 @@
     "covering": "feathers",
     "defense": "escape_flight",
     "feeding_organ": "beak_generalist",
-    "locomotor": "feathered_wing",
+    "locomotor": "flipper_aquatic",
     "metabolism": "endotherm",
     "osmoreg": "standard",
     "reproduction": "oviparous",
@@ -91061,6 +91359,12 @@
      "drift": -0.07563018836281979,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "storage": [
+      null,
+      "crop_storage"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.11651141078236947,
@@ -91155,7 +91459,8 @@
     "osmoreg": "standard",
     "reproduction": "oviparous_eusocial",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_antennae",
+    "storage": "crop_storage"
    },
    "label": null,
    "name": {
@@ -91388,7 +91693,8 @@
     "osmoreg": "standard",
     "reproduction": "oviparous_eusocial",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_antennae",
+    "storage": "crop_storage"
    },
    "label": null,
    "name": {
@@ -91611,7 +91917,8 @@
     "osmoreg": "standard",
     "reproduction": "oviparous_eusocial",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_antennae",
+    "storage": "crop_storage"
    },
    "label": null,
    "name": {
@@ -91839,7 +92146,8 @@
     "osmoreg": "standard",
     "reproduction": "oviparous_eusocial",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_antennae",
+    "storage": "crop_storage"
    },
    "label": null,
    "name": {
@@ -92077,7 +92385,8 @@
     "osmoreg": "standard",
     "reproduction": "oviparous_eusocial",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_antennae",
+    "storage": "crop_storage"
    },
    "label": null,
    "name": {
@@ -93957,6 +94266,12 @@
      "drift": -0.8145881012699645,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sustenance": [
+      null,
+      "simple_gut"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.909969894337499,
@@ -94063,7 +94378,8 @@
     "osmoreg": "standard",
     "reproduction": "holometabolous",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_antennae",
+    "sustenance": "simple_gut"
    },
    "label": null,
    "name": {
@@ -95946,7 +96262,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 2.0007796975975345
    },
-   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
+   "description": "a tiny chitin-plated beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -96009,6 +96325,12 @@
      "descent": 0.0,
      "drift": -1.6057194736979918,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "covering": [
+      "chitin_cuticle_sclerotized",
+      "chitin_cuticle"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -96108,7 +96430,7 @@
    "g": 565.4748238339464,
    "gen_time": 0.13035155432092,
    "generics": {
-    "covering": "chitin_cuticle_sclerotized",
+    "covering": "chitin_cuticle",
     "defense": "elytra_armor",
     "feeding_organ": "mandibulate",
     "locomotor": "insectoid_wing_elytra",
@@ -98794,6 +99116,12 @@
      "drift": 0.36570312406360483,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "defense": [
+      "elytra_armor",
+      null
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.1415818737122576,
@@ -98898,7 +99226,6 @@
    "gen_time": 0.22303600857354253,
    "generics": {
     "covering": "chitin_cuticle_sclerotized",
-    "defense": "elytra_armor",
     "feeding_organ": "mandibulate",
     "locomotor": "insectoid_wing_elytra",
     "metabolism": "ectotherm",
@@ -100927,6 +101254,12 @@
      "drift": -0.24306051533589906,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sustenance": [
+      null,
+      "simple_gut"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 1.131116941794232,
@@ -101023,7 +101356,8 @@
     "osmoreg": "standard",
     "reproduction": "holometabolous",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_antennae",
+    "sustenance": "simple_gut"
    },
    "label": null,
    "name": {
@@ -104392,6 +104726,12 @@
      "drift": 1.1983387738687334,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "mandibulate",
+      "siphoning_proboscis"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -1.6430986983303273,
@@ -104492,7 +104832,7 @@
    "generics": {
     "covering": "chitin_cuticle_sclerotized",
     "defense": "elytra_armor",
-    "feeding_organ": "mandibulate",
+    "feeding_organ": "siphoning_proboscis",
     "locomotor": "insectoid_wing_elytra",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
@@ -104619,6 +104959,12 @@
      "drift": 0.6521967865045849,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sensor_array": [
+      "compound_eye_antennae",
+      "compound_eye_large"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.7706298795428169,
@@ -104715,7 +105061,7 @@
     "osmoreg": "standard",
     "reproduction": "holometabolous",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_large"
    },
    "label": null,
    "name": {
@@ -106430,6 +106776,12 @@
      "drift": -0.08075041165243264,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "mandibulate",
+      "siphoning_proboscis"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 1.0634186105425552,
@@ -106535,7 +106887,7 @@
    "generics": {
     "covering": "chitin_cuticle_sclerotized",
     "defense": "elytra_armor",
-    "feeding_organ": "mandibulate",
+    "feeding_organ": "siphoning_proboscis",
     "locomotor": "insectoid_wing_elytra",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
@@ -108227,7 +108579,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 2.608797224371978
    },
-   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
+   "description": "a tiny chitin-plated beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -108290,6 +108642,12 @@
      "descent": 0.0,
      "drift": -0.08259997217576062,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "covering": [
+      "chitin_cuticle_sclerotized",
+      "chitin_cuticle"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -108379,7 +108737,7 @@
    "g": 562.421749820385,
    "gen_time": 0.14239933866655288,
    "generics": {
-    "covering": "chitin_cuticle_sclerotized",
+    "covering": "chitin_cuticle",
     "defense": "elytra_armor",
     "feeding_organ": "mandibulate",
     "locomotor": "insectoid_wing_elytra",
@@ -109673,6 +110031,12 @@
      "drift": -0.22236077088500816,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "locomotor": [
+      "insectoid_wing_elytra",
+      "cursorial_hexapod"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -0.16084033226567884,
@@ -109769,7 +110133,7 @@
     "covering": "chitin_cuticle_sclerotized",
     "defense": "elytra_armor",
     "feeding_organ": "mandibulate",
-    "locomotor": "insectoid_wing_elytra",
+    "locomotor": "cursorial_hexapod",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
     "reproduction": "holometabolous",
@@ -111480,7 +111844,7 @@
     "wing_count": "4_elytra",
     "wing_span_ratio": 1.267515122876429
    },
-   "description": "a tiny chitin cuticle sclerotized-covered beetle-like detritivore",
+   "description": "a tiny chitin cuticle scaled-covered beetle-like detritivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -111553,6 +111917,12 @@
      "descent": 0.0,
      "drift": -1.2776235688106488,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "covering": [
+      "chitin_cuticle_sclerotized",
+      "chitin_cuticle_scaled"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -111652,7 +112022,7 @@
    "g": 583.3095473214404,
    "gen_time": 0.13166226240614254,
    "generics": {
-    "covering": "chitin_cuticle_sclerotized",
+    "covering": "chitin_cuticle_scaled",
     "defense": "elytra_armor",
     "feeding_organ": "mandibulate",
     "locomotor": "insectoid_wing_elytra",
@@ -117843,6 +118213,12 @@
      "drift": -0.3496502645166538,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "mandibulate",
+      "siphoning_proboscis"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.8928082160455169,
@@ -117938,7 +118314,7 @@
    "generics": {
     "covering": "chitin_cuticle_sclerotized",
     "defense": "elytra_armor",
-    "feeding_organ": "mandibulate",
+    "feeding_organ": "siphoning_proboscis",
     "locomotor": "insectoid_wing_elytra",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
@@ -119709,6 +120085,12 @@
      "drift": -0.3400119759406437,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "mandibulate",
+      "mandibulate_herbivore"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.6667010889504905,
@@ -119809,7 +120191,7 @@
    "generics": {
     "covering": "chitin_cuticle_sclerotized",
     "defense": "elytra_armor",
-    "feeding_organ": "mandibulate",
+    "feeding_organ": "mandibulate_herbivore",
     "locomotor": "insectoid_wing_elytra",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
@@ -119946,6 +120328,12 @@
      "drift": -0.13092574012319733,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "defense": [
+      "elytra_armor",
+      "venom_sting"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.34850624668184693,
@@ -120040,7 +120428,7 @@
    "gen_time": 0.1139228083240585,
    "generics": {
     "covering": "chitin_cuticle_sclerotized",
-    "defense": "elytra_armor",
+    "defense": "venom_sting",
     "feeding_organ": "mandibulate",
     "locomotor": "insectoid_wing_elytra",
     "metabolism": "ectotherm",
@@ -121116,6 +121504,12 @@
      "drift": 1.0369894358965397,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "sensor_array": [
+      "compound_eye_antennae",
+      "compound_eye_large"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": 0.058065936087186444,
@@ -121232,7 +121626,7 @@
     "osmoreg": "standard",
     "reproduction": "holometabolous",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_large"
    },
    "label": null,
    "name": {
@@ -121358,6 +121752,12 @@
      "drift": -0.81985565800757,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "signal": [
+      null,
+      "aposematic_color"
+     ]
+    },
     "group_size": {
      "descent": 0.0,
      "drift": -1.0390642745974459,
@@ -121454,7 +121854,8 @@
     "osmoreg": "standard",
     "reproduction": "holometabolous",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_antennae"
+    "sensor_array": "compound_eye_antennae",
+    "signal": "aposematic_color"
    },
    "label": null,
    "name": {
@@ -123048,6 +123449,12 @@
      "drift": 1.2968088716148545,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "locomotor": [
+      "insectoid_wing_scaled",
+      "cursorial_hexapod"
+     ]
+    },
     "horn_mandible_exaggeration": {
      "descent": 0.0,
      "drift": -0.815825761903859,
@@ -123081,7 +123488,7 @@
     "covering": "chitin_cuticle_scaled",
     "defense": "aposematism",
     "feeding_organ": "siphoning_proboscis",
-    "locomotor": "insectoid_wing_scaled",
+    "locomotor": "cursorial_hexapod",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
     "reproduction": "holometabolous",
@@ -123317,7 +123724,7 @@
     "covering": "chitin_cuticle_scaled",
     "defense": "aposematism",
     "feeding_organ": "siphoning_proboscis",
-    "locomotor": "insectoid_wing_scaled",
+    "locomotor": "cursorial_hexapod",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
     "reproduction": "holometabolous",
@@ -123548,7 +123955,7 @@
     "covering": "chitin_cuticle_scaled",
     "defense": "aposematism",
     "feeding_organ": "siphoning_proboscis",
-    "locomotor": "insectoid_wing_scaled",
+    "locomotor": "cursorial_hexapod",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
     "reproduction": "holometabolous",
@@ -123784,7 +124191,7 @@
     "covering": "chitin_cuticle_scaled",
     "defense": "aposematism",
     "feeding_organ": "siphoning_proboscis",
-    "locomotor": "insectoid_wing_scaled",
+    "locomotor": "cursorial_hexapod",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
     "reproduction": "holometabolous",
@@ -124020,7 +124427,7 @@
     "covering": "chitin_cuticle_scaled",
     "defense": "aposematism",
     "feeding_organ": "siphoning_proboscis",
-    "locomotor": "insectoid_wing_scaled",
+    "locomotor": "cursorial_hexapod",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
     "reproduction": "holometabolous",
@@ -124214,6 +124621,12 @@
      "drift": 2.90075418952462,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "storage": [
+      null,
+      "crop_storage"
+     ]
+    },
     "horn_mandible_exaggeration": {
      "descent": 0.0,
      "drift": 1.3090999234633576,
@@ -124256,7 +124669,8 @@
     "osmoreg": "standard",
     "reproduction": "hemimetabolous",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_large"
+    "sensor_array": "compound_eye_large",
+    "storage": "crop_storage"
    },
    "label": null,
    "name": {
@@ -124500,7 +124914,8 @@
     "osmoreg": "standard",
     "reproduction": "hemimetabolous",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_large"
+    "sensor_array": "compound_eye_large",
+    "storage": "crop_storage"
    },
    "label": null,
    "name": {
@@ -124734,7 +125149,8 @@
     "osmoreg": "standard",
     "reproduction": "hemimetabolous",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_large"
+    "sensor_array": "compound_eye_large",
+    "storage": "crop_storage"
    },
    "label": null,
    "name": {
@@ -124806,7 +125222,7 @@
     "wing_count": "4",
     "wing_span_ratio": 4.0
    },
-   "description": "a tiny chitin-plated dragonfly-like carnivore",
+   "description": "a tiny chitin cuticle scaled-covered dragonfly-like carnivore",
    "edge_delta": {
     "abdomen_fraction": {
      "descent": 0.0,
@@ -124874,6 +125290,12 @@
      "descent": 0.0,
      "drift": -1.2863236565903151,
      "runaway": 0.0
+    },
+    "generic_rebind": {
+     "covering": [
+      "chitin_cuticle",
+      "chitin_cuticle_scaled"
+     ]
     },
     "group_size": {
      "descent": 0.0,
@@ -124971,14 +125393,15 @@
    "g": 721.1095996791398,
    "gen_time": 0.07267790910993895,
    "generics": {
-    "covering": "chitin_cuticle",
+    "covering": "chitin_cuticle_scaled",
     "feeding_organ": "mandibulate_predatory",
     "locomotor": "insectoid_wing_membranous",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
     "reproduction": "hemimetabolous",
     "respiration": "tracheae_spiracles",
-    "sensor_array": "compound_eye_large"
+    "sensor_array": "compound_eye_large",
+    "storage": "crop_storage"
    },
    "label": null,
    "name": {
@@ -125174,6 +125597,12 @@
      "drift": 0.6504497950087077,
      "runaway": 0.0
     },
+    "generic_rebind": {
+     "feeding_organ": [
+      "mandibulate_herbivore",
+      "chewing_lapping"
+     ]
+    },
     "horn_mandible_exaggeration": {
      "descent": 0.0,
      "drift": -1.5790180740402597,
@@ -125211,7 +125640,7 @@
    "generics": {
     "covering": "chitin_cuticle",
     "defense": "escape_jump",
-    "feeding_organ": "mandibulate_herbivore",
+    "feeding_organ": "chewing_lapping",
     "locomotor": "insectoid_wing_jumping",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
@@ -125452,7 +125881,7 @@
    "generics": {
     "covering": "chitin_cuticle",
     "defense": "escape_jump",
-    "feeding_organ": "mandibulate_herbivore",
+    "feeding_organ": "chewing_lapping",
     "locomotor": "insectoid_wing_jumping",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
@@ -125683,7 +126112,7 @@
    "generics": {
     "covering": "chitin_cuticle",
     "defense": "escape_jump",
-    "feeding_organ": "mandibulate_herbivore",
+    "feeding_organ": "chewing_lapping",
     "locomotor": "insectoid_wing_jumping",
     "metabolism": "ectotherm",
     "osmoreg": "standard",
@@ -125904,7 +126333,7 @@
    "generics": {
     "covering": "chitin_cuticle",
     "defense": "escape_jump",
-    "feeding_organ": "mandibulate_herbivore",
+    "feeding_organ": "chewing_lapping",
     "locomotor": "insectoid_wing_jumping",
     "metabolism": "ectotherm",
     "osmoreg": "standard",

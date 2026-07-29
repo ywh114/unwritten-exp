@@ -87,6 +87,17 @@ ADAPT_WEIGHT_DEFAULT = {
 }
 
 
+# ── generic rebinds (RFC §2: regular evolution rebinds WITHIN plan
+# limits; magic rebinds without them) ────────────────────────────────────
+# One draw per speciation edge; on success one generic rebinds to another
+# plan-legal realization. Deep machinery (support, respiration,
+# metabolism, osmoreg) is plan-defining and never rebinds here.
+REBIND_RATE = 0.002        # per generation (species edge ~11%, family ~30%)
+REBINDABLE = ("locomotor", "feeding_organ", "signal", "covering",
+              "defense", "storage", "sensor_array", "sustenance")
+UNBINDABLE = ("signal", "storage", "defense")  # None is a legal state
+
+
 @dataclass(frozen=True)
 class Condition:
     """Population condition, caller-supplied (world-blind seam).
@@ -395,6 +406,24 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
         flags=[f for f in parent.flags if f != "pinned"],
         edge_delta=edge_delta,
     )
+    # generic rebind: one draw per speciation edge, plan-legal only
+    plan_g = pack.registry.plans.get(parent.plan or "")
+    table = plan_g.generics if plan_g else {}
+    cands = [g for g in REBINDABLE if g in table]
+    rstream = stream.child("rebind")
+    if cands and rstream.bernoulli(
+            1.0 - math.exp(-dg * REBIND_RATE), 0):
+        g = cands[rstream.randrange(len(cands), 1)]
+        states = list(table[g]) + ([None] if g in UNBINDABLE else [])
+        cur = child.generics.get(g)
+        alts = [s for s in states if s != cur]
+        if alts:
+            new = alts[rstream.randrange(len(alts), 2)]
+            if new is None:
+                child.generics.pop(g, None)
+            else:
+                child.generics[g] = new
+            child.edge_delta["generic_rebind"] = {g: [cur, new]}
     if couplings:
         from exp.k13_treegen.couplings import apply_couplings
         apply_couplings(parent, child, pack, condition,
