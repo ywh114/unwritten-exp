@@ -55,7 +55,11 @@ def _radiation_count(stream, target: int) -> int:
 
 
 def _preset_axes(preset: dict) -> dict:
-    return {**preset.get("knobs", {}), **preset.get("axes", {})}
+    # knobs + axes + the [niche] table (temp/moisture prefs — authored
+    # but silently dropped in the first builds: every niche axis read
+    # None on every species, and bergmanns_rule was a dead coupling)
+    return {**preset.get("knobs", {}), **preset.get("axes", {}),
+            **preset.get("niche", {})}
 
 
 def _apply_pin(node: Node, pack: ContentPack, pin: dict,

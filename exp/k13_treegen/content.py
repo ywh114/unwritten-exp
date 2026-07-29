@@ -49,7 +49,9 @@ def merged_pin(pack: ContentPack, pin: dict) -> tuple[dict, dict]:
     and the byte-exact metric all use this."""
     preset = pack.presets[pin["preset"]]
     axes = {**preset.get("knobs", {}), **preset.get("axes", {}),
-            **pin.get("knobs", {}), **pin.get("axes", {})}
+            **preset.get("niche", {}),
+            **pin.get("knobs", {}), **pin.get("axes", {}),
+            **pin.get("niche", {})}
     generics = {**preset.get("generics", {}), **pin.get("generics", {})}
     return axes, generics
 
