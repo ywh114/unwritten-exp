@@ -186,11 +186,10 @@ def test_share_ratios_condition_table(pack):
     s_benign = share_ratios(Condition())
     assert s_stress.descent > s_stress.drift
     assert s_iso.drift > s_iso.descent + s_iso.runaway
-    # benign: drift dominates, but descent has a baseline share (OU-style
-    # mean reversion — a zero-descent benign walk gave 0.1 g .. 6 kg
-    # "beetles" in one genus).
-    assert 0.0 < s_benign.descent < s_benign.drift
-    assert s_benign.drift > s_benign.runaway
+    # benign: pure drift/runaway mix — NO descent baseline (drift-and-
+    # commit ruling: children drift from the parent's committed record,
+    # clade ranks are not attractors).
+    assert s_benign.descent == 0.0 and s_benign.drift > s_benign.runaway
 
 
 # ──  stickiness  ──────────────────────────────────────────────────────────

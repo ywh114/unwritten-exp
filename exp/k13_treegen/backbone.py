@@ -93,10 +93,9 @@ def _apply_pin(node: Node, pack: ContentPack, pin: dict,
 
 def _evolve_edge(parent: Node, pack: ContentPack, stream, dg: float,
                  path: str, rate: float, rdir: float,
-                 rank: Rank, center: dict | None = None) -> Node:
+                 rank: Rank) -> Node:
     return evolve(parent, pack, stream, dg, path=path, condition=_BENIGN,
-                  clade_center=center, runaway_dir=rdir, rate_mult=rate,
-                  rank=rank)
+                  runaway_dir=rdir, rate_mult=rate, rank=rank)
 
 
 def _apply_drift(child: Node, pack: ContentPack, drift: dict) -> None:
@@ -220,13 +219,12 @@ def _build_family(tree: Tree, ostream, pack: ContentPack, order: Node,
                   hosted: dict[str, list]) -> None:
     fam_stream, rate, rdir = _family_streams(ostream, fi)
     fpath = f"{order.path}.f{fi}"
-    # descent center: the clade anchor — the order's committed record
-    # (the world-blind build still mean-reverts; a pure random walk gave
-    # beetles spanning 0.1 g .. 6 kg).
-    anchor = order.axes
+    # drift-and-commit (user ruling): children drift from the parent's
+    # committed record — NO convergence to far-back clade anchors, and
+    # clade ranks carry no convergence requirements of their own.
     family = _evolve_edge(order, pack, fam_stream.child("node"),
                           _dg(fam_stream, DG_ORDER_MEDIAN), fpath,
-                          rate, rdir, Rank.FAMILY, center=anchor)
+                          rate, rdir, Rank.FAMILY)
     radiation = 0
     if fam_pin:
         _apply_pin(family, pack, fam_pin, fam_stream)
@@ -234,8 +232,6 @@ def _build_family(tree: Tree, ostream, pack: ContentPack, order: Node,
     if fi == 1:
         radiation = order_radiation
     tree.add(family)
-    # a pinned family re-anchors its descendants (murids around Muridae)
-    fam_anchor = family.axes if fam_pin else anchor
 
     # genera: the default genus g1 takes the first radiation share (never
     # left empty) plus loose species pins; genus pins anchor their own;
@@ -263,31 +259,43 @@ def _build_family(tree: Tree, ostream, pack: ContentPack, order: Node,
     for gi, (gen_pin, gen_radiation, gname, gspecies) in \
             enumerate(genera, 1):
         _build_genus(tree, fam_stream, pack, family, gi, gen_pin,
-                     gen_radiation, rate, rdir, gspecies, fam_anchor,
+                     gen_radiation, rate, rdir, gspecies,
                      bg if gi == 1 else 0, name_hint=gname)
 
 
 def _build_genus(tree: Tree, fam_stream, pack: ContentPack, family: Node,
                  gi: int, gen_pin: dict | None, radiation: int,
                  rate: float, rdir: float, species_pins: list,
-                 anchor: dict, background: int,
+                 background: int,
                  name_hint: str | None = None) -> None:
     gen_stream = fam_stream.child(f"g{gi}")
     gpath = f"{family.path}.g{gi}"
     genus = _evolve_edge(family, pack, gen_stream.child("node"),
                          _dg(gen_stream, DG_FAMILY_MEDIAN), gpath,
-                         rate, rdir, Rank.GENUS, center=anchor)
+                         rate, rdir, Rank.GENUS)
     drift: dict = {}
     if gen_pin:
         _apply_pin(genus, pack, gen_pin, gen_stream)
         drift = gen_pin.get("drift", {})
-    elif name_hint:
-        # binomial-anchored genus (from its pinned species): the name is
-        # committed NOW so nomenclature never composes over it (Ursus
-        # arctos must sit under Ursus, not under a composed Veladra).
-        genus.name.binomial = name_hint
+    else:
+        if name_hint:
+            # binomial-anchored genus (from its pinned species): the name
+            # is committed NOW so nomenclature never composes over it
+            # (Ursus arctos must sit under Ursus, not under a composed
+            # Veladra).
+            genus.name.binomial = name_hint
+        if species_pins:
+            # drift origin (user ruling): a genus hosting a pin takes the
+            # pin's record as its local drift reference when the file
+            # offers no genus-rank metadata — relatives of a 700 kg
+            # aurochs draw around 700 kg; minicows live in the tail.
+            axes, generics = merged_pin(pack, species_pins[0])
+            genus.axes = dict(axes)
+            genus.generics = dict(generics)
+            mass = genus.axes.get("body_mass")
+            if isinstance(mass, (int, float)) and mass > 0:
+                genus.gen_time = gen_time_years(float(mass), rate)
     tree.add(genus)
-    gen_anchor = genus.axes if gen_pin else anchor
 
     n_species = background
     if radiation:
@@ -317,7 +325,7 @@ def _build_genus(tree: Tree, fam_stream, pack: ContentPack, family: Node,
         sstream = gen_stream.child(f"s{si}")
         species = _evolve_edge(genus, pack, sstream,
                                _dg(sstream, DG_GENUS_MEDIAN), spath,
-                               rate, rdir, Rank.SPECIES, center=gen_anchor)
+                               rate, rdir, Rank.SPECIES)
         if drift:
             _apply_drift(species, pack, drift)
         tree.add(species)

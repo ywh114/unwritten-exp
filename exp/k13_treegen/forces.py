@@ -61,14 +61,22 @@ ENUM_RATE = 0.004      # enum redraw probability rate per generation
 # resemblance scrambles; 0.004 keeps clade texture coherent)
 
 # ── share-ratio raw weights (RFC §4 condition table) ─────────────────────
-# descent baseline: even a benign clade mean-reverts toward its anchor
-# (OU-style; without it the blind build is a pure random walk and one
-# genus spanned 0.1 g .. 6 kg of "beetles").
-SHARE_DESCENT_BASE = 0.5
+# NO benign descent baseline (user ruling, drift-and-commit: children
+# drift from the parent's committed record; clade ranks are not
+# attractors). Descent enters only through stress (world rounds).
+SHARE_DESCENT_BASE = 0.0
 SHARE_DESCENT_PER_STRESS = 2.0
 SHARE_DRIFT_BASE = 1.0
 SHARE_DRIFT_PER_ISOLATION = 2.0
 SHARE_RUNAWAY = 0.3
+
+# ── mass envelope (the drift-and-commit sanity bound) ────────────────────
+# Soft per-preset envelope on body_mass: within 10^ENVELOPE_LOG10 of the
+# preset's authored mass the walk is free; beyond it the log-excess is
+# damped per edge (leaky — tail draws like minicows still happen, but
+# sustained walks decay instead of producing 10 kg insects).
+ENVELOPE_LOG10 = 2.0
+ENVELOPE_DAMP = 0.5
 
 # adapt_weight default by block when TOML is silent: niche/physiology
 # adaptive, patternation/decoration light, morphometrics mixed.
@@ -340,4 +348,18 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
         from exp.k13_treegen.couplings import apply_couplings
         apply_couplings(parent, child, pack, condition,
                         stream.child("couplings"), weak=weak)
+    # soft per-preset mass envelope (ENVELOPE_LOG10/DAMP): no convergence
+    # anchor, but a leaky squash on sustained far-walks.
+    mass = child.axes.get("body_mass")
+    if isinstance(mass, (int, float)) and mass > 0 and child.preset:
+        pm = pack.preset_body_mass(child.preset)
+        if pm:
+            dex = math.log10(mass / pm)
+            if abs(dex) > ENVELOPE_LOG10:
+                excess = abs(dex) - ENVELOPE_LOG10
+                new_dex = math.copysign(
+                    ENVELOPE_LOG10 + excess * ENVELOPE_DAMP, dex)
+                child.axes["body_mass"] = pm * 10.0 ** new_dex
+                child.gen_time = gen_time_years(
+                    float(child.axes["body_mass"]), rate)
     return child
