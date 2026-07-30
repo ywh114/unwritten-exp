@@ -10,9 +10,10 @@ Writes to exp/k14_flora/out/world/seed_NNNNNNNN/ (gitignored):
 
 Everything here is a single-pass raster/graph op over the K11 fields —
 no pipeline internals, no re-derived physics (growing season and HAND
-come from K11's own products). Constants below are literature regime
-values or documented conventions, NOT tuning knobs (units.py ruling:
-never tune the world through its readers).
+come from K11's own products). Productivity follows biosphere addendum
+B2: an ABSOLUTE constructed scale (curated per-class prior + bounded
+abiotic bonus) — never rank- or percentile-normalized, so one extreme
+cell can never re-anchor the rest of the world.
 """
 
 from __future__ import annotations
@@ -25,7 +26,10 @@ import numpy as np
 
 from exp.artifacts import require as artifact_require
 from exp.artifacts import write_manifest
-from exp.k11_worldgen.units import alt_m, hand_m, precip_mm, temp_c
+from exp.k11_worldgen.aquatic import AQUATIC, AQUATIC_ID
+from exp.k11_worldgen.biomes import BIOMES
+from exp.k11_worldgen.units import ELEV_MAX_M, alt_m, hand_m, precip_mm, \
+    temp_c
 
 HERE = Path(__file__).parent
 OUT = HERE.parent / "out"          # out/seed_NNNNNNNN/ (shared with the
@@ -41,13 +45,81 @@ ADV_STEPS = 4                   # downstream spreading steps
 ADV_RETAIN = 0.7                # fraction carried one step downstream
 UPWELL_WEIGHT = 1.0             # upwelling vs plume source balance
 PLUME_WEIGHT = 0.6
-# background production: algae do not need an upwelling — sunlight and
-# warmth run the open gyres on recycled nutrients (owner 2026-07-30:
-# "it shouldn't all be from upwellings — algae ~ sunlight, temp, wind")
-NUTRIENT_FLOOR = 0.15           # recycled-nutrient background
-TEMP_OPT_C = 25.0               # Eppley-ish reference, 2^((T-opt)/10)
 WIND_MIX_WEIGHT = 0.25          # mixed-layer renewal bonus at ~8 m/s
 WIND_REF_MS = 8.0
+
+# ── productivity on an absolute scale (biosphere addendum B2) ───────────
+# value = prior_mix + g * F. The prior is the region's carrying capacity
+# given its history (soil history folded in implicitly — the biome exists
+# where it is because of it); F is the field's abiotic logic, de-ranked
+# and bounded BY CONSTRUCTION (clips, exponentials, reference values —
+# never rank or percentile normalization); g keeps the bonus visible
+# (within-biome texture, seasonal variation) without reordering the
+# biome baseline. Scale anchor: 1.0 = reference-best class (tropical
+# upwelling marine, tropical moist forest terrestrial).
+G_TER = 0.2                   # terrestrial abiotic-bonus gain
+G_MAR = 0.5                   # marine nutrient-bonus gain
+G_FRESH = 0.3                 # freshwater abiotic-bonus gain
+T_PLATEAU_C = 10.0            # full rate from here up — polar seas bloom
+                              # hardest at 0-5 C given light, so no
+                              # 25 C-optimum Eppley throttle
+T_ROLLOFF_C = 20.0            # halving per this many degC below the plateau
+T_ZERO_C = -2.0               # linear ramp to zero at this freezing edge
+P_REF_MMYR = 1500.0           # annual precip saturating the water term
+ACC_REF = 2000.0              # catchment (upstream cells) saturating deposition
+HAND_REF_M = 5.0              # HAND waterlogging decay, meters
+DEPTH_REF_M = 10.0            # lake-depth shading decay, meters
+INSOL_W = 0.35                # open-ocean sunlight-base weight
+
+# The prior tables ARE the main knob set (addendum B2 draft values, owner
+# tunes). Indexed by the k11 class ids; the water "biomes" (lake/ocean)
+# have no prior and stay 0.0 — they are masked out of the terrestrial
+# product anyway.
+_PRIOR_BIOME = {
+    "tropical moist forest": 1.00,
+    "tropical dry forest": 0.55,
+    "tropical conifer forest": 0.60,
+    "temperate broadleaf forest": 0.75,
+    "temperate conifer forest": 0.65,
+    "boreal taiga": 0.40,
+    "tropical grassland": 0.50,
+    "temperate grassland": 0.55,
+    "flooded grassland": 0.65,
+    "montane grassland": 0.35,
+    "tundra": 0.15,
+    "mediterranean scrub": 0.45,
+    "desert xeric shrubland": 0.08,
+    "mangrove": 0.70,
+    "rock": 0.02,
+    "ice": 0.00,
+}
+PRIOR_BIOME = np.array([_PRIOR_BIOME.get(b["name"], 0.0) for b in BIOMES])
+
+OPEN_OCEAN_SENTINEL = -1.0    # open ocean has NO prior — sunlight-based
+_PRIOR_AQUATIC = {
+    "polar shelf": 0.45,
+    "temperate shelf": 0.55,
+    "tropical shelf": 0.50,
+    "coral reef": 0.65,
+    "temperate upwelling": 0.90,
+    "tropical upwelling": 1.00,
+    "inland sea": 0.40,
+    "salt lake": 0.10,
+    "large lake": 0.50,
+    "polar lake": 0.20,
+    "montane lake": 0.30,
+    "tropical lake": 0.60,
+    "temperate lake": 0.55,
+    "delta": 0.70,
+    "coastal river": 0.45,
+    "floodplain river": 0.55,
+    "upland river": 0.35,
+    "polar river": 0.20,
+    "montane river": 0.30,
+    "xeric river": 0.25,
+}
+PRIOR_AQUATIC = np.array([_PRIOR_AQUATIC.get(a["name"], OPEN_OCEAN_SENTINEL)
+                          for a in AQUATIC])
 
 # ── growing season ──────────────────────────────────────────────────────
 GROW_T_C = 5.0                  # months above this count (K11 convention)
@@ -84,21 +156,19 @@ def _upsample(a: np.ndarray, factor: int) -> np.ndarray:
             + a10 * fy * (1 - fx) + a11 * fy * fx)
 
 
-def _rank01(a: np.ndarray) -> np.ndarray:
-    """Rank normalize to (0,1) — robust across worlds, no hard scale."""
-    flat = a.ravel()
-    order = flat.argsort().argsort()
-    return (order / max(1, flat.size - 1)).reshape(a.shape)
-
-
-def _norm01(a: np.ndarray, pct: float = 99.0) -> np.ndarray:
-    """Percentile normalize, leaky above the percentile (no hard clip
-    semantics — values may exceed 1 slightly, consumers treat 1 as
-    'reference max')."""
-    ref = float(np.percentile(a, pct))
-    if ref <= 0:
-        return np.zeros_like(a)
-    return a / ref
+def temp_response(t_c: np.ndarray) -> np.ndarray:
+    """Shared cold-tolerant temperature response (addendum B2 — replaces
+    the 25 C-optimum Eppley term that throttled polar summer to quarter
+    speed when real polar seas bloom hardest at 0-5 C given light).
+    1.0 at T_PLATEAU_C and up; a gentle 2**((T-plateau)/T_ROLLOFF_C)
+    roll-off for 0 < T < plateau; a linear ramp from the 0 C value down
+    to 0 at T_ZERO_C; 0 below that."""
+    t = np.asarray(t_c, dtype=float)
+    v0 = 2.0 ** (-T_PLATEAU_C / T_ROLLOFF_C)      # the 0 C value
+    return np.where(
+        t >= T_PLATEAU_C, 1.0,
+        np.where(t > 0.0, 2.0 ** ((t - T_PLATEAU_C) / T_ROLLOFF_C),
+                 np.clip((t - T_ZERO_C) / -T_ZERO_C, 0.0, 1.0) * v0))
 
 
 def _local_maxima(a: np.ndarray, radius: int,
@@ -212,14 +282,24 @@ def _solar_fields(z) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 
 def marine_productivity(z, currents: dict | None) -> np.ndarray:
-    """Monthly marine productivity (12, 256²), normalized:
-    nutrient x light x temperature x wind mixing. Nutrient = upwelling
-    (r_rise_m) + river-plume injection at mouths, advected downstream,
-    over the recycled-production floor. Light = the PERSISTED monthly
-    insolation, cut by sea-ice cover. Temperature = Eppley-ish
-    2^((T-25)/10) capped at 1. Wind = mixed-layer renewal bonus."""
+    """Monthly marine productivity (12, 256²) on the absolute B2 scale:
+    prior + G_MAR x bounded nutrient bonus. Open ocean has NO prior —
+    it is sunlight-based (persisted insolation x sea-ice-free fraction
+    x the shared temperature response); the other marine classes carry
+    their PRIOR_AQUATIC baseline. Nutrient = upwelling (r_rise_m) +
+    river-plume injection at mouths, advected downstream, with the
+    wind-mixing multiplier (bounded 1..1.25) on the bonus only.
+    RISE_REF / DIS_REF are 99th-percentile BOUNDS computed once per
+    world from the data (all 12 months share them) — they pin the cap
+    so a single extreme cell clips instead of re-anchoring the rest;
+    they are NOT a normalization."""
     insol, seaice, _ = _solar_fields(z)
     ocean = z["h_ocean_mask"] | z["h_sea_mask"]
+    aq = z["w_aquatic"]
+    open_ocean = aq == AQUATIC_ID["open ocean"]
+    rise_ref = max(float(np.percentile(
+        np.clip(z["r_rise_m"], 0.0, None)[:, ocean], 99.0)), 1e-12)
+    dis_ref = max(float(np.percentile(z["h_discharge"], 99.0)), 1e-12)
     # plume source: discharge at river cells whose downstream is ocean
     dis = z["h_discharge"]
     fdir = z["h_flow_dir"]
@@ -232,10 +312,9 @@ def marine_productivity(z, currents: dict | None) -> np.ndarray:
         to_ocean = np.zeros((H, W), bool)
         to_ocean[ny, nx] = ocean[ny, nx]
         plume = np.where(m & z["h_river_mask"] & to_ocean, dis, plume)
-    plume = _norm01(plume) * PLUME_WEIGHT
+    plume = np.clip(plume / dis_ref, 0.0, 1.0) * PLUME_WEIGHT
 
     sst = temp_c(z["c_T_monthly"])                  # (12, H, W)
-    temp_term = np.minimum(2.0 ** ((sst - TEMP_OPT_C) / 10.0), 1.0)
     wscale = float(z["c_wind_scale"]) if "c_wind_scale" in z else 1.0
     wind = (np.hypot(z["c_wind_u"].mean(axis=1),
                      z["c_wind_v"].mean(axis=1)) * wscale)  # (12,128,128)
@@ -243,46 +322,68 @@ def marine_productivity(z, currents: dict | None) -> np.ndarray:
 
     out = np.zeros((12, H, W))
     for m in range(12):
+        base = np.where(open_ocean,
+                        INSOL_W * insol[m][:, None] * (1.0 - seaice[m])
+                        * temp_response(sst[m]),
+                        np.maximum(PRIOR_AQUATIC[aq], 0.0))
         up = np.clip(z["r_rise_m"][m], 0.0, None)
-        source = _norm01(up) * UPWELL_WEIGHT + plume
+        source = np.clip(up / rise_ref, 0.0, 1.0) * UPWELL_WEIGHT + plume
         if currents is not None:
             from exp.k11_worldgen.currents import velocity_field
             u, v = velocity_field(currents, m)
         else:
             u = z["r_u"]
             v = z["r_v"]
-        nutrient = NUTRIENT_FLOOR + _advect(source, u, v, ADV_RETAIN)
-        light = insol[m][:, None] * (1.0 - seaice[m])
-        prod = (nutrient * light * temp_term[m]
-                * _upsample(mixing[m], 2))
-        # normalize AFTER the full product (the upwelling tail stacks
-        # otherwise); leaky above the reference
-        out[m] = np.where(ocean, _norm01(prod), 0.0)
+        nutrient = _advect(source, u, v, ADV_RETAIN)
+        bonus = nutrient * _upsample(mixing[m], 2)
+        out[m] = np.where(ocean, base + G_MAR * bonus, 0.0)
     return out
 
 
-def soil_fertility(z) -> np.ndarray:
-    """F = rank(accumulation) x (1 - rank(HAND)) on land — sediment
-    deposition without waterlogging (riverine/alluvial peaks)."""
+def terrestrial_productivity(z, sea: float) -> np.ndarray:
+    """Land productivity on the absolute B2 scale: the soft-matched
+    biome prior (inverse-distance over the persisted top-2 d2 fields)
+    + G_TER x bounded bonuses — climate (light x warmth x water, each
+    term in [0,1] by construction) and deposition (catchment
+    accumulation, HAND waterlogging penalty — the de-ranked old
+    soil_fertility core; alluvial plains out-produce their biome
+    baseline). River cells on land get it; standing water is masked."""
+    d1, d2 = z["w_biome_d2_1"], z["w_biome_d2_2"]
+    s = d1 + d2
+    # inverse-distance weights: equidistant -> 50/50, exact match -> pure
+    w1 = np.where(s > 1e-12, d2 / s, 1.0)
+    w2 = 1.0 - w1
+    base = (w1 * PRIOR_BIOME[z["w_biome_map"]]
+            + w2 * PRIOR_BIOME[z["w_biome_second"]])
+    insol, _, _ = _solar_fields(z)
+    light = np.clip(insol.mean(axis=0), 0.0, 1.0)[:, None]
+    p_ann = precip_mm(z["c_P_monthly"]).sum(axis=0)      # mm/yr
+    f_clim = (light * temp_response(temp_c(z["c_T"]))
+              * np.clip(p_ann / P_REF_MMYR, 0.0, 1.0))
+    f_dep = (np.clip(z["h_accumulation"] / ACC_REF, 0.0, 1.0)
+             * np.exp(-hand_m(z["h_hand"], sea) / HAND_REF_M))
     land = ~z["h_ocean_mask"] & ~z["h_sea_mask"] & ~z["h_lake_mask"]
-    f = _rank01(z["h_accumulation"]) * (1.0 - _rank01(z["h_hand"]))
-    return np.where(land, f, 0.0)
+    return np.where(land, base + G_TER * (f_clim + f_dep), 0.0)
 
 
-def freshwater_productivity(z) -> np.ndarray:
-    """Lake/river productivity: warmth x inflow x shallowness, all
-    rank-based (no hard scale), shallow warm lakes peak — cut by the
-    annual ice-free fraction (persisted lake/river ice)."""
+def freshwater_productivity(z, sea: float) -> np.ndarray:
+    """Lake/river productivity on the absolute B2 scale: the aquatic-
+    class prior + G_FRESH x bounded warmth x inflow x shallowness, cut
+    by the annual ice-free fraction (persisted lake/river ice)."""
     _, _, lakeice = _solar_fields(z)
     _, riverice = _river_fields(z)
     water = z["h_lake_mask"] | z["h_river_mask"]
+    # a fresh cell is never the open-ocean sentinel class; clip is a guard
+    base = np.maximum(PRIOR_AQUATIC[z["w_aquatic"]], 0.0)
+    # lake/river cells sit above sea level, so the above-sea linear
+    # segment of the elevation units applies to their depth
+    depth_m = z["h_depth"] / (1.0 - sea) * ELEV_MAX_M
+    f = (temp_response(temp_c(z["c_T"]))
+         * np.clip(z["h_accumulation"] / ACC_REF, 0.0, 1.0)
+         * np.exp(-depth_m / DEPTH_REF_M))
     ice = np.where(z["h_river_mask"], riverice, lakeice)
-    warm = np.clip(temp_c(z["c_T"]), 0.0, None)
-    shallow = 1.0 - _rank01(z["h_depth"])
     ice_free = 1.0 - ice.mean(axis=0)
-    f = (_rank01(warm) * _rank01(z["h_accumulation"]) * shallow
-         * ice_free)
-    return np.where(water, f, 0.0)
+    return np.where(water, (base + G_FRESH * f) * ice_free, 0.0)
 
 
 def growing_season(z) -> np.ndarray:
@@ -360,10 +461,10 @@ def build(seed: int) -> dict:
          for m in range(12)])
     products["marine_productivity_ann"] = np.where(
         d_ocean, _upsample(mprod.mean(axis=0), factor), 0.0)
-    products["soil_fertility"] = np.where(
-        d_land, _upsample(soil_fertility(z), factor), 0.0)
+    products["terrestrial_productivity"] = np.where(
+        d_land, _upsample(terrestrial_productivity(z, sea), factor), 0.0)
     products["freshwater_productivity"] = np.where(
-        d_fresh, _upsample(freshwater_productivity(z), factor), 0.0)
+        d_fresh, _upsample(freshwater_productivity(z, sea), factor), 0.0)
     products["growing_season"] = np.where(
         d_land, _upsample(growing_season(z), factor), 0.0)
     vent_field, vent_pts, spring_pts = vents(z, manifest)

@@ -68,7 +68,7 @@ test("pack registered with all layers", async () => {
     };
   });
   if (info.packs !== 1) throw new Error(`expected 1 pack, got ${info.packs}`);
-  for (const id of ["fertility", "marine_prod", "fresh_prod", "river_speed",
+  for (const id of ["terr_prod", "marine_prod", "fresh_prod", "river_speed",
                     "vents", "grow_season", "waterfalls", "vents_pts",
                     "springs"]) {
     if (!info.layers.includes(id)) throw new Error(`layer ${id} missing`);
@@ -81,38 +81,38 @@ test("overlay buttons built from pack metadata", async () => {
     return Array.from(document.querySelectorAll("#overlay-buttons button"))
       .map((b) => b.textContent.trim());
   });
-  for (const l of ["Soil fertility", "Marine productivity", "Waterfalls"]) {
+  for (const l of ["Terrestrial productivity", "Marine productivity", "Waterfalls"]) {
     if (!labels.includes(l)) throw new Error(`button "${l}" missing (have: ${labels.join(", ")})`);
   }
 });
 
-test("fertility overlay renders on land only", async () => {
+test("terrestrial productivity overlay renders on land only", async () => {
   const info = await page.evaluate(() => {
     const S = window._S;
     const pack = S.packs[0];
-    pack.active.fertility = true;
+    pack.active.terr_prod = true;
     // render via the exposed render path
-    const L = pack.layers.find((l) => l.id === "fertility");
+    const L = pack.layers.find((l) => l.id === "terr_prod");
     const c = (function () { return L._canvas; })();
     return null;
   });
   await page.evaluate(() => {
     const S = window._S;
     const pack = S.packs[0];
-    pack.active.fertility = true;
+    pack.active.terr_prod = true;
   });
   // toggle via button to go through the real path
   await page.evaluate(() => {
     const S = window._S;
-    S.packs[0].active.fertility = false;
+    S.packs[0].active.terr_prod = false;
     for (const b of document.querySelectorAll("#overlay-buttons button")) {
-      if (b.textContent.trim() === "Soil fertility") { b.click(); break; }
+      if (b.textContent.trim() === "Terrestrial productivity") { b.click(); break; }
     }
   });
   await new Promise((r) => setTimeout(r, 1000));
   const px = await page.evaluate(() => {
     const S = window._S;
-    const L = S.packs[0].layers.find((l) => l.id === "fertility");
+    const L = S.packs[0].layers.find((l) => l.id === "terr_prod");
     if (!L._canvas) return { error: "no canvas cached" };
     const ctx = L._canvas.getContext("2d");
     const W = L._canvas.width, H = L._canvas.height;
@@ -129,8 +129,8 @@ test("fertility overlay renders on land only", async () => {
     return { landPaint, oceanPaint };
   });
   if (px.error) throw new Error(px.error);
-  if (px.landPaint < 50) throw new Error(`fertility barely paints land: ${px.landPaint}`);
-  if (px.oceanPaint > 0) throw new Error(`fertility paints ${px.oceanPaint} ocean cells (mask breach)`);
+  if (px.landPaint < 50) throw new Error(`terr_prod barely paints land: ${px.landPaint}`);
+  if (px.oceanPaint > 0) throw new Error(`terr_prod paints ${px.oceanPaint} ocean cells (mask breach)`);
 });
 
 test("marine productivity overlay follows month mask", async () => {

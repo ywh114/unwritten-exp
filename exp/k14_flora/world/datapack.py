@@ -69,8 +69,8 @@ def write_pack(out_path: Path, layers: list[dict],
 # ── P6 pack: the D0 products as viewer layers ───────────────────────────
 
 # named ramps as stop lists (t, [r,g,b]); the viewer interpolates
-RAMP_FERTILITY = [[0.0, [40, 32, 16]], [0.5, [96, 128, 48]],
-                  [1.0, [190, 230, 120]]]
+RAMP_TERRESTRIAL = [[0.0, [40, 32, 16]], [0.5, [96, 128, 48]],
+                    [1.0, [190, 230, 120]]]
 RAMP_MARINE = [[0.0, [8, 32, 64]], [0.5, [16, 128, 128]],
                [1.0, [120, 230, 200]]]
 RAMP_FRESH = [[0.0, [16, 32, 80]], [1.0, [100, 180, 240]]]
@@ -99,10 +99,11 @@ def build_pack(result: dict, out_path: Path) -> Path:
         layers.append(layer)
         arrays[field] = q
 
-    continuous("fertility", "Soil fertility", "soil_fertility",
-               0, 1, RAMP_FERTILITY, 0.55, "land", "")
+    continuous("terr_prod", "Terrestrial productivity",
+               "terrestrial_productivity", 0, 1.2, RAMP_TERRESTRIAL,
+               0.55, "land", "")
     continuous("marine_prod", "Marine productivity", "marine_productivity",
-               0, 1.2, RAMP_MARINE, 0.55, "ocean", "", month_dim=12)
+               0, 2.0, RAMP_MARINE, 0.55, "ocean", "", month_dim=12)
     continuous("fresh_prod", "Freshwater productivity",
                "freshwater_productivity", 0, 1, RAMP_FRESH, 0.6,
                "freshwater", "")
