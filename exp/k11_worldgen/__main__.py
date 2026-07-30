@@ -340,7 +340,11 @@ def run_demo(seed: int, check_determinism: bool = False,
     # are mechanical defects.
     _FATAL = ("dangling_edge", "nodeless_intersection", "isolated_patch")
     fatal = [d for d in defects if d.split(":")[0] in _FATAL]
-    biome_hist = {names[i]: int((biome_map == i).sum()) for i in range(len(names))}
+    # histogram over the DELIVERED 1024² map (1 km² cells, what the viewer
+    # displays) — the anchor map would report 65536 4x4-km cells instead
+    biome_hi = delivered["biome_map"]
+    biome_hist = {names[i]: int((biome_hi == i).sum())
+                  for i in range(len(names))}
 
     checks = {
         # ranges: broad high terrain, or at least one real >3.6 km peak
