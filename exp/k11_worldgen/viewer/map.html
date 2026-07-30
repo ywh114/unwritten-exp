@@ -889,7 +889,10 @@ function buildColorWashCanvas(which) {
       const [FH, FW] = S.monthly._shapes.p_monthly;
       return _buildRampCanvas(avg, FW, FH, precipRamp, W, H);
     }
-    srcArr = S.fields.P_mm; rampFn = precipRamp;
+    // Annual field is mm/YR (total); the ramp saturates at 600, so
+    // scale mm/yr (max ~4800) into it — 600 mm/yr maps to t=0.125,
+    // rainforest-grade 2400+ mm/yr to t>=0.5
+    srcArr = S.fields.P_mm; rampFn = (v) => precipRamp(v / 8.0);
   } else if (which === "forest") {
     srcArr = S.fields.cover;
     // Green wash ∝ cover: bare cells fully transparent (a fixed-alpha

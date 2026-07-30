@@ -69,7 +69,11 @@ def export(seed_dir: Path, out_path: Path) -> None:
     put("elev_m", a, m)
     a, m = _q16(temp_c(d["T"]), -40, 40)
     put("T_c", a, m)
-    a, m = _q16(precip_mm(d["P"]), 0, 600)
+    # d["P"] is the mean-MONTHLY normalized field (classify_streaming
+    # averages over 12 months); the viewer labels this field mm/yr, so
+    # convert to the annual TOTAL here — the old export shipped the
+    # monthly mean under a "mm/yr" label (~12x underreported)
+    a, m = _q16(precip_mm(d["P"]) * 12.0, 0, 4800)
     put("P_mm", a, m)
     a, m = _q8(d["cover"], 0, 1)
     put("cover", a, m)

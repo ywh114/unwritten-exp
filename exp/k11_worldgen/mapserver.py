@@ -75,7 +75,7 @@ class World:
         d = self.d
         f: dict[str, np.ndarray] = {
             "elev_m": alt_m(d["elev"], self.sea_level),
-            "T_c": temp_c(d["T"]), "P_mm": precip_mm(d["P"]),
+            "T_c": temp_c(d["T"]), "P_mm": precip_mm(d["P"]) * 12.0,
             "cover": d["cover"], "salinity": d["salinity"],
             "depth_m": d["depth"], "hand_m": hand_m(d["hand"],
                                                     self.sea_level),
