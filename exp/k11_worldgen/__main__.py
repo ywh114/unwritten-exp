@@ -341,10 +341,29 @@ def run_demo(seed: int, check_determinism: bool = False,
     _FATAL = ("dangling_edge", "nodeless_intersection", "isolated_patch")
     fatal = [d for d in defects if d.split(":")[0] in _FATAL]
     # histogram over the DELIVERED 1024² map (1 km² cells, what the viewer
-    # displays) — the anchor map would report 65536 4x4-km cells instead
+    # displays) — the anchor map would report 65536 4x4-km cells instead.
+    # Water cells count under their AQUATIC class (marine shelves/
+    # upwelling, lake and river classes) instead of the terrestrial
+    # map's "ocean" lump; glacier ice reads "glacier", not "ice".
     biome_hi = delivered["biome_map"]
-    biome_hist = {names[i]: int((biome_hi == i).sum())
-                  for i in range(len(names))}
+    aq_hi = delivered["aquatic"]
+    water_hi = (delivered["ocean_mask"] | delivered["sea_mask"]
+                | delivered["lake_mask"] | delivered["river_mask"])
+    glac_hi = delivered.get("glacier_mask")
+    glac_hi = (glac_hi & ~water_hi) if glac_hi is not None else None
+    land_hi = ~water_hi if glac_hi is None else ~water_hi & ~glac_hi
+    biome_hist: dict[str, int] = {}
+    for i in range(len(names)):
+        c = int((land_hi & (biome_hi == i)).sum())
+        if c:
+            biome_hist[names[i]] = c
+    from exp.k11_worldgen.aquatic import AQUATIC
+    for j, a_ in enumerate(AQUATIC):
+        c = int((water_hi & (aq_hi == j)).sum())
+        if c:
+            biome_hist[a_["name"]] = c
+    if glac_hi is not None and glac_hi.any():
+        biome_hist["glacier"] = int(glac_hi.sum())
 
     checks = {
         # ranges: broad high terrain, or at least one real >3.6 km peak

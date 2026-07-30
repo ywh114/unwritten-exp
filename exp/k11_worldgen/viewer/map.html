@@ -1949,6 +1949,22 @@ function hideTooltip() {
 // ══════════════════════════════════════════════════════════════════════
 // Area Stats
 // ══════════════════════════════════════════════════════════════════════
+// Effective biome name at a pixel, mirroring the tooltip: water cells
+// report their AQUATIC class (marine/lake/river — the terrestrial map
+// lumps them as "ocean"), flowing ice reports "glacier".
+function effectiveBiomeName(idx) {
+  const isWater = (S.fields.river && S.fields.river[idx])
+    || (S.fields.lake && S.fields.lake[idx])
+    || (S.fields.ocean && S.fields.ocean[idx])
+    || (S.fields.sea && S.fields.sea[idx]);
+  if (isWater && S.fields.aquatic != null) {
+    const nm = S.aquaticNames[S.fields.aquatic[idx]];
+    if (nm) return nm;
+  }
+  if (S.fields.glacier != null && S.fields.glacier[idx]) return "glacier";
+  return S.biomeNameById[S.fields.biome[idx]] || "?";
+}
+
 function computeAreaStats(x0, y0, x1, y1) {
   const [W, H] = S.shape;
   const xMin = Math.min(x0, x1), xMax = Math.max(x0, x1);
@@ -1989,12 +2005,13 @@ function computeAreaStats(x0, y0, x1, y1) {
     }
   }
 
-  // Biome histogram
+  // Biome histogram (water cells count under their aquatic class —
+  // marine + freshwater alongside the terrestrial biomes)
   const biome = S.fields.biome;
   if (biome) {
     const hist = {};
     for (const idx of indices) {
-      const name = S.biomeNameById[biome[idx]] || "?";
+      const name = effectiveBiomeName(idx);
       hist[name] = (hist[name] || 0) + 1;
     }
     for (const k of Object.keys(hist)) hist[k] /= total;
@@ -2219,13 +2236,13 @@ function computeSearchStats(mask, count) {
     out[fname] = { mean: sum / count, min, max };
   }
 
-  // Biome histogram
+  // Biome histogram (aquatic classes on water cells, like the tooltip)
   const biome = S.fields.biome;
   if (biome) {
     const hist = {};
     for (let i = 0; i < n; i++) {
       if (mask[i]) {
-        const name = S.biomeNameById[biome[i]] || "?";
+        const name = effectiveBiomeName(i);
         hist[name] = (hist[name] || 0) + 1;
       }
     }
