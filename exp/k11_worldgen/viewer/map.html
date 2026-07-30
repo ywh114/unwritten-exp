@@ -1082,7 +1082,6 @@ function buildOverlayCanvas(which) {
       }
 
       const points = [];
-      let brokenByLand = false;
 
       for (let k = 0; k < maxSteps; k++) {
         const ix = Math.floor(x), iy = Math.floor(y);
@@ -1102,11 +1101,13 @@ function buildOverlayCanvas(which) {
         const speed = Math.sqrt(u * u + v * v);
         if (speed < speedCutoff) break;
 
-        // Ocean-only: stop on land
+        // Ocean-only: stop BEFORE the land point — pushing it would
+        // draw the final segment onto the beach (one orange land
+        // pixel per coast-hugging current terminus)
         if (oceanOnly) {
           const px = Math.floor(x), py = Math.floor(y);
           if (px >= 0 && px < W && py >= 0 && py < W && !ocean[py * W + px]) {
-            brokenByLand = true;
+            break;
           }
         }
 
@@ -1114,8 +1115,6 @@ function buildOverlayCanvas(which) {
 
         const dt = stepPx / Math.max(speed, 1e-9);
         x += u * dt; y += v * dt;
-
-        if (brokenByLand) break;
       }
 
       // Draw the streamline as connected line segments
