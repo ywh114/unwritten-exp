@@ -318,6 +318,41 @@ def test_freshwater_mangrove_dual_domain():
     assert t[2, 0] > 0
 
 
+# ── water column (B4) ──────────────────────────────────────────────────
+
+
+def test_water_column_products(result, inputs):
+    z, _ = inputs
+    p = result["products"]
+    d_ocean = z["d_ocean_mask"] | z["d_sea_mask"]
+    assert p["benthic_food"].shape == (12, 1024, 1024)
+    assert p["marine_snow"].shape == (12, 1024, 1024)
+    for name in ("benthic_food", "marine_snow", "bathymetry_m",
+                 "photic_depth_m", "bottom_temp_c"):
+        assert (p[name][..., ~d_ocean] == 0).all(), name
+    zones = np.unique(p["depth_zone"])
+    assert set(zones.tolist()) <= {0, 1, 2, 3, 4, 255}
+    assert 255 in zones                          # land cells unclassified
+    # bathymetry is real meters now (trench exaggeration): deep ocean
+    # exists on every world, zone ids are ordered by depth
+    assert p["bathymetry_m"].max() > 3000.0
+    # shelf bottoms are lit, the deep is not (kron boolean vs bilinear
+    # bathy can't be pixel-exact at delivery — check the semantics)
+    lit = p["bottom_lit"] & d_ocean
+    assert lit.sum() > 0
+    assert p["bathymetry_m"][lit].mean() < 200.0
+    assert p["bathymetry_m"][d_ocean & ~p["bottom_lit"]].mean() > 1000.0
+
+
+def test_vents_annotated(result):
+    for pt in result["points"]["vents"]:
+        assert pt["kind"] == "vent"
+        assert "depth_m" in pt and pt["depth_m"] > 0
+        assert "depth_zone" in pt
+    kinds = {pt["kind"] for pt in result["points"]["hot_springs"]}
+    assert kinds <= {"terrestrial", "sublacustrine", "riverine"}
+
+
 # ── vents ──────────────────────────────────────────────────────────────
 
 

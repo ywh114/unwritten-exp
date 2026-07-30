@@ -108,6 +108,11 @@ RAMP_SEASON = [[0.0, [40, 20, 60]], [0.5, [120, 70, 160]],
                [1.0, [220, 180, 240]]]
 RAMP_PULSE = [[0.0, [20, 25, 35]], [0.5, [60, 110, 160]],
               [1.0, [140, 220, 250]]]
+RAMP_BENTHIC = [[0.0, [10, 12, 30]], [0.5, [90, 60, 120]],
+                [1.0, [230, 180, 220]]]
+RAMP_PHOTIC = [[0.0, [20, 40, 80]], [1.0, [150, 220, 250]]]
+RAMP_BOTTOM_T = [[0.0, [40, 60, 140]], [0.5, [120, 160, 200]],
+                 [1.0, [230, 120, 60]]]
 
 
 def build_pack(result: dict, out_path: Path) -> Path:
@@ -117,7 +122,7 @@ def build_pack(result: dict, out_path: Path) -> Path:
     arrays: dict[str, np.ndarray] = {}
 
     def continuous(id_, label, field, lo, hi, ramp, alpha, mask, unit,
-                   month_dim=None):
+                   month_dim=None, tooltip_only=False):
         arr = p[field]
         q, m = _q8(arr, lo, hi)
         layer = {"id": id_, "label": label, "kind": "continuous",
@@ -126,6 +131,9 @@ def build_pack(result: dict, out_path: Path) -> Path:
                  "unit": unit}
         if month_dim:
             layer["month_dim"] = month_dim
+        if tooltip_only:
+            # no overlay button; the tooltip reads the value directly
+            layer["tooltip_only"] = True
         layers.append(layer)
         arrays[field] = q
 
@@ -146,6 +154,26 @@ def build_pack(result: dict, out_path: Path) -> Path:
                0, 12, RAMP_SEASON, 0.5, "land", " mo")
     continuous("flood_pulse", "Flood pulse", "flood_pulse",
                0, 1, RAMP_PULSE, 0.6, "land", "")
+    # B4 water column
+    continuous("benthic_food", "Benthic food", "benthic_food",
+               0, 1.0, RAMP_BENTHIC, 0.6, "ocean", "", month_dim=12)
+    continuous("photic_depth", "Photic depth", "photic_depth_m",
+               0, 250, RAMP_PHOTIC, 0.55, "ocean", " m")
+    continuous("bottom_temp", "Bottom temperature", "bottom_temp_c",
+               -2, 30, RAMP_BOTTOM_T, 0.5, "ocean", " °C",
+               tooltip_only=True)
+    # depth zones — categorical, same convention as the ground layer
+    from exp.k14_flora.world.water import ZONES
+    zclasses = [dict(name=z_["name"], color=list(z_["color"]))
+                for z_ in ZONES]
+    layers.append({
+        "id": "depth_zone", "label": "Depth zone", "kind": "categorical",
+        "field": "depth_zone", "dtype": "u1",
+        "shape": list(p["depth_zone"].shape),
+        "classes": zclasses,
+        "colormap": {str(i): c["color"] for i, c in enumerate(zclasses)},
+        "scope": "ocean", "mask": "ocean", "alpha": 0.6})
+    arrays["depth_zone"] = p["depth_zone"].astype(np.uint8)
 
     # substrate ("ground") — the first CATEGORICAL layer. The palette lives
     # in `classes` (the B3 class table: name/color/flags/props/genesis); a

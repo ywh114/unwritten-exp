@@ -1448,6 +1448,7 @@ function buildOverlayButtons() {
   // Datapack layers (unified format — buttons build from pack metadata)
   for (const pack of S.packs) {
     for (const L of pack.layers) {
+      if (L.tooltip_only) continue;        // tooltip reads it, no button
       const btn = document.createElement("button");
       btn.textContent = L.label;
       btn.dataset.packLayer = L.id;
@@ -1847,11 +1848,20 @@ function pixelAt(wx, wy) {
   out._packpt = [];
   for (const pack of S.packs) {
     for (const L of pack.layers) {
-      if (!pack.active[L.id]) continue;
+      if (!pack.active[L.id] && !L.tooltip_only) continue;
       if (L.kind === "continuous" && L.data) {
         const v = packLayerValue(L, wx, wy);
         if (v != null) out._pack.push({ label: L.label, value: v,
                                         unit: L.unit || "" });
+      } else if (L.kind === "categorical" && L.data && !L.mix_ids) {
+        // plain categorical (depth zones): class name at the pixel
+        const [Hf, Wf] = L.shape;
+        const fx = Math.min(Wf - 1, Math.floor(wx * (Wf / W)));
+        const fy = Math.min(Hf - 1, Math.floor(wy * (Hf / H)));
+        const id = L.data[fy * Wf + fx];
+        if (id !== 255 && L.classes && L.classes[id])
+          out._pack.push({ label: L.label, value: L.classes[id].name,
+                           unit: "" });
       } else if (L.kind === "categorical" && L.mix_ids && L.mix_ids.data &&
                  L.mix_w && L.mix_w.data) {
         // Top-3 class mix from the aux planes (weights are ×255; the

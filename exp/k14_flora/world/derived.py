@@ -330,26 +330,11 @@ def _solar_fields(z) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         z["c_lakeice_monthly"]
 
 
-def marine_productivity(z, currents: dict | None) -> np.ndarray:
-    """Monthly marine productivity (12, 256²) on the absolute B2 scale:
-    prior + G_MAR x bounded nutrient bonus. Open ocean has NO prior —
-    it is sunlight-based (persisted insolation x sea-ice-free fraction
-    x the shared temperature response); the other marine classes carry
-    their PRIOR_AQUATIC baseline. Nutrient = upwelling (r_rise_m) +
-    river-plume injection at mouths, advected downstream, with the
-    wind-mixing multiplier (bounded 1..1.25) on the bonus only.
-    RISE_REF / DIS_REF are 99th-percentile BOUNDS computed once per
-    world from the data (all 12 months share them) — they pin the cap
-    so a single extreme cell clips instead of re-anchoring the rest;
-    they are NOT a normalization."""
-    insol, seaice, _ = _solar_fields(z)
-    ocean = z["h_ocean_mask"] | z["h_sea_mask"]
-    aq = z["w_aquatic"]
-    open_ocean = aq == AQUATIC_ID["open ocean"]
-    rise_ref = max(float(np.percentile(
-        np.clip(z["r_rise_m"], 0.0, None)[:, ocean], 99.0)), 1e-12)
-    dis_ref = max(float(np.percentile(z["h_discharge"], 99.0)), 1e-12)
-    # plume source: discharge at river cells whose downstream is ocean
+def _plume_source(z, ocean: np.ndarray, dis_ref: float) -> np.ndarray:
+    """River-plume nutrient source (H,W in [0, PLUME_WEIGHT]): discharge
+    at river cells whose downstream is ocean, bounded by dis_ref. Shared
+    by marine_productivity (nutrient source) and water.photic_depth_m
+    (turbidity proxy)."""
     dis = z["h_discharge"]
     fdir = z["h_flow_dir"]
     H, W = dis.shape
@@ -361,7 +346,34 @@ def marine_productivity(z, currents: dict | None) -> np.ndarray:
         to_ocean = np.zeros((H, W), bool)
         to_ocean[ny, nx] = ocean[ny, nx]
         plume = np.where(m & z["h_river_mask"] & to_ocean, dis, plume)
-    plume = np.clip(plume / dis_ref, 0.0, 1.0) * PLUME_WEIGHT
+    return np.clip(plume / dis_ref, 0.0, 1.0) * PLUME_WEIGHT
+
+
+def marine_productivity(z, currents: dict | None,
+                        rise_mod: np.ndarray | None = None) -> np.ndarray:
+    """Monthly marine productivity (12, 256²) on the absolute B2 scale:
+    prior + G_MAR x bounded nutrient bonus. Open ocean has NO prior —
+    it is sunlight-based (persisted insolation x sea-ice-free fraction
+    x the shared temperature response); the other marine classes carry
+    their PRIOR_AQUATIC baseline. Nutrient = upwelling (r_rise_m) +
+    river-plume injection at mouths, advected downstream, with the
+    wind-mixing multiplier (bounded 1..1.25) on the bonus only.
+    RISE_REF / DIS_REF are 99th-percentile BOUNDS computed once per
+    world from the data (all 12 months share them) — they pin the cap
+    so a single extreme cell clips instead of re-anchoring the rest;
+    they are NOT a normalization. rise_mod (B4 nutrient-return loop):
+    per-cell multiplier on the upwelling part of the source, from the
+    deep-routing inventory — upwellings fed by rich polar seas
+    out-produce ones fed by poor ones, bounded [0.5, 1.5]."""
+    insol, seaice, _ = _solar_fields(z)
+    ocean = z["h_ocean_mask"] | z["h_sea_mask"]
+    H, W = ocean.shape
+    aq = z["w_aquatic"]
+    open_ocean = aq == AQUATIC_ID["open ocean"]
+    rise_ref = max(float(np.percentile(
+        np.clip(z["r_rise_m"], 0.0, None)[:, ocean], 99.0)), 1e-12)
+    dis_ref = max(float(np.percentile(z["h_discharge"], 99.0)), 1e-12)
+    plume = _plume_source(z, ocean, dis_ref)
 
     sst = temp_c(z["c_T_monthly"])                  # (12, H, W)
     wscale = float(z["c_wind_scale"]) if "c_wind_scale" in z else 1.0
@@ -376,7 +388,10 @@ def marine_productivity(z, currents: dict | None) -> np.ndarray:
                         * temp_response(sst[m]),
                         np.maximum(PRIOR_AQUATIC[aq], 0.0))
         up = np.clip(z["r_rise_m"][m], 0.0, None)
-        source = np.clip(up / rise_ref, 0.0, 1.0) * UPWELL_WEIGHT + plume
+        upsrc = np.clip(up / rise_ref, 0.0, 1.0) * UPWELL_WEIGHT
+        if rise_mod is not None:
+            upsrc = upsrc * rise_mod
+        source = upsrc + plume
         if currents is not None:
             from exp.k11_worldgen.currents import velocity_field
             u, v = velocity_field(currents, m)
@@ -474,10 +489,23 @@ def vents(z, manifest: dict) -> tuple[np.ndarray, list[dict], list[dict]]:
                      key=lambda p: -p[2])
     springs = sorted((p for p in pts if not ocean[p[0], p[1]]),
                      key=lambda p: -p[2])
-    vp = [{"y": y, "x": x, "activity": round(a, 4)}
+    vp = [{"y": y, "x": x, "activity": round(a, 4), "kind": "vent"}
           for y, x, a in vents_m[:VENT_MAX_POINTS]]
-    sp = [{"y": y, "x": x, "activity": round(a, 4)}
-          for y, x, a in springs[:VENT_MAX_POINTS]]
+    # spring kind (B4 ruling: keep + flag — the extractor treats every
+    # non-ocean cell as land, so springs emerge on lakes and rivers too;
+    # sublacustrine springs and thermal streams are real). No thermal
+    # modeling at L0; the flag is for L1 and fauna.
+    river_any = (z["h_river_monthly"].any(axis=0)
+                 if "h_river_monthly" in z else z["h_river_mask"])
+    sp = []
+    for y, x, a in springs[:VENT_MAX_POINTS]:
+        if z["h_lake_mask"][y, x]:
+            kind = "sublacustrine"
+        elif river_any[y, x]:
+            kind = "riverine"
+        else:
+            kind = "terrestrial"
+        sp.append({"y": y, "x": x, "activity": round(a, 4), "kind": kind})
     return activity, vp, sp
 
 
@@ -558,12 +586,57 @@ def build(seed: int) -> dict:
             else:
                 p["y"], p["x"] = int(cy), int(cx)
     pulse = flood_pulse(z, sea)
-    mprod = marine_productivity(z, _currents_payload(z))
+    vent_field, vent_pts, spring_pts = vents(z, manifest)
+    currents = _currents_payload(z)
+    # B4 water column, two-phase marine loop (addendum B4): snow reads
+    # the PROVISIONAL marine field (local rise-strength bonus); the
+    # deep-routing inventory then modifies the upwelling bonus in the
+    # final pass. The provisional field is never persisted. Vent
+    # dormancy shares the ground pass's K1 roll (same point list, same
+    # stream) so "active" means the same thing everywhere.
+    mprod_prov = marine_productivity(z, currents)
+    from exp.k14_flora.world import water as _water
+    from exp.k14_flora.world.ground import _vent_active
+    dis_ref = max(float(np.percentile(z["h_discharge"], 99.0)), 1e-12)
+    plume = _plume_source(z, z["h_ocean_mask"] | z["h_sea_mask"], dis_ref)
+    wc = _water.build_column(
+        z, sea, mprod_prov, plume, PLUME_WEIGHT,
+        vent_pts, _vent_active(vent_pts + spring_pts, seed)[:len(vent_pts)])
+    mprod = marine_productivity(z, currents, rise_mod=wc["rise_mod"])
     products["marine_productivity"] = np.stack(
         [np.where(d_ocean, _upsample(mprod[m], factor), 0.0)
          for m in range(12)])
     products["marine_productivity_ann"] = np.where(
         d_ocean, _upsample(mprod.mean(axis=0), factor), 0.0)
+    # water-column products (delivery res; the categorical zone map is
+    # kron-stamped, continuous fields bilinear)
+    kron = lambda a: np.repeat(np.repeat(a, factor, 0), factor, 1)
+    products["bathymetry_m"] = np.where(
+        d_ocean, _upsample(wc["bathymetry_m"], factor), 0.0)
+    products["photic_depth_m"] = np.where(
+        d_ocean, _upsample(wc["photic_depth_m"], factor), 0.0)
+    products["bottom_temp_c"] = np.where(
+        d_ocean, _upsample(wc["bottom_temp_c"], factor), 0.0)
+    products["bottom_lit"] = kron(wc["bottom_lit"]) & d_ocean
+    products["depth_zone"] = np.where(
+        d_ocean, kron(wc["depth_zone"]), 255).astype(np.uint8)
+    products["marine_snow"] = np.stack(
+        [np.where(d_ocean, _upsample(wc["marine_snow"][m], factor), 0.0)
+         for m in range(12)])
+    products["vent_benthos"] = np.where(
+        d_ocean, _upsample(wc["vent_benthos"], factor), 0.0)
+    products["benthic_food"] = np.stack(
+        [np.where(d_ocean, _upsample(wc["benthic_food"][m], factor), 0.0)
+         for m in range(12)])
+    products["rise_mod"] = np.where(
+        d_ocean, _upsample(wc["rise_mod"], factor), 0.0)
+    # vent points gain depth-zone attribution (anchor coords here)
+    for p in vent_pts:
+        b = float(wc["bathymetry_m"][p["y"], p["x"]])
+        p["depth_m"] = round(b, 1)
+        if b > 0:
+            p["depth_zone"] = _water.ZONES[
+                int(wc["depth_zone"][p["y"], p["x"]])]["name"]
     products["terrestrial_productivity"] = np.where(
         d_land, _upsample(terrestrial_productivity(z, sea, pulse), factor),
         0.0)
@@ -582,7 +655,6 @@ def build(seed: int) -> dict:
         _upsample(fprod.mean(axis=0), factor), 0.0)
     products["growing_season"] = np.where(
         d_land, _upsample(growing_season(z), factor), 0.0)
-    vent_field, vent_pts, spring_pts = vents(z, manifest)
     products["vent_field"] = _upsample(vent_field, factor)
     points["vents"] = vent_pts
     points["hot_springs"] = spring_pts
