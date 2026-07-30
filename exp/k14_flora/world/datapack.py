@@ -130,13 +130,13 @@ def build_pack(result: dict, out_path: Path) -> Path:
         arrays[field] = q
 
     continuous("terr_prod", "Terrestrial productivity",
-               "terrestrial_productivity", 0, 1.2, RAMP_TERRESTRIAL,
+               "terrestrial_productivity", 0, 3.0, RAMP_TERRESTRIAL,
                0.55, "land", "")
     continuous("marine_prod", "Marine productivity", "marine_productivity",
                0, 2.0, RAMP_MARINE, 0.55, "ocean", "", month_dim=12)
     continuous("fresh_prod", "Freshwater productivity",
-               "freshwater_productivity", 0, 1, RAMP_FRESH, 0.6,
-               "freshwater", "")
+               "freshwater_productivity", 0, 1.5, RAMP_FRESH, 0.6,
+               "freshwater", "", month_dim=12)
     continuous("river_speed", "River speed", "river_speed",
                0, 3, RAMP_SPEED, 0.8, "river", " m/s")
     continuous("vents", "Vent field", "vent_field",

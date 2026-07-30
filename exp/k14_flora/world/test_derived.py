@@ -161,9 +161,10 @@ def test_terrestrial_prior_dominates():
     t = derived.terrestrial_productivity(_synthetic_z(), SEA)
     assert t[0, 0] > t[0, 1]
     # w1 = d2/(d1+d2) = 0.75; base difference is the prior swing
+    rf = derived.PRIOR_BIOME[0]         # tropical moist forest
+    ds = derived.PRIOR_BIOME[12]        # desert xeric (hot)
     assert np.isclose(t[0, 0] - t[0, 1],
-                      0.75 * 1.00 + 0.25 * 0.08
-                      - (0.75 * 0.08 + 0.25 * 1.00))
+                      0.75 * rf + 0.25 * ds - (0.75 * ds + 0.25 * rf))
 
 
 def test_terrestrial_weights_exact_match():
@@ -284,6 +285,39 @@ def test_marine_productivity_ocean_only(result, inputs):
     assert (ann[~d_ocean] == 0).all()
 
 
+# ── freshwater productivity (monthly, dual-domain mangrove) ─────────────
+
+
+def test_freshwater_monthly_seasonal_river():
+    """Freshwater productivity is monthly: a seasonal river cell carries
+    water (and productivity) only in its wet months; dry months are 0
+    (flow below L0 granularity), and never-river land stays dry."""
+    z = _synthetic_z()
+    rwm = np.zeros((12, 4, 4), bool)
+    rwm[:6, 1, 1] = True                            # seasonal channel
+    z["h_river_monthly"] = rwm
+    f = derived.freshwater_productivity(z, SEA)
+    assert f.shape == (12, 4, 4)
+    assert (f[:6, 1, 1] > 0).all()
+    assert (f[6:, 1, 1] == 0).all()
+    assert (f[:, 3, 0] == 0).all()                  # never-river land
+
+
+def test_freshwater_mangrove_dual_domain():
+    """Mangrove biome cells are water AND land (owner ruling): both the
+    terrestrial product and the monthly freshwater product are positive
+    there, and the freshwater base never collapses to the adjacent
+    marine sentinel class."""
+    z = _synthetic_z()
+    z["h_river_monthly"] = np.zeros((12, 4, 4), bool)
+    z["w_biome_map"][2, 0] = derived.MANGROVE_ID
+    z["w_aquatic"][2, 0] = 0        # open-ocean sentinel (worst case)
+    f = derived.freshwater_productivity(z, SEA)
+    t = derived.terrestrial_productivity(z, SEA)
+    assert (f[:, 2, 0] > 0).all()
+    assert t[2, 0] > 0
+
+
 # ── vents ──────────────────────────────────────────────────────────────
 
 
@@ -339,6 +373,9 @@ def test_pack_roundtrip(result, tmp_path):
     marine = next(l for l in header["layers"] if l["id"] == "marine_prod")
     assert marine["month_dim"] == 12
     assert marine["shape"] == [12, 1024, 1024]
+    fresh = next(l for l in header["layers"] if l["id"] == "fresh_prod")
+    assert fresh["month_dim"] == 12
+    assert fresh["shape"] == [12, 1024, 1024]
 
 
 def test_river_fields_guard():

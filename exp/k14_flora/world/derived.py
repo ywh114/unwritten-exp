@@ -55,8 +55,10 @@ WIND_REF_MS = 8.0
 # and bounded BY CONSTRUCTION (clips, exponentials, reference values —
 # never rank or percentile normalization); g keeps the bonus visible
 # (within-biome texture, seasonal variation) without reordering the
-# biome baseline. Scale anchor: 1.0 = reference-best class (tropical
-# upwelling marine, tropical moist forest terrestrial).
+# biome baseline. Scale anchor: 1.0 = a good productive class; the
+# reference-best (tropical moist forest) sits at 2.5 — rainforests
+# out-produce the next tier by a wide margin, so the scale leaves
+# headroom instead of compressing everything under 1.0.
 G_TER = 0.2                   # terrestrial abiotic-bonus gain
 G_MAR = 0.5                   # marine nutrient-bonus gain
 G_FRESH = 0.3                 # freshwater abiotic-bonus gain
@@ -120,7 +122,7 @@ def flood_pulse(z, sea: float) -> np.ndarray:
 # have no prior and stay 0.0 — they are masked out of the terrestrial
 # product anyway.
 _PRIOR_BIOME = {
-    "tropical moist forest": 1.00,
+    "tropical moist forest": 2.50,
     "tropical dry forest": 0.55,
     "tropical conifer forest": 0.60,
     "temperate broadleaf forest": 0.75,
@@ -134,11 +136,13 @@ _PRIOR_BIOME = {
     "mediterranean scrub": 0.45,
     "desert xeric (hot)": 0.08,
     "desert xeric (cold)": 0.08,
-    "mangrove": 0.70,
+    "mangrove": 1.00,
     "rock": 0.02,
     "ice": 0.00,
 }
 PRIOR_BIOME = np.array([_PRIOR_BIOME.get(b["name"], 0.0) for b in BIOMES])
+MANGROVE_ID = next(i for i, b in enumerate(BIOMES)
+                   if b["name"] == "mangrove")
 
 OPEN_OCEAN_SENTINEL = -1.0    # open ocean has NO prior — sunlight-based
 _PRIOR_AQUATIC = {
@@ -419,23 +423,33 @@ def terrestrial_productivity(z, sea: float,
 
 
 def freshwater_productivity(z, sea: float) -> np.ndarray:
-    """Lake/river productivity on the absolute B2 scale: the aquatic-
-    class prior + G_FRESH x bounded warmth x inflow x shallowness, cut
-    by the annual ice-free fraction (persisted lake/river ice)."""
+    """MONTHLY lake/river productivity (12,H,W) on the absolute B2 scale:
+    the aquatic-class prior + G_FRESH x bounded warmth x inflow x
+    shallowness, cut by that month's ice cover (persisted lake/river
+    ice). The water mask is monthly too — seasonal river cells carry
+    water only in their wet months (h_river_monthly); a dry month is
+    flow below L0 granularity, so the product is 0 there. Mangrove
+    biome cells are dual-domain (owner ruling): they keep their
+    terrestrial product AND join the fresh domain every month, on the
+    mangrove biome prior — their aquatic class is the ADJACENT marine
+    class (often the open-ocean sentinel -> 0), which would zero them."""
     _, _, lakeice = _solar_fields(z)
     _, riverice = _river_fields(z)
-    water = z["h_lake_mask"] | z["h_river_mask"]
+    river_m = z["h_river_monthly"]                       # (12,H,W)
+    mang = z["w_biome_map"] == MANGROVE_ID
+    water_m = river_m | z["h_lake_mask"][None] | mang[None]
     # a fresh cell is never the open-ocean sentinel class; clip is a guard
     base = np.maximum(PRIOR_AQUATIC[z["w_aquatic"]], 0.0)
+    base = np.where(mang, np.maximum(base, PRIOR_BIOME[MANGROVE_ID]), base)
     # lake/river cells sit above sea level, so the above-sea linear
     # segment of the elevation units applies to their depth
     depth_m = z["h_depth"] / (1.0 - sea) * ELEV_MAX_M
-    f = (temp_response(temp_c(z["c_T"]))
-         * np.clip(z["h_accumulation"] / ACC_REF, 0.0, 1.0)
-         * np.exp(-depth_m / DEPTH_REF_M))
-    ice = np.where(z["h_river_mask"], riverice, lakeice)
-    ice_free = 1.0 - ice.mean(axis=0)
-    return np.where(water, (base + G_FRESH * f) * ice_free, 0.0)
+    t_m = temp_c(z["c_T_monthly"])                       # (12,H,W)
+    f = (temp_response(t_m)
+         * np.clip(z["h_accumulation"][None] / ACC_REF, 0.0, 1.0)
+         * np.exp(-depth_m[None] / DEPTH_REF_M))
+    ice = np.where(river_m, riverice, lakeice)
+    return np.where(water_m, (base[None] + G_FRESH * f) * (1.0 - ice), 0.0)
 
 
 def growing_season(z) -> np.ndarray:
@@ -499,6 +513,7 @@ def build(seed: int) -> dict:
     d_ocean = z["d_ocean_mask"] | z["d_sea_mask"]
     d_land = ~d_ocean & ~z["d_lake_mask"]
     d_fresh = z["d_lake_mask"] | z["d_river_mask"]
+    d_mang = z["d_biome_map"] == MANGROVE_ID   # dual-domain (owner ruling)
 
     products: dict[str, np.ndarray] = {}
     points: dict[str, list] = {}
@@ -556,8 +571,15 @@ def build(seed: int) -> dict:
     # downstream consumers (substrate alluvium rule reads it at anchor)
     products["flood_pulse"] = np.where(
         d_land, _upsample(pulse, factor), 0.0)
-    products["freshwater_productivity"] = np.where(
-        d_fresh, _upsample(freshwater_productivity(z, sea), factor), 0.0)
+    fprod = freshwater_productivity(z, sea)              # (12, 256²)
+    d_river_m = z["d_river_width_monthly"] > 0           # (12, 1024²)
+    d_fresh_m = d_river_m | z["d_lake_mask"][None] | d_mang[None]
+    products["freshwater_productivity"] = np.stack(
+        [np.where(d_fresh_m[m], _upsample(fprod[m], factor), 0.0)
+         for m in range(12)])
+    products["freshwater_productivity_ann"] = np.where(
+        d_fresh | d_mang,
+        _upsample(fprod.mean(axis=0), factor), 0.0)
     products["growing_season"] = np.where(
         d_land, _upsample(growing_season(z), factor), 0.0)
     vent_field, vent_pts, spring_pts = vents(z, manifest)

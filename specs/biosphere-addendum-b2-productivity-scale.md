@@ -58,9 +58,12 @@ speed, when real polar seas bloom hardest at 0–5 °C given light.
   (within-biome texture, seasonal variation) but never reorders the
   biome baseline. No second normalization anywhere.
 
-**Scale anchor**: 1.0 = reference-best class (tropical upwelling
-marine; tropical moist forest terrestrial). All downstream consumers
-read one absolute, comparable scale.
+**Scale anchor**: 1.0 = a good productive class (tropical upwelling
+marine; a productive forest terrestrial). The reference-best class —
+tropical moist forest — sits at **2.5**: rainforests out-produce the
+next tier by a wide margin, so the scale leaves headroom instead of
+compressing everything under 1.0. All downstream consumers read one
+absolute, comparable scale.
 
 ## Field by field
 
@@ -72,9 +75,14 @@ read one absolute, comparable scale.
   the fixed temperature response). Other marine classes carry priors;
   upwelling/plume nutrient advection stays as the bonus (absolute,
   capped — no `_norm01`).
-- **Freshwater productivity** (lake/river aquatic classes): priors +
-  existing warmth/inflow/shallowness terms, de-ranked; ice-free
-  fraction cut stays.
+- **Freshwater productivity** (monthly; lake/river aquatic classes):
+  priors + existing warmth/inflow/shallowness terms, de-ranked; the
+  ice cut is per-month. The water mask is monthly too — seasonal river
+  cells carry the product only in their wet months (`h_river_monthly`).
+  **Mangrove biome cells are dual-domain** (owner ruling): they keep
+  their terrestrial product AND join the freshwater domain on the
+  mangrove biome prior (their aquatic class is the adjacent marine
+  class, often the open-ocean sentinel).
 - **`soil_fertility` product: REMOVED** (no consumers — verified
   2026-07-30: only the viewer datapack layer and its own test; the
   `fertility_requirement` axis in the flora tree generator is a
@@ -90,7 +98,7 @@ read one absolute, comparable scale.
 
 | biome | productivity |
 |---|---|
-| tropical moist forest | 1.00 |
+| tropical moist forest | 2.50 |
 | tropical dry forest | 0.55 |
 | tropical conifer forest | 0.60 |
 | temperate broadleaf forest | 0.75 |
@@ -104,7 +112,7 @@ read one absolute, comparable scale.
 | mediterranean scrub | 0.45 |
 | desert xeric (hot) | 0.08 |
 | desert xeric (cold) | 0.08 |
-| mangrove | 0.70 |
+| mangrove | 1.00 |
 | rock | 0.02 |
 | ice | 0.00 |
 
