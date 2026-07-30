@@ -170,6 +170,29 @@ _PROTO_IDS = np.array([BIOME_ID[k] for k in _PROTO_NAMES], dtype=np.uint8)
 _PROTO_C = (_W_T ** 2 * (_PROTO_T ** 2).sum(1)
             + _W_P ** 2 * (_PROTO_P ** 2).sum(1))
 
+# Aridity eligibility gates. Desert is the ONE class family defined by a
+# THRESHOLD (aridity), not a climate centroid — and nearest-centroid
+# geometry makes every direction away from the centroid equally "less
+# desert", so cooling at fixed precip moved cells INTO cold desert (a
+# monotonicity violation: colder air = lower PET = LESS arid; measured:
+# 5 degC/400 mm cells read desert while 6.5 degC/200 mm read grassland).
+# The gate restores monotonicity in both axes: a gated class is
+# reachable only where annual precip sits under f(Tmean) = _GATE_BASE +
+# _GATE_SLOPE * max(Tmean, 0) mm/yr — a Thornthwaite-flavored line
+# (hotter air carries more moisture deficit, so the desert boundary
+# rises with temperature). Over the line, a soft penalty ramp
+# (+_GATE_PENALTY on d2 across _GATE_SPAN mm) pushes the class out —
+# soft, not a veto, so boundary cells still mix smoothly. Knobs tuned
+# on seeds 1-3: keeps the full Gobi range eligible (up to ~260-300
+# mm/yr cold, desert-steppe included), excludes >350 mm cold steppe
+# (0% cold-desert assignment there at this setting) and the Sahara/med
+# hot boundary (Pan 150-200 at Tmean 17-19).
+_GATE_BASE, _GATE_SLOPE = 260.0, 8.0      # f(Tmean), mm/yr
+_GATE_SPAN, _GATE_PENALTY = 40.0, 4.0     # ramp width, d2 penalty
+_GATE_ROWS = np.array([_PROTO_NAMES.index(n)
+                       for n in ("desert xeric (hot)",
+                                 "desert xeric (cold)")])
+
 
 def _dilate(mask: np.ndarray, n: int) -> np.ndarray:
     """Chebyshev dilation by n cells (mechanical, any grid)."""
@@ -225,6 +248,12 @@ class _Acc:
         abundance, the viewer) can compute similarity without re-matching.
         """
         d2 = self.s2[None] - 2 * self.dot + _PROTO_C[:, None, None]
+        if len(_GATE_ROWS):
+            t_mean = self.t_sum / 12.0
+            p_ann = self.p_norm_sum * 400.0      # mm/yr (units.P_MAX_MM)
+            limit = _GATE_BASE + _GATE_SLOPE * np.maximum(t_mean, 0.0)
+            over = np.clip((p_ann - limit) / _GATE_SPAN, 0.0, 1.0)
+            d2[_GATE_ROWS] += (_GATE_PENALTY * over)[None]
         i2 = np.argpartition(d2, 1, axis=0)[:2]
         return (_PROTO_IDS[i2[0]], np.take_along_axis(d2, i2[:1], 0)[0],
                 _PROTO_IDS[i2[1]], np.take_along_axis(d2, i2[1:2], 0)[0])
