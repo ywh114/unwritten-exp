@@ -357,6 +357,66 @@ test("tooltip shows Ground mix (3 named classes, ~100%)", async () => {
   if (!gone) throw new Error("Ground mix line shown while layer inactive");
 });
 
+test("mask-gated tooltip: bottom temperature only over ocean", async () => {
+  // bottom_temp is tooltip_only with mask "ocean" — the fill value (0)
+  // must not surface over land. Find one dry-land pixel and one ocean
+  // pixel, hover each, check the line's absence/presence.
+  const pxs = await page.evaluate(() => {
+    const S = window._S;
+    const [W, H] = S.shape;
+    const f = S.fields;
+    // interior pixels only (4-neighbors same domain): the hover can
+    // drift a pixel under clientX flooring, and a shore-adjacent cell
+    // would legitimately read the other domain
+    const dryAt = (i) => !f.ocean[i] && !f.sea[i] && !f.lake[i] && !f.river[i];
+    const wetAt = (i) => f.ocean[i] || f.sea[i];
+    let land = null, ocean = null;
+    for (let i = 0; i < W * H && (!land || !ocean); i += 13) {
+      const wx = i % W, wy = Math.floor(i / W);
+      if (wx === 0 || wy === 0 || wx === W - 1 || wy === H - 1) continue;
+      const nb = [i - 1, i + 1, i - W, i + W];
+      if (!land && dryAt(i) && nb.every(dryAt)) land = { wx, wy };
+      if (!ocean && wetAt(i) && nb.every(wetAt)) ocean = { wx, wy };
+    }
+    if (!land || !ocean) return { error: "land/ocean pixel not found" };
+    return { land, ocean };
+  });
+  if (pxs.error) throw new Error(pxs.error);
+
+  const hoverReadsBottomTemp = async ({ wx, wy }) => {
+    // center on the world pixel, then hover it (centering first: the
+    // previous hover moved the camera)
+    const s = await page.evaluate(({ wx, wy }) => {
+      const S = window._S;
+      const canvas = document.querySelector("canvas");
+      S.scale = 4;
+      S.ox = canvas.width / 2 - (wx + 0.5) * S.scale;
+      S.oy = canvas.height / 2 - (wy + 0.5) * S.scale;
+      render();
+      const r = canvas.getBoundingClientRect();
+      return { sx: r.left + S.ox + (wx + 0.5) * S.scale,
+               sy: r.top + S.oy + (wy + 0.5) * S.scale };
+    }, { wx, wy });
+    await page.mouse.move(s.sx, s.sy);
+    await new Promise((r) => setTimeout(r, 700));
+    return page.evaluate(() => {
+      const t = document.getElementById("tooltip");
+      if (t.style.display !== "block") return null;
+      return Array.from(t.querySelectorAll(".tt-name"))
+        .some((n) => n.textContent === "Bottom temperature");
+    });
+  };
+
+  const overLand = await hoverReadsBottomTemp(pxs.land);
+  if (overLand !== false) {
+    throw new Error(`bottom temperature shown over land (got ${overLand})`);
+  }
+  const overOcean = await hoverReadsBottomTemp(pxs.ocean);
+  if (overOcean !== true) {
+    throw new Error(`bottom temperature missing over ocean (got ${overOcean})`);
+  }
+});
+
 test("pack loader reads aux arrays; aux-less packs unchanged", async () => {
   const res = await page.evaluate(() => {
     function makePack(withAux) {

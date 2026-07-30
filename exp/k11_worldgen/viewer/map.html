@@ -1849,6 +1849,13 @@ function pixelAt(wx, wy) {
     for (const L of pack.layers) {
       if (!pack.active[L.id] && !L.tooltip_only) continue;
       if (L.kind === "continuous" && L.data) {
+        // mask-gated (e.g. ocean-only bottom temperature): don't report
+        // the off-domain fill value as if it were a real reading
+        if (L.mask) {
+          if (!L._maskArr) L._maskArr = packMaskArray(L.mask);
+          const mi = Math.floor(wy) * W + Math.floor(wx);
+          if (!L._maskArr[mi]) continue;
+        }
         const v = packLayerValue(L, wx, wy);
         if (v != null) out._pack.push({ label: L.label, value: v,
                                         unit: L.unit || "" });
