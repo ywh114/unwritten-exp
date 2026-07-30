@@ -1,7 +1,9 @@
 # Biosphere Addendum B4 — Water-Column Attributes
 
-Status: DRAFT v0.1, awaiting owner review. Amends the derived-products
-table of `unwritten-flora-engine-rfc.md` §2; extends B2 (productivity)
+Status: v0.1 IMPLEMENTED 2026-07-30 (K14 `world/water.py` + K11 trench
+exaggeration; draft rulings and constants applied as written —
+owner-tunable). Amends the derived-products table of
+`unwritten-flora-engine-rfc.md` §2; extends B2 (productivity)
 and B3 (ground, underwater).
 
 ## Vocabulary (owner rulings, 2026-07-30)

@@ -156,7 +156,7 @@ def build_pack(result: dict, out_path: Path) -> Path:
                0, 1, RAMP_PULSE, 0.6, "land", "")
     # B4 water column
     continuous("benthic_food", "Benthic food", "benthic_food",
-               0, 1.0, RAMP_BENTHIC, 0.6, "ocean", "", month_dim=12)
+               0, 2.0, RAMP_BENTHIC, 0.6, "ocean", "", month_dim=12)
     continuous("photic_depth", "Photic depth", "photic_depth_m",
                0, 250, RAMP_PHOTIC, 0.55, "ocean", " m")
     continuous("bottom_temp", "Bottom temperature", "bottom_temp_c",

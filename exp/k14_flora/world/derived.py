@@ -608,18 +608,23 @@ def build(seed: int) -> dict:
          for m in range(12)])
     products["marine_productivity_ann"] = np.where(
         d_ocean, _upsample(mprod.mean(axis=0), factor), 0.0)
-    # water-column products (delivery res; the categorical zone map is
-    # kron-stamped, continuous fields bilinear)
-    kron = lambda a: np.repeat(np.repeat(a, factor, 0), factor, 1)
+    # water-column products (delivery res; zone + lit are RE-DERIVED at
+    # delivery from the bilinear fields — kron-stamping the anchor
+    # categories leaves 255 holes on coastal cells whose anchor cell is
+    # land but whose delivered cell is ocean)
     products["bathymetry_m"] = np.where(
         d_ocean, _upsample(wc["bathymetry_m"], factor), 0.0)
     products["photic_depth_m"] = np.where(
         d_ocean, _upsample(wc["photic_depth_m"], factor), 0.0)
     products["bottom_temp_c"] = np.where(
         d_ocean, _upsample(wc["bottom_temp_c"], factor), 0.0)
-    products["bottom_lit"] = kron(wc["bottom_lit"]) & d_ocean
-    products["depth_zone"] = np.where(
-        d_ocean, kron(wc["depth_zone"]), 255).astype(np.uint8)
+    d_bathy = products["bathymetry_m"]
+    d_zone = np.full(d_bathy.shape, 255, np.uint8)
+    for i, zn in enumerate(_water.ZONES):
+        d_zone[d_ocean & (d_bathy <= zn["max_m"]) & (d_zone == 255)] = i
+    products["depth_zone"] = d_zone
+    products["bottom_lit"] = d_ocean & (
+        d_bathy <= products["photic_depth_m"])
     products["marine_snow"] = np.stack(
         [np.where(d_ocean, _upsample(wc["marine_snow"][m], factor), 0.0)
          for m in range(12)])
