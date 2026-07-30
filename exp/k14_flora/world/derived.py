@@ -471,11 +471,30 @@ def build(seed: int) -> dict:
     products["vent_field"] = _upsample(vent_field, factor)
     points["vents"] = vent_pts
     points["hot_springs"] = spring_pts
+
+    # substrate ("ground") classification — biosphere addendum B3. The vent
+    # activity field is computed once above and handed over (no recompute).
+    from exp.k14_flora.world.ground import build_ground
+    g = build_ground(z, manifest, sea, vent_field)
+    # d2 stays at ANCHOR res on purpose: 41x1024² float32 is ~170 MB/world
+    # vs ~11 MB at 256². Similarity is a consume-time transform over the
+    # full vector (biosphere_conv ruling), so there is nothing to upsample.
+    products["ground_d2"] = g["d2"]
+    # categorical fields upsample NEAREST (kron) — a class id must never be
+    # interpolated across a shoreline.
+    products["ground_class"] = np.repeat(
+        np.repeat(g["class_id"], factor, 0), factor, 1)
+    products["ground_mix_ids"] = np.repeat(
+        np.repeat(g["mix_ids"], factor, 1), factor, 2)
+    products["ground_mix_w"] = np.repeat(
+        np.repeat(g["mix_w"], factor, 1), factor, 2).astype(np.float32)
+
     # points carry anchor coords; scale to delivery for the viewer
     for lst in points.values():
         for p in lst:
             p["y"], p["x"] = p["y"] * factor, p["x"] * factor
-    return {"seed": seed, "products": products, "points": points}
+    return {"seed": seed, "products": products, "points": points,
+            "ground_meta": g["meta"]}
 
 
 def _currents_payload(z) -> dict | None:
@@ -493,7 +512,10 @@ def save(result: dict, out_dir: Path) -> None:
     np.savez_compressed(out_dir / "derived.npz",
                         **result["products"],
                         **{f"pts_{k}": json.dumps(v)
-                           for k, v in result["points"].items()})
+                           for k, v in result["points"].items()},
+                        # the ground class table (names/colors/flags/props)
+                        # travels as JSON, same convention as the point lists
+                        ground_meta=json.dumps(result["ground_meta"]))
     write_manifest(out_dir, inputs=[("k11", result["seed"])],
                    note="k14 D0 derived products")
     from exp.k14_flora.world.datapack import build_pack

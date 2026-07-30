@@ -1193,7 +1193,22 @@ function switchLayer(id) {
 // buttons build themselves from the header's declarative layer metadata.
 // kind: continuous (colormap ramp) | categorical (authored colors) |
 //       points (markers) | vectors (reserved — not yet rendered)
+// A layer may carry auxiliary arrays (e.g. the ground layer's top-3
+// mix planes): any layer key whose value is a {field, dtype, shape}
+// sub-dict. Aux arrays trail the main fields in the binary section;
+// header.order names every array in file order (mains first, then
+// aux), so packs without aux read exactly as before.
 // ══════════════════════════════════════════════════════════════════════
+function layerAuxKeys(L) {
+  const keys = [];
+  for (const key of Object.keys(L)) {
+    const v = L[key];
+    if (v && typeof v === "object" && !Array.isArray(v) &&
+        typeof v.field === "string") keys.push(key);
+  }
+  return keys;
+}
+
 function parsePack(buf) {
   const dv = new DataView(buf);
   if (buf.byteLength < 8) throw new Error("Pack too small");
@@ -1204,12 +1219,10 @@ function parsePack(buf) {
   if (header.format !== "k11pack/1") throw new Error(`Unknown format: ${header.format}`);
   let offset = 8 + hdrLen;
   const layers = header.layers.map(L => ({ ...L }));
-  for (const L of layers) {
-    if (!L.field) continue;                      // points layers: inline
-    const n = L.shape.reduce((a, b) => a * b, 1);
-    const qmax = L.dtype === "u1" ? 255 : 65535;
+  const readArray = (dtype, shape) => {
+    const n = shape.reduce((a, b) => a * b, 1);
     let arr;
-    if (L.dtype === "u1") {
+    if (dtype === "u1") {
       arr = new Uint8Array(buf.slice(offset, offset + n));
       offset += n;
     } else {
@@ -1217,12 +1230,40 @@ function parsePack(buf) {
       arr = new Uint16Array(src.buffer, src.byteOffset, n);
       offset += n * 2;
     }
+    return arr;
+  };
+  // Every named array in the pack: each layer's main field plus any
+  // aux sub-dicts. Read in header.order — the binary source of truth
+  // (main fields first, then aux); without it, fall back to the same
+  // order the writer emits.
+  const arrayMeta = new Map();
+  for (const L of layers) {
+    if (L.field) arrayMeta.set(L.field, { dtype: L.dtype, shape: L.shape });
+    for (const key of layerAuxKeys(L)) {
+      const sub = L[key];
+      arrayMeta.set(sub.field, { dtype: sub.dtype, shape: sub.shape });
+    }
+  }
+  const arrays = {};
+  for (const name of (header.order || [...arrayMeta.keys()])) {
+    const m = arrayMeta.get(name);
+    if (!m) throw new Error(`Pack array not declared in layers: ${name}`);
+    arrays[name] = readArray(m.dtype, m.shape);
+  }
+  for (const L of layers) {
+    if (!L.field) continue;                      // points layers: inline
+    const qmax = L.dtype === "u1" ? 255 : 65535;
+    const arr = arrays[L.field];
+    const n = arr.length;
     const scale = L.scale ?? 1, off = L.offset ?? 0;
     const f32 = new Float32Array(n);
     for (let i = 0; i < n; i++) f32[i] = arr[i] * scale + off;
     L.data = f32;
     L._lo = off;
     L._hi = off + scale * qmax;
+    // Aux planes stay raw (class ids / weights×255 — no scale/offset);
+    // the typed array rides on the layer's sub-dict.
+    for (const key of layerAuxKeys(L)) L[key].data = arrays[L[key].field];
   }
   return { header, layers };
 }
@@ -1779,6 +1820,27 @@ function pixelAt(wx, wy) {
         const v = packLayerValue(L, wx, wy);
         if (v != null) out._pack.push({ label: L.label, value: v,
                                         unit: L.unit || "" });
+      } else if (L.kind === "categorical" && L.mix_ids && L.mix_ids.data &&
+                 L.mix_w && L.mix_w.data) {
+        // Top-3 class mix from the aux planes (weights are ×255; the
+        // 3 entries sum to ~255, so w/255*100 is the share)
+        const [P, Hf, Wf] = L.mix_ids.shape;
+        const plane = Hf * Wf;
+        const fx = Math.min(Wf - 1, Math.floor(wx * (Wf / W)));
+        const fy = Math.min(Hf - 1, Math.floor(wy * (Hf / H)));
+        const ii = fy * Wf + fx;
+        const parts = [];
+        for (let k = 0; k < P; k++) {
+          const w = L.mix_w.data[k * plane + ii];
+          if (!w) continue;
+          const id = L.mix_ids.data[k * plane + ii];
+          const nm = (L.classes && L.classes[id]) ? L.classes[id].name
+                                                  : "class " + id;
+          parts.push(`${nm} ${Math.round(w / 255 * 100)}%`);
+        }
+        if (parts.length) out._pack.push({
+          label: L.id.charAt(0).toUpperCase() + L.id.slice(1),
+          mix: parts.join(", ")});
       } else if (L.kind === "points" && L.points) {
         const thr = 8.0 / S.scale;      // 8 screen px pick radius
         let best = null, bestD = thr;
@@ -1853,7 +1915,8 @@ function showTooltip(data, ex, ey) {
   }
   // Datapack rows (active layers at this pixel / nearest point)
   for (const pv of (data._pack || [])) {
-    html += `<div class="tt-field"><span class="tt-name">${pv.label}</span><span class="tt-val">${fmtNum(pv.value)}${pv.unit}</span></div>`;
+    const val = pv.mix != null ? pv.mix : `${fmtNum(pv.value)}${pv.unit}`;
+    html += `<div class="tt-field"><span class="tt-name">${pv.label}</span><span class="tt-val">${val}</span></div>`;
   }
   for (const ph of (data._packpt || [])) {
     const attrs = Object.entries(ph.point)

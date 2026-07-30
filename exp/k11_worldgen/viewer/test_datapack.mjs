@@ -7,7 +7,8 @@
  * Loads the viewer, injects the seed-1 .k11view bundle, then the K14 D0
  * derived.k11pack. Asserts: buttons build from pack metadata, continuous
  * and points overlays render, month_dim layers follow the month mask,
- * tooltips carry pack values, zero console errors.
+ * tooltips carry pack values, the categorical ground layer + its aux
+ * mix planes load and surface in overlay/tooltip, zero console errors.
  */
 
 import { readFileSync, existsSync, mkdirSync } from "fs";
@@ -208,6 +209,202 @@ test("tooltip carries pack values and point attrs", async () => {
   });
   if (tt.display !== "block") throw new Error("tooltip not visible at waterfall");
   if (!tt.text.includes("drop_m")) throw new Error(`tooltip lacks point attrs: ${tt.text.slice(0, 120)}`);
+});
+
+test("ground layer registered with 41 classes + colormap + aux mix planes", async () => {
+  const info = await page.evaluate(() => {
+    const S = window._S;
+    const L = S.packs[0].layers.find((l) => l.id === "ground");
+    if (!L) return { error: "ground layer missing" };
+    return {
+      kind: L.kind, label: L.label,
+      nClasses: (L.classes || []).length,
+      nCmap: Object.keys(L.colormap || {}).length,
+      cmapMatch: (L.classes || []).every((c, i) =>
+        JSON.stringify(L.colormap[String(i)]) === JSON.stringify(c.color)),
+      dataLen: L.data ? L.data.length : -1,
+      mixIdsLen: L.mix_ids && L.mix_ids.data ? L.mix_ids.data.length : -1,
+      mixWLen: L.mix_w && L.mix_w.data ? L.mix_w.data.length : -1,
+      mixShape: L.mix_ids ? L.mix_ids.shape : null,
+    };
+  });
+  if (info.error) throw new Error(info.error);
+  if (info.kind !== "categorical") throw new Error(`kind: ${info.kind}`);
+  if (info.label !== "Substrate (ground)") throw new Error(`label: ${info.label}`);
+  if (info.nClasses !== 41) throw new Error(`classes: ${info.nClasses}`);
+  if (info.nCmap !== 41) throw new Error(`colormap entries: ${info.nCmap}`);
+  if (!info.cmapMatch) throw new Error("colormap does not mirror class colors");
+  if (info.dataLen !== 1024 * 1024) throw new Error(`ground data len: ${info.dataLen}`);
+  if (JSON.stringify(info.mixShape) !== "[3,1024,1024]") {
+    throw new Error(`mix shape: ${JSON.stringify(info.mixShape)}`);
+  }
+  if (info.mixIdsLen !== 3 * 1024 * 1024) throw new Error(`mix_ids len: ${info.mixIdsLen}`);
+  if (info.mixWLen !== 3 * 1024 * 1024) throw new Error(`mix_w len: ${info.mixWLen}`);
+});
+
+test("Substrate (ground) overlay renders over land and ocean", async () => {
+  const hasBtn = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll("#overlay-buttons button"))
+      .some((b) => b.textContent.trim() === "Substrate (ground)");
+  });
+  if (!hasBtn) throw new Error('overlay button "Substrate (ground)" missing');
+  // toggle via button to go through the real path
+  await page.evaluate(() => {
+    window._S.packs[0].active.ground = false;
+    for (const b of document.querySelectorAll("#overlay-buttons button")) {
+      if (b.textContent.trim() === "Substrate (ground)") { b.click(); break; }
+    }
+  });
+  await new Promise((r) => setTimeout(r, 1200));
+  const px = await page.evaluate(() => {
+    const S = window._S;
+    if (!S.packs[0].active.ground) return { error: "not active after toggle" };
+    const L = S.packs[0].layers.find((l) => l.id === "ground");
+    if (!L._canvas) return { error: "no canvas cached" };
+    const ctx = L._canvas.getContext("2d");
+    const W = L._canvas.width, H = L._canvas.height;
+    const data = ctx.getImageData(0, 0, W, H).data;
+    const ocean = S.fields.ocean, sea = S.fields.sea;
+    let landPaint = 0, oceanPaint = 0, classColors = 0;
+    for (let i = 0; i < W * H; i += 97) {
+      const a = data[i * 4 + 3];
+      if (a > 0) {
+        if (ocean[i] || sea[i]) oceanPaint++;
+        else landPaint++;
+        // ±1: the canvas stores premultiplied alpha, so getImageData
+        // roundtrips can be off by one per channel
+        const c = L.colormap[String(Math.round(L.data[i]))];
+        if (c && Math.abs(data[i * 4] - c[0]) <= 1 &&
+            Math.abs(data[i * 4 + 1] - c[1]) <= 1 &&
+            Math.abs(data[i * 4 + 2] - c[2]) <= 1) classColors++;
+      }
+    }
+    return { landPaint, oceanPaint, classColors };
+  });
+  if (px.error) throw new Error(px.error);
+  if (px.landPaint < 500) throw new Error(`ground barely paints land: ${px.landPaint}`);
+  if (px.oceanPaint < 500) throw new Error(`ground barely paints ocean (scope "all"): ${px.oceanPaint}`);
+  if (px.classColors !== px.landPaint + px.oceanPaint) {
+    throw new Error(`pixels not from colormap: ${px.classColors}/${px.landPaint + px.oceanPaint}`);
+  }
+});
+
+test("tooltip shows Ground mix (3 named classes, ~100%)", async () => {
+  // center the map on a cell whose top-3 mix weights are all nonzero
+  const pos = await page.evaluate(() => {
+    const S = window._S;
+    if (!S.packs[0].active.ground) {
+      for (const b of document.querySelectorAll("#overlay-buttons button")) {
+        if (b.textContent.trim() === "Substrate (ground)") { b.click(); break; }
+      }
+    }
+    const L = S.packs[0].layers.find((l) => l.id === "ground");
+    const [P, Hf, Wf] = L.mix_ids.shape;
+    const plane = Hf * Wf, ws = L.mix_w.data;
+    let cell = -1;
+    for (let i = 0; i < plane; i += 211) {
+      if (ws[i] > 0 && ws[plane + i] > 0 && ws[2 * plane + i] > 0) { cell = i; break; }
+    }
+    if (cell < 0) return { error: "no cell with 3 nonzero mix weights" };
+    const cx = cell % Wf, cy = Math.floor(cell / Wf);
+    const canvas = document.querySelector("canvas");
+    S.scale = 0.5;
+    S.ox = canvas.width / 2 - cx * S.scale;
+    S.oy = canvas.height / 2 - cy * S.scale;
+    render();
+    const r = canvas.getBoundingClientRect();
+    return { sx: r.left + S.ox + (cx + 0.5) * S.scale,
+             sy: r.top + S.oy + (cy + 0.5) * S.scale,
+             names: L.classes.map((c) => c.name) };
+  });
+  if (pos.error) throw new Error(pos.error);
+  await page.mouse.move(pos.sx, pos.sy);
+  await new Promise((r) => setTimeout(r, 700));
+  const tt = await page.evaluate(() => {
+    const g = Array.from(document.querySelectorAll("#tooltip .tt-name"))
+      .find((n) => n.textContent === "Ground");
+    return g ? g.parentElement.querySelector(".tt-val").textContent : null;
+  });
+  if (!tt) throw new Error("tooltip lacks a Ground mix line");
+  const parts = tt.split(", ").map((p) => p.match(/^(.+) (\d+)%$/));
+  if (parts.length !== 3 || parts.some((m) => !m)) {
+    throw new Error(`mix line not 3 named classes: "${tt}"`);
+  }
+  for (const m of parts) {
+    if (!pos.names.includes(m[1])) throw new Error(`unknown class "${m[1]}" in "${tt}"`);
+  }
+  const sum = parts.reduce((a, m) => a + Number(m[2]), 0);
+  if (Math.abs(sum - 100) > 2) throw new Error(`mix sums to ${sum}%: "${tt}"`);
+
+  // pack-layer convention: tooltip rows follow the active set — with
+  // the overlay toggled off the Ground line disappears
+  await page.evaluate(() => {
+    for (const b of document.querySelectorAll("#overlay-buttons button")) {
+      if (b.textContent.trim() === "Substrate (ground)") { b.click(); break; }
+    }
+  });
+  await page.mouse.move(pos.sx + 3, pos.sy + 3);
+  await new Promise((r) => setTimeout(r, 700));
+  const gone = await page.evaluate(() => {
+    return !Array.from(document.querySelectorAll("#tooltip .tt-name"))
+      .some((n) => n.textContent === "Ground");
+  });
+  if (!gone) throw new Error("Ground mix line shown while layer inactive");
+});
+
+test("pack loader reads aux arrays; aux-less packs unchanged", async () => {
+  const res = await page.evaluate(() => {
+    function makePack(withAux) {
+      // minimal .k11pack: one 2×2 categorical layer, aux optional
+      const layer = { id: "t", label: "T", kind: "categorical",
+                      field: "t_class", dtype: "u1", shape: [2, 2],
+                      colormap: { "0": [10, 20, 30], "1": [40, 50, 60] } };
+      const order = ["t_class"];
+      const chunks = [new Uint8Array([0, 1, 1, 0])];
+      if (withAux) {
+        layer.mix_ids = { field: "t_ids", dtype: "u1", shape: [3, 2, 2] };
+        layer.mix_w = { field: "t_w", dtype: "u1", shape: [3, 2, 2] };
+        order.push("t_ids", "t_w");
+        chunks.push(new Uint8Array([0, 1, 1, 0, 1, 0, 0, 1, 2, 2, 2, 2]));
+        chunks.push(new Uint8Array([255, 200, 128, 64, 55, 127, 127, 191,
+                                    0, 0, 0, 0]));
+      }
+      const header = new TextEncoder().encode(JSON.stringify(
+        { format: "k11pack/1", generator: "test", layers: [layer], order }));
+      const buf = new ArrayBuffer(
+        8 + header.length + chunks.reduce((a, c) => a + c.length, 0));
+      const u8 = new Uint8Array(buf);
+      u8.set([75, 49, 49, 80], 0);                       // "K11P"
+      new DataView(buf).setUint32(4, header.length, true);
+      u8.set(header, 8);
+      let off = 8 + header.length;
+      for (const c of chunks) { u8.set(c, off); off += c.length; }
+      return buf;
+    }
+    const plain = window.parsePack(makePack(false));
+    const withAux = window.parsePack(makePack(true));
+    const L = withAux.layers[0];
+    return {
+      plainData: Array.from(plain.layers[0].data),
+      plainHasAux: "mix_ids" in plain.layers[0],
+      auxData: Array.from(L.data),
+      mixIds: L.mix_ids && L.mix_ids.data ? Array.from(L.mix_ids.data) : null,
+      mixW: L.mix_w && L.mix_w.data ? Array.from(L.mix_w.data) : null,
+    };
+  });
+  if (res.plainData.join(",") !== "0,1,1,0") {
+    throw new Error(`aux-less main field misread: ${res.plainData}`);
+  }
+  if (res.plainHasAux) throw new Error("aux-less pack gained aux keys");
+  if (res.auxData.join(",") !== "0,1,1,0") {
+    throw new Error(`main field misread with aux present: ${res.auxData}`);
+  }
+  if (!res.mixIds || res.mixIds.join(",") !== "0,1,1,0,1,0,0,1,2,2,2,2") {
+    throw new Error(`mix_ids bytes: ${res.mixIds}`);
+  }
+  if (!res.mixW || res.mixW.join(",") !== "255,200,128,64,55,127,127,191,0,0,0,0") {
+    throw new Error(`mix_w bytes: ${res.mixW}`);
+  }
 });
 
 test("zero console errors", async () => {

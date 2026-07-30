@@ -19,6 +19,15 @@ Layer metadata (header["layers"]):
     points (inline list for kind=points: {y, x, ...attrs}, delivery
     coords), color ([r,g,b] for points/vectors)
 
+A kind=categorical layer (the B3 "ground" layer) carries `classes` — the
+full class table (name/color/flags/props/genesis; the palette's source of
+truth) — plus a flat {id: [r,g,b]} `colormap` so the existing categorical
+renderer keeps working. It may also carry auxiliary planes `mix_ids` and
+`mix_w`, each a sub-dict {field, dtype, shape} whose arrays trail the main
+fields in the binary section (header["order"] lists main fields first, then
+aux). An older viewer reads only each layer's main `field` and stops before
+the trailing aux bytes, so it ignores them gracefully.
+
 Quantization mirrors viewexport: uint8/uint16 with per-layer
 scale/offset in the header.
 """
@@ -47,22 +56,41 @@ def _q16(v: np.ndarray, lo: float, hi: float) -> tuple[np.ndarray, dict]:
              "offset": float(lo)})
 
 
+# auxiliary array keys a layer may carry alongside its main "field"
+# (e.g. the ground layer's top-3 mix planes). Each value is a sub-dict
+# {field, dtype, shape}; the arrays themselves live in the `arrays` map.
+AUX_KEYS = ("mix_ids", "mix_w")
+
+
 def write_pack(out_path: Path, layers: list[dict],
                arrays: dict[str, np.ndarray], meta: dict) -> Path:
     """Write a .k11pack. *layers* is the declarative layer list (points
     layers carry their data inline); *arrays* maps field name -> quantized
-    array; *meta* becomes the header preamble (generator, seed, ...)."""
-    header = {"format": FORMAT, **meta, "layers": layers,
-              "order": [l["field"] for l in layers if l.get("field")]}
+    array; *meta* becomes the header preamble (generator, seed, ...).
+
+    Binary order is every layer's main field (in layer order) followed by
+    any auxiliary arrays (mix_ids/mix_w). Aux arrays trail the whole pack,
+    so an older viewer — which reads only the main `field` of each layer —
+    stops before them and ignores them gracefully."""
+    order: list[str] = []
+    dtypes: dict[str, str] = {}
+    for l in layers:
+        if l.get("field"):
+            order.append(l["field"])
+            dtypes[l["field"]] = l["dtype"]
+    for l in layers:
+        for key in AUX_KEYS:
+            if key in l:
+                order.append(l[key]["field"])
+                dtypes[l[key]["field"]] = l[key]["dtype"]
+    header = {"format": FORMAT, **meta, "layers": layers, "order": order}
     blob = json.dumps(header).encode()
     with open(out_path, "wb") as f:
         f.write(MAGIC)
         f.write(struct.pack("<I", len(blob)))
         f.write(blob)
-        for name in header["order"]:
-            layer = next(l for l in layers if l.get("field") == name)
-            dt = layer["dtype"]
-            arrays[name].astype(dt.lstrip("<"), copy=False).tofile(f)
+        for name in order:
+            arrays[name].astype(dtypes[name].lstrip("<"), copy=False).tofile(f)
     return out_path
 
 
@@ -114,6 +142,28 @@ def build_pack(result: dict, out_path: Path) -> Path:
                RAMP_VENT, 0.5, None, "")
     continuous("grow_season", "Growing season", "growing_season",
                0, 12, RAMP_SEASON, 0.5, "land", " mo")
+
+    # substrate ("ground") — the first CATEGORICAL layer. The palette lives
+    # in `classes` (the B3 class table: name/color/flags/props/genesis); a
+    # flat {id: color} `colormap` is emitted alongside so the existing
+    # categorical renderer (which keys colormap[String(v)]) works unchanged.
+    # The top-3 mix planes ride along as auxiliary u1 arrays on the layer.
+    classes = result["ground_meta"]
+    colormap = {str(i): c["color"] for i, c in enumerate(classes)}
+    layers.append({
+        "id": "ground", "label": "Substrate (ground)", "kind": "categorical",
+        "field": "ground_class", "dtype": "u1",
+        "shape": list(p["ground_class"].shape),
+        "classes": classes, "colormap": colormap, "scope": "all",
+        "mask": None, "alpha": 0.7,
+        "mix_ids": {"field": "ground_mix_ids", "dtype": "u1",
+                    "shape": list(p["ground_mix_ids"].shape)},
+        "mix_w": {"field": "ground_mix_w", "dtype": "u1",
+                  "shape": list(p["ground_mix_w"].shape)}})
+    arrays["ground_class"] = p["ground_class"].astype(np.uint8)
+    arrays["ground_mix_ids"] = p["ground_mix_ids"].astype(np.uint8)
+    arrays["ground_mix_w"] = np.clip(
+        np.round(p["ground_mix_w"] * 255.0), 0, 255).astype(np.uint8)
 
     for pid, label, color in (
             ("waterfalls", "Waterfalls", [80, 200, 240]),

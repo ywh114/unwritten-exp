@@ -266,13 +266,22 @@ def test_pack_roundtrip(result, tmp_path):
     header = json.loads(raw[8:8 + hlen])
     assert header["format"] == "k11pack/1"
     assert header["seed"] == SEED
-    # binary section length matches declared arrays
+    # binary section length matches declared arrays: every name in
+    # header["order"] (main fields + any auxiliary mix planes)
     expected = 8 + hlen
     dt_size = {"u1": 1, "<u2": 2}
+    shapes: dict[str, tuple] = {}
     for layer in header["layers"]:
         if layer.get("field"):
-            n = int(np.prod(layer["shape"]))
-            expected += n * dt_size[layer["dtype"]]
+            shapes[layer["field"]] = (layer["shape"], layer["dtype"])
+        for key in ("mix_ids", "mix_w"):
+            if key in layer:
+                shapes[layer[key]["field"]] = (layer[key]["shape"],
+                                               layer[key]["dtype"])
+    assert set(header["order"]) == set(shapes)   # every array is described
+    for name in header["order"]:
+        shape, dt = shapes[name]
+        expected += int(np.prod(shape)) * dt_size[dt]
     assert len(raw) == expected
     # points layers carry inline data; continuous layers declare ramps
     kinds = {l["id"]: l["kind"] for l in header["layers"]}
