@@ -492,14 +492,14 @@ function temperatureRamp(t) {
   return [Math.max(0,Math.min(255,r)), Math.max(0,Math.min(255,g)), Math.max(0,Math.min(255,b))];
 }
 
-// Precipitation ramp: 0→white [255,255,255]; 600→dark blue [0,50,200]
+// Precipitation ramp as cloud cover: 0mm→fully transparent; as precip
+// rises the shade goes light gray→near-black with alpha rising with it,
+// so dry land shows through and wet zones read as cloud shading (the old
+// white→blue ramp at fixed alpha washed the whole map gray).
 function precipRamp(p) {
   const t = Math.min(p / 600, 1);
-  return [
-    Math.round(255 + (0 - 255) * t),
-    Math.round(255 + (50 - 255) * t),
-    Math.round(255 + (200 - 255) * t),
-  ];
+  const v = Math.round(200 + (30 - 200) * t);   // light gray → near-black
+  return [v, v, v, Math.round(t * 190)];
 }
 
 // Sea-ice ramp: 0→transparent; 1→solid ice white-blue
