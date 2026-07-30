@@ -1287,10 +1287,33 @@ function packMaskArray(mask) {
   if (!mask) return null;
   const f = S.fields, n = S.shape[0] * S.shape[1];
   const out = new Uint8Array(n);
+  // freshwater includes seasonal river cells (water in ANY month) and
+  // mangrove biome cells (dual-domain: land + water) — the monthly
+  // planes zero dry months, the mask must not hide the wet ones.
+  let mangId = -1, mw = null, mplane = 0, mscale = 1, mW = 0;
+  if (mask === "freshwater") {
+    for (const [idStr, name] of Object.entries(S.biomeNames))
+      if (name === "mangrove") mangId = +idStr;
+    if (S.monthly && S.monthly.river_width_monthly) {
+      mw = S.monthly.river_width_monthly;
+      const [MH, MW] = S.monthly._shapes.river_width_monthly;
+      mplane = MH * MW; mW = MW; mscale = S.shape[1] / MW;
+    }
+  }
   for (let i = 0; i < n; i++) {
     if (mask === "land")           out[i] = (!f.ocean[i] && !f.sea[i]) ? 1 : 0;
     else if (mask === "ocean")     out[i] = (f.ocean[i] || f.sea[i]) ? 1 : 0;
-    else if (mask === "freshwater")out[i] = (f.river[i] || f.lake[i]) ? 1 : 0;
+    else if (mask === "freshwater") {
+      let v = (f.river[i] || f.lake[i]
+               || (mangId >= 0 && f.biome[i] === mangId)) ? 1 : 0;
+      if (!v && mw) {
+        const mi = Math.floor(i / S.shape[1] / mscale) * mW
+                   + Math.floor((i % S.shape[1]) / mscale);
+        for (let m = 0; m < 12 && !v; m++)
+          if (mw[m * mplane + mi] > 0) v = 1;
+      }
+      out[i] = v;
+    }
     else if (mask === "river")     out[i] = f.river[i];
     else if (mask === "lake")      out[i] = f.lake[i];
   }
