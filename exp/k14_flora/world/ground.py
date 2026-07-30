@@ -33,6 +33,7 @@ import numpy as np
 from exp.k11_worldgen.biomes import BIOME_ID
 from exp.k11_worldgen.units import DEPTH_MAX_M, elev_m, hand_m, precip_mm, \
     temp_c
+from kernel.hashrng import Stream
 # reuse the B2 reference values where the evidence is the same quantity,
 # plus the bilinear _upsample helper for the delivery-res re-derivation
 from exp.k14_flora.world.derived import ACC_REF, HAND_REF_M, P_REF_MMYR, \
@@ -54,11 +55,28 @@ DEPTH_ABYSS_M = 4000.0        # bathymetry saturating "abyssal" (abyssal
 RV_REF = 2.0                  # m/s river speed saturating flow-sorting
 DIS_REF = 50.0                # m³/s discharge fallback (~p99) if a dump
                               # lacks h_river_speed — noted, not preferred
-DUNE_DEP_GATE = 2.0           # deposition multiplier inside the dune gate
-                              # (dunes need BOTH the most-arid band AND a
-                              # sand supply; the rest of the arid mosaic is
-                              # sand sheet / reg — spec §dune rule)
+DUNE_ACC_REF = 30.0           # upstream (catchment) cells terminating in a
+                              # hyperarid cell that read as an aeolian sand
+                              # supply — a terminal wadi fan. Desert
+                              # interiors are endorheic: p99 of the driest
+                              # cells is ~38, so only true drainage
+                              # termini open the dune gate (ergs sit at
+                              # terminal fans, never mid-basin)
 W_FLOOR = 1e-6                # generator-weight floor feeding -log -> d2
+
+# ── volcanic (vent) evidence — built from the vent/spring POINTS, not ───
+# ── the raw fault field: most vents are dormant, and only ACTIVE crater ──
+# ── bowls carry fresh lava / vent crust. Radii are in anchor cells ───────
+# ── (4 km each) so the same painter runs natively at any resolution. ─────
+VENT_HALO_SIGMA_C = 2.0       # andisol (volcanic-soil) halo sigma
+VENT_HALO_CUT_C = 6.0         # halo cut radius (24 km)
+VENT_CORE_R_C = 1.2           # crater-bowl disk radius — fresh lava and
+                              # vent crust live ONLY inside this disk
+VENT_SEEP_R_C = 3.5           # cold-seep annulus outer radius
+VENT_P_ACTIVE_BASE = 0.25     # dormancy roll: p(active) foot ...
+VENT_P_ACTIVE_SPAN = 0.25     # ... + span x normalized activity, so even
+                              # the world's hottest vent is active ~half
+                              # the time (most volcanoes are dormant)
 
 # ── consume-time softmax temperature (knob set #4) ──────────────────────
 TAU = 1.0                     # softmax over -d2; at TAU=1 softmax(-d2) is
@@ -229,7 +247,7 @@ _BIOTIC_SOILS_SET = set(_BIOTIC_SOILS)
 # ── biome bias (knob set #1/#2 — "the biome pretends the climate ────────
 # ── considerations were done for you"; multiplicative, capped at 1) ─────
 _BIAS: dict[str, dict[str, float]] = {
-    "mollisol": {"temperate grassland": 3.0, "tropical grassland": 2.5},
+    "mollisol": {"temperate grassland": 2.5, "tropical grassland": 2.0},
     "podzol": {"boreal taiga": 3.0, "temperate conifer forest": 3.0},
     "ferralsol": {"tropical moist forest": 3.0},
     "brown earth": {"temperate broadleaf forest": 3.0},
@@ -285,10 +303,63 @@ def _slope_field(elev: np.ndarray) -> np.ndarray:
                               np.abs(elev - left), np.abs(elev - right)])
 
 
+# ── vent fields (point-based volcanic influence) ────────────────────────
+
+
+def _vent_active(pts: list[dict], seed: int) -> list[bool]:
+    """Deterministic per-vent dormancy roll (K1 stream, one draw per vent,
+    in point-list order). Most volcanoes are dormant: p(active) in
+    [VENT_P_ACTIVE_BASE, BASE+SPAN] scaled by normalized activity."""
+    if not pts:
+        return []
+    amax = max(p["activity"] for p in pts) or 1.0
+    stream = Stream(seed, "k14.ground.vents")
+    return [stream.bernoulli(VENT_P_ACTIVE_BASE
+                             + VENT_P_ACTIVE_SPAN * (p["activity"] / amax),
+                             0, i)
+            for i, p in enumerate(pts)]
+
+
+def _vent_fields(pts: list[dict], shape: tuple[int, int], seed: int,
+                 cells_per: int = 1):
+    """(ventf, vent_core, seep_ring) painted from the vent/spring points:
+    ventf is the gaussian volcanic-soil halo around EVERY vent (weathered
+    rock persists on dormant volcanoes); vent_core is the crisp crater-bowl
+    disk, ACTIVE vents only; seep_ring is the annulus just outside the
+    bowl (methane seeps outlive eruptions). cells_per = delivery factor;
+    radii are in anchor cells, so the painter runs natively at any res."""
+    H, W = shape
+    ventf = np.zeros((H, W))
+    core = np.zeros((H, W))
+    ring = np.zeros((H, W))
+    if not pts:
+        return ventf, core, ring
+    amax = max(p["activity"] for p in pts) or 1.0
+    active = _vent_active(pts, seed)
+    box = int(np.ceil(VENT_HALO_CUT_C * cells_per)) + 1
+    for p, act in zip(pts, active):
+        a = p["activity"] / amax
+        cy = p["y"] * cells_per + cells_per // 2
+        cx = p["x"] * cells_per + cells_per // 2
+        y0, y1 = max(0, cy - box), min(H, cy + box + 1)
+        x0, x1 = max(0, cx - box), min(W, cx + box + 1)
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        d = np.hypot(yy - cy, xx - cx) / cells_per     # anchor-cell units
+        halo = a * np.exp(-(d ** 2) / (2 * VENT_HALO_SIGMA_C ** 2))
+        halo[d > VENT_HALO_CUT_C] = 0.0
+        np.maximum(ventf[y0:y1, x0:x1], halo, out=ventf[y0:y1, x0:x1])
+        ann = ((d > VENT_CORE_R_C) & (d <= VENT_SEEP_R_C)) * (0.8 * a)
+        np.maximum(ring[y0:y1, x0:x1], ann, out=ring[y0:y1, x0:x1])
+        if act:
+            np.maximum(core[y0:y1, x0:x1], (d <= VENT_CORE_R_C) * a,
+                       out=core[y0:y1, x0:x1])
+    return ventf, core, ring
+
+
 # ── evidence fields (all bounded [0,1] by construction) ─────────────────
 
 
-def _evidence(z, sea: float, vent_activity: np.ndarray) -> dict:
+def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
     """Compute every bounded evidence field once per build. Returns a dict
     of (H,W) float fields in [0,1] plus the domain masks."""
     ocean = z["h_ocean_mask"] | z["h_sea_mask"]
@@ -298,7 +369,8 @@ def _evidence(z, sea: float, vent_activity: np.ndarray) -> dict:
 
     hand = hand_m(z["h_hand"], sea)
     wet = np.exp(-hand / HAND_REF_M)                       # waterlogging
-    dep = (np.clip(z["h_accumulation"] / ACC_REF, 0.0, 1.0) * wet)
+    dep_dry = np.clip(z["h_accumulation"] / ACC_REF, 0.0, 1.0)
+    dep = dep_dry * wet
 
     elev = elev_m(z["w_elev"], sea)                        # signed meters
     slope = np.clip(_slope_field(elev) / SLOPE_REF_M, 0.0, 1.0)
@@ -315,11 +387,12 @@ def _evidence(z, sea: float, vent_activity: np.ndarray) -> dict:
         + np.clip(z["h_glacier_flux"] / GLAC_FLUX_REF, 0.0, 1.0) * 0.5,
         0.0, 1.0)
 
-    # vent activity normalized by its 99th percentile — a documented BOUND
-    # (same convention as the marine rework): a single extreme fault clips
-    # instead of re-anchoring the rest of the field.
-    vp99 = max(float(np.percentile(vent_activity, 99.0)), 1e-12)
-    ventf = np.clip(vent_activity / vp99, 0.0, 1.0)
+    # volcanic influence from the vent/spring POINTS (not the raw fault
+    # field — a fault line is not a volcano): gaussian andisol halo around
+    # every vent, crisp crater bowls on ACTIVE vents only (K1 dormancy
+    # roll), seep annulus around every vent.
+    ventf, vent_core, seep_ring = _vent_fields(vent_pts, ocean.shape, seed,
+                                               cells_per=1)
 
     # ── derived soil salinity (no upstream field — spec calls this out) ──
     # max of three bounded terms:
@@ -358,24 +431,23 @@ def _evidence(z, sea: float, vent_activity: np.ndarray) -> dict:
     shallow = depthn < 0.05
     tidal = (coast_band & flat & (~ocean | shallow)).astype(np.float64)
 
-    # shared per-class sub-expressions + the halo/dilation terms. ALL of
-    # these are computed here at anchor res; the hi-res pass upsamples the
+    # shared per-class sub-expressions. The remaining halo/dilation terms
+    # are computed here at anchor res; the hi-res pass upsamples the
     # finished fields (never re-dilates at delivery res) so the halo width
-    # in km is preserved and only the edges go smooth.
-    vent_core = ventf > 0.5
-    seep_ring = (_dilate8(vent_core, 2) & ~vent_core).astype(np.float64)
+    # in km is preserved and only the edges go smooth. The vent fields
+    # above are the exception: painted from points natively at either res.
     reef = (z["w_aquatic"] == 4).astype(np.float64)     # K11 "coral reef"
 
     return dict(
         ocean=ocean.astype(np.float64), lake=lake.astype(np.float64),
         river=river.astype(np.float64), land=land.astype(np.float64),
         dep=dep, wet=wet, slope=slope, arid=arid, cold=cold, warm=warm,
-        glac=glac, ventf=ventf, salsoil=salsoil, energy=energy,
-        depthn=depthn, rs=rs, tidal=tidal,
+        glac=glac, ventf=ventf, vent_core=vent_core, seep_ring=seep_ring,
+        salsoil=salsoil, energy=energy, depthn=depthn, rs=rs, tidal=tidal,
         near_ocean1=near_ocean1.astype(np.float64),
-        dune_dep=np.clip(dep * DUNE_DEP_GATE, 0.0, 1.0),
-        loamy=0.5 + 0.5 * dep, seep_ring=seep_ring, reef=reef,
-        biome=z["w_biome_map"])
+        dune_dep=np.clip(z["h_accumulation"] / DUNE_ACC_REF, 0.0, 1.0),
+        loamy=0.5 + 0.5 * dep, reef=reef,
+        biome=z["w_biome_map"], vent_pts=vent_pts)
 
 
 def _biome_bias(biome: np.ndarray) -> np.ndarray:
@@ -405,7 +477,7 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     lake, river = e["lake"], e["river"]
     dep, wet, slope = e["dep"], e["wet"], e["slope"]
     arid, cold, warm = e["arid"], e["cold"], e["warm"]
-    glac, ventf = e["glac"], e["ventf"]
+    glac, ventf, vent_core = e["glac"], e["ventf"], e["vent_core"]
     salsoil, energy, depthn = e["salsoil"], e["energy"], e["depthn"]
     rs, tidal = e["rs"], e["tidal"]
     dune_dep, loamy = e["dune_dep"], e["loamy"]
@@ -413,12 +485,16 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     no = e["near_ocean1"]
 
     # terrestrial — physical
-    if name == "dune sand":            # most-arid gate
-        return arid ** 2 * dune_dep * land
+    if name == "dune sand":            # most-arid terminal-fan gate
+        return arid ** 2 * dune_dep * (1 - 0.5 * slope) * land
     if name == "sand sheet":
         return arid * (1 - slope) * (1 - 0.6 * dune_dep) * land
     if name == "reg / desert pavement":
-        return arid * (1 - dep) * (1 - 0.5 * slope) * land
+        # arid²: true-desert default only — the semi-arid band belongs to
+        # sand sheet and the (1-arid)-scaled soils (reg was cosmopolitan).
+        # Where the dune gate is open the sand is mobile — no stable
+        # pavement (same (1-x) suppression pattern as reef over mud).
+        return arid ** 2 * (1 - dep) * (1 - 0.5 * slope) * (1 - dune_dep) * land
     if name == "scree":                # the slope override
         return slope ** 1.5 * (1 - 0.3 * slope) * land
     if name == "bedrock outcrop":      # steepest cliffs
@@ -440,7 +516,9 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     if name == "andisol":
         return ventf * (1 - slope) * land
     if name == "fresh lava":
-        return ventf * slope * land
+        # the crater bowl of an ACTIVE vent only (vent_core is already
+        # dormancy-gated); dormant flanks weather to andisol
+        return vent_core * (0.3 + 0.7 * slope) * land
     if name == "rendzina":
         return ((1 - arid) * (1 - cold) * (1 - wet) * (1 - dep)
                 * (1 - slope) * 0.75 * land)
@@ -456,7 +534,9 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
         return no * (1 - slope) * 0.8 * land
     # terrestrial — biotic / mixed (biome bias applied by the caller)
     if name == "mollisol":
-        return (1 - arid) * (1 - cold) * (1 - slope) * loamy * land
+        # steppe-tolerant (chernozem): arid only docks 0.6, so semi-arid
+        # grassland reads mollisol instead of falling through to sand sheet
+        return (1 - 0.6 * arid) * (1 - cold) * (1 - slope) * loamy * land
     if name == "podzol":
         return (1 - arid) * (0.3 + 0.7 * cold) * (1 - slope) * loamy * land
     if name == "ferralsol":
@@ -464,9 +544,13 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     if name == "brown earth":
         return (1 - arid) * (1 - cold) * (1 - slope) * loamy * land
     if name == "fen":
-        return wet * loamy * (1 - slope) * 0.9 * land
+        # warm-temperate wetland counterpart of bog (which is cold-gated)
+        return wet * loamy * (1 - slope) * 0.9 * (0.4 + 0.6 * warm) * land
     if name == "bog":
-        return wet * (1 - dep) * (1 - slope) * 0.85 * land
+        # rain-fed peat prefers COLD wetlands: without the gate every wet
+        # flat on the planet read bog (9% of land — Earth has ~3%, mostly
+        # cold). Soft gate, not a veto: warm bogs exist, just rarer.
+        return wet * (1 - dep) * (1 - slope) * 0.85 * (0.5 + 0.5 * cold) * land
     if name == "gleysol":
         return wet * loamy * (1 - slope) * 0.8 * land
     if name == "gelisol":
@@ -476,20 +560,23 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     if name == "montane ranker":
         return (1 - dep) * (1 - slope) * (0.4 + 0.6 * cold) * 0.7 * land
     # underwater — vent influence suppresses the deep-ocean background
-    # (vent crust at the core, cold seep in a 2-ring, abyssal clay beyond)
+    # (vent crust at the active core, cold seep in the annulus beyond)
     if name == "marine mud":
-        return (1 - depthn) * (1 - energy) * ocean
+        return (1 - depthn) * (1 - energy) * (1 - reef) * ocean
     if name == "abyssal clay":
         return (depthn ** 2 * (1 - energy) * (1 - 0.5 * ventf)
                 * (1 - 0.5 * seep_ring) * ocean)
     if name == "marine sand":
-        return (1 - depthn) * energy * (1 - energy) * 1.2 * ocean
+        return (1 - depthn) * energy * (1 - energy) * 1.2 * (1 - reef) * ocean
     if name == "reef carbonate":
-        return reef * (1 - 0.5 * depthn) * ocean * 0.9
+        # a reef IS carbonate — no cap: it must outvote the mud/sand
+        # background on its own mask (it lost 99.5% of reef cells before)
+        return reef * (1 - 0.5 * depthn) * ocean
     if name == "rocky bottom":
         return energy ** 2 * ocean
     if name == "vent crust":
-        return ventf * ocean
+        # active crater bowls only — dormant vents keep their seep ring
+        return vent_core * ocean
     if name == "cold seep":
         return seep_ring * (0.5 + 0.5 * depthn) * ocean
     if name == "tidal flat":           # interface class
@@ -507,11 +594,13 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
 
 
 def build_ground(z, manifest: dict, sea: float,
-                 vent_activity: np.ndarray) -> dict:
+                 vent_pts: list[dict]) -> dict:
     """The B3 ground pass at anchor res. Returns d2 (41,H,W float32),
     class_id (H,W uint8), mix_ids/mix_w (top-3), and meta (the JSON-able
-    class table). Deterministic — no RNG anywhere."""
-    e = _evidence(z, sea, vent_activity)
+    class table). Deterministic — the only RNG is the K1 vent-dormancy
+    stream keyed by manifest['seed']."""
+    seed = int(manifest.get("seed", 0))
+    e = _evidence(z, sea, vent_pts, seed)
     bias = _biome_bias(e["biome"])
 
     stacked = np.stack(
@@ -549,36 +638,48 @@ def build_ground(z, manifest: dict, sea: float,
 # res (1024²) instead of kron-stamping the anchor map into 4x4 px blocks —
 # the deliver.py delivery rule: derived/pointwise quantities are re-derived
 # at the target resolution from interpolated parents; only relational
-# quantities stay at anchor res. Each evidence field is bilinear-upsampled
+# quantities stay at anchor res. Continuous evidence is bilinear-upsampled
 # from anchor (halo/dilation terms included — they were computed at anchor
-# above, so the halo width in km is preserved and only edges go smooth);
-# the domain masks come from the delivered K11 masks; biome is an anchor-
-# level decision and is stamped (kron), never interpolated.
+# above, so the halo width in km is preserved and only edges go smooth).
+# Everything CATEGORICAL comes from the delivered K11 fields, never from a
+# kron'd anchor map: domain masks (d_*_mask), the biome map (d_biome_map —
+# biome-driven edges then coincide with the displayed Biomes divides), and
+# the reef class (d_aquatic). The vent fields are re-painted from the point
+# list natively at delivery res (crisp crater bowls, no 4x4 halo blocks).
 
 # evidence planes that get bilinear-upsampled anchor -> delivery
 _HI_FIELDS = ("dep", "wet", "slope", "arid", "cold", "warm", "glac",
-              "ventf", "salsoil", "energy", "depthn", "rs", "tidal",
-              "near_ocean1", "dune_dep", "loamy", "seep_ring", "reef")
+              "salsoil", "energy", "depthn", "rs", "tidal",
+              "near_ocean1", "dune_dep", "loamy")
 
 
-def _upsample_evidence(e: dict, z, factor: int) -> dict:
+def _upsample_evidence(e: dict, z, factor: int, seed: int) -> dict:
     """The anchor evidence dict re-gridded to delivery res."""
     hi = {k: _upsample(e[k], factor) for k in _HI_FIELDS}
-    if "d_ocean_mask" in z:                 # delivered masks (real world)
+    if "d_ocean_mask" in z:                 # delivered fields (real world)
         ocean = z["d_ocean_mask"] | z["d_sea_mask"]
         lake = z["d_lake_mask"]
         river = z["d_river_mask"]
-    else:                                   # synthetic: stamp the anchor masks
+        biome = z["d_biome_map"]
+        reef = (z["d_aquatic"] == 4).astype(np.float64)
+    else:                                   # synthetic: stamp the anchor maps
         def _stamp(m: np.ndarray) -> np.ndarray:
             return np.repeat(np.repeat(m > 0.5, factor, 0), factor, 1)
         ocean, lake, river = _stamp(e["ocean"]), _stamp(e["lake"]), \
             _stamp(e["river"])
+        biome = np.repeat(np.repeat(e["biome"], factor, 0), factor, 1)
+        reef = _upsample(e["reef"], factor)
     land = ~ocean & ~lake & ~river
     hi["ocean"] = ocean.astype(np.float64)
     hi["lake"] = lake.astype(np.float64)
     hi["river"] = river.astype(np.float64)
     hi["land"] = land.astype(np.float64)
-    hi["biome"] = np.repeat(np.repeat(e["biome"], factor, 0), factor, 1)
+    hi["biome"] = biome
+    hi["reef"] = reef
+    ventf, vent_core, seep_ring = _vent_fields(
+        e["vent_pts"], ocean.shape, seed, cells_per=factor)
+    hi["ventf"], hi["vent_core"], hi["seep_ring"] = ventf, vent_core, \
+        seep_ring
     return hi
 
 
@@ -641,11 +742,13 @@ def _classify(e: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 
 def build_ground_hires(z, manifest: dict, sea: float,
-                       vent_activity: np.ndarray, factor: int = 4) -> dict:
+                       vent_pts: list[dict], factor: int = 4) -> dict:
     """The delivery-res ground map: class_id (H*f, W*f uint8) and top-3
-    mix_ids/mix_w, re-derived pointwise from upsampled evidence (no 4x4
-    blocks). No full d2 here — consumers read the anchor-res d2."""
-    e = _evidence(z, sea, vent_activity)
-    e_hi = _upsample_evidence(e, z, factor)
+    mix_ids/mix_w, re-derived pointwise from upsampled evidence + delivered
+    categorical fields (no 4x4 blocks). No full d2 here — consumers read
+    the anchor-res d2."""
+    seed = int(manifest.get("seed", 0))
+    e = _evidence(z, sea, vent_pts, seed)
+    e_hi = _upsample_evidence(e, z, factor, seed)
     class_id, mix_ids, mix_w = _classify(e_hi)
     return dict(class_id=class_id, mix_ids=mix_ids, mix_w=mix_w)

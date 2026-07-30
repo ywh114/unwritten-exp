@@ -34,16 +34,16 @@ def inputs():
 def gr(inputs):
     z, manifest = inputs
     sea = float(manifest["sea_level"])
-    vent_field, _, _ = derived.vents(z, manifest)
-    return ground.build_ground(z, manifest, sea, vent_field)
+    _, vp, sp = derived.vents(z, manifest)
+    return ground.build_ground(z, manifest, sea, vp + sp)
 
 
 @pytest.fixture(scope="module")
 def hires(inputs):
     z, manifest = inputs
     sea = float(manifest["sea_level"])
-    vent_field, _, _ = derived.vents(z, manifest)
-    return ground.build_ground_hires(z, manifest, sea, vent_field, 4)
+    _, vp, sp = derived.vents(z, manifest)
+    return ground.build_ground_hires(z, manifest, sea, vp + sp, 4)
 
 
 @pytest.fixture(scope="module")
@@ -90,10 +90,8 @@ def _ground_z(H: int = 8, W: int = 8) -> dict:
     return z
 
 
-def _build(z: dict, vent_activity: np.ndarray | None = None) -> dict:
-    if vent_activity is None:
-        vent_activity = np.zeros(z["w_elev"].shape)
-    return ground.build_ground(z, {}, SEA, vent_activity)
+def _build(z: dict, vent_pts: list[dict] | None = None) -> dict:
+    return ground.build_ground(z, {}, SEA, vent_pts or [])
 
 
 def _w(g: dict) -> np.ndarray:
@@ -108,8 +106,8 @@ def _w(g: dict) -> np.ndarray:
 def test_deterministic(gr, inputs):
     z, manifest = inputs
     sea = float(manifest["sea_level"])
-    vent_field, _, _ = derived.vents(z, manifest)
-    again = ground.build_ground(z, manifest, sea, vent_field)
+    _, vp, sp = derived.vents(z, manifest)
+    again = ground.build_ground(z, manifest, sea, vp + sp)
     for key in ("d2", "class_id", "mix_ids", "mix_w"):
         assert np.array_equal(gr[key], again[key]), key
     assert gr["meta"] == again["meta"]
@@ -195,9 +193,10 @@ def test_deep_quiet_ocean_abyssal():
 def test_land_vent_cell_andisol():
     z = _ground_z()
     z["c_T"][2, 2] = (-5.0 + 30.0) / 65.0            # cold -> brown earth off
-    va = np.zeros(z["w_elev"].shape)
-    va[2, 2] = 1.0
-    g = _build(z, va)
+    pts = [{"y": 2, "x": 2, "activity": 1.0}]
+    g = _build(z, pts)
+    # the andisol halo sits on every vent, dormant or active; on flat land
+    # it outvotes the crater-bowl lava even when the vent IS active
     assert g["class_id"][2, 2] == GROUND_ID["andisol"]
 
 
@@ -207,11 +206,14 @@ def test_ocean_vent_core_and_cold_seep_ring():
     z["h_ocean_mask"][:] = True
     z["w_elev"][:] = _below(SEA, 5000.0)             # deep everywhere
     z["w_biome_map"][:] = 17
-    va = np.zeros((H, W))
-    va[5, 5] = 1.0                                   # the vent core
-    g = _build(z, va)
-    assert g["class_id"][5, 5] == GROUND_ID["vent crust"]
-    assert g["class_id"][5, 6] == GROUND_ID["cold seep"]   # adjacent ring
+    pts = [{"y": 5, "x": 5, "activity": 1.0}]
+    g = _build(z, pts)
+    # dormancy is a K1 roll on manifest seed ({} -> 0): active vents carry
+    # vent crust in the crater-bowl disk, dormant ones weather to clay
+    active = ground._vent_active(pts, 0)[0]
+    assert g["class_id"][5, 5] == (GROUND_ID["vent crust"] if active
+                                   else GROUND_ID["abyssal clay"])
+    assert g["class_id"][5, 7] == GROUND_ID["cold seep"]   # seep annulus
 
 
 def test_river_speed_sorts_gravel_vs_sand():
@@ -274,9 +276,9 @@ def test_hires_shapes_and_finite(hires):
 def test_hires_deterministic(inputs):
     z, manifest = inputs
     sea = float(manifest["sea_level"])
-    vent_field, _, _ = derived.vents(z, manifest)
-    again = ground.build_ground_hires(z, manifest, sea, vent_field, 4)
-    first = ground.build_ground_hires(z, manifest, sea, vent_field, 4)
+    _, vp, sp = derived.vents(z, manifest)
+    again = ground.build_ground_hires(z, manifest, sea, vp + sp, 4)
+    first = ground.build_ground_hires(z, manifest, sea, vp + sp, 4)
     for key in ("class_id", "mix_ids", "mix_w"):
         assert np.array_equal(first[key], again[key]), key
 
@@ -298,17 +300,21 @@ def test_hires_not_block_aligned(hires):
 
 def test_hires_histogram_consistent_with_anchor(gr, hires):
     """Sharpening, not re-classifying: the delivery-res dominant histogram
-    keeps the same top classes, each within ~15% of its anchor area."""
+    keeps the same top classes, each within ~15% of its anchor area. Top-4
+    sets must match exactly; rank-5 is allowed to swap (the #4/#5/#6
+    classes are within a few tenths of a percent, so the delivered-res
+    biome map legitimately reorders the boundary rank)."""
     def fracs(cid):
         u, c = np.unique(cid.ravel(), return_counts=True)
         return {int(k): v / cid.size for k, v in zip(u, c)}
     fa, fh = fracs(gr["class_id"]), fracs(hires["class_id"])
     top_a = sorted(fa, key=fa.get, reverse=True)[:5]
     top_h = sorted(fh, key=fh.get, reverse=True)[:5]
-    assert set(top_a) == set(top_h), (top_a, top_h)
-    for k in top_a:
-        rel = abs(fh[k] - fa[k]) / fa[k]
-        assert rel < 0.15, (ground.GROUND_CLASSES[k]["name"], fa[k], fh[k])
+    assert set(top_a[:4]) == set(top_h[:4]), (top_a, top_h)
+    for k in set(top_a) | set(top_h):
+        rel = abs(fh.get(k, 0) - fa.get(k, 0)) / fa.get(k, 1e-12)
+        assert rel < 0.15, (ground.GROUND_CLASSES[k]["name"], fa.get(k),
+                            fh.get(k))
 
 
 # ── reachability audit ──────────────────────────────────────────────────

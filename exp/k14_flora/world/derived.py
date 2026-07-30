@@ -472,10 +472,11 @@ def build(seed: int) -> dict:
     points["vents"] = vent_pts
     points["hot_springs"] = spring_pts
 
-    # substrate ("ground") classification — biosphere addendum B3. The vent
-    # activity field is computed once above and handed over (no recompute).
+    # substrate ("ground") classification — biosphere addendum B3. Ground
+    # builds its OWN volcanic evidence from the vent/spring points (most
+    # vents dormant — K1 roll inside), not from the raw fault field above.
     from exp.k14_flora.world.ground import build_ground, build_ground_hires
-    g = build_ground(z, manifest, sea, vent_field)
+    g = build_ground(z, manifest, sea, vent_pts + spring_pts)
     # d2 stays at ANCHOR res on purpose: 41x1024² float32 is ~170 MB/world
     # vs ~11 MB at 256². Similarity is a consume-time transform over the
     # full vector (biosphere_conv ruling), so there is nothing to upsample.
@@ -484,7 +485,7 @@ def build(seed: int) -> dict:
     # pointwise quantities rerun at the target resolution from interpolated
     # parents) — the rule is pointwise per cell, so it reruns at 1024² from
     # bilinear-upsampled evidence instead of kron-stamping 4x4 px blocks.
-    hi = build_ground_hires(z, manifest, sea, vent_field, factor)
+    hi = build_ground_hires(z, manifest, sea, vent_pts + spring_pts, factor)
     products["ground_class"] = hi["class_id"]
     products["ground_mix_ids"] = hi["mix_ids"]
     products["ground_mix_w"] = hi["mix_w"]
