@@ -80,6 +80,8 @@ greenfield. Suitability maps onto EXISTING species axes (no new ones):
   intentional)
 - `salinity_tolerance` ← sal+ (fauna: the `Condition.env` "salinity"
   hook, osmoreg generics)
+- `ph_tolerance` ← pH (the calcicole/calcifuge split — a first-order
+  niche axis real ecology has and the axis set was missing)
 - `fertility_requirement` ← nutrient stock
 - rooting-depth gate: `root_depth_m` vs the class's rooting depth;
   anchoring need is calculable from height/woodiness (K13 ruling:
@@ -89,9 +91,11 @@ greenfield. Suitability maps onto EXISTING species axes (no new ones):
 columns (holdfast rooters — kelp, sponge — need hard; fossorial fauna
 and SAND-SWIM need loose; hardpans — caliche, laterite — get
 impenetrable for free). The class list IS the schema: every future
-class proposal must name the consumer decision it changes. pH is
-smuggled in as class identity (fen/bog, rendzina calcicole) — no pH
-column.
+class proposal must name the consumer decision it changes. pH was
+originally smuggled in as class identity (fen/bog, rendzina calcicole);
+the 2026-07-30 revision promotes it to an explicit property column —
+the classes were already pH-diagnostic, so the column is one float per
+row and cell pH is the mix-weighted mean (see Revisions).
 
 **Magic-class exemptions** (per-lineage, not classes): LEY-FED is
 substrate-free; PHASE-ROOT bypasses rooting/impenetrability;
@@ -105,60 +109,61 @@ defensible content, consumers reading d2 are robust to ±0.1)
 
 Terrestrial — physical:
 
-| class | retention | rooting m | sal+ | nutrient | genesis |
-|---|---|---|---|---|---|
-| dune sand | 0.05 | 0.3 | 0 | 0.15 | most-arid deposition only |
-| sand sheet | 0.10 | 0.5 | 0 | 0.20 | arid |
-| reg / desert pavement | 0.05 | 0.2 | 0 | 0.15 | winnowing |
-| scree | 0.05 | 0.10 | 0 | 0.05 | slope override |
-| bedrock outcrop | 0.02 | 0.05 | 0 | 0.02 | erosion |
-| alluvium | 0.65 | 2.0 | 0 | 0.80 | deposition |
-| loess | 0.55 | 1.5 | 0 | 0.70 | glacial-margin wind |
-| silt | 0.60 | 1.2 | 0 | 0.65 | low-energy deposition |
-| clay | 0.65 | 0.8 | 0 | 0.55 | still water (plant-available, not total) |
-| vertisol | 0.75 | 1.2 | 0 | 0.70 | shrink-swell smectite, seasonal cracks |
-| till | 0.45 | 0.8 | 0 | 0.50 | glacial |
-| outwash gravel | 0.15 | 0.4 | 0 | 0.35 | glaciofluvial |
-| andisol | 0.80 | 1.0 | 0 | 0.70 | vent proximity (allophane: high water, P fixed) |
-| fresh lava | 0.05 | 0.1 | 0 | 0.30 | active fault |
-| rendzina | 0.30 | 0.4 | 0 | 0.55 | limestone (calcicole; absorbs chalk) |
-| laterite cuirasse | 0.10 | 0.2 | 0 | 0.10 | plinthite hardpan, tropical |
-| caliche | 0.12 | 0.25 | 0 | 0.20 | petrocalcic hardpan, semi-arid |
-| solonchak | 0.10 | 0.3 | 1.0 | 0.05 | endorheic/coastal evaporite (absorbs sabkha) |
-| solonetz | 0.35 | 0.5 | 0.45 | 0.25 | sodic, dispersed clay |
-| coastal sand | 0.10 | 0.4 | 0.3 | 0.20 | littoral |
+| class | retention | rooting m | sal+ | nutrient | pH | genesis |
+|---|---|---|---|---|---|---|
+| dune sand | 0.05 | 0.3 | 0 | 0.15 | 6.5 | most-arid deposition only |
+| sand sheet | 0.10 | 0.5 | 0 | 0.20 | 6.5 | arid |
+| reg / desert pavement | 0.05 | 0.2 | 0 | 0.15 | 7.8 | winnowing |
+| scree | 0.05 | 0.10 | 0 | 0.05 | 6.8 | slope override |
+| bedrock outcrop | 0.02 | 0.05 | 0 | 0.02 | 7.0 | erosion |
+| alluvium | 0.65 | 2.0 | 0 | 0.80 | 6.8 | deposition |
+| loess | 0.55 | 1.5 | 0 | 0.70 | 7.8 | glacial-margin wind |
+| silt | 0.60 | 1.2 | 0 | 0.65 | 6.8 | low-energy deposition |
+| clay | 0.65 | 0.8 | 0 | 0.55 | 6.5 | still water (plant-available, not total) |
+| vertisol | 0.75 | 1.2 | 0 | 0.70 | 7.8 | shrink-swell smectite, seasonal cracks |
+| till | 0.45 | 0.8 | 0 | 0.50 | 6.8 | glacial |
+| outwash gravel | 0.15 | 0.4 | 0 | 0.35 | 6.5 | glaciofluvial |
+| andisol | 0.80 | 1.0 | 0 | 0.70 | 5.5 | vent proximity (allophane: high water, P fixed) |
+| fresh lava | 0.05 | 0.1 | 0 | 0.30 | 6.5 | active fault |
+| rendzina | 0.30 | 0.4 | 0 | 0.55 | 7.8 | limestone (calcicole; absorbs chalk) |
+| laterite cuirasse | 0.10 | 0.2 | 0 | 0.10 | 5.0 | plinthite hardpan, tropical |
+| caliche | 0.12 | 0.25 | 0 | 0.20 | 8.2 | petrocalcic hardpan, semi-arid |
+| solonchak | 0.10 | 0.3 | 1.0 | 0.05 | 8.5 | endorheic/coastal evaporite (absorbs sabkha) |
+| solonetz | 0.35 | 0.5 | 0.45 | 0.25 | 9.0 | sodic, dispersed clay |
+| coastal sand | 0.10 | 0.4 | 0.3 | 0.20 | 7.5 | littoral |
 
 Terrestrial — biotic / mixed:
 
-| class | retention | rooting m | sal+ | nutrient | genesis |
-|---|---|---|---|---|---|
-| mollisol | 0.70 | 2.2 | 0 | 0.95 | grassland |
-| podzol | 0.45 | 0.9 | 0 | 0.25 | conifer/taiga |
-| ferralsol | 0.55 | 1.5 | 0 | 0.15 | rainforest (nutrients in biomass) |
-| brown earth | 0.60 | 1.5 | 0 | 0.65 | temperate broadleaf |
-| fen | 0.92 | 0.5 | 0 | 0.45 | groundwater-fed peat |
-| bog | 0.98 | 0.3 | 0 | 0.05 | rain-fed Sphagnum dome (carnivory's home) |
-| gleysol | 0.85 | 0.3 | 0 | 0.30 | groundwater waterlogging |
-| gelisol | 0.60 | 0.4 | 0 | 0.30 | permafrost + cryoturbation |
-| mangrove mud | 0.90 | 0.5 | 0.6 | 0.50 | mangrove |
-| montane ranker | 0.35 | 0.4 | 0 | 0.40 | thin upland soil |
+| class | retention | rooting m | sal+ | nutrient | pH | genesis |
+|---|---|---|---|---|---|---|
+| mollisol | 0.70 | 2.2 | 0 | 0.95 | 6.8 | grassland |
+| podzol | 0.45 | 0.9 | 0 | 0.25 | 4.5 | conifer/taiga |
+| ferralsol | 0.55 | 1.5 | 0 | 0.15 | 5.0 | rainforest (nutrients in biomass) |
+| brown earth | 0.60 | 1.5 | 0 | 0.65 | 6.0 | temperate broadleaf |
+| fen | 0.92 | 0.5 | 0 | 0.45 | 6.2 | groundwater-fed peat |
+| bog | 0.98 | 0.3 | 0 | 0.05 | 4.0 | rain-fed Sphagnum dome (carnivory's home) |
+| gleysol | 0.85 | 0.3 | 0 | 0.30 | 5.5 | groundwater waterlogging |
+| gelisol | 0.60 | 0.4 | 0 | 0.30 | 5.5 | permafrost + cryoturbation |
+| mangrove mud | 0.90 | 0.5 | 0.6 | 0.50 | 6.5 | mangrove |
+| montane ranker | 0.35 | 0.4 | 0 | 0.40 | 5.5 | thin upland soil |
 
-Underwater (retention 1.0 saturated; sal+ = the water's salinity):
+Underwater (retention 1.0 saturated; sal+ = the water's salinity; pH =
+pore/water-column pH — seawater-buffered ~8, vent crust acid):
 
-| class | retention | rooting m | sal+ | nutrient | genesis |
-|---|---|---|---|---|---|
-| marine mud | 1.0 | 0.3 | sea | 0.40 | marine snow, quiet shelf |
-| abyssal clay | 1.0 | 0.2 | sea | 0.10 | pelagic, food-starved |
-| marine sand | 1.0 | 0.3 | sea | 0.25 | high-energy shelf |
-| reef carbonate | 1.0 | 0.4 | sea | 0.35 | coral |
-| rocky bottom | 1.0 | 0.05 | sea | 0.20 | high energy / kelp holdfast |
-| vent crust | 1.0 | 0.1 | sea | 0.90 | hot sulfide chemosynthesis |
-| cold seep | 1.0 | 0.3 | sea | 0.85 | methane chemosynthesis + carbonate |
-| pillow basalt | 0.10 | 0.1 | sea | 0.10 | submarine eruption (quenched pillow lava) |
-| tidal flat | 1.0 | 0.15 | 0.5 | 0.55 | tide-sorted, brackish gradient |
-| lake mud | 1.0 | 0.4 | lake | 0.60 | deposition + biotic |
-| river gravel bed | 1.0 | 0.2 | 0 | 0.30 | flow-sorted |
-| river sand bed | 1.0 | 0.3 | 0 | 0.25 | flow-sorted |
+| class | retention | rooting m | sal+ | nutrient | pH | genesis |
+|---|---|---|---|---|---|---|
+| marine mud | 1.0 | 0.3 | sea | 0.40 | 7.8 | marine snow, quiet shelf |
+| abyssal clay | 1.0 | 0.2 | sea | 0.10 | 7.8 | pelagic, food-starved |
+| marine sand | 1.0 | 0.3 | sea | 0.25 | 8.0 | high-energy shelf |
+| reef carbonate | 1.0 | 0.4 | sea | 0.35 | 8.2 | coral |
+| rocky bottom | 1.0 | 0.05 | sea | 0.20 | 8.1 | high energy / kelp holdfast |
+| vent crust | 1.0 | 0.1 | sea | 0.90 | 5.5 | hot sulfide chemosynthesis |
+| cold seep | 1.0 | 0.3 | sea | 0.85 | 7.2 | methane chemosynthesis + carbonate |
+| pillow basalt | 0.10 | 0.1 | sea | 0.10 | 8.0 | submarine eruption (quenched pillow lava) |
+| tidal flat | 1.0 | 0.15 | 0.5 | 0.55 | 7.5 | tide-sorted, brackish gradient |
+| lake mud | 1.0 | 0.4 | lake | 0.60 | 7.0 | deposition + biotic |
+| river gravel bed | 1.0 | 0.2 | 0 | 0.30 | 7.2 | flow-sorted |
+| river sand bed | 1.0 | 0.3 | 0 | 0.25 | 7.2 | flow-sorted |
 
 Renames from earlier drafts: volcanic ash → andisol, salt pan →
 solonchak, peat → fen + bog (split). Rejected candidates (L1 detail,
@@ -185,6 +190,20 @@ vent seepage is real). (b) Passive-margin seeps decoupled from vents —
 a smooth hydrate-stability band (~300–3000 m) × sediment × a mild slope
 preference; real cold seeps cluster on sediment-rich continental
 slopes, not as concentric rings around every volcano.
+
+**pH is promoted to a property column.** The classes were already
+pH-diagnostic (caliche/solonchak alkaline, podzol/bog/ferralsol acid,
+rendzina base-rich, vent crust hydrothermal-acid), so the column is one
+draft float per row — the ORDERING (bog < fen, podzol < brown earth,
+laterite < rendzina, solonchak < solonetz) is again the defensible
+content. Cell pH is the top-3 mix-weighted mean of the class rows
+(`mix_ph`, pointwise — derived at anchor and delivery res from the
+persisted mix, no extra field derivation budget); land reads soil pH,
+underwater reads pore/water pH with vent cells coming out acid from the
+class row alone. This supersedes the "pH smuggled as class identity"
+line above and feeds the planned P7 stress pass (`ph_tolerance`, the
+calcicole/calcifuge split) and pigment-chemistry flower color
+(anthocyanin expression is pH-dependent — hydrangea logic).
 
 ## Knobs
 

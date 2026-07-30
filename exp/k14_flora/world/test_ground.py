@@ -530,3 +530,44 @@ def test_pack_categorical_layer(result, tmp_path):
     assert arrays["ground_mix_w"].max() <= 255
     assert np.allclose(arrays["ground_mix_w"].reshape(3, -1).sum(axis=0),
                        255, atol=2)
+
+
+# ── pH rows + mix-derived field ─────────────────────────────────────────
+
+def test_class_ph_rows_defensible_orderings():
+    ph = {c["name"]: c["ph"] for c in ground.GROUND_CLASSES}
+    assert len(ph) == N_CLASSES
+    for name, v in ph.items():
+        assert 3.5 <= v <= 9.5, name
+    # the ORDERINGS are the defensible content (floats are draft knobs)
+    assert ph["bog"] < ph["fen"]                     # rain-fed < gw-fed peat
+    assert ph["podzol"] < ph["brown earth"]          # taiga < temperate
+    assert ph["laterite cuirasse"] < ph["rendzina"]  # leached < limestone
+    assert ph["solonchak"] < ph["solonetz"]          # saline < sodic
+    assert ph["vent crust"] < 6.0                    # hydrothermal acidity
+    assert 7.5 <= ph["marine mud"] <= 8.5            # seawater-buffered
+
+
+def test_meta_carries_ph(gr):
+    for row in gr["meta"]:
+        assert 3.5 <= row["ph"] <= 9.5, row["name"]
+
+
+def test_mix_ph_weighted_mean():
+    ids = np.array([[[GROUND_ID["podzol"]]],
+                    [[GROUND_ID["caliche"]]],
+                    [[GROUND_ID["dune sand"]]]], dtype=np.uint8)
+    w = np.array([[[0.5]], [[0.25]], [[0.25]]], dtype=np.float32)
+    got = ground.mix_ph(ids, w)
+    assert got.shape == (1, 1)
+    assert got[0, 0] == pytest.approx(
+        0.5 * 4.5 + 0.25 * 8.2 + 0.25 * 6.5, abs=1e-6)
+
+
+def test_mix_ph_matches_anchor_mix(gr):
+    ph = ground.mix_ph(gr["mix_ids"], gr["mix_w"])
+    assert ph.shape == gr["class_id"].shape
+    # bounded by the class-table extremes everywhere
+    lo = min(c["ph"] for c in ground.GROUND_CLASSES)
+    hi = max(c["ph"] for c in ground.GROUND_CLASSES)
+    assert ph.min() >= lo - 1e-6 and ph.max() <= hi + 1e-6

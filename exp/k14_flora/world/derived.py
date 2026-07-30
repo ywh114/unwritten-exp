@@ -667,7 +667,8 @@ def build(seed: int) -> dict:
     # substrate ("ground") classification — biosphere addendum B3. Ground
     # builds its OWN volcanic evidence from the vent/spring points (most
     # vents dormant — K1 roll inside), not from the raw fault field above.
-    from exp.k14_flora.world.ground import build_ground, build_ground_hires
+    from exp.k14_flora.world.ground import (
+        build_ground, build_ground_hires, mix_ph)
     g = build_ground(z, manifest, sea, vent_pts + spring_pts)
     # d2 stays at ANCHOR res on purpose: 41x1024² float32 is ~170 MB/world
     # vs ~11 MB at 256². Similarity is a consume-time transform over the
@@ -681,6 +682,9 @@ def build(seed: int) -> dict:
     products["ground_class"] = hi["class_id"]
     products["ground_mix_ids"] = hi["mix_ids"]
     products["ground_mix_w"] = hi["mix_w"]
+    # pH is a pointwise consume-time transform over the persisted mix
+    # (class pH rows are the content), so it derives at delivery res too
+    products["ground_ph"] = mix_ph(hi["mix_ids"], hi["mix_w"])
 
     # points carry anchor coords; scale to delivery for the viewer
     # (waterfalls already snapped to the delivered river line above)

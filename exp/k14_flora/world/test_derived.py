@@ -344,6 +344,23 @@ def test_water_column_products(result, inputs):
     assert p["bathymetry_m"][d_ocean & ~p["bottom_lit"]].mean() > 1000.0
 
 
+def test_ground_ph_product(result, inputs):
+    z, _ = inputs
+    p = result["products"]
+    ph = p["ground_ph"]
+    assert ph.shape == (1024, 1024)
+    # bounded by the class-table extremes
+    assert ph.min() >= 3.5 - 1e-5 and ph.max() <= 9.5 + 1e-5
+    d_ocean = z["d_ocean_mask"] | z["d_sea_mask"]
+    # seawater-buffered: ocean cells cluster near 8 (vent cells dip acid)
+    assert 5.0 <= ph[d_ocean].min() and ph[d_ocean].max() <= 8.5 + 1e-5
+    assert ph[d_ocean].mean() > 7.4
+    # land spans real soil range: seed-1 has acid peat/podzol and bases
+    d_land = ~d_ocean
+    assert ph[d_land].min() < 5.5
+    assert ph[d_land].max() > 7.0
+
+
 def test_vents_annotated(result):
     for pt in result["points"]["vents"]:
         assert pt["kind"] == "vent"

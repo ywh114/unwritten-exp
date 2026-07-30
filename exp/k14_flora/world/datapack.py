@@ -113,6 +113,9 @@ RAMP_BENTHIC = [[0.0, [10, 12, 30]], [0.5, [90, 60, 120]],
 RAMP_PHOTIC = [[0.0, [20, 40, 80]], [1.0, [150, 220, 250]]]
 RAMP_BOTTOM_T = [[0.0, [40, 60, 140]], [0.5, [120, 160, 200]],
                  [1.0, [230, 120, 60]]]
+# pH: acid rust -> neutral pale -> alkaline violet (3.5..9.5)
+RAMP_PH = [[0.0, [160, 60, 40]], [0.45, [220, 200, 120]],
+           [0.58, [150, 200, 140]], [1.0, [110, 80, 190]]]
 
 
 def build_pack(result: dict, out_path: Path) -> Path:
@@ -196,6 +199,9 @@ def build_pack(result: dict, out_path: Path) -> Path:
     arrays["ground_mix_ids"] = p["ground_mix_ids"].astype(np.uint8)
     arrays["ground_mix_w"] = np.clip(
         np.round(p["ground_mix_w"] * 255.0), 0, 255).astype(np.uint8)
+    # pH — every domain (soil pH on land, pore/water pH underwater)
+    continuous("ground_ph", "Ground pH", "ground_ph", 3.5, 9.5, RAMP_PH,
+               0.6, None, "")
 
     for pid, label, color in (
             ("waterfalls", "Waterfalls", [80, 200, 240]),
