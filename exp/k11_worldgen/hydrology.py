@@ -1237,15 +1237,28 @@ def refine_hydrology(hydro: dict, elev: np.ndarray, climate: dict,
             melt = melt + glacier_melt_m
         soil = climate.get("soil_monthly")
         dis_m = np.zeros((12, H, W), dtype=np.float32)
-        thr_m = np.zeros(12)
+        w_bar = 0.0
         for m in range(12):
             w_m = P_m[m] + melt[m] / P_MAX_MM
             if soil is not None:
                 w_m = w_m + SOIL_BASEFLOW * soil[m]
             dis_m[m] = flow_accumulation(w_route, direction, flat_depth,
                                          weight=w_m)
-            thr_m[m] = river_threshold * (float(w_m[land].mean())
-                                          if land.any() else 0.0)
+            w_bar += float(w_m[land].mean()) if land.any() else 0.0
+        # ONE bar all year — the SAME scalar that drew the annual
+        # network (river_threshold * p_mean). A per-month bar (global
+        # land-mean wetness that month) inverted seasonality: basins
+        # whose wet season is out of phase with the global mean lost
+        # their river exactly in their wettest months; a melt/baseflow-
+        # inflated constant bar would dry the annual network out most
+        # of the year, contradicting the baseline. Monthly classes are
+        # monthly discharge vs the annual bar — the annual network
+        # changes class, never location. Fallback for rainless
+        # (synthetic) climates: the total-wetness mean, so baseflow
+        # worlds still classify.
+        thr_base = river_threshold * (p_mean if p_mean > 1e-9
+                                      else w_bar / 12.0)
+        thr_m = np.full(12, thr_base)
         hydro["discharge_monthly"] = dis_m
         hydro["river_threshold_monthly"] = thr_m
     # ---- river speed: Manning reach-average, persisted first-class ----

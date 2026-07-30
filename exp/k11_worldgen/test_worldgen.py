@@ -969,6 +969,34 @@ def test_monthly_rivers_soil_baseflow_keeps_trunks():
     assert any(min(c) >= 1 for c in em_wet.values())  # ...all year
 
 
+def test_monthly_threshold_is_the_annual_bar():
+    """Monthly width classes hang on ONE constant bar — the same
+    scalar that drew the annual network. The old per-month bar (global
+    land-mean wetness that month) inverted seasonality: basins out of
+    phase with the global mean lost their river in their own wettest
+    months. With flat P every month reproduces the annual network."""
+    h = _bowl_terrain()
+    hy = _refine_monthly(h, p=0.2)      # flat P, no melt, no soil
+    thr = hy["river_threshold_monthly"]
+    assert (thr == thr[0]).all() and thr[0] > 0
+    # the bar equals the annual one: river_threshold * mean annual P
+    assert abs(thr[0] - 40.0 * 0.2) < 1e-6
+    # every month is the annual mask (no seasonal contraction)
+    from exp.k11_worldgen.complexify import derive_complex
+    derive_complex(hy, np.zeros(h.shape, np.uint8), ["x"])
+    rm = hy["river_monthly"]
+    # stamped months stay ON the annual network (corner-cut cells on
+    # wet edges stamp beside mask cells — allow a 1-cell tolerance)
+    from exp.k11_worldgen.aquatic import _dilate
+    near = _dilate(hy["river_mask"], 1)
+    assert not rm[:, ~near].any()
+    core = hy["river_mask"] & (hy["discharge"] >= thr[0])
+    assert core.any()
+    # a core cell that is every edge's excluded shared tail (drop_last)
+    # can miss its own stamp — allow the rare exception
+    assert rm[:, core].all(axis=0).mean() > 0.95
+
+
 def test_unified_complex_audit_clean():
     """The month-aware complex (base + seasonal joins/floats) has no
     mechanical defects: seasonal joins are real nodes, nothing
