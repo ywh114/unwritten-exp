@@ -249,7 +249,13 @@ _BIOTIC_SOILS_SET = set(_BIOTIC_SOILS)
 _BIAS: dict[str, dict[str, float]] = {
     "mollisol": {"temperate grassland": 2.5, "tropical grassland": 2.0},
     "podzol": {"boreal taiga": 3.0, "temperate conifer forest": 3.0},
-    "ferralsol": {"tropical moist forest": 3.0},
+    "ferralsol": {"tropical moist forest": 3.0,
+                  # highland pine-oak soils are acrisol/ferralsol types;
+                  # without a bias the cells fell through to the physical
+                  # layer and read rendzina/sand sheet at ~900 mm/yr.
+                  # Podzol would be wrong here: its rule self-docks to
+                  # 0.3 at 17 degC ((0.3+0.7*cold))
+                  "tropical conifer forest": 2.0},
     "brown earth": {"temperate broadleaf forest": 3.0},
     "gelisol": {"tundra": 2.0},
     "bog": {"tundra": 1.5, "boreal taiga": 1.5},
@@ -402,14 +408,17 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
     #  (a) endorheic: the salt-lake halo — a lake saltier than SALT_LAKE_REF
     #      spreads its clip(salinity/SALT_LAKE_MAX) value 3 cells out;
     #  (b) arid evaporation: arid, non-depositional ground concentrates
-    #      salts (half weight);
+    #      salts (half weight). arid², same leak as sand sheet: the
+    #      1500 mm linear reference leaves arid=0.4 at 900 mm/yr, and
+    #      un-squared it put solonetz/solonchak on a third of the humid
+    #      tropical-conifer highlands;
     #  (c) coast: within 2 cells of the ocean (spray/brackish, 0.3).
     salt_lake = lake & (z["h_salinity"] > SALT_LAKE_REF)
     salt_src = np.where(salt_lake,
                         np.clip(z["h_salinity"] / SALT_LAKE_MAX, 0.0, 1.0),
                         0.0)
     endorheic = _spread_max(salt_src, 3)
-    arid_evap = arid * (1.0 - dep) * 0.5
+    arid_evap = arid ** 2 * (1.0 - dep) * 0.5
     coast = _dilate8(ocean, 2).astype(np.float64) * 0.3
     salsoil = np.maximum(np.maximum(endorheic, arid_evap), coast)
 
@@ -511,7 +520,16 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     if name == "dune sand":            # aridity already lives in dune_dep's gate
         return dune_dep * (1 - 0.5 * slope) * land
     if name == "sand sheet":
-        return arid * (1 - slope) * (1 - 0.6 * dune_dep) * land
+        # arid^1.5: the 1500 mm linear reference leaves arid=0.4 at 900
+        # mm/yr, and un-squared arid gave sheet ~0.4 weight on ANY flat
+        # semi-humid cell (it dominated tropical conifer highlands);
+        # full arid² (0.4 -> 0.16) overcorrected — sheet collapsed to
+        # 0.01-0.5% of land and reg inherited the whole semi-arid band,
+        # backwards (sand sheets outsize ergs on Earth). The 1.5 power
+        # keeps the humid loss (0.4 -> 0.25, below brown earth's
+        # loamy-docked 0.3) while holding the semi-arid band
+        # (0.6 -> 0.46, 0.8 -> 0.72).
+        return arid ** 1.5 * (1 - slope) * (1 - 0.6 * dune_dep) * land
     if name == "reg / desert pavement":
         # arid²: true-desert default only — the semi-arid band belongs to
         # sand sheet and the (1-arid)-scaled soils (reg was cosmopolitan).
