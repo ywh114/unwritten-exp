@@ -55,13 +55,13 @@ DEPTH_ABYSS_M = 4000.0        # bathymetry saturating "abyssal" (abyssal
 RV_REF = 2.0                  # m/s river speed saturating flow-sorting
 DIS_REF = 50.0                # m³/s discharge fallback (~p99) if a dump
                               # lacks h_river_speed — noted, not preferred
-DUNE_ACC_REF = 30.0           # upstream (catchment) cells terminating in a
+DUNE_ACC_REF = 10.0           # upstream (catchment) cells terminating in a
                               # hyperarid cell that read as an aeolian sand
-                              # supply — a terminal wadi fan. Desert
-                              # interiors are endorheic: p99 of the driest
-                              # cells is ~38, so only true drainage
-                              # termini open the dune gate (ergs sit at
-                              # terminal fans, never mid-basin)
+                              # supply — a terminal wadi fan. Endorheic
+                              # desert interiors max out near ~20 cells, so
+                              # this opens only true drainage termini; the
+                              # flat/dry self-gate in _evidence covers the
+                              # basin-interior deflation ergs
 W_FLOOR = 1e-6                # generator-weight floor feeding -log -> d2
 
 # ── volcanic (vent) evidence — built from the vent/spring POINTS, not ───
@@ -431,6 +431,18 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
     shallow = depthn < 0.05
     tidal = (coast_band & flat & (~ocean | shallow)).astype(np.float64)
 
+    # dune gate: ergs need hyperaridity plus EITHER a sediment supply
+    # (terminal wadi fan — but endorheic desert interiors have tiny
+    # catchments, max ~20 cells) OR simply the flattest, driest ground
+    # (basin-interior deflation fields; the 0.8 keeps self-gated dunes
+    # just below fan-fed ones, playas/rough ground stay out via
+    # (1-wet)/(1-slope)). The arid² weighting is what confines the gate —
+    # and every (1-dune_dep) suppression keyed on it — to true desert;
+    # without it reg got suppressed on ALL flat dry land.
+    dune_gate = (np.maximum(
+        np.clip(z["h_accumulation"] / DUNE_ACC_REF, 0.0, 1.0),
+        0.8 * (1 - slope) * (1 - wet)) * arid ** 2)
+
     # lake littoral (UNDERWATER only — the ring of LAKE cells adjacent to
     # shore; shore land keeps its own soils, treeline-to-lake is common):
     # sandy where the bed is gentle and winnowed, rocky where steep, while
@@ -452,7 +464,7 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
         salsoil=salsoil, energy=energy, depthn=depthn, rs=rs, tidal=tidal,
         near_ocean1=near_ocean1.astype(np.float64),
         lake_shore=lake_shore,
-        dune_dep=np.clip(z["h_accumulation"] / DUNE_ACC_REF, 0.0, 1.0),
+        dune_dep=dune_gate,
         loamy=0.5 + 0.5 * dep, reef=reef,
         biome=z["w_biome_map"], vent_pts=vent_pts)
 
@@ -493,16 +505,18 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     lake_shore = e["lake_shore"]
 
     # terrestrial — physical
-    if name == "dune sand":            # most-arid terminal-fan gate
-        return arid ** 2 * dune_dep * (1 - 0.5 * slope) * land
+    if name == "dune sand":            # aridity already lives in dune_dep's gate
+        return dune_dep * (1 - 0.5 * slope) * land
     if name == "sand sheet":
         return arid * (1 - slope) * (1 - 0.6 * dune_dep) * land
     if name == "reg / desert pavement":
         # arid²: true-desert default only — the semi-arid band belongs to
         # sand sheet and the (1-arid)-scaled soils (reg was cosmopolitan).
-        # Where the dune gate is open the sand is mobile — no stable
-        # pavement (same (1-x) suppression pattern as reef over mud).
-        return arid ** 2 * (1 - dep) * (1 - 0.5 * slope) * (1 - dune_dep) * land
+        # Where the dune gate is open the sand is mobile and the pavement
+        # is disturbed — but only at half weight: suppressing by the full
+        # gate cost reg 40-65% in its own heartland where dunes never
+        # actually win (semi-arid flats), gifting the area to solonetz.
+        return arid ** 2 * (1 - dep) * (1 - 0.5 * slope) * (1 - 0.5 * dune_dep) * land
     if name == "scree":                # the slope override
         return slope ** 1.5 * (1 - 0.3 * slope) * land
     if name == "bedrock outcrop":      # steepest cliffs
