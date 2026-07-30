@@ -452,9 +452,17 @@ def build(seed: int) -> dict:
     products: dict[str, np.ndarray] = {}
     points: dict[str, list] = {}
 
-    spd, _ = _river_fields(z)
-    products["river_speed"] = np.where(
-        z["d_river_mask"], _upsample(spd, factor), 0.0)
+    if "d_river_speed" in z:
+        # painted at delivered res along the stamped river path (k11
+        # deliver): every delivered river pixel carries its edge's reach
+        # speed. The old upsample of the anchor field left 82% of
+        # delivered river pixels at 0 (grid misalignment).
+        products["river_speed"] = np.where(
+            z["d_river_mask"], z["d_river_speed"], 0.0)
+    else:
+        spd, _ = _river_fields(z)
+        products["river_speed"] = np.where(
+            z["d_river_mask"], _upsample(spd, factor), 0.0)
     points["waterfalls"] = waterfalls(z, sea)
     mprod = marine_productivity(z, _currents_payload(z))
     products["marine_productivity"] = np.stack(

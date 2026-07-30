@@ -743,6 +743,14 @@ def test_deliver_smoke():
     assert d["biome_map"].shape == (H * 4, W * 4)
     assert d["ocean_mask"].any() and (d["elev"] >= 0.35).any()
     assert not (d["river_mask"] & d["lake_mask"]).any()
+    # delivered river speed is painted along the stamped path: nearly
+    # every delivered river pixel carries its edge's reach speed (the
+    # upsampled anchor field it replaced missed 82% of them)
+    rm = d["river_mask"]
+    if rm.any():
+        assert d["river_speed"].shape == rm.shape
+        assert (d["river_speed"][rm] > 0).mean() > 0.9
+        assert d["river_speed"][~rm].max() == 0.0
     # ocean is always sub-sea (connectivity is carried from the anchor)
     assert not (d["ocean_mask"] & (d["elev"] >= 0.35)).any()
     # the delivery rim is a 1 km rock border, never water

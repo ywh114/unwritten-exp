@@ -194,7 +194,8 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
                  w: np.ndarray | None = None,
                  sea_level: float | None = None,
                  phantom: np.ndarray | None = None,
-                 quality_override: dict | None = None) -> np.ndarray:
+                 quality_override: dict | None = None,
+                 want_owner: bool = False) -> np.ndarray:
     """Stamp the river network (scaled, smoothed polylines) onto the
     delivered grid at width-class radius. Returns the width-class array.
 
@@ -388,6 +389,8 @@ def river_raster(complex_: Complex, shape: tuple[int, int], factor: int,
                         break
             stamp(prev, cur, i, r_i)
             prev = cur
+    if want_owner:
+        return width, owner
     return width
 
 
@@ -481,15 +484,39 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     # rivers: vector network stamped at width class (pointwise derive).
     # Seasonal edges (kind "river_seasonal") carry no annual water —
     # the annual view skips them via the override.
-    width_hi = river_raster(complex_, (H, W), factor, w=hydro["w"],
-                            sea_level=sea_level,
-                            phantom=(hydro["w_route"] - hydro["w"]) > 1e-9,
-                            quality_override={
-                                e.id: (e.quality if e.kind == "river" else 0.0)
-                                for e in complex_.edges.values()})
+    width_hi, river_owner = river_raster(
+        complex_, (H, W), factor, w=hydro["w"],
+        sea_level=sea_level,
+        phantom=(hydro["w_route"] - hydro["w"]) > 1e-9,
+        quality_override={
+            e.id: (e.quality if e.kind == "river" else 0.0)
+            for e in complex_.edges.values()},
+        want_owner=True)
+    # delivered-res river SPEED: per-edge reach average from the anchor
+    # speed field (mean over the polyline's anchor cells), painted along
+    # the SAME stamped path via the owner map. Upsampling the anchor
+    # speed field instead left 82% of delivered river pixels at 0 — the
+    # meandering delivered line does not follow the anchor 4x4 blocks.
+    spd_a = hydro.get("river_speed")
+    if spd_a is None:
+        # not persisted on this hydro (unit-test worlds skip refine) —
+        # K11 owns the physics, so compute it on the spot
+        from exp.k11_worldgen.hydrology import river_speed
+        spd_a = river_speed(hydro["discharge"], hydro["river_mask"],
+                            hydro["w_route"], hydro["flow_dir"], sea_level)
+    ha, wa = spd_a.shape
+    edge_speed = np.zeros(len(complex_.edges), dtype=np.float32)
+    for ei, e in enumerate(complex_.edges.values()):
+        vals = [float(spd_a[min(max(int(py), 0), ha - 1),
+                            min(max(int(px), 0), wa - 1)])
+                for px, py in e.polyline]
+        edge_speed[ei] = float(np.mean(vals)) if vals else 0.0
+    speed_hi = np.where(river_owner >= 0,
+                        edge_speed[np.maximum(river_owner, 0)], 0.0)
     # rivers are an overlay; standing water wins where they coincide
     # (lake-outlet polylines start inside the interpolated lake extent)
     river_hi = (width_hi > 0) & ~ocean_hi & ~lake_hi
+    speed_hi = np.where(river_hi, speed_hi, 0.0).astype(np.float32)
 
     # monthly river state: the SAME complex stamped once per month with
     # that month's per-edge width class — permanent reaches render
@@ -615,6 +642,7 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
         "ocean_mask": ocean_hi,
         "lake_mask": lake_hi,
         "river_mask": river_hi,
+        "river_speed": speed_hi,
         "width": width_hi,
         "salinity": sal_hi,
         "sea_mask": sea_hi,

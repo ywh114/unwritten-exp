@@ -708,6 +708,11 @@ def _upsample_evidence(e: dict, z, factor: int, seed: int) -> dict:
         river = z["d_river_mask"]
         biome = z["d_biome_map"]
         reef = (z["d_aquatic"] == 4).astype(np.float64)
+        if "d_river_speed" in z:
+            # painted along the delivered river path (k11 deliver) —
+            # the upsampled anchor speed evidence bled off-path and
+            # missed the meandering delivered line
+            hi["rs"] = np.clip(z["d_river_speed"] / RV_REF, 0.0, 1.0)
     else:                                   # synthetic: stamp the anchor maps
         def _stamp(m: np.ndarray) -> np.ndarray:
             return np.repeat(np.repeat(m > 0.5, factor, 0), factor, 1)
