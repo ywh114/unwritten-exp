@@ -1772,14 +1772,20 @@ function pixelAt(wx, wy) {
     const sx = Math.min(FW - 1, Math.floor(wx / scale));
     const sy = Math.min(FH - 1, Math.floor(wy / scale));
     const plane = FW * FH, ii = sy * FW + sx;
+    const spd = S.monthly.river_speed_monthly || null;
     const months = [];
-    let maxw = 0, selw = 0;
+    let maxw = 0, selw = 0, maxs = 0, sels = 0;
     for (let m = 0; m < 12; m++) {
       const v = mw[m * plane + ii];
-      if (v > 0) { months.push(m); if (v > maxw) maxw = v; }
-      if (v > selw && (!S.selMonths || S.selMonths.has(m))) selw = v;
+      const sp = spd ? spd[m * plane + ii] : 0;
+      if (v > 0) { months.push(m); if (v > maxw) maxw = v;
+                   if (sp > maxs) maxs = sp; }
+      if ((!S.selMonths || S.selMonths.has(m))) {
+        if (v > selw) selw = v;
+        if (sp > sels) sels = sp;
+      }
     }
-    if (months.length) out.river_monthly = { months, maxw, selw };
+    if (months.length) out.river_monthly = { months, maxw, selw, maxs, sels };
   }
   // Monthly ice-cover fraction (0..1) at this pixel, keyed by water
   // type: ocean/sea → sea ice, lake → lake ice, river → river ice.
@@ -1904,7 +1910,8 @@ function showTooltip(data, ex, ey) {
     const rm = data.river_monthly;
     const lbl = rm.months.length === 12 ? "permanent"
       : rm.months.map((m) => MONTH_LABELS[m]).join(" ");
-    html += `<div class="tt-field"><span class="tt-name">River (monthly)</span><span class="tt-val">class ${rm.maxw} — ${lbl}</span></div>`;
+    const spd = rm.maxs > 0 ? `, ≤${rm.maxs.toFixed(1)} m/s` : "";
+    html += `<div class="tt-field"><span class="tt-name">River (monthly)</span><span class="tt-val">class ${rm.maxw} — ${lbl}${spd}</span></div>`;
   }
   if (data.ice_cover != null) {
     html += `<div class="tt-field"><span class="tt-name">Ice cover ${mLabel}</span><span class="tt-val">${Math.round(data.ice_cover * 100)}%</span></div>`;
