@@ -92,7 +92,7 @@ def export(seed_dir: Path, out_path: Path) -> None:
     bathy = np.maximum(sea - d["elev"], 0.0) / sea * DEPTH_MAX_M
     fill = np.maximum(d["w"] - d["elev"], 0.0) / (1.0 - sea) * ELEV_MAX_M
     depth = np.where(d["ocean_mask"], bathy, fill)
-    a, m = _q16(depth, 0, 6000)
+    a, m = _q16(depth, 0, 12000)   # exaggerated trenches reach ~11 km
     put("depth_m", a, m)
     a, m = _q16(hand_m(d["hand"], sea), 0, 200)
     put("hand_m", a, m)

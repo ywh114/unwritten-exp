@@ -41,6 +41,15 @@ def _z(field: np.ndarray) -> np.ndarray:
     return (field - field.mean()) / (field.std() + 1e-9)
 
 
+# e_norm floor: elevation may go slightly NEGATIVE so exaggerated
+# subduction trenches breach the old -6000 m cap (e_norm=0). At
+# sea_level=0.35 the floor -0.35 maps to -12000 m — Mariana-class.
+# elev_m's below-sea segment is linear and handles negatives as-is;
+# below-sea consumers (currents, bathymetry, shelf profile) read
+# differences, never absolute [0,1] bounds.
+E_MIN_NORM = -0.35
+
+
 def _smooth(field: np.ndarray, rounds: int = 4) -> np.ndarray:
     """Separable 3x3 box smoothing, edge-padded."""
     out = field
@@ -523,16 +532,22 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     sig += (kind == 0) * (0.55 * g(d, band) * np.where(c > 0, c, 0.35 * c))
     # ocean-ocean convergent: trench on the subducting side, volcanic
     # ISLAND ARC on the overriding side (displaced, segmented by `along`,
-    # strong enough for crests to breach — Japan/Aleutians)
+    # strong enough for crests to breach — Japan/Aleutians). The trench
+    # term is EXAGGERATED (~2.3x, narrower profile): real trenches run
+    # 6-11 km against a 4-5 km abyssal plain, and the e_norm floor is
+    # extended below 0 so active subduction trenches actually reach
+    # hadal depths at strong segments instead of capping at 6000 m.
     oo_c = (kind == 2) & convergent
-    sig += (oo_c & on_sub) * (-0.22 * g(d, band * 0.7) * c)
+    sig += (oo_c & on_sub) * (-0.48 * g(d, band * 0.55) * c)
     sig += (oo_c & ~on_sub) * (0.24 * g(d - 4.0, band) * c)
     # ocean-ocean divergent: mid-ocean ridge (stays below sea level)
     sig += ((kind == 2) & ~convergent) * (0.12 * g(d, band) * (-c))
     # continent-ocean convergent (Andes): trench just offshore, coastal
-    # range displaced inland
+    # range displaced inland. Sharper/deeper than the OO term's
+    # displacement: Peru-Chile runs 8 km, so strong-convergence OC
+    # segments must reach hadal class too.
     oc_c = (kind == 1) & convergent
-    sig += (oc_c & own_oceanic) * (-0.20 * g(d - 2.0, band * 0.7) * c)
+    sig += (oc_c & own_oceanic) * (-0.55 * g(d - 1.5, band * 0.5) * c)
     sig += (oc_c & ~own_oceanic) * (0.35 * g(d - 5.0, band) * c)
     # continent-ocean divergent: rifted margin, gentle
     sig += ((kind == 1) & ~convergent) * (-0.05 * g(d, band) * (-c))
@@ -618,7 +633,7 @@ def build_elevation(stream: Stream, shape: tuple[int, int],
     t_land = np.clip((elev - sea_level) / (1.0 - sea_level), 0.0, 1.0)
     elev = np.where(elev > sea_level,
                     sea_level + (1.0 - sea_level) * t_land ** 2.0, elev)
-    return np.clip(elev, 0.0, 1.0), plates
+    return np.clip(elev, E_MIN_NORM, 1.0), plates
 
 
 # -- volcanoes --------------------------------------------------------------
@@ -690,4 +705,4 @@ def build_volcanoes(stream: Stream, plates: "Plates", elev: np.ndarray,
                   * np.exp(-0.5 * r2 / (crater_w * sigma) ** 2))
         elev = elev + cone - crater
         volcanoes.append((y, x, float(h_m)))
-    return np.clip(elev, 0.0, 1.0), volcanoes
+    return np.clip(elev, E_MIN_NORM, 1.0), volcanoes
