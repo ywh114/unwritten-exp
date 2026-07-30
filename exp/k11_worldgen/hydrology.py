@@ -35,6 +35,17 @@ DEPTH_COEF = 0.3                # d = 0.3 Q^0.4 (m)
 MANNING_N = 0.035               # gravel-bed roughness
 MIN_SLOPE = 1e-5                # numerical floor, not a physical cap
 V_RIVER_MAX = 6.0               # leaky sanity ceiling (m/s)
+# momentum: Manning from the single-step drop understates velocity
+# wherever the filled surface is locally flat (a reach crossing a
+# filled depression has drop exactly 0 and collapses to the slope
+# floor, ~0.06 m/s — a real river carries its velocity over the flat).
+# Processed upstream->downstream over the river subgraph: a cell keeps
+# max(manning, MOMENTUM_GAMMA * best upstream final speed). The gamma
+# decays inherited speed over long flats (0.85^10 ~ 0.2 after 40 km).
+# Propagation runs over RIVER cells only, so the graph breaks at lake
+# cells — momentum is cut at lakes automatically (water slows entering
+# standing water; an outflow reach starts from its own Manning).
+MOMENTUM_GAMMA = 0.85
 # reach jitter: the relief is 4 km cells, so Manning here yields a
 # reach AVERAGE, not a local measurement — sub-grid velocity varies
 # around it. One seeded lognormal-ish draw per cell (e^+-SPEED_JITTER,
@@ -968,10 +979,56 @@ def speed_jitter(seed: int, shape: tuple[int, int]) -> np.ndarray:
     return np.exp(SPEED_JITTER * (2.0 * u - 1.0)).astype(np.float32)
 
 
+def _momentum_relax(v: np.ndarray, river_mask: np.ndarray,
+                    direction: np.ndarray, gamma: float) -> np.ndarray:
+    """Upstream->downstream momentum relaxation over the river subgraph.
+
+    Kahn topological order (each cell has <=1 out-edge), so every cell's
+    final value is settled before its downstream neighbor reads it; a
+    cell with several upstreams takes the best inherited speed. A cycle
+    (should not exist on a filled surface) would keep its Manning
+    values — the queue just never reaches it."""
+    H, W = v.shape
+    ys, xs = np.nonzero(river_mask)
+    n = len(ys)
+    if n == 0:
+        return v
+    idx_of = np.full((H, W), -1, dtype=np.int64)
+    idx_of[ys, xs] = np.arange(n)
+    down = np.full(n, -1, dtype=np.int64)
+    indeg = np.zeros(n, dtype=np.int64)
+    for k in range(n):
+        dy, dx = _D8[int(direction[ys[k], xs[k]])]
+        ny, nx = ys[k] + dy, xs[k] + dx
+        if 0 <= ny < H and 0 <= nx < W:
+            j = idx_of[ny, nx]
+            if j >= 0:
+                down[k] = j
+                indeg[j] += 1
+    out = v[ys, xs].astype(np.float64).copy()
+    queue = [k for k in range(n) if indeg[k] == 0]
+    head = 0
+    while head < len(queue):
+        k = queue[head]
+        head += 1
+        j = down[k]
+        if j < 0:
+            continue
+        if gamma * out[k] > out[j]:
+            out[j] = gamma * out[k]
+        indeg[j] -= 1
+        if indeg[j] == 0:
+            queue.append(j)
+    vv = v.astype(np.float64).copy()
+    vv[ys, xs] = out
+    return vv
+
+
 def river_speed(discharge: np.ndarray, river_mask: np.ndarray,
                 w_route: np.ndarray, direction: np.ndarray,
                 sea_level: float,
-                jitter: np.ndarray | None = None) -> np.ndarray:
+                jitter: np.ndarray | None = None,
+                momentum: float = MOMENTUM_GAMMA) -> np.ndarray:
     """Manning velocity on river cells (m/s), 0 off-river.
 
     MOVED from K14 (derived.river_speed) — K11 owns the physics and
@@ -980,6 +1037,10 @@ def river_speed(discharge: np.ndarray, river_mask: np.ndarray,
     surface (w_route) drop along flow_dir. With 4 km relief this is a
     reach AVERAGE; pass `jitter` (speed_jitter) to stand in for the
     sub-grid variance around it.
+
+    Order: Manning -> momentum relaxation (momentum=gamma; 0 disables)
+    -> jitter, so the jitter stays a purely multiplicative reach
+    character and the momentum graph sees un-jittered speeds.
     """
     from exp.k11_worldgen.units import alt_m
     dis = discharge * Q_M3S_PER_UNIT          # m3/s
@@ -995,6 +1056,8 @@ def river_speed(discharge: np.ndarray, river_mask: np.ndarray,
     slope = np.maximum(drop / CELL_M, MIN_SLOPE)
     v = (1.0 / MANNING_N) * d ** (2.0 / 3.0) * np.sqrt(slope)
     v = V_RIVER_MAX * np.tanh(v / V_RIVER_MAX)   # leaky ceiling
+    if momentum:
+        v = _momentum_relax(v, river_mask, direction, momentum)
     if jitter is not None:
         v = v * jitter
     return np.where(river_mask, v, 0.0).astype(np.float32)

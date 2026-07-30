@@ -1172,6 +1172,44 @@ def test_river_speed_manning_and_jitter():
         v_low * j1)
 
 
+def test_river_speed_momentum():
+    """Momentum relaxation: a flat reach downstream of a steep one keeps
+    gamma-decayed inherited speed instead of collapsing to the slope
+    floor; the graph breaks at lakes (an outflow reach below a lake
+    starts from its own Manning, not the inflow's momentum); momentum=0
+    disables."""
+    from exp.k11_worldgen.hydrology import MOMENTUM_GAMMA, river_speed
+    H, W = 8, 8
+    sea = 0.35
+    # steep top half falling SOUTH (D8 6 = (+1, 0)), dead-flat bottom
+    w_route = np.full((H, W), 0.6)
+    w_route[:4] -= np.arange(4)[:, None] * 0.05     # rows 0-3 fall south
+    direction = np.full((H, W), 6, dtype=np.int8)
+    river = np.zeros((H, W), bool)
+    river[:, 3] = True                              # single north-south reach
+    dis = np.full((H, W), 100.0)
+    v = river_speed(dis, river, w_route, direction, sea)
+    flat_manning = river_speed(dis, river, np.full((H, W), 0.6),
+                               direction, sea)[4, 3]
+    # flat rows inherit: row 4 sits right below the steep reach and must
+    # beat the pure-flat Manning floor by a wide margin
+    assert v[4, 3] > 3.0 * flat_manning
+    # decay along the flat: monotone non-increasing downstream
+    assert (np.diff(v[3:, 3]) <= 1e-9).all()
+    # disabling momentum returns the flat rows to the floor
+    v0 = river_speed(dis, river, w_route, direction, sea, momentum=0.0)
+    assert v0[7, 3] < v[7, 3]
+    # lake cut: a river flowing INTO a lake cell, and a separate outflow
+    # reach below the lake — the outflow inherits nothing through water
+    river2 = np.zeros((H, W), bool)
+    river2[:3, 3] = True                            # inflow reach (rows 0-2)
+    river2[5:, 3] = True                            # outflow reach (rows 5-7)
+    # row 3-4 are lake cells (not river) — the graph breaks there
+    v2 = river_speed(dis, river2, w_route, direction, sea)
+    steep2 = river_speed(dis, river2, w_route, direction, sea)[2, 3]
+    assert v2[5, 3] < MOMENTUM_GAMMA * steep2
+
+
 def test_refine_persists_river_speed():
     """refine_hydrology persists the first-class speed fields: annual
     (H,W) + monthly (12,H,W), zero off-river, positive on it."""
