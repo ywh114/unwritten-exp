@@ -181,6 +181,12 @@ def export(seed_dir: Path, out_path: Path) -> None:
         monthly["river_width_monthly"] = \
             z["d_river_width_monthly"].astype(np.uint8)
         monthly_meta["river_width_monthly"] = {"dtype": "u1"}
+    if "d_river_speed_monthly" in z.files:
+        # per-month reach speed along the SAME stamped paths — seasonal
+        # edges carry their wet-month speeds (0 in dry months)
+        a, m_ = _q8(z["d_river_speed_monthly"], 0, 3)
+        monthly["river_speed_monthly"] = a
+        monthly_meta["river_speed_monthly"] = m_
     if "c_insol_monthly" in z.files:
         # row fields (12, H) -> planes at ANCHOR res (like t_monthly)
         w_anchor = z["c_T"].shape[1]

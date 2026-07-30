@@ -523,16 +523,41 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
     # pixel-identical to the annual stamp (same path, same cosmetics),
     # only the radius moves; seasonal edges appear in their wet months
     river_width_monthly_hi = None
+    river_speed_monthly_hi = None
     if edge_monthly:
-        river_width_monthly_hi = np.stack([
+        stamps = [
             river_raster(complex_, (H, W), factor, w=hydro["w"],
                          sea_level=sea_level,
                          phantom=(hydro["w_route"] - hydro["w"]) > 1e-9,
                          quality_override={eid: cls[m] for eid, cls in
-                                           edge_monthly.items()})
-            for m in range(12)]).astype(np.int8)
+                                           edge_monthly.items()},
+                         want_owner=True)
+            for m in range(12)]
+        river_width_monthly_hi = np.stack([s[0] for s in stamps]) \
+            .astype(np.int8)
+        # monthly delivered speed, same convention as the annual one:
+        # per-edge reach speed (mean anchor monthly speed along the
+        # polyline) painted via the month's owner map — seasonal edges
+        # carry their wet-month speeds along the stamped path
+        spd_m = hydro.get("river_speed_monthly")
+        if spd_m is not None:
+            ha2, wa2 = spd_m.shape[1:]
+            edge_speed_m = np.zeros((12, len(complex_.edges)),
+                                    dtype=np.float32)
+            for ei, e in enumerate(complex_.edges.values()):
+                ys = np.clip([int(py) for px, py in e.polyline], 0, ha2 - 1)
+                xs = np.clip([int(px) for px, py in e.polyline], 0, wa2 - 1)
+                if len(ys):
+                    edge_speed_m[:, ei] = spd_m[:, ys, xs].mean(axis=1)
+            river_speed_monthly_hi = np.stack([
+                np.where(stamps[m][1] >= 0,
+                         edge_speed_m[m, np.maximum(stamps[m][1], 0)],
+                         0.0)
+                for m in range(12)]).astype(np.float32)
         standing = ocean_hi | lake_hi
         river_width_monthly_hi[:, standing] = 0
+        if river_speed_monthly_hi is not None:
+            river_speed_monthly_hi[:, standing] = 0
 
     # salinity is relational (per water body — see classify_salinity):
     # CARRY the anchor field, re-mask to the delivered water
@@ -672,4 +697,6 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
         out["glacier_m"] = thick_hi
     if river_width_monthly_hi is not None:
         out["river_width_monthly"] = river_width_monthly_hi
+    if river_speed_monthly_hi is not None:
+        out["river_speed_monthly"] = river_speed_monthly_hi
     return out

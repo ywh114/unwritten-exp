@@ -953,6 +953,25 @@ def test_month_aware_complex_one_network():
         assert cx.edges[eid].node_b in cx.nodes
 
 
+def test_monthly_speed_covers_seasonal_cells():
+    """Seasonal cells (clearing the bar in SOME months only) carry real
+    wet-month speeds — not 0 — and fall back to 0 in dry months. The
+    speed field is what freshwater productivity and ice gates read, so
+    a wash must not report 0 m/s in flood."""
+    h = _bowl_terrain()
+    hy = _refine_monthly(h, p=0.2, melt_spec=(4, 400.0, True))
+    dis = hy["discharge_monthly"]
+    thr = hy["river_threshold_monthly"][0]
+    outside = ~hy["river_mask"] & ~hy["ocean_mask"] & ~hy["lake_mask"]
+    seas4 = (dis[4] >= thr) & outside
+    assert seas4.any()                            # melt-month seasonal cells
+    spd = hy["river_speed_monthly"]
+    assert (spd[4][seas4] > 0).all()
+    assert (spd[0][seas4] == 0).all()             # dry month: no speed
+    # annual-network cells keep their speed in every month
+    assert (spd[:, hy["river_mask"]] > 0).all()
+
+
 def test_monthly_rivers_soil_baseflow_keeps_trunks():
     """No rain, no melt: without the soil term every edge is dry all
     year; with standing soil moisture the trunk keeps running

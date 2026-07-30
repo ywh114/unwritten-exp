@@ -1269,9 +1269,19 @@ def refine_hydrology(hydro: dict, elev: np.ndarray, climate: dict,
     hydro["river_speed"] = river_speed(
         hydro["discharge"], river, w_route, direction, sea_level, jitter)
     if "discharge_monthly" in hydro:
+        # per-month speed on that month's LIVE network: the annual
+        # network plus the seasonal cells clearing the same bar this
+        # month (edge-level dmax semantics live in complexify; the
+        # per-cell bar is the hydrology-side twin). Seasonal cells now
+        # carry real wet-month speeds instead of 0 — the freshwater
+        # productivity and the river-ice gates read this.
+        thr_base = hydro["river_threshold_monthly"][0]
         hydro["river_speed_monthly"] = np.stack([
-            river_speed(hydro["discharge_monthly"][m], river, w_route,
-                        direction, sea_level, jitter)
+            river_speed(
+                hydro["discharge_monthly"][m],
+                river | ((hydro["discharge_monthly"][m] >= thr_base)
+                         & ~ocean_mask & ~lake),
+                w_route, direction, sea_level, jitter)
             for m in range(12)]).astype(np.float32)
     # pass 2 knows the climate: salt concentration now feels the
     # local evaporation (mean-annual temperature through the shared
