@@ -53,7 +53,10 @@ def test_waterfalls_on_river_with_real_drops(result, inputs):
     factor = 4
     assert result["points"]["waterfalls"]
     for p in result["points"]["waterfalls"]:
-        ay, ax = p["y"] // factor, p["x"] // factor   # delivery -> anchor
+        # provenance: the anchor cell the drop was measured on (the
+        # delivered point is snapped to the river line, which can sit
+        # in a neighboring block, so p//factor is not authoritative)
+        ay, ax = p.get("ay", p["y"] // factor), p.get("ax", p["x"] // factor)
         assert z["h_river_mask"][ay, ax]
         d = z["h_flow_dir"][ay, ax]
         dy, dx = derived._D8[d]
@@ -73,8 +76,21 @@ def test_waterfalls_not_on_flats(result, inputs):
     z, _ = inputs
     factor = 4
     for p in result["points"]["waterfalls"]:
-        ay, ax = p["y"] // factor, p["x"] // factor
+        ay, ax = p.get("ay", p["y"] // factor), p.get("ax", p["x"] // factor)
         assert not z["h_lake_mask"][ay, ax]
+
+
+def test_waterfalls_snapped_to_delivered_river(result, inputs):
+    """Falls/rapids points sit ON the delivered river line (a 3-block
+    radius snap), not beside the meandering stamped path. The rare
+    residuals are drops on sub-L0 streams (isolated/2-cell anchor
+    rivers that never become edges, so nothing is stamped near them)."""
+    z, _ = inputs
+    drm = z["d_river_mask"]
+    pts = result["points"]["waterfalls"]
+    assert pts
+    on = sum(1 for p in pts if drm[p["y"], p["x"]])
+    assert on / len(pts) > 0.98, f"{on}/{len(pts)} on the river line"
 
 
 # ── productivity ───────────────────────────────────────────────────────
@@ -161,6 +177,35 @@ def test_terrestrial_weights_exact_match():
     prior_b1 = derived.PRIOR_BIOME[3]           # temperate broadleaf
     assert np.isclose(t[1, 0],
                       prior_b1 + derived.G_TER * (f_clim + f_dep))
+
+
+def test_flood_pulse_raises_floodplain_productivity():
+    """A seasonal-swing channel fertilizes its low-HAND neighborhood:
+    cells near a swingy river gain over the no-river baseline, cells
+    beyond the pulse's reach do not move, and a STEADY river with the
+    same annual volume pulses not at all (the bonus keys on the
+    swing, not the volume)."""
+    z = _synthetic_z()
+    rwm = np.zeros((12, 4, 4), np.int8)
+    rwm[:, 0, 0] = 1                            # channel at (0,0), all months
+    dis = np.zeros((12, 4, 4))
+    dis[:3, 0, 0] = 120.0                       # 3-month flood, else dry
+    z["h_river_width_monthly"] = rwm
+    z["h_discharge_monthly"] = dis
+    base = derived.terrestrial_productivity(_synthetic_z(), SEA)
+    pulsed = derived.terrestrial_productivity(z, SEA)
+    # (1,1) is one ring from the channel: gains. (3,0) is three rings
+    # out in this 4x4 toy: exactly unchanged.
+    assert pulsed[1, 1] > base[1, 1]
+    assert pulsed[3, 0] == base[3, 0]
+    # steady river, same total water: no pulse anywhere
+    z2 = _synthetic_z()
+    z2["h_river_width_monthly"] = rwm
+    dis2 = np.zeros((12, 4, 4))
+    dis2[:, 0, 0] = 30.0                        # same annual volume, no swing
+    z2["h_discharge_monthly"] = dis2
+    steady = derived.terrestrial_productivity(z2, SEA)
+    assert steady[1, 1] == base[1, 1]
 
 
 def test_marine_no_renormalization():

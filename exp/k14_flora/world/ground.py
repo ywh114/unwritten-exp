@@ -35,9 +35,10 @@ from exp.k11_worldgen.units import DEPTH_MAX_M, elev_m, hand_m, precip_mm, \
     temp_c
 from kernel.hashrng import Stream
 # reuse the B2 reference values where the evidence is the same quantity,
-# plus the bilinear _upsample helper for the delivery-res re-derivation
+# plus the bilinear _upsample helper for the delivery-res re-derivation,
+# the _spread_max dilation helper, and the flood-pulse footprint
 from exp.k14_flora.world.derived import ACC_REF, HAND_REF_M, P_REF_MMYR, \
-    _upsample
+    _spread_max, _upsample, flood_pulse
 
 # ── derivation bounds (knob set #2 — each saturates one evidence term) ──
 SLOPE_REF_M = 800.0           # elevation change across ONE 4 km cell that
@@ -277,23 +278,6 @@ _SUPPRESS_FACTOR = 0.2
 # ── small array helpers ─────────────────────────────────────────────────
 
 
-def _spread_max(a: np.ndarray, n: int) -> np.ndarray:
-    """n-ring 8-connected neighborhood MAX (edge-clamped). One helper, two
-    uses: dilating a mask (values 0/1) and spreading a salt-lake halo.
-    Deterministic, numpy-only."""
-    out = np.asarray(a, dtype=np.float64)
-    H, W = out.shape
-    for _ in range(n):
-        p = np.pad(out, 1, mode="edge")
-        acc = np.full((H, W), -np.inf)
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                np.maximum(acc, p[1 + dy:H + 1 + dy, 1 + dx:W + 1 + dx],
-                           out=acc)
-        out = acc
-    return out
-
-
 def _dilate8(mask: np.ndarray, n: int = 1) -> np.ndarray:
     """Grow a boolean mask by n 8-connected rings."""
     return _spread_max(np.asarray(mask, dtype=np.float64), n) > 0.5
@@ -435,6 +419,24 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
     else:
         rs = np.clip(z["h_discharge"] / DIS_REF, 0.0, 1.0)
 
+    # seasonal channels (dry washes): LAND cells carrying water in SOME
+    # months only. A seasonal river below the L0 cutoff is not "no
+    # water", and its bed is not the surrounding soil — the channel
+    # keeps its flow-sorted deposit year-round (wadi/arroyo). Weighted
+    # by the dry fraction: an 11-month channel is nearly a river, a
+    # 1-month wash nearly bare bed.
+    if "h_river_width_monthly" in z:
+        nwet = (z["h_river_width_monthly"] > 0).sum(axis=0)
+        seasw = ((nwet > 0) & (nwet < 12) & land).astype(np.float64) \
+            * (12 - nwet) / 12.0
+    else:
+        seasw = np.zeros(rs.shape, dtype=np.float64)
+    # flood pulse: the seasonal discharge SWING of nearby channels, HAND-
+    # gated (derived.flood_pulse) — snowmelt floodplains and ephemeral
+    # wash corridors; feeds alluvium (the floodplain soil) and the
+    # terrestrial productivity bonus
+    pulse = flood_pulse(z, sea)
+
     # tidal band: land/ocean cells within 1 cell of the shoreline, flat
     # (slope < 0.05), and — for water cells — shallow.
     near_ocean1 = _dilate8(ocean, 1)
@@ -477,6 +479,7 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
         near_ocean1=near_ocean1.astype(np.float64),
         lake_shore=lake_shore,
         dune_dep=dune_gate,
+        seasw=seasw, pulse=pulse,
         loamy=0.5 + 0.5 * dep, reef=reef,
         biome=z["w_biome_map"], vent_pts=vent_pts)
 
@@ -513,6 +516,7 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     rs, tidal = e["rs"], e["tidal"]
     dune_dep, loamy = e["dune_dep"], e["loamy"]
     seep_ring, reef = e["seep_ring"], e["reef"]
+    seasw, pulse = e["seasw"], e["pulse"]
     no = e["near_ocean1"]
     lake_shore = e["lake_shore"]
 
@@ -543,7 +547,13 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     if name == "bedrock outcrop":      # steepest cliffs
         return slope ** 3 * land
     if name == "alluvium":
-        return dep * (1 - slope) * (1 - 0.6 * wet) * land
+        # dep-keyed alluvial plain OR the flood-pulse footprint: a river
+        # with a strong seasonal swing (snowmelt, monsoon, ephemeral
+        # flash) builds a floodplain of fresh fluvisol even where the
+        # mean deposition signal is modest — the flood pulse IS the
+        # floodplain builder
+        return (np.maximum(dep * (1 - 0.6 * wet), pulse * 0.9)
+                * (1 - slope) * land)
     if name == "loess":
         return glac * (1 - dep) * (1 - slope) * (1 - wet) * 0.8 * land
     if name == "silt":
@@ -633,9 +643,13 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
         # steep delivered shore cells where the upsampled slope clips to 1
         return lake * (1 - 0.5 * slope) * (0.5 + 0.5 * dep)
     if name == "river gravel bed":
-        return river * rs
+        # seasw: a dry wash keeps its flow-sorted bed — seasonal
+        # channels on land read as river bed, split by the same speed
+        # evidence (speed is unknown off the annual network: rs=0
+        # there, so dry washes default to sand, the common arroyo bed)
+        return (river + seasw) * rs
     if name == "river sand bed":
-        return river * (1 - rs)
+        return (river + seasw) * (1 - rs)
     raise KeyError(f"unknown ground class: {name}")
 
 
@@ -696,7 +710,8 @@ def build_ground(z, manifest: dict, sea: float,
 # evidence planes that get bilinear-upsampled anchor -> delivery
 _HI_FIELDS = ("dep", "wet", "slope", "arid", "cold", "warm", "glac",
               "salsoil", "energy", "depthn", "rs", "tidal",
-              "near_ocean1", "lake_shore", "dune_dep", "loamy")
+              "near_ocean1", "lake_shore", "dune_dep", "loamy",
+              "seasw", "pulse")
 
 
 def _upsample_evidence(e: dict, z, factor: int, seed: int) -> dict:
@@ -721,6 +736,14 @@ def _upsample_evidence(e: dict, z, factor: int, seed: int) -> dict:
         biome = np.repeat(np.repeat(e["biome"], factor, 0), factor, 1)
         reef = _upsample(e["reef"], factor)
     land = ~ocean & ~lake & ~river
+    if "d_river_width_monthly" in z:
+        # seasonal channels at delivered res: the stamped monthly
+        # networks give the wet-month count natively (no 4x4 bleed) —
+        # the anchor-upsampled seasw above is the fallback for dumps
+        # without the monthly planes
+        nwet_hi = (z["d_river_width_monthly"] > 0).sum(axis=0)
+        hi["seasw"] = ((nwet_hi > 0) & (nwet_hi < 12) & land) \
+            .astype(np.float64) * (12 - nwet_hi) / 12.0
     hi["ocean"] = ocean.astype(np.float64)
     hi["lake"] = lake.astype(np.float64)
     hi["river"] = river.astype(np.float64)

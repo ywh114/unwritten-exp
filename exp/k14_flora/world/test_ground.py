@@ -227,6 +227,59 @@ def test_river_speed_sorts_gravel_vs_sand():
     assert g["class_id"][3, 3] == GROUND_ID["river sand bed"]
 
 
+def test_seasonal_wash_keeps_its_river_bed():
+    """A land cell carrying water in SOME months only (a seasonal
+    channel below the L0 cutoff in its dry months) still reads as a
+    flow-sorted river bed — a wadi is not the surrounding soil. Speed
+    is unknown off the annual network (rs=0), so the bed defaults to
+    sand; a permanently dry control cell keeps its soil. (Biome set to
+    tundra so no ×3 biome bias caps a soil class and hides the rule.)"""
+    from exp.k11_worldgen.biomes import BIOME_ID
+    z = _ground_z()
+    z["w_biome_map"][:] = BIOME_ID["tundra"]
+    rwm = np.zeros((12, 8, 8), np.int8)
+    rwm[:3, 2, 2] = 1                                # wet 3 months at (2,2)
+    z["h_river_width_monthly"] = rwm
+    g = _build(z)
+    assert g["class_id"][2, 2] == GROUND_ID["river sand bed"]
+    assert g["class_id"][4, 4] not in (GROUND_ID["river sand bed"],
+                                       GROUND_ID["river gravel bed"])
+    # dry-fraction weighting: an 11-month channel is nearly a river —
+    # the bed weight scales with the dry share of the year
+    w = _w(g)
+    rwm2 = np.zeros((12, 8, 8), np.int8)
+    rwm2[:11, 2, 2] = 1
+    z["h_river_width_monthly"] = rwm2
+    g2 = _build(z)
+    w2 = np.exp(-g2["d2"].astype(np.float64))
+    assert (w[GROUND_ID["river sand bed"], 2, 2]
+            > w2[GROUND_ID["river sand bed"], 2, 2])
+
+
+def test_flood_pulse_builds_alluvium():
+    """A river with a strong seasonal discharge swing (snowmelt /
+    monsoon / flash) builds a fluvisol floodplain on its low-HAND
+    banks even where the mean deposition signal is modest. (Tundra
+    biome again: no bias cap.)"""
+    from exp.k11_worldgen.biomes import BIOME_ID
+    z = _ground_z()
+    z["w_biome_map"][:] = BIOME_ID["tundra"]
+    z["h_river_mask"][4, 4] = True
+    rwm = np.zeros((12, 8, 8), np.int8)
+    rwm[:, 4, 4] = 1                                 # permanent channel
+    dis = np.zeros((12, 8, 8))
+    dis[:3, 4, 4] = 200.0                            # 3-month flood pulse
+    z["h_river_width_monthly"] = rwm
+    z["h_discharge_monthly"] = dis
+    g = _build(z)
+    # the low-HAND neighbor (2 m everywhere -> wet ground) is alluvium
+    assert g["class_id"][4, 5] == GROUND_ID["alluvium"]
+    # two rings out the pulse still reaches, then dies
+    w = _w(g)
+    assert w[GROUND_ID["alluvium"], 4, 6] > 0.3
+    assert w[GROUND_ID["alluvium"], 0, 0] < 0.05
+
+
 def test_lake_littoral_bleed():
     """Underwater littoral gradient: sandy on gentle winnowed shores,
     rocky on steep beds, lake mud only in the deep center — and the

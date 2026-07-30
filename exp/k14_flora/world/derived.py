@@ -71,6 +71,50 @@ HAND_REF_M = 5.0              # HAND waterlogging decay, meters
 DEPTH_REF_M = 10.0            # lake-depth shading decay, meters
 INSOL_W = 0.35                # open-ocean sunlight-base weight
 
+# ── flood pulse (seasonal discharge swing -> floodplain footprint) ──────
+FLOOD_SPREAD_C = 2            # channel-neighborhood rings a flood pulse
+                              # reaches (8 km at 4 km anchor cells)
+
+
+def _spread_max(a: np.ndarray, n: int) -> np.ndarray:
+    """n-ring 8-connected neighborhood MAX (edge-clamped). One helper, two
+    uses: dilating a mask (values 0/1) and spreading a halo. Deterministic,
+    numpy-only. (ground.py imports this copy.)"""
+    out = np.asarray(a, dtype=np.float64)
+    H, W = out.shape
+    for _ in range(n):
+        p = np.pad(out, 1, mode="edge")
+        acc = np.full((H, W), -np.inf)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                np.maximum(acc, p[1 + dy:H + 1 + dy, 1 + dx:W + 1 + dx],
+                           out=acc)
+        out = acc
+    return out
+
+
+def flood_pulse(z, sea: float) -> np.ndarray:
+    """Flood-pulse footprint (H,W in [0,1]) at anchor res: how strongly the
+    seasonal discharge SWING of nearby channels reworks and fertilizes
+    this cell. Amplitude is the relative annual swing (max-min)/max of
+    monthly discharge on channel cells — ephemeral washes and snowmelt
+    rivers swing to ~1, steady equatorial rivers near 0. The amplitude
+    spreads FLOOD_SPREAD_C rings and is gated by HAND waterlogging (a
+    floodplain is low ground near a channel). Zero where no channel is
+    near; the caller masks by domain. In arid country this doubles as
+    the wadi-corridor signal: the channel and its banks are the only
+    wet ground."""
+    if "h_discharge_monthly" not in z or "h_river_width_monthly" not in z:
+        return np.zeros(z["h_river_mask"].shape, dtype=np.float64)
+    dis = z["h_discharge_monthly"].astype(np.float64)
+    chan = (z["h_river_width_monthly"] > 0).any(axis=0)
+    dmax = dis.max(axis=0)
+    amp = np.where(chan,
+                   (dmax - dis.min(axis=0)) / np.maximum(dmax, 1e-9), 0.0)
+    near = _spread_max(amp, FLOOD_SPREAD_C)
+    wet = np.exp(-hand_m(z["h_hand"], sea) / HAND_REF_M)
+    return np.clip(near * wet, 0.0, 1.0)
+
 # The prior tables ARE the main knob set (addendum B2 draft values, owner
 # tunes). Indexed by the k11 class ids; the water "biomes" (lake/ocean)
 # have no prior and stay 0.0 — they are masked out of the terrestrial
@@ -341,14 +385,19 @@ def marine_productivity(z, currents: dict | None) -> np.ndarray:
     return out
 
 
-def terrestrial_productivity(z, sea: float) -> np.ndarray:
+def terrestrial_productivity(z, sea: float,
+                             pulse: np.ndarray | None = None) -> np.ndarray:
     """Land productivity on the absolute B2 scale: the soft-matched
     biome prior (inverse-distance over the persisted top-2 d2 fields)
     + G_TER x bounded bonuses — climate (light x warmth x water, each
-    term in [0,1] by construction) and deposition (catchment
+    term in [0,1] by construction), deposition (catchment
     accumulation, HAND waterlogging penalty — the de-ranked old
     soil_fertility core; alluvial plains out-produce their biome
-    baseline). River cells on land get it; standing water is masked."""
+    baseline), and flood pulse (the seasonal discharge swing of
+    nearby channels: snowmelt floodplains are re-fertilized every
+    year, and in arid country the wash corridor is the only wet
+    ground — wadi gallery effect). River cells on land get it;
+    standing water is masked."""
     d1, d2 = z["w_biome_d2_1"], z["w_biome_d2_2"]
     s = d1 + d2
     # inverse-distance weights: equidistant -> 50/50, exact match -> pure
@@ -363,8 +412,10 @@ def terrestrial_productivity(z, sea: float) -> np.ndarray:
               * np.clip(p_ann / P_REF_MMYR, 0.0, 1.0))
     f_dep = (np.clip(z["h_accumulation"] / ACC_REF, 0.0, 1.0)
              * np.exp(-hand_m(z["h_hand"], sea) / HAND_REF_M))
+    if pulse is None:
+        pulse = flood_pulse(z, sea)
     land = ~z["h_ocean_mask"] & ~z["h_sea_mask"] & ~z["h_lake_mask"]
-    return np.where(land, base + G_TER * (f_clim + f_dep), 0.0)
+    return np.where(land, base + G_TER * (f_clim + f_dep + pulse), 0.0)
 
 
 def freshwater_productivity(z, sea: float) -> np.ndarray:
@@ -464,6 +515,34 @@ def build(seed: int) -> dict:
         products["river_speed"] = np.where(
             z["d_river_mask"], _upsample(spd, factor), 0.0)
     points["waterfalls"] = waterfalls(z, sea)
+    # snap each falls/rapids point ONTO the delivered river line: the
+    # bare anchor coord x4 lands beside the meandering stamped path —
+    # often in a NEIGHBORING block, since the polyline's corner cuts
+    # and lake/ocean masking can keep the line out of the anchor
+    # cell's own 4x4 block entirely (same misalignment class as the
+    # river-speed bleed). Search a 2-block radius for the nearest
+    # stamped river pixel; the anchor cell the drop was measured on is
+    # kept as provenance (ay/ax) since p//factor can shift a block.
+    if "d_river_mask" in z:
+        drm = z["d_river_mask"]
+        H2, W2 = drm.shape
+        r = 3 * factor
+        for p in points["waterfalls"]:
+            ay, ax = p["y"], p["x"]
+            p["ay"], p["ax"] = ay, ax
+            cy, cx = ay * factor + (factor - 1) / 2.0, \
+                ax * factor + (factor - 1) / 2.0
+            y0, y1 = max(0, int(cy) - r), min(H2, int(cy) + r + 1)
+            x0, x1 = max(0, int(cx) - r), min(W2, int(cx) + r + 1)
+            win = drm[y0:y1, x0:x1]
+            if win.any():
+                ys, xs = np.nonzero(win)
+                k = int(np.argmin((ys + y0 - cy) ** 2
+                                  + (xs + x0 - cx) ** 2))
+                p["y"], p["x"] = int(ys[k] + y0), int(xs[k] + x0)
+            else:
+                p["y"], p["x"] = int(cy), int(cx)
+    pulse = flood_pulse(z, sea)
     mprod = marine_productivity(z, _currents_payload(z))
     products["marine_productivity"] = np.stack(
         [np.where(d_ocean, _upsample(mprod[m], factor), 0.0)
@@ -471,7 +550,12 @@ def build(seed: int) -> dict:
     products["marine_productivity_ann"] = np.where(
         d_ocean, _upsample(mprod.mean(axis=0), factor), 0.0)
     products["terrestrial_productivity"] = np.where(
-        d_land, _upsample(terrestrial_productivity(z, sea), factor), 0.0)
+        d_land, _upsample(terrestrial_productivity(z, sea, pulse), factor),
+        0.0)
+    # the flood-pulse footprint itself, persisted for the viewer and for
+    # downstream consumers (substrate alluvium rule reads it at anchor)
+    products["flood_pulse"] = np.where(
+        d_land, _upsample(pulse, factor), 0.0)
     products["freshwater_productivity"] = np.where(
         d_fresh, _upsample(freshwater_productivity(z, sea), factor), 0.0)
     products["growing_season"] = np.where(
@@ -500,7 +584,10 @@ def build(seed: int) -> dict:
     products["ground_mix_w"] = hi["mix_w"]
 
     # points carry anchor coords; scale to delivery for the viewer
-    for lst in points.values():
+    # (waterfalls already snapped to the delivered river line above)
+    for name, lst in points.items():
+        if name == "waterfalls":
+            continue
         for p in lst:
             p["y"], p["x"] = p["y"] * factor, p["x"] * factor
     return {"seed": seed, "products": products, "points": points,

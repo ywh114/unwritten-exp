@@ -106,6 +106,8 @@ RAMP_SPEED = [[0.0, [30, 30, 30]], [1.0, [240, 200, 60]]]
 RAMP_VENT = [[0.0, [20, 10, 10]], [1.0, [230, 80, 40]]]
 RAMP_SEASON = [[0.0, [40, 20, 60]], [0.5, [120, 70, 160]],
                [1.0, [220, 180, 240]]]
+RAMP_PULSE = [[0.0, [20, 25, 35]], [0.5, [60, 110, 160]],
+              [1.0, [140, 220, 250]]]
 
 
 def build_pack(result: dict, out_path: Path) -> Path:
@@ -142,6 +144,8 @@ def build_pack(result: dict, out_path: Path) -> Path:
                RAMP_VENT, 0.5, None, "")
     continuous("grow_season", "Growing season", "growing_season",
                0, 12, RAMP_SEASON, 0.5, "land", " mo")
+    continuous("flood_pulse", "Flood pulse", "flood_pulse",
+               0, 1, RAMP_PULSE, 0.6, "land", "")
 
     # substrate ("ground") — the first CATEGORICAL layer. The palette lives
     # in `classes` (the B3 class table: name/color/flags/props/genesis); a
