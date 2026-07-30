@@ -276,7 +276,7 @@ def _river_fields(z) -> tuple[np.ndarray, np.ndarray]:
             raise KeyError(
                 f"{k} missing from the k11 dump — regenerate the world "
                 f"(post-speed pipeline): uv run python -m "
-                f"exp.k11_worldgen demo --seed N --viewexport")
+                f"exp.k11_worldgen demo --seed N")
     return z["h_river_speed"], z["c_riverice_monthly"]
 
 
@@ -325,7 +325,7 @@ def _solar_fields(z) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
             raise KeyError(
                 f"{k} missing from the k11 dump — regenerate the world "
                 f"(post-solar pipeline): uv run python -m "
-                f"exp.k11_worldgen demo --seed N --viewexport")
+                f"exp.k11_worldgen demo --seed N")
     return z["c_insol_monthly"], z["c_seaice_monthly"], \
         z["c_lakeice_monthly"]
 

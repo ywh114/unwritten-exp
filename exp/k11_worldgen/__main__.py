@@ -586,9 +586,11 @@ def main(argv: list[str] | None = None) -> int:
     demo.add_argument("--shrink", type=float, default=6.0,
                       help="realistic mode: planet shrink factor "
                            "(map spans 1024 km * shrink / 111 degrees)")
-    demo.add_argument("--viewexport", action="store_true",
-                      help="also bake the .k11view viewer bundle after "
-                           "generating")
+    demo.add_argument("--viewexport", action="store_true", default=True,
+                      help=argparse.SUPPRESS)  # default since 2026-07-30
+    demo.add_argument("--no-viewexport", dest="viewexport",
+                      action="store_false",
+                      help="skip baking the .k11view viewer bundle")
     rend = sub.add_parser("render", help="re-render PNGs from seed_N/world.json")
     rend.add_argument("--seed", type=int, default=1)
     args = parser.parse_args(argv)
