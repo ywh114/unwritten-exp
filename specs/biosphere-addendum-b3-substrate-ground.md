@@ -59,10 +59,10 @@ derivation budget.
 
 ## Output & persistence
 
-- Class map at anchor res (256²) + the **full d2 vector** (41 floats
+- Class map at anchor res (256²) + the **full d2 vector** (42 floats
   per cell, one `(n_classes, H, W)` array — ids implicit, no sort, no
   K decision; ~11 MB/world). This SUPERSEDES the top-2 line in B2 and
-  the top-3 discussion: with 41 classes the tail is signal, not noise
+  the top-3 discussion: with 42 classes the tail is signal, not noise
   (dune vs sand sheet vs loess; fen vs bog vs gleysol), and mosaic
   cells honestly span 4–5 classes. Consumers do the consume-time
   softmax over −d2 as always (biosphere_conv ruling); the dominant
@@ -100,7 +100,7 @@ not be hard-blocked by the soil/seabed boundary. Heat/ice as medium
 (LAVA-ADAPT, ICE-PHASE) join the vent/glacier products at consumption
 time — no columns.
 
-## Class table (41; floats are draft — the ORDERINGS are the
+## Class table (42; floats are draft — the ORDERINGS are the
 defensible content, consumers reading d2 are robust to ±0.1)
 
 Terrestrial — physical:
@@ -154,6 +154,7 @@ Underwater (retention 1.0 saturated; sal+ = the water's salinity):
 | rocky bottom | 1.0 | 0.05 | sea | 0.20 | high energy / kelp holdfast |
 | vent crust | 1.0 | 0.1 | sea | 0.90 | hot sulfide chemosynthesis |
 | cold seep | 1.0 | 0.3 | sea | 0.85 | methane chemosynthesis + carbonate |
+| pillow basalt | 0.10 | 0.1 | sea | 0.10 | submarine eruption (quenched pillow lava) |
 | tidal flat | 1.0 | 0.15 | 0.5 | 0.55 | tide-sorted, brackish gradient |
 | lake mud | 1.0 | 0.4 | lake | 0.60 | deposition + biotic |
 | river gravel bed | 1.0 | 0.2 | 0 | 0.30 | flow-sorted |
@@ -165,6 +166,25 @@ not classes): ultisol row, playa crust, palsa, drumlin, karst pavement,
 tufa, beach ridges, fjord anoxic sediment, seagrass-meadow sediment,
 glacial-marine diamicton, brine pool, marine gravel — see the research
 report for verdicts.
+
+## Revisions (2026-07-30)
+
+**42nd class: pillow basalt.** Real submarine eruptions quench to
+pillow lava, so the active submarine crater bowl splits by depth:
+shallow bowls read pillow basalt (`vent_core × ocean × (1 − ½·depthn)`),
+deep (abyssal/hadal) bowls keep vent crust (`vent_core × ocean ×
+depthn`) — vent crust is properly the sulfide cap of deep, long-lived
+hydrothermal systems, not every submarine bowl. Land bowls keep fresh
+lava. Pillow basalt is the one underwater row with retention below 1.0
+(bare rock, not sediment).
+
+**Cold seep is now two provenances.** (a) Vent-adjacent hydrothermal
+seepage — the ring around every vent, gated off above ~200 m (no
+methane-hydrate stability on shallow shelves), uncapped downward (hadal
+vent seepage is real). (b) Passive-margin seeps decoupled from vents —
+a smooth hydrate-stability band (~300–3000 m) × sediment × a mild slope
+preference; real cold seeps cluster on sediment-rich continental
+slopes, not as concentric rings around every volcano.
 
 ## Knobs
 

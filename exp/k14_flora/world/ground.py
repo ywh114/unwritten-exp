@@ -22,8 +22,9 @@ Two engines, neither with a veto (spec §Architecture):
 
 Genesis (physical / biotic / mixed) is per-class METADATA, never a
 constraint. Underwater is the SAME table, same machinery: retention
-reads 1.0 (saturated) and sal_add is None, meaning "the water's own
-salinity" (the consumer supplies it; K11 h_salinity covers water only).
+reads 1.0 (saturated — bare pillow basalt excepted) and sal_add is
+None, meaning "the water's own salinity" (the consumer supplies it;
+K11 h_salinity covers water only).
 """
 
 from __future__ import annotations
@@ -67,13 +68,21 @@ W_FLOOR = 1e-6                # generator-weight floor feeding -log -> d2
 
 # ── volcanic (vent) evidence — built from the vent/spring POINTS, not ───
 # ── the raw fault field: most vents are dormant, and only ACTIVE crater ──
-# ── bowls carry fresh lava / vent crust. Radii are in anchor cells ───────
-# ── (4 km each) so the same painter runs natively at any resolution. ─────
+# ── bowls carry fresh lava / pillow basalt / vent crust. Radii are in ────
+# ── anchor cells (4 km each) so the same painter runs natively at any ────
+# ── resolution. ──────────────────────────────────────────────────────────
 VENT_HALO_SIGMA_C = 2.0       # andisol (volcanic-soil) halo sigma
 VENT_HALO_CUT_C = 6.0         # halo cut radius (24 km)
-VENT_CORE_R_C = 1.2           # crater-bowl disk radius — fresh lava and
-                              # vent crust live ONLY inside this disk
+VENT_CORE_R_C = 1.2           # crater-bowl disk radius — fresh lava /
+                              # pillow basalt / vent crust are disk-only
 VENT_SEEP_R_C = 3.5           # cold-seep annulus outer radius
+SEEP_SHELF_GATE_M = 200.0     # that annulus's shelf gate (m water depth):
+                              # 0 above, ramps to 1 by 2x, uncapped below
+                              # (hadal vent seepage is real)
+SEEP_HYDRATE_LO_M = 300.0     # passive-margin seeps (vent-independent):
+                              # methane-hydrate stability band foot ...
+SEEP_HYDRATE_HI_M = 3000.0    # ... and ceiling — a smooth ramp pair over
+                              # sedimented continental slopes
 VENT_P_ACTIVE_BASE = 0.25     # dormancy roll: p(active) foot ...
 VENT_P_ACTIVE_SPAN = 0.25     # ... + span x normalized activity, so even
                               # the world's hottest vent is active ~half
@@ -85,7 +94,7 @@ TAU = 1.0                     # softmax over -d2; at TAU=1 softmax(-d2) is
                               # so the top-3 mix shares are the renormalized
                               # generator weights of the three shown classes
 
-# ── class table (41; knob set #1 — the floats are draft, the ORDERINGS ──
+# ── class table (42; knob set #1 — the floats are draft, the ORDERINGS ──
 # ── are the defensible content, consumers of d2 are robust to +-0.1) ────
 # Per class: property row (retention, rooting_m, sal_add, nutrient) from
 # the spec; hard/loose metadata flags; a muted terrain-legible color; a
@@ -219,6 +228,11 @@ GROUND_CLASSES: list[dict] = [
     dict(name="cold seep", retention=1.0, rooting_m=0.3, sal_add=None,
          nutrient=0.85, hard=False, loose=False, color=[80, 100, 95],
          genesis="methane chemosynthesis + carbonate", genesis_tag="mixed"),
+    dict(name="pillow basalt", retention=0.10, rooting_m=0.1, sal_add=None,
+         nutrient=0.10, hard=True, loose=False, color=[62, 68, 76],
+         genesis="submarine eruption (quenched pillow lava)",
+         genesis_tag="physical"),   # bare rock: the one underwater row not
+                                    # reading 1.0 saturated
     dict(name="tidal flat", retention=1.0, rooting_m=0.15, sal_add=0.5,
          nutrient=0.55, hard=False, loose=False, color=[140, 150, 130],
          genesis="tide-sorted, brackish gradient", genesis_tag="physical"),
@@ -235,12 +249,13 @@ GROUND_CLASSES: list[dict] = [
 
 N_CLASSES = len(GROUND_CLASSES)
 GROUND_ID = {c["name"]: i for i, c in enumerate(GROUND_CLASSES)}
-assert N_CLASSES == 41, "B3 specifies exactly 41 ground classes"
+assert N_CLASSES == 42, ("B3 specifies 41 ground classes + pillow basalt "
+                         "(42nd) added for submarine eruptions")
 
 # domain slices (index ranges) — used by the land/water separation and the
 # biome-bias suppression
 _TERRESTRIAL = range(0, 30)          # physical + biotic/mixed soils
-_MARINE = range(30, 37)              # marine mud .. cold seep
+_MARINE = range(30, 38)              # marine mud .. pillow basalt
 _BIOTIC_SOILS = [i for i in _TERRESTRIAL
                  if GROUND_CLASSES[i]["genesis_tag"] in ("biotic", "mixed")]
 _BIOTIC_SOILS_SET = set(_BIOTIC_SOILS)
@@ -411,6 +426,22 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
     bathy = np.maximum(sea - z["w_elev"], 0.0) / sea * DEPTH_MAX_M
     depthn = np.clip(bathy / DEPTH_ABYSS_M, 0.0, 1.0)
 
+    # cold-seep provenance (two components — see the cold seep rule):
+    # shelf_gate docks the vent-ring component off shallow shelves (no
+    # hydrate stability there); seep_passive is the vent-independent
+    # passive-margin component, a smooth hydrate-stability band over
+    # sedimented slopes. Both bounded [0,1] — the 1.6 gain lets a
+    # sediment-rich slope cell outvote marine mud, the clip keeps the
+    # evidence invariant (the band pair itself peaks at 0.8).
+    shelf_gate = np.clip((bathy - SEEP_SHELF_GATE_M) / SEEP_SHELF_GATE_M,
+                         0.0, 1.0)
+    hydrate = (np.clip((bathy - SEEP_HYDRATE_LO_M) / SEEP_HYDRATE_LO_M,
+                       0.0, 1.0)
+               * np.clip((SEEP_HYDRATE_HI_M - bathy) / SEEP_HYDRATE_HI_M,
+                         0.0, 1.0))
+    seep_passive = np.clip(hydrate * dep * (0.4 + 0.6 * slope) * 1.6,
+                           0.0, 1.0)
+
     # rivers: flow speed at anchor res (persisted by K11); fall back to a
     # bounded discharge rank ONLY if a stale dump lacks it (noted, and no
     # actual rank — a clip over DIS_REF).
@@ -475,6 +506,7 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
         river=river.astype(np.float64), land=land.astype(np.float64),
         dep=dep, wet=wet, slope=slope, arid=arid, cold=cold, warm=warm,
         glac=glac, ventf=ventf, vent_core=vent_core, seep_ring=seep_ring,
+        shelf_gate=shelf_gate, seep_passive=seep_passive,
         salsoil=salsoil, energy=energy, depthn=depthn, rs=rs, tidal=tidal,
         near_ocean1=near_ocean1.astype(np.float64),
         lake_shore=lake_shore,
@@ -504,7 +536,7 @@ def _biome_bias(biome: np.ndarray) -> np.ndarray:
 # marine classes `ocean`, lake/river classes their own mask — so a class is
 # exactly zero off its domain. Computed ONE PLANE AT A TIME from the
 # evidence dict so the hi-res pass can stream classes without ever holding
-# all 41 delivery-res planes (the rule is pointwise, so it reruns at any
+# all 42 delivery-res planes (the rule is pointwise, so it reruns at any
 # resolution unchanged). The table order in GROUND_CLASSES fixes the ids.
 def _class_weight(name: str, e: dict) -> np.ndarray:
     land, ocean = e["land"], e["ocean"]
@@ -516,6 +548,7 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     rs, tidal = e["rs"], e["tidal"]
     dune_dep, loamy = e["dune_dep"], e["loamy"]
     seep_ring, reef = e["seep_ring"], e["reef"]
+    shelf_gate, seep_passive = e["shelf_gate"], e["seep_passive"]
     seasw, pulse = e["seasw"], e["pulse"]
     no = e["near_ocean1"]
     lake_shore = e["lake_shore"]
@@ -614,13 +647,14 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
         return wet * no * warm * (1 - slope) * land
     if name == "montane ranker":
         return (1 - dep) * (1 - slope) * (0.4 + 0.6 * cold) * 0.7 * land
-    # underwater — vent influence suppresses the deep-ocean background
-    # (vent crust at the active core, cold seep in the annulus beyond)
+    # underwater — vent/seep influence suppresses the deep-ocean
+    # background (pillow basalt / vent crust at the active core split by
+    # depth, cold seep in the annulus beyond and on passive margins)
     if name == "marine mud":
         return (1 - depthn) * (1 - energy) * (1 - reef) * ocean
     if name == "abyssal clay":
         return (depthn ** 2 * (1 - energy) * (1 - 0.5 * ventf)
-                * (1 - 0.5 * seep_ring) * ocean)
+                * (1 - 0.5 * seep_ring) * (1 - 0.5 * seep_passive) * ocean)
     if name == "marine sand":
         return (1 - depthn) * energy * (1 - energy) * 1.2 * (1 - reef) * ocean
     if name == "reef carbonate":
@@ -631,10 +665,21 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
         # high-energy ocean floor + steep lake beds (rocky littoral)
         return energy ** 2 * ocean + lake_shore * slope ** 2
     if name == "vent crust":
-        # active crater bowls only — dormant vents keep their seep ring
-        return vent_core * ocean
+        # active crater bowls only — dormant vents keep their seep ring;
+        # vent crust is the sulfide cap of DEEP, long-lived systems (the
+        # shallow submarine bowls quench to pillow basalt instead)
+        return vent_core * ocean * depthn
     if name == "cold seep":
-        return seep_ring * (0.5 + 0.5 * depthn) * ocean
+        # two provenances: vent-adjacent hydrothermal seepage — the ring
+        # around every vent, shelf-gated (no hydrate stability on shallow
+        # shelves) but uncapped below, hadal vent seepage is real; plus
+        # passive-margin seeps decoupled from vents (seep_passive above)
+        return (seep_ring * (0.5 + 0.5 * depthn) * shelf_gate
+                + seep_passive) * ocean
+    if name == "pillow basalt":
+        # the shallow submarine crater bowl: erupted lava quenches to
+        # pillows (deep bowls grow the sulfide cap and read vent crust)
+        return vent_core * ocean * (1 - 0.5 * depthn)
     if name == "tidal flat":           # interface class
         return tidal * 0.9
     if name == "lake mud":
@@ -655,7 +700,7 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
 
 def build_ground(z, manifest: dict, sea: float,
                  vent_pts: list[dict]) -> dict:
-    """The B3 ground pass at anchor res. Returns d2 (41,H,W float32),
+    """The B3 ground pass at anchor res. Returns d2 (42,H,W float32),
     class_id (H,W uint8), mix_ids/mix_w (top-3), and meta (the JSON-able
     class table). Deterministic — the only RNG is the K1 vent-dormancy
     stream keyed by manifest['seed']."""
@@ -665,7 +710,7 @@ def build_ground(z, manifest: dict, sea: float,
 
     stacked = np.stack(
         [np.clip(_class_weight(c["name"], e) * bias[i], 0.0, 1.0)
-         for i, c in enumerate(GROUND_CLASSES)], axis=0)   # (41,H,W)
+         for i, c in enumerate(GROUND_CLASSES)], axis=0)   # (42,H,W)
     d2 = (-np.log(np.maximum(stacked, W_FLOOR))).astype(np.float32)
     class_id = np.argmax(stacked, axis=0).astype(np.uint8)
 
@@ -711,7 +756,7 @@ def build_ground(z, manifest: dict, sea: float,
 _HI_FIELDS = ("dep", "wet", "slope", "arid", "cold", "warm", "glac",
               "salsoil", "energy", "depthn", "rs", "tidal",
               "near_ocean1", "lake_shore", "dune_dep", "loamy",
-              "seasw", "pulse")
+              "seasw", "pulse", "shelf_gate", "seep_passive")
 
 
 def _upsample_evidence(e: dict, z, factor: int, seed: int) -> dict:
@@ -778,8 +823,8 @@ def _class_bias(i: int, biome: np.ndarray,
 
 def _classify(e: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Pointwise classification at whatever resolution `e` is gridded to.
-    STREAMS the 41 classes one plane at a time, keeping a running top-3
-    (ids + weights) and dominant — never materializes all 41 planes (that
+    STREAMS the 42 classes one plane at a time, keeping a running top-3
+    (ids + weights) and dominant — never materializes all 42 planes (that
     would be ~170 MB at delivery res). Returns (class_id, mix_ids, mix_w)."""
     H, W = e["land"].shape
     biome = e["biome"]

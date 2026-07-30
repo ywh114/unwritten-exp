@@ -211,7 +211,7 @@ test("tooltip carries pack values and point attrs", async () => {
   if (!tt.text.includes("drop_m")) throw new Error(`tooltip lacks point attrs: ${tt.text.slice(0, 120)}`);
 });
 
-test("ground layer registered with 41 classes + colormap + aux mix planes", async () => {
+test("ground layer registered with 42 classes + colormap + aux mix planes", async () => {
   const info = await page.evaluate(() => {
     const S = window._S;
     const L = S.packs[0].layers.find((l) => l.id === "ground");
@@ -231,8 +231,8 @@ test("ground layer registered with 41 classes + colormap + aux mix planes", asyn
   if (info.error) throw new Error(info.error);
   if (info.kind !== "categorical") throw new Error(`kind: ${info.kind}`);
   if (info.label !== "Substrate (ground)") throw new Error(`label: ${info.label}`);
-  if (info.nClasses !== 41) throw new Error(`classes: ${info.nClasses}`);
-  if (info.nCmap !== 41) throw new Error(`colormap entries: ${info.nCmap}`);
+  if (info.nClasses !== 42) throw new Error(`classes: ${info.nClasses}`);
+  if (info.nCmap !== 42) throw new Error(`colormap entries: ${info.nCmap}`);
   if (!info.cmapMatch) throw new Error("colormap does not mirror class colors");
   if (info.dataLen !== 1024 * 1024) throw new Error(`ground data len: ${info.dataLen}`);
   if (JSON.stringify(info.mixShape) !== "[3,1024,1024]") {

@@ -216,6 +216,61 @@ def test_ocean_vent_core_and_cold_seep_ring():
     assert g["class_id"][5, 7] == GROUND_ID["cold seep"]   # seep annulus
 
 
+def test_submarine_vent_depth_split_pillow_vs_crust():
+    """Shallow submarine active bowls quench to pillow basalt; deep
+    (abyssal) bowls grow the sulfide cap and read vent crust. (Manifest
+    seed 0 leaves the single vent active.)"""
+    pts = [{"y": 5, "x": 5, "activity": 1.0}]
+    assert ground._vent_active(pts, 0)[0]            # fixture precondition
+    z = _ground_z(12, 12)
+    z["h_ocean_mask"][:] = True
+    z["w_biome_map"][:] = 17
+    z["w_elev"][:] = _below(SEA, 500.0)              # shelf depth
+    g = _build(z, pts)
+    assert g["class_id"][5, 5] == GROUND_ID["pillow basalt"]
+    z["w_elev"][:] = _below(SEA, 5000.0)             # abyssal
+    g = _build(z, pts)
+    assert g["class_id"][5, 5] == GROUND_ID["vent crust"]
+
+
+def test_cold_seep_gated_off_shallow_shelf():
+    """The vent-ring seep component is gated off on shallow shelves
+    (<~200 m, no hydrate stability there): even right inside a vent's
+    annulus, a 100 m shelf cell carries ~0 cold-seep evidence and keeps
+    its marine mud."""
+    z = _ground_z(12, 12)
+    z["h_ocean_mask"][:] = True
+    z["w_biome_map"][:] = 17
+    z["w_elev"][:] = _below(SEA, 100.0)              # shallow shelf
+    pts = [{"y": 5, "x": 5, "activity": 1.0}]
+    g = _build(z, pts)
+    w = _w(g)
+    assert w[GROUND_ID["cold seep"], 5, 7] < 1e-4    # ring cell, gated
+    assert g["class_id"][5, 7] == GROUND_ID["marine mud"]
+
+
+def test_passive_margin_cold_seep_wins():
+    """Vent-independent passive-margin seep: a sedimented slope cell in
+    the hydrate band (300-3000 m) with NO vent nearby reads cold seep —
+    and the same cell without sediment keeps its marine mud (passive
+    seeps do not blanket every slope)."""
+    z = _ground_z(12, 12)
+    z["h_ocean_mask"][:] = True
+    z["w_biome_map"][:] = 17
+    z["w_elev"][:] = _below(SEA, 800.0)              # mid hydrate band
+    z["w_elev"][4, 5] = SEA                          # 800 m scarp -> slope 1
+    z["h_accumulation"][:] = 2000.0                  # sediment-rich bed
+    z["h_hand"][:] = 0.0                             # saturated -> dep = 1
+    g = _build(z)                                    # no vent points
+    w = _w(g)
+    assert g["class_id"][5, 5] == GROUND_ID["cold seep"]
+    assert (w[GROUND_ID["cold seep"], 5, 5]
+            > w[GROUND_ID["marine mud"], 5, 5])
+    z["h_accumulation"][:] = 100.0                   # starve the sediment
+    g2 = _build(z)
+    assert g2["class_id"][5, 5] == GROUND_ID["marine mud"]
+
+
 def test_river_speed_sorts_gravel_vs_sand():
     z = _ground_z()
     z["h_river_mask"][2, 2] = True
@@ -328,7 +383,7 @@ def test_marine_zero_on_land_and_soils_zero_on_ocean(gr, inputs):
     w = _w(gr)
     ocean = z["h_ocean_mask"] | z["h_sea_mask"]
     land = ~ocean & ~z["h_lake_mask"] & ~z["h_river_mask"]
-    marine = list(ground._MARINE)                    # marine mud..cold seep
+    marine = list(ground._MARINE)                # marine mud..pillow basalt
     # marine classes carry `ocean`: exactly ~floor on land
     assert w[marine][:, land].max() < 1e-4
     # terrestrial soils carry `land`: exactly ~floor on the ocean
@@ -403,7 +458,7 @@ def test_hires_histogram_consistent_with_anchor(gr, hires):
 
 
 def test_every_class_reachable_on_seed1(gr):
-    """Every one of the 41 classes has w>0 somewhere on the seed-1 world.
+    """Every one of the 42 classes has w>0 somewhere on the seed-1 world.
     As of writing NONE need a synthetic fallback; if a future knob change
     strands a class, add a synthetic cell here rather than weakening the
     assertion."""
