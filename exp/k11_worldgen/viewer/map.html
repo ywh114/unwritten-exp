@@ -281,7 +281,7 @@ body {
 // ══════════════════════════════════════════════════════════════════════
 // Constants
 // ══════════════════════════════════════════════════════════════════════
-const MONTH_LETTERS = ["J","F","M","A","M","J","J","A","S","O","N","D"];
+const MONTH_LABELS = ["1","2","3","4","5","6","7","8","9","10","11","12"];
 const KNOWN_SPEC_FIELDS = new Set([
   "elev_m","T_c","P_mm","cover","salinity","depth_m","hand_m","order",
   "biome","aquatic","masks","biome_sim","river","lake","ocean","sea",
@@ -419,9 +419,9 @@ function monthsLabel() {
   if (S.selMonths.size === 12) return "(year)";
   const sel = [];
   for (let m = 0; m < 12; m++) {
-    if (S.selMonths.has(m)) sel.push(MONTH_LETTERS[m]);
+    if (S.selMonths.has(m)) sel.push(MONTH_LABELS[m]);
   }
-  return "(" + sel.join("") + ")";
+  return "(" + sel.join(" ") + ")";
 }
 
 // Compute per-cell average over selected months for a given monthly field
@@ -1903,7 +1903,7 @@ function showTooltip(data, ex, ey) {
   if (data.river_monthly) {
     const rm = data.river_monthly;
     const lbl = rm.months.length === 12 ? "permanent"
-      : rm.months.map((m) => MONTH_LETTERS[m]).join(" ");
+      : rm.months.map((m) => MONTH_LABELS[m]).join(" ");
     html += `<div class="tt-field"><span class="tt-name">River (monthly)</span><span class="tt-val">class ${rm.maxw} — ${lbl}</span></div>`;
   }
   if (data.ice_cover != null) {
