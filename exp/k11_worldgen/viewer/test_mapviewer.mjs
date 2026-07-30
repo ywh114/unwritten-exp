@@ -128,7 +128,7 @@ test("pixel tooltip appears on hover with biome name", async () => {
     const text = tt.textContent.toLowerCase();
     const biomes = [
       "ocean", "boreal taiga", "temperate grassland", "tropical conifer forest",
-      "desert xeric shrubland", "temperate broadleaf forest", "montane grassland",
+      "desert xeric (hot)", "desert xeric (cold)", "temperate broadleaf forest", "montane grassland",
       "mediterranean scrub", "mangrove", "rock", "ice", "lake", "tundra",
       "tropical moist forest", "tropical dry forest", "tropical grassland",
       "flooded grassland",

@@ -257,7 +257,7 @@ def test_biome_bias_lifts_without_binding():
     z = _ground_z()
     # identical physicals, two biomes
     z["w_biome_map"][2, 2] = 7                       # temperate grassland
-    z["w_biome_map"][2, 3] = 12                      # desert xeric shrubland
+    z["w_biome_map"][2, 3] = 12                      # desert xeric (hot)
     z["c_P_monthly"][:, 2, 2] = 0.15625              # arid = 0.5 (both)
     z["c_P_monthly"][:, 2, 3] = 0.15625
     g = _build(z)

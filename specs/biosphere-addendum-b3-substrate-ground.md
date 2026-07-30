@@ -35,7 +35,7 @@ Two engines run everywhere; neither has veto:
    considerations were already done for us. **No hard ties in either
    direction** — a temperate forest on a steep slope is scree; the
    physical layer holds regardless of what the biome prefers.
-   Conjunctive biomes are mosaics: "desert xeric shrubland" = desert
+   Conjunctive biomes are mosaics: "desert xeric (hot)" = desert
    AND xeric shrubland, decomposed into their substrate shares.
 
 Genesis (physical / biotic / mixed) is per-class METADATA, never a

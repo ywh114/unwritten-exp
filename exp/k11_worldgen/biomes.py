@@ -53,7 +53,8 @@ BIOMES: list[dict] = [
     {"name": "montane grassland",          "color": (150, 170, 115)},
     {"name": "tundra",                     "color": (170, 175, 165)},
     {"name": "mediterranean scrub",        "color": (150, 170, 80)},
-    {"name": "desert xeric shrubland",     "color": (225, 205, 140)},
+    {"name": "desert xeric (hot)",         "color": (225, 205, 140)},
+    {"name": "desert xeric (cold)",        "color": (198, 190, 160)},
     {"name": "mangrove",                   "color": (150, 70, 120)},
     {"name": "rock",                       "color": (150, 148, 152)},
     {"name": "ice",                        "color": (232, 240, 246)},
@@ -122,7 +123,25 @@ _PROTOTYPES: dict[str, tuple[np.ndarray, np.ndarray]] = {
     # Mediterranean basin: warm dry summer, winter rain
     "mediterranean scrub":        (_curve(16.0, 8.0, 6), _shaped(3.0, [(0.5, 90.0, 2.5)])),
     # Sahara: hot, bone dry
-    "desert xeric shrubland":     (_curve(24.0, 9.0, 6), _flat(2.0)),
+    "desert xeric (hot)":         (_curve(24.0, 9.0, 6), _flat(2.0)),
+    # Gobi / Great Basin: strong continental swing (Jan ~-8, Jul ~+16),
+    # sparse summer-max rain (~60 mm/yr). WWF's "deserts and xeric
+    # shrublands" biome spans cold deserts, but a single Sahara-hot
+    # prototype can never win them: the vector match weights 12 degC ~
+    # 100 mm, so a Gobi-type cell sits ~1.5 T-units from the hot
+    # prototype and precip (~0.1 units) can never outvote that — cold
+    # arid land fell to grassland/taiga. The split keeps ONE global
+    # metric: the cold mode is a full climate vector, so the boundary
+    # stays an equidistance surface (a T-agnostic hot prototype was
+    # measured to steal even 330 mm/yr cold steppe from grassland).
+    # Normals sit at the DRY end of the measured cold-arid band
+    # (Jan ~-7, Jul ~15, ~200 mm/yr — Great Basin / Gobi-core grade);
+    # high-altitude cold-arid cells (Jul ~11) stay montane grassland.
+    # Tuned against seeds 1-3: 83-100% of the 50-250 mm/yr cold band,
+    # ~10% leakage into 400-600 mm/yr steppe (rain-shadow pockets),
+    # desert-steppe transition at 250-400 mm/yr.
+    "desert xeric (cold)":        (_curve(4.0, 12.0, 6),
+                                   _shaped(3.0, [(6.5, 11.0, 2)])),
     # frost-free tidal forest (override-only in practice)
     "mangrove":                   (_flat(27.0), _flat(150.0)),
     # barren ground above the vegetation line (override-only)

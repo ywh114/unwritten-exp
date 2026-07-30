@@ -257,9 +257,12 @@ _BIAS: dict[str, dict[str, float]] = {
     "gleysol": {"flooded grassland": 1.5},
     "mangrove mud": {"mangrove": 3.0},
     "montane ranker": {"montane grassland": 2.0},
-    "dune sand": {"desert xeric shrubland": 1.5},
-    "sand sheet": {"desert xeric shrubland": 1.5},
-    "reg / desert pavement": {"desert xeric shrubland": 1.5},
+    "dune sand": {"desert xeric (hot)": 1.5},   # ergs: hot deserts only —
+    # cold-desert dunes exist but are rare; the physical arid² gate can
+    # still open dune there, it just gets no biome boost
+    "sand sheet": {"desert xeric (hot)": 1.5, "desert xeric (cold)": 1.5},
+    "reg / desert pavement": {"desert xeric (hot)": 1.5,
+                              "desert xeric (cold)": 1.5},
 }
 _SUPPRESS_BIOMES = ("rock", "ice")   # no soil there: biotic soils x0.2
 _SUPPRESS_FACTOR = 0.2

@@ -102,7 +102,8 @@ read one absolute, comparable scale.
 | montane grassland | 0.35 |
 | tundra | 0.15 |
 | mediterranean scrub | 0.45 |
-| desert xeric shrubland | 0.08 |
+| desert xeric (hot) | 0.08 |
+| desert xeric (cold) | 0.08 |
 | mangrove | 0.70 |
 | rock | 0.02 |
 | ice | 0.00 |
