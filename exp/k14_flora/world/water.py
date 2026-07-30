@@ -40,6 +40,14 @@ PHOTIC_BLOOM_REF = 0.6      # surface productivity of a full bloom
 PHOTIC_MIN_M, PHOTIC_MAX_M = 10.0, 250.0
 INV_LO, INV_HI = 0.5, 1.5   # upwelling inventory-modifier clip
 CELL_M = 4000.0             # anchor cell size (L0 granularity)
+PH_OCEAN_SURF = 8.1         # surface seawater pH
+PH_OCEAN_DROP = 0.3         # surface->abyss column pH decrease (OMZ/age)
+PH_DEPTH_REF_M = 4000.0     # bathy at which the drop saturates (B3's
+                            # abyssal reference, same fixed scale)
+PH_BED_W = 0.6              # fresh pH: bed weight (catchment gets 1-w)
+PH_BOG_SHIFT = 1.3          # humic-acid shift at 100% peat window
+PH_WINDOW_C = 2             # catchment proxy: box radius, anchor cells
+PH_LO, PH_HI = 3.5, 9.5     # clip (B3 class-table extremes)
 
 # depth-zone table: (name, upper bound m, color). Categorical like the
 # B3 ground table — the palette's source of truth travels in the pack.
@@ -78,6 +86,43 @@ def bottom_temp_c(z, sea: float, bathy: np.ndarray) -> np.ndarray:
     sst_ann = temp_c(z["c_T_monthly"]).mean(axis=0)
     t = T_DEEP_C + (sst_ann - T_DEEP_C) * np.exp(-bathy / TBOT_REF_M)
     return np.where(bathy > 0, t, 0.0)
+
+
+def _box_mean(f: np.ndarray, r: int) -> np.ndarray:
+    """Box mean over a (2r+1)^2 window, edge-truncated (small windows at
+    anchor res — no scipy)."""
+    acc = np.zeros_like(f, dtype=np.float64)
+    cnt = np.zeros_like(f, dtype=np.float64)
+    for dy in range(-r, r + 1):
+        for dx in range(-r, r + 1):
+            ys = slice(max(0, dy), f.shape[0] + min(0, dy))
+            xs = slice(max(0, dx), f.shape[1] + min(0, dx))
+            yt = slice(max(0, -dy), f.shape[0] + min(0, -dy))
+            xt = slice(max(0, -dx), f.shape[1] + min(0, -dx))
+            acc[yt, xt] += f[ys, xs]
+            cnt[yt, xt] += 1.0
+    return acc / cnt
+
+
+def ocean_ph(bathy_m: np.ndarray) -> np.ndarray:
+    """Column pH from depth: 8.1 at the surface easing to 7.8 (old deep
+    water, OMZ/age) on the fixed 4000 m reference. Pointwise — runs at
+    any resolution, so it re-derives at delivery res from the delivered
+    bathymetry (bilinear-upsampling across the coastline leaves zero
+    holes, same ruling as the depth-zone re-derivation)."""
+    return PH_OCEAN_SURF - PH_OCEAN_DROP * np.clip(
+        bathy_m / PH_DEPTH_REF_M, 0.0, 1.0)
+
+
+def fresh_ph(bed_ph: np.ndarray, land_ph_mean: np.ndarray,
+             bog_share: np.ndarray) -> np.ndarray:
+    """Lake/river water pH: bed- and catchment-driven — PH_BED_W x the
+    bed pH (B3 class rows) + the surrounding land-soil mean — shifted
+    acid by the neighborhood peat share (humic blackwater: bog drainage
+    reads pH 4.5-5.5, not the bed's 7). Pointwise; the catchment inputs
+    arrive pre-windowed (PH_WINDOW_C box at anchor, upsampled)."""
+    return np.clip(PH_BED_W * bed_ph + (1.0 - PH_BED_W) * land_ph_mean
+                   - PH_BOG_SHIFT * bog_share, PH_LO, PH_HI)
 
 
 def photic_depth_m(bathy: np.ndarray, plume: np.ndarray,

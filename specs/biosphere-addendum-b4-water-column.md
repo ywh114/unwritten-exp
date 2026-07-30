@@ -90,6 +90,16 @@ products. Ocean cells only unless stated.
    flag.** Points carry `kind`: `terrestrial` / `sublacustrine` /
    `riverine`. No thermal modeling at L0 — no lake-ice melt holes, no
    warmed water; the flag is for L1 and fauna.
+8. **`water_ph` (H,W, annual)** *(revision 2026-07-30, added alongside
+   B3's pH column)* — the column's pH, distinct from B3 `ground_ph`
+   (the bed/pore reading). Ocean: 8.1 at the surface easing to 7.8 with
+   depth (old deep water) on the fixed 4000 m reference, RE-DERIVED at
+   delivery res from delivered bathymetry (the depth-zone ruling —
+   bilinear across the coastline leaves zero holes). Fresh (lakes and
+   rivers): bed- and catchment-driven — `0.6 × bed pH (B3 class rows) +
+   0.4 × surrounding land-soil mean − 1.3 × peat share`, the catchment
+   proxied by a 2-anchor-cell box window; humic blackwater means bog
+   drainage reads pH 4.5–5.5, not the bed's ~7. Zero on land.
 
 ## Interplay with B2 / B3
 
@@ -127,6 +137,8 @@ products. Ocean cells only unless stated.
 - `benthic_food`: continuous, monthly, ocean mask.
 - `photic_depth`: continuous, ocean mask.
 - `bottom_temp_c`: tooltip only (not an overlay layer).
+- `water_ph`: continuous, "water" mask (ocean|sea|lake|river), same
+  acid→alkaline ramp as B3's `ground_ph`.
 - Vent points: `depth_m`, `depth_zone` attrs. Spring points: `kind`.
 
 ## Implementation notes

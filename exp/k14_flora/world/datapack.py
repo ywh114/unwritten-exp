@@ -202,6 +202,10 @@ def build_pack(result: dict, out_path: Path) -> Path:
     # pH — every domain (soil pH on land, pore/water pH underwater)
     continuous("ground_ph", "Ground pH", "ground_ph", 3.5, 9.5, RAMP_PH,
                0.6, None, "")
+    # water-column pH (B4) — ocean depth gradient + fresh bed/catchment/
+    # peat; "water" mask = ocean|sea|lake|river in the viewer
+    continuous("water_ph", "Water pH", "water_ph", 3.5, 9.5, RAMP_PH,
+               0.6, "water", "")
 
     for pid, label, color in (
             ("waterfalls", "Waterfalls", [80, 200, 240]),

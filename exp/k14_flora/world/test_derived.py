@@ -361,6 +361,21 @@ def test_ground_ph_product(result, inputs):
     assert ph[d_land].max() > 7.0
 
 
+def test_water_ph_product(result, inputs):
+    z, _ = inputs
+    ph = result["products"]["water_ph"]
+    assert ph.shape == (1024, 1024)
+    d_ocean = z["d_ocean_mask"] | z["d_sea_mask"]
+    d_fresh = z["d_lake_mask"] | z["d_river_mask"]
+    # seawater range, deep slightly more acid than surface on average
+    assert 7.5 <= ph[d_ocean].min() and ph[d_ocean].max() <= 8.1 + 1e-5
+    # fresh spans bed/catchment/peat range; blackwater dips exist
+    assert ph[d_fresh].min() < 7.0
+    assert ph[d_fresh].max() <= 9.5 + 1e-5
+    # zero off-domain
+    assert (ph[~(d_ocean | d_fresh)] == 0).all()
+
+
 def test_vents_annotated(result):
     for pt in result["points"]["vents"]:
         assert pt["kind"] == "vent"

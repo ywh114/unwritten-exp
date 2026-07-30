@@ -685,6 +685,30 @@ def build(seed: int) -> dict:
     # pH is a pointwise consume-time transform over the persisted mix
     # (class pH rows are the content), so it derives at delivery res too
     products["ground_ph"] = mix_ph(hi["mix_ids"], hi["mix_w"])
+    # water pH (B4): the COLUMN, not the bed. RE-DERIVED at delivery res
+    # (same ruling as depth_zone: bilinear across the coastline leaves
+    # zero holes) — ocean from delivered bathymetry, fresh from the
+    # delivered bed (ground_ph) + the catchment inputs upsampled from
+    # anchor (a PH_WINDOW_C box mean: surrounding soil + peat share).
+    from exp.k14_flora.world.ground import GROUND_ID as _GID
+    bed_ph = mix_ph(g["mix_ids"], g["mix_w"])
+    land_a = ~z["h_ocean_mask"] & ~z["h_sea_mask"] & ~z["h_lake_mask"]
+    land_w = land_a.astype(np.float64)
+    lsum = _water._box_mean(bed_ph * land_w, _water.PH_WINDOW_C)
+    lcnt = _water._box_mean(land_w, _water.PH_WINDOW_C)
+    land_mean = np.where(lcnt > 1e-9, lsum / np.maximum(lcnt, 1e-9),
+                         bed_ph)
+    bog_share = _water._box_mean(
+        (g["class_id"] == _GID["bog"]).astype(np.float64),
+        _water.PH_WINDOW_C)
+    d_fresh_w = z["d_lake_mask"] | z["d_river_mask"]
+    wph = np.where(d_ocean, _water.ocean_ph(products["bathymetry_m"]),
+                   np.where(d_fresh_w,
+                            _water.fresh_ph(products["ground_ph"],
+                                            _upsample(land_mean, factor),
+                                            _upsample(bog_share, factor)),
+                            0.0))
+    products["water_ph"] = np.where(d_ocean | d_fresh_w, wph, 0.0)
 
     # points carry anchor coords; scale to delivery for the viewer
     # (waterfalls already snapped to the delivered river line above)

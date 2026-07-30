@@ -1315,6 +1315,8 @@ function packMaskArray(mask) {
     }
     else if (mask === "river")     out[i] = f.river[i];
     else if (mask === "lake")      out[i] = f.lake[i];
+    else if (mask === "water")     out[i] = (f.ocean[i] || f.sea[i] ||
+                                             f.lake[i] || f.river[i]) ? 1 : 0;
   }
   return out;
 }

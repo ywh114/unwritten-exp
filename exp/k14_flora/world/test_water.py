@@ -153,3 +153,36 @@ def test_bottom_temp_deep_approaches_floor():
     tb = water.bottom_temp_c(z, 0.35, bathy)
     assert tb[0, 0] > tb[0, 1] > tb[0, 2]
     assert abs(tb[0, 2] - water.T_DEEP_C) < 0.5
+
+
+# ── water pH (column, not bed) ──────────────────────────────────────────
+
+def test_ocean_ph_depth_gradient():
+    bathy = _bathy(np.array([[0.0, 100.0, 5000.0]]))
+    ph = water.ocean_ph(bathy)
+    assert ph[0, 0] == pytest.approx(8.1)           # surface/land level
+    assert ph[0, 1] == pytest.approx(8.1 - 0.3 * 100.0 / 4000.0)
+    assert ph[0, 2] == pytest.approx(7.8)           # saturates at ref
+    assert ph[0, 1] > ph[0, 2]
+
+
+def test_fresh_ph_bed_catchment_peat():
+    bed = np.array([[7.2, 7.2]])
+    land = np.array([[6.0, 6.0]])
+    bog = np.array([[0.0, 0.8]])
+    ph = water.fresh_ph(bed, land, bog)
+    base = 0.6 * 7.2 + 0.4 * 6.0                    # 6.72
+    assert ph[0, 0] == pytest.approx(base)
+    assert ph[0, 1] == pytest.approx(base - 1.3 * 0.8)
+    # peat window turns neutral bed water into blackwater
+    assert ph[0, 1] < 6.0
+
+
+def test_box_mean_center_and_edges():
+    f = np.zeros((5, 5))
+    f[2, 2] = 25.0
+    m = water._box_mean(f, 1)
+    assert m[2, 2] == pytest.approx(25.0 / 9.0)     # 3x3 window
+    assert m[0, 0] == 0.0
+    g = np.ones((4, 4))
+    assert water._box_mean(g, 2)[0, 0] == pytest.approx(1.0)  # edges
