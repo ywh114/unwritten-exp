@@ -33,8 +33,10 @@ import numpy as np
 from exp.k11_worldgen.biomes import BIOME_ID
 from exp.k11_worldgen.units import DEPTH_MAX_M, elev_m, hand_m, precip_mm, \
     temp_c
-# reuse the B2 reference values where the evidence is the same quantity
-from exp.k14_flora.world.derived import ACC_REF, HAND_REF_M, P_REF_MMYR
+# reuse the B2 reference values where the evidence is the same quantity,
+# plus the bilinear _upsample helper for the delivery-res re-derivation
+from exp.k14_flora.world.derived import ACC_REF, HAND_REF_M, P_REF_MMYR, \
+    _upsample
 
 # ── derivation bounds (knob set #2 — each saturates one evidence term) ──
 SLOPE_REF_M = 800.0           # elevation change across ONE 4 km cell that
@@ -222,6 +224,7 @@ _TERRESTRIAL = range(0, 30)          # physical + biotic/mixed soils
 _MARINE = range(30, 37)              # marine mud .. cold seep
 _BIOTIC_SOILS = [i for i in _TERRESTRIAL
                  if GROUND_CLASSES[i]["genesis_tag"] in ("biotic", "mixed")]
+_BIOTIC_SOILS_SET = set(_BIOTIC_SOILS)
 
 # ── biome bias (knob set #1/#2 — "the biome pretends the climate ────────
 # ── considerations were done for you"; multiplicative, capped at 1) ─────
@@ -355,6 +358,14 @@ def _evidence(z, sea: float, vent_activity: np.ndarray) -> dict:
     shallow = depthn < 0.05
     tidal = (coast_band & flat & (~ocean | shallow)).astype(np.float64)
 
+    # shared per-class sub-expressions + the halo/dilation terms. ALL of
+    # these are computed here at anchor res; the hi-res pass upsamples the
+    # finished fields (never re-dilates at delivery res) so the halo width
+    # in km is preserved and only the edges go smooth.
+    vent_core = ventf > 0.5
+    seep_ring = (_dilate8(vent_core, 2) & ~vent_core).astype(np.float64)
+    reef = (z["w_aquatic"] == 4).astype(np.float64)     # K11 "coral reef"
+
     return dict(
         ocean=ocean.astype(np.float64), lake=lake.astype(np.float64),
         river=river.astype(np.float64), land=land.astype(np.float64),
@@ -362,7 +373,9 @@ def _evidence(z, sea: float, vent_activity: np.ndarray) -> dict:
         glac=glac, ventf=ventf, salsoil=salsoil, energy=energy,
         depthn=depthn, rs=rs, tidal=tidal,
         near_ocean1=near_ocean1.astype(np.float64),
-        biome=z["w_biome_map"], aquatic=z["w_aquatic"])
+        dune_dep=np.clip(dep * DUNE_DEP_GATE, 0.0, 1.0),
+        loamy=0.5 + 0.5 * dep, seep_ring=seep_ring, reef=reef,
+        biome=z["w_biome_map"])
 
 
 def _biome_bias(biome: np.ndarray) -> np.ndarray:
@@ -383,9 +396,11 @@ def _biome_bias(biome: np.ndarray) -> np.ndarray:
 # One documented rule per class from its genesis note. Every term is a
 # bounded evidence field (or product thereof); land classes carry `land`,
 # marine classes `ocean`, lake/river classes their own mask — so a class is
-# exactly zero off its domain. Rules are keyed by class NAME; the table
-# order in GROUND_CLASSES fixes the ids.
-def _weights(e: dict) -> dict[str, np.ndarray]:
+# exactly zero off its domain. Computed ONE PLANE AT A TIME from the
+# evidence dict so the hi-res pass can stream classes without ever holding
+# all 41 delivery-res planes (the rule is pointwise, so it reruns at any
+# resolution unchanged). The table order in GROUND_CLASSES fixes the ids.
+def _class_weight(name: str, e: dict) -> np.ndarray:
     land, ocean = e["land"], e["ocean"]
     lake, river = e["lake"], e["river"]
     dep, wet, slope = e["dep"], e["wet"], e["slope"]
@@ -393,63 +408,102 @@ def _weights(e: dict) -> dict[str, np.ndarray]:
     glac, ventf = e["glac"], e["ventf"]
     salsoil, energy, depthn = e["salsoil"], e["energy"], e["depthn"]
     rs, tidal = e["rs"], e["tidal"]
-    dune_dep = np.clip(dep * DUNE_DEP_GATE, 0.0, 1.0)
-    loamy = 0.5 + 0.5 * dep
-    # vent influence suppresses the deep-ocean background (vent crust at
-    # the core, cold seep in a 2-ring around it, abyssal clay elsewhere)
-    vent_core = ventf > 0.5
-    seep_ring = (_dilate8(vent_core, 2) & ~vent_core).astype(np.float64)
-    reef = (e["aquatic"] == 4).astype(np.float64)     # K11 "coral reef"
+    dune_dep, loamy = e["dune_dep"], e["loamy"]
+    seep_ring, reef = e["seep_ring"], e["reef"]
+    no = e["near_ocean1"]
 
-    w: dict[str, np.ndarray] = {}
     # terrestrial — physical
-    w["dune sand"] = arid ** 2 * dune_dep * land          # most-arid gate
-    w["sand sheet"] = arid * (1 - slope) * (1 - 0.6 * dune_dep) * land
-    w["reg / desert pavement"] = arid * (1 - dep) * (1 - 0.5 * slope) * land
-    w["scree"] = slope ** 1.5 * (1 - 0.3 * slope) * land  # the slope override
-    w["bedrock outcrop"] = slope ** 3 * land              # steepest cliffs
-    w["alluvium"] = dep * (1 - slope) * (1 - 0.6 * wet) * land
-    w["loess"] = glac * (1 - dep) * (1 - slope) * (1 - wet) * 0.8 * land
-    w["silt"] = dep * (1 - slope) * (0.4 + 0.6 * wet) * 0.9 * land
-    w["clay"] = dep * wet ** 2 * 0.95 * land
-    w["vertisol"] = dep * np.sqrt(wet * arid) * (1 - slope) * land
-    w["till"] = glac * (1 - 0.5 * slope) * land
-    w["outwash gravel"] = glac * dep * 0.8 * land
-    w["andisol"] = ventf * (1 - slope) * land
-    w["fresh lava"] = ventf * slope * land
-    w["rendzina"] = ((1 - arid) * (1 - cold) * (1 - wet) * (1 - dep)
-                     * (1 - slope) * 0.75 * land)
-    w["laterite cuirasse"] = warm * (1 - arid) * (1 - slope) * 0.6 * land
-    w["caliche"] = arid * (1 - wet) * (1 - dep) * (1 - slope) * 0.7 * land
-    w["solonchak"] = salsoil ** 2 * (1 - slope) * land
-    w["solonetz"] = salsoil * (1 - salsoil) * 4.0 * (1 - slope) * 0.6 * land
-    w["coastal sand"] = e["near_ocean1"] * (1 - slope) * 0.8 * land
-    # terrestrial — biotic / mixed (biome-biased in build_ground)
-    w["mollisol"] = (1 - arid) * (1 - cold) * (1 - slope) * loamy * land
-    w["podzol"] = (1 - arid) * (0.3 + 0.7 * cold) * (1 - slope) * loamy * land
-    w["ferralsol"] = warm * (1 - arid) * (1 - slope) * loamy * land
-    w["brown earth"] = (1 - arid) * (1 - cold) * (1 - slope) * loamy * land
-    w["fen"] = wet * loamy * (1 - slope) * 0.9 * land
-    w["bog"] = wet * (1 - dep) * (1 - slope) * 0.85 * land
-    w["gleysol"] = wet * loamy * (1 - slope) * 0.8 * land
-    w["gelisol"] = cold * (1 - slope) * 0.9 * land
-    w["mangrove mud"] = wet * e["near_ocean1"] * warm * (1 - slope) * land
-    w["montane ranker"] = (1 - dep) * (1 - slope) * (0.4 + 0.6 * cold) \
-        * 0.7 * land
-    # underwater
-    w["marine mud"] = (1 - depthn) * (1 - energy) * ocean
-    w["abyssal clay"] = depthn ** 2 * (1 - energy) * (1 - 0.5 * ventf) \
-        * (1 - 0.5 * seep_ring) * ocean
-    w["marine sand"] = (1 - depthn) * energy * (1 - energy) * 1.2 * ocean
-    w["reef carbonate"] = reef * (1 - 0.5 * depthn) * ocean * 0.9
-    w["rocky bottom"] = energy ** 2 * ocean
-    w["vent crust"] = ventf * ocean
-    w["cold seep"] = seep_ring * (0.5 + 0.5 * depthn) * ocean
-    w["tidal flat"] = tidal * 0.9                          # interface class
-    w["lake mud"] = lake * (1 - slope) * (0.5 + 0.5 * dep)
-    w["river gravel bed"] = river * rs
-    w["river sand bed"] = river * (1 - rs)
-    return w
+    if name == "dune sand":            # most-arid gate
+        return arid ** 2 * dune_dep * land
+    if name == "sand sheet":
+        return arid * (1 - slope) * (1 - 0.6 * dune_dep) * land
+    if name == "reg / desert pavement":
+        return arid * (1 - dep) * (1 - 0.5 * slope) * land
+    if name == "scree":                # the slope override
+        return slope ** 1.5 * (1 - 0.3 * slope) * land
+    if name == "bedrock outcrop":      # steepest cliffs
+        return slope ** 3 * land
+    if name == "alluvium":
+        return dep * (1 - slope) * (1 - 0.6 * wet) * land
+    if name == "loess":
+        return glac * (1 - dep) * (1 - slope) * (1 - wet) * 0.8 * land
+    if name == "silt":
+        return dep * (1 - slope) * (0.4 + 0.6 * wet) * 0.9 * land
+    if name == "clay":
+        return dep * wet ** 2 * 0.95 * land
+    if name == "vertisol":
+        return dep * np.sqrt(wet * arid) * (1 - slope) * land
+    if name == "till":
+        return glac * (1 - 0.5 * slope) * land
+    if name == "outwash gravel":
+        return glac * dep * 0.8 * land
+    if name == "andisol":
+        return ventf * (1 - slope) * land
+    if name == "fresh lava":
+        return ventf * slope * land
+    if name == "rendzina":
+        return ((1 - arid) * (1 - cold) * (1 - wet) * (1 - dep)
+                * (1 - slope) * 0.75 * land)
+    if name == "laterite cuirasse":
+        return warm * (1 - arid) * (1 - slope) * 0.6 * land
+    if name == "caliche":
+        return arid * (1 - wet) * (1 - dep) * (1 - slope) * 0.7 * land
+    if name == "solonchak":
+        return salsoil ** 2 * (1 - slope) * land
+    if name == "solonetz":
+        return salsoil * (1 - salsoil) * 4.0 * (1 - slope) * 0.6 * land
+    if name == "coastal sand":
+        return no * (1 - slope) * 0.8 * land
+    # terrestrial — biotic / mixed (biome bias applied by the caller)
+    if name == "mollisol":
+        return (1 - arid) * (1 - cold) * (1 - slope) * loamy * land
+    if name == "podzol":
+        return (1 - arid) * (0.3 + 0.7 * cold) * (1 - slope) * loamy * land
+    if name == "ferralsol":
+        return warm * (1 - arid) * (1 - slope) * loamy * land
+    if name == "brown earth":
+        return (1 - arid) * (1 - cold) * (1 - slope) * loamy * land
+    if name == "fen":
+        return wet * loamy * (1 - slope) * 0.9 * land
+    if name == "bog":
+        return wet * (1 - dep) * (1 - slope) * 0.85 * land
+    if name == "gleysol":
+        return wet * loamy * (1 - slope) * 0.8 * land
+    if name == "gelisol":
+        return cold * (1 - slope) * 0.9 * land
+    if name == "mangrove mud":
+        return wet * no * warm * (1 - slope) * land
+    if name == "montane ranker":
+        return (1 - dep) * (1 - slope) * (0.4 + 0.6 * cold) * 0.7 * land
+    # underwater — vent influence suppresses the deep-ocean background
+    # (vent crust at the core, cold seep in a 2-ring, abyssal clay beyond)
+    if name == "marine mud":
+        return (1 - depthn) * (1 - energy) * ocean
+    if name == "abyssal clay":
+        return (depthn ** 2 * (1 - energy) * (1 - 0.5 * ventf)
+                * (1 - 0.5 * seep_ring) * ocean)
+    if name == "marine sand":
+        return (1 - depthn) * energy * (1 - energy) * 1.2 * ocean
+    if name == "reef carbonate":
+        return reef * (1 - 0.5 * depthn) * ocean * 0.9
+    if name == "rocky bottom":
+        return energy ** 2 * ocean
+    if name == "vent crust":
+        return ventf * ocean
+    if name == "cold seep":
+        return seep_ring * (0.5 + 0.5 * depthn) * ocean
+    if name == "tidal flat":           # interface class
+        return tidal * 0.9
+    if name == "lake mud":
+        # (1 - 0.5*slope), not (1 - slope): lake mud is the ONLY lake-domain
+        # class, so it must stay > 0 across the whole lake bed — including
+        # steep delivered shore cells where the upsampled slope clips to 1
+        return lake * (1 - 0.5 * slope) * (0.5 + 0.5 * dep)
+    if name == "river gravel bed":
+        return river * rs
+    if name == "river sand bed":
+        return river * (1 - rs)
+    raise KeyError(f"unknown ground class: {name}")
 
 
 def build_ground(z, manifest: dict, sea: float,
@@ -459,10 +513,9 @@ def build_ground(z, manifest: dict, sea: float,
     class table). Deterministic — no RNG anywhere."""
     e = _evidence(z, sea, vent_activity)
     bias = _biome_bias(e["biome"])
-    rules = _weights(e)
 
     stacked = np.stack(
-        [np.clip(rules[c["name"]] * bias[i], 0.0, 1.0)
+        [np.clip(_class_weight(c["name"], e) * bias[i], 0.0, 1.0)
          for i, c in enumerate(GROUND_CLASSES)], axis=0)   # (41,H,W)
     d2 = (-np.log(np.maximum(stacked, W_FLOOR))).astype(np.float32)
     class_id = np.argmax(stacked, axis=0).astype(np.uint8)
@@ -489,3 +542,110 @@ def build_ground(z, manifest: dict, sea: float,
     return dict(d2=d2, class_id=class_id,
                 mix_ids=order.astype(np.uint8),
                 mix_w=mix_w.astype(np.float32), meta=meta)
+
+
+# ── delivery-resolution re-derivation (de-blocking) ─────────────────────
+# The classification rule is POINTWISE per cell, so it reruns at delivery
+# res (1024²) instead of kron-stamping the anchor map into 4x4 px blocks —
+# the deliver.py delivery rule: derived/pointwise quantities are re-derived
+# at the target resolution from interpolated parents; only relational
+# quantities stay at anchor res. Each evidence field is bilinear-upsampled
+# from anchor (halo/dilation terms included — they were computed at anchor
+# above, so the halo width in km is preserved and only edges go smooth);
+# the domain masks come from the delivered K11 masks; biome is an anchor-
+# level decision and is stamped (kron), never interpolated.
+
+# evidence planes that get bilinear-upsampled anchor -> delivery
+_HI_FIELDS = ("dep", "wet", "slope", "arid", "cold", "warm", "glac",
+              "ventf", "salsoil", "energy", "depthn", "rs", "tidal",
+              "near_ocean1", "dune_dep", "loamy", "seep_ring", "reef")
+
+
+def _upsample_evidence(e: dict, z, factor: int) -> dict:
+    """The anchor evidence dict re-gridded to delivery res."""
+    hi = {k: _upsample(e[k], factor) for k in _HI_FIELDS}
+    if "d_ocean_mask" in z:                 # delivered masks (real world)
+        ocean = z["d_ocean_mask"] | z["d_sea_mask"]
+        lake = z["d_lake_mask"]
+        river = z["d_river_mask"]
+    else:                                   # synthetic: stamp the anchor masks
+        def _stamp(m: np.ndarray) -> np.ndarray:
+            return np.repeat(np.repeat(m > 0.5, factor, 0), factor, 1)
+        ocean, lake, river = _stamp(e["ocean"]), _stamp(e["lake"]), \
+            _stamp(e["river"])
+    land = ~ocean & ~lake & ~river
+    hi["ocean"] = ocean.astype(np.float64)
+    hi["lake"] = lake.astype(np.float64)
+    hi["river"] = river.astype(np.float64)
+    hi["land"] = land.astype(np.float64)
+    hi["biome"] = np.repeat(np.repeat(e["biome"], factor, 0), factor, 1)
+    return hi
+
+
+def _class_bias(i: int, biome: np.ndarray,
+                sup_mask: np.ndarray) -> np.ndarray | None:
+    """The (H,W) multiplicative bias for one class, or None when the class
+    has no opinion (bias == 1 everywhere) so the caller can skip the
+    multiply. Same logic as the anchor _biome_bias, one slice at a time."""
+    name = GROUND_CLASSES[i]["name"]
+    has_bias = name in _BIAS
+    is_biotic = i in _BIOTIC_SOILS_SET
+    if not has_bias and not is_biotic:
+        return None
+    bias = np.ones(biome.shape, np.float64)
+    if has_bias:
+        for bname, mult in _BIAS[name].items():
+            bias[biome == BIOME_ID[bname]] = mult
+    if is_biotic:
+        bias[sup_mask] = _SUPPRESS_FACTOR
+    return bias
+
+
+def _classify(e: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Pointwise classification at whatever resolution `e` is gridded to.
+    STREAMS the 41 classes one plane at a time, keeping a running top-3
+    (ids + weights) and dominant — never materializes all 41 planes (that
+    would be ~170 MB at delivery res). Returns (class_id, mix_ids, mix_w)."""
+    H, W = e["land"].shape
+    biome = e["biome"]
+    sup_mask = np.isin(biome, [BIOME_ID[b] for b in _SUPPRESS_BIOMES])
+    top_w = np.zeros((3, H, W), np.float64)      # sorted descending
+    top_id = np.zeros((3, H, W), np.uint8)
+    for i, c in enumerate(GROUND_CLASSES):
+        w = _class_weight(c["name"], e)
+        bias = _class_bias(i, biome, sup_mask)
+        if bias is not None:
+            w = w * bias
+        w = np.clip(w, 0.0, 1.0)
+        # insert this class into the per-cell top-3 by direct comparison.
+        # STRICT > so a tie keeps the earlier (lower-id) class ahead — the
+        # same low-tie-break as argmax, so top_id[0] == class_id always.
+        a, b, d = top_w[0], top_w[1], top_w[2]
+        ia, ib, ic = top_id[0], top_id[1], top_id[2]
+        m0 = w > a
+        m1 = (~m0) & (w > b)
+        m2 = (~m0) & (~m1) & (w > d)
+        n0 = np.where(m0, w, a)
+        n1 = np.where(m0, a, np.where(m1, w, b))
+        n2 = np.where(m0, b, np.where(m1, b, np.where(m2, w, d)))
+        j0 = np.where(m0, i, ia)
+        j1 = np.where(m0, ia, np.where(m1, i, ib))
+        j2 = np.where(m0, ib, np.where(m1, ib, np.where(m2, i, ic)))
+        top_w[0], top_w[1], top_w[2] = n0, n1, n2
+        top_id[0], top_id[1], top_id[2] = j0, j1, j2
+    # at TAU=1 the renormalized top-3 softmax shares ARE the renormalized
+    # generator weights (matches the anchor mix_w exactly)
+    mix_w = top_w / top_w.sum(axis=0, keepdims=True)
+    return (top_id[0].astype(np.uint8), top_id.astype(np.uint8),
+            mix_w.astype(np.float32))
+
+
+def build_ground_hires(z, manifest: dict, sea: float,
+                       vent_activity: np.ndarray, factor: int = 4) -> dict:
+    """The delivery-res ground map: class_id (H*f, W*f uint8) and top-3
+    mix_ids/mix_w, re-derived pointwise from upsampled evidence (no 4x4
+    blocks). No full d2 here — consumers read the anchor-res d2."""
+    e = _evidence(z, sea, vent_activity)
+    e_hi = _upsample_evidence(e, z, factor)
+    class_id, mix_ids, mix_w = _classify(e_hi)
+    return dict(class_id=class_id, mix_ids=mix_ids, mix_w=mix_w)

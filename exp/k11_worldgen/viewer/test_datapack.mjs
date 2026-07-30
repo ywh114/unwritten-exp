@@ -303,6 +303,11 @@ test("tooltip shows Ground mix (3 named classes, ~100%)", async () => {
     const plane = Hf * Wf, ws = L.mix_w.data;
     let cell = -1;
     for (let i = 0; i < plane; i += 211) {
+      // skip the 1px border: MouseEvent clientX floors to int, so hovering
+      // an edge pixel at (cx+0.5)*scale can land at world coord -1 (out of
+      // bounds → no tooltip) — a pre-existing edge effect, not data
+      const bx = i % Wf, by = Math.floor(i / Wf);
+      if (bx === 0 || by === 0 || bx === Wf - 1 || by === Hf - 1) continue;
       if (ws[i] > 0 && ws[plane + i] > 0 && ws[2 * plane + i] > 0) { cell = i; break; }
     }
     if (cell < 0) return { error: "no cell with 3 nonzero mix weights" };

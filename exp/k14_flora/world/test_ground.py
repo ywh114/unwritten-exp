@@ -39,6 +39,14 @@ def gr(inputs):
 
 
 @pytest.fixture(scope="module")
+def hires(inputs):
+    z, manifest = inputs
+    sea = float(manifest["sea_level"])
+    vent_field, _, _ = derived.vents(z, manifest)
+    return ground.build_ground_hires(z, manifest, sea, vent_field, 4)
+
+
+@pytest.fixture(scope="module")
 def result():
     return derived.build(SEED)
 
@@ -247,6 +255,60 @@ def test_marine_zero_on_land_and_soils_zero_on_ocean(gr, inputs):
     assert w[marine][:, land].max() < 1e-4
     # terrestrial soils carry `land`: exactly ~floor on the ocean
     assert w[list(ground._TERRESTRIAL)][:, ocean].max() < 1e-4
+
+
+# ── delivery-res re-derivation (de-blocking) ────────────────────────────
+
+
+def test_hires_shapes_and_finite(hires):
+    assert hires["class_id"].shape == (1024, 1024)
+    assert hires["class_id"].dtype == np.uint8
+    assert hires["class_id"].max() < N_CLASSES
+    assert hires["mix_ids"].shape == (3, 1024, 1024)
+    assert hires["mix_w"].shape == (3, 1024, 1024)
+    assert not np.isnan(hires["mix_w"]).any()
+    assert np.allclose(hires["mix_w"].sum(axis=0), 1.0, atol=1e-4)
+    assert (hires["mix_ids"][0] == hires["class_id"]).all()
+
+
+def test_hires_deterministic(inputs):
+    z, manifest = inputs
+    sea = float(manifest["sea_level"])
+    vent_field, _, _ = derived.vents(z, manifest)
+    again = ground.build_ground_hires(z, manifest, sea, vent_field, 4)
+    first = ground.build_ground_hires(z, manifest, sea, vent_field, 4)
+    for key in ("class_id", "mix_ids", "mix_w"):
+        assert np.array_equal(first[key], again[key]), key
+
+
+def test_hires_not_block_aligned(hires):
+    """The re-derived map is NOT a kron stamp: a stamp can only change
+    class at columns divisible by the factor, so any mid-block transition
+    proves the edges were re-derived at delivery res (ragged-edge style
+    from test_worldgen.py::test_glacier_extent_hires_tapers_edges)."""
+    factor = 4
+    cid = hires["class_id"]
+    ragged_rows = 0
+    for row in cid:
+        cols = np.flatnonzero(np.diff(row.astype(np.int16)) != 0) + 1
+        if len(cols) and np.any(cols % factor):
+            ragged_rows += 1
+    assert ragged_rows > cid.shape[0] // 2
+
+
+def test_hires_histogram_consistent_with_anchor(gr, hires):
+    """Sharpening, not re-classifying: the delivery-res dominant histogram
+    keeps the same top classes, each within ~15% of its anchor area."""
+    def fracs(cid):
+        u, c = np.unique(cid.ravel(), return_counts=True)
+        return {int(k): v / cid.size for k, v in zip(u, c)}
+    fa, fh = fracs(gr["class_id"]), fracs(hires["class_id"])
+    top_a = sorted(fa, key=fa.get, reverse=True)[:5]
+    top_h = sorted(fh, key=fh.get, reverse=True)[:5]
+    assert set(top_a) == set(top_h), (top_a, top_h)
+    for k in top_a:
+        rel = abs(fh[k] - fa[k]) / fa[k]
+        assert rel < 0.15, (ground.GROUND_CLASSES[k]["name"], fa[k], fh[k])
 
 
 # ── reachability audit ──────────────────────────────────────────────────
