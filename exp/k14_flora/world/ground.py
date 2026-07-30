@@ -431,6 +431,12 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
     shallow = depthn < 0.05
     tidal = (coast_band & flat & (~ocean | shallow)).astype(np.float64)
 
+    # lake littoral (UNDERWATER only — the ring of LAKE cells adjacent to
+    # shore; shore land keeps its own soils, treeline-to-lake is common):
+    # sandy where the bed is gentle and winnowed, rocky where steep, while
+    # lake mud holds the deep center and the high-deposition inflow deltas
+    lake_shore = (_dilate8(land, 1) & lake).astype(np.float64)
+
     # shared per-class sub-expressions. The remaining halo/dilation terms
     # are computed here at anchor res; the hi-res pass upsamples the
     # finished fields (never re-dilates at delivery res) so the halo width
@@ -445,6 +451,7 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
         glac=glac, ventf=ventf, vent_core=vent_core, seep_ring=seep_ring,
         salsoil=salsoil, energy=energy, depthn=depthn, rs=rs, tidal=tidal,
         near_ocean1=near_ocean1.astype(np.float64),
+        lake_shore=lake_shore,
         dune_dep=np.clip(z["h_accumulation"] / DUNE_ACC_REF, 0.0, 1.0),
         loamy=0.5 + 0.5 * dep, reef=reef,
         biome=z["w_biome_map"], vent_pts=vent_pts)
@@ -483,6 +490,7 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     dune_dep, loamy = e["dune_dep"], e["loamy"]
     seep_ring, reef = e["seep_ring"], e["reef"]
     no = e["near_ocean1"]
+    lake_shore = e["lake_shore"]
 
     # terrestrial — physical
     if name == "dune sand":            # most-arid terminal-fan gate
@@ -531,7 +539,9 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     if name == "solonetz":
         return salsoil * (1 - salsoil) * 4.0 * (1 - slope) * 0.6 * land
     if name == "coastal sand":
-        return no * (1 - slope) * 0.8 * land
+        # ocean littoral + the lake-shore ring where the bed is gentle and
+        # winnowed (high-deposition inflow shores stay lake mud)
+        return (no * land * 0.8 + lake_shore * (1 - dep)) * (1 - slope)
     # terrestrial — biotic / mixed (biome bias applied by the caller)
     if name == "mollisol":
         # steppe-tolerant (chernozem): arid only docks 0.6, so semi-arid
@@ -573,7 +583,8 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
         # background on its own mask (it lost 99.5% of reef cells before)
         return reef * (1 - 0.5 * depthn) * ocean
     if name == "rocky bottom":
-        return energy ** 2 * ocean
+        # high-energy ocean floor + steep lake beds (rocky littoral)
+        return energy ** 2 * ocean + lake_shore * slope ** 2
     if name == "vent crust":
         # active crater bowls only — dormant vents keep their seep ring
         return vent_core * ocean
@@ -650,7 +661,7 @@ def build_ground(z, manifest: dict, sea: float,
 # evidence planes that get bilinear-upsampled anchor -> delivery
 _HI_FIELDS = ("dep", "wet", "slope", "arid", "cold", "warm", "glac",
               "salsoil", "energy", "depthn", "rs", "tidal",
-              "near_ocean1", "dune_dep", "loamy")
+              "near_ocean1", "lake_shore", "dune_dep", "loamy")
 
 
 def _upsample_evidence(e: dict, z, factor: int, seed: int) -> dict:

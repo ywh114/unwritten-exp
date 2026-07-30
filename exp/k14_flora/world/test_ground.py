@@ -227,6 +227,29 @@ def test_river_speed_sorts_gravel_vs_sand():
     assert g["class_id"][3, 3] == GROUND_ID["river sand bed"]
 
 
+def test_lake_littoral_bleed():
+    """Underwater littoral gradient: sandy on gentle winnowed shores,
+    rocky on steep beds, lake mud only in the deep center — and the
+    shore LAND keeps its own soil (treeline-to-lake)."""
+    z = _ground_z()
+    z["h_lake_mask"][3:6, 3:6] = True                # 3x3 lake, 8x8 world
+    g = _build(z)
+    # gentle, low-deposition shore ring reads coastal sand, not uniform mud
+    assert g["class_id"][3, 3] == GROUND_ID["coastal sand"]
+    # the deep center (no land neighbor) stays lake mud
+    assert g["class_id"][4, 4] == GROUND_ID["lake mud"]
+    # the land next to the lake keeps its terrestrial soil
+    assert g["class_id"][2, 3] not in (GROUND_ID["lake mud"],
+                                       GROUND_ID["coastal sand"],
+                                       GROUND_ID["rocky bottom"])
+    # steep lake bed -> rocky littoral
+    z2 = _ground_z()
+    z2["h_lake_mask"][3:6, 3:6] = True
+    z2["w_elev"][2, 3] = _above(SEA, 800.0)          # 700 m shore cliff
+    g2 = _build(z2)
+    assert g2["class_id"][3, 3] == GROUND_ID["rocky bottom"]
+
+
 # ── biome bias: a bias, never a binding ─────────────────────────────────
 
 
