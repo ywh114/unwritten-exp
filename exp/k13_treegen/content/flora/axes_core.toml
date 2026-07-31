@@ -177,6 +177,37 @@ plan_scope = ["tree", "shrub"]
 consumers = ["id", "draw"]
 salience = 0.1
 
+[axis.crown_spread_m]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.4
+bounds = [0.02, 60.0]
+plan_scope = "all"
+consumers = ["id", "stress", "pop", "draw"]
+salience = 0.3
+# canopy radius for woody plans; the vegetative spread (radius) of one
+# genetic individual for herbs/rosettes/tussocks/mats. The engine's
+# per-capita space demand, P9's canopy light field, and the draw
+# code all read this. Halle architecture constrains it qualitatively
+# but does not determine it — a STORED axis.
+
+[axis.canopy_density]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]
+plan_scope = "all"
+consumers = ["stress", "draw"]
+salience = 0.1
+# how much light the canopy blocks, 0..1. DERIVED at derive time from
+# the leaf economics traits (sla, size), woodiness, phenology and
+# succulence — never sampled (P9 provisional; the understory reads
+# the low-light FIELD this builds, never a "tree pressure" term).
+
 # ── leaf (morphometrics / parts) ───────────────────────────────────────
 [axis.leaf_shape]
 block = "morphometrics"
@@ -234,6 +265,34 @@ plan_scope = ["tree", "shrub", "herb_forb", "rosette_mat", "succulent",
               "fern_grade"]
 consumers = ["id"]
 salience = 0.2
+
+[axis.leaf_arrangement]
+block = "patternation"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["alternate", "opposite", "whorled", "basal_rosette",
+          "distichous", "none"]
+plan_scope = "all"
+consumers = ["id", "tell", "draw"]
+salience = 0.2
+# phyllotaxis for the draw code and the ID tells; "none" for the
+# leafless grades (fungus, sponge, coral, crust lichen).
+
+[axis.leaf_color]
+block = "patternation"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "green", "light_green", "dark_green", "glaucous",
+          "gray", "red"]
+plan_scope = "all"
+consumers = ["id", "name", "tell", "draw"]
+salience = 0.5
+grammar_role = "part"
+# DERIVED at derive time (never sampled): red from pigment expression
+# in leaf, gray from pubescence, glaucous from cuticle wax, light/dark
+# green from the sla economics spectrum, none when leafless.
 
 [axis.leaf_sla]
 block = "morphometrics"
@@ -467,6 +526,22 @@ salience = 0.3
 # many propagule diameters across (a conifer cone is ~80 mm, not
 # 1-2x one seed); single-seeded dry fruits are ~1-2x.
 
+[axis.fruit_color]
+block = "life_history"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "white", "cream", "yellow", "orange", "red", "pink",
+          "purple", "blue", "green", "brown", "black"]
+plan_scope = "all"
+consumers = ["id", "pop", "tell", "draw"]
+salience = 0.4
+grammar_role = "part"
+# NOT derived from the flower pigment machinery: fruit color is a
+# SEED-disperser signal (red berry -> bird), an independent axis.
+# "none" iff fruit_type is none; wind-dispersed plans trend dull
+# (green/brown), animal-dispersed bright (red/blue/black).
+
 [axis.dispersal_channels]
 block = "life_history"
 tier = "steady"
@@ -629,6 +704,20 @@ plan_scope = ["tree", "shrub"]
 consumers = ["stress", "tell"]
 salience = 0.2
 
+[axis.bark_texture]
+block = "morphometrics"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["smooth", "fissured", "peeling", "scaly", "ringed", "spiny"]
+plan_scope = ["tree", "shrub", "succulent", "grass_sward"]
+consumers = ["id", "tell", "draw"]
+salience = 0.2
+grammar_role = "part"
+# trunk display + ID tell; bark color folds into texture at L1
+# (birch-white peeling, beech-gray smooth, palm ringed, bamboo culm
+# ringed, spiny for armed trunks).
+
 [axis.cuticle_thickness]
 block = "morphometrics"
 tier = "steady"
@@ -672,6 +761,19 @@ states = ["none", "winter", "drought"]
 plan_scope = "all"
 consumers = ["stress", "id", "tell"]
 salience = 0.2
+
+[axis.autumn_color]
+block = "patternation"
+tier = "labile"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "yellow", "orange", "red", "brown"]
+plan_scope = "all"
+consumers = ["id", "tell", "draw"]
+salience = 0.3
+# DERIVED at derive time (never sampled): "none" for evergreens and
+# leafless plans; anthocyanin/betalain -> red, carotenoid -> yellow/
+# orange by expression, pathway none -> brown.
 
 [axis.bloom_start_month]
 block = "behavior"
@@ -847,6 +949,20 @@ states = ["avoider", "resprouter", "seeder"]
 plan_scope = ["tree", "shrub", "herb_forb", "grass_sward"]
 consumers = ["stress", "tell"]
 salience = 0.2
+
+[axis.snow_adaptation]
+block = "niche"
+tier = "steady"
+value_type = "enum"
+mutation = "enum_redraw"
+states = ["none", "conical_shed", "flexible", "cushion_mat"]
+plan_scope = ["tree", "shrub"]
+consumers = ["stress", "id"]
+salience = 0.2
+# snow-load answer (the world has real snowfall; the env stratum is
+# future work): conical_shed = steep snow-shedding crown (conifer),
+# flexible = bend-not-break (birch), cushion_mat = krummholz mat at
+# the treeline.
 
 # ── ecosystem role ─────────────────────────────────────────────────────
 [axis.engineer_impact]

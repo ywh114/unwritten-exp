@@ -256,6 +256,8 @@ class FloraSim:
             "propagule_mass_mg": axes.get("propagule_mass_mg"),
             "propagule_count": axes.get("propagule_count"),
             "seed_bank": axes.get("seed_bank"),
+            # per-capita space demand for the engine's density term
+            "crown_spread_m": axes.get("crown_spread_m"),
         })
         return view
 

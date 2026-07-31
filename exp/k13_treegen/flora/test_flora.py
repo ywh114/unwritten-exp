@@ -338,6 +338,91 @@ def test_derived_flower_color_ph_zero_is_acid():
     assert _derived_flower_color(n) == "blue"       # alkaline sanity
 
 
+# ── display derivations (leaf/autumn color, canopy density) ──────────
+
+
+def test_derived_leaf_color_precedence():
+    """leafless -> red pigment -> gray pubescence -> glaucous cuticle ->
+    sla economics -> green, in that order."""
+    from exp.k13_treegen.flora.derive import _derived_leaf_color
+    base = {"leaf_shape": "elliptical", "pigment_pathway": "none",
+            "pigment_expression": 0.0, "pubescence": 0.0,
+            "cuticle_thickness": 0.0, "leaf_sla": 12.0}
+    n = _node("x.s1", "tree", dict(base, leaf_shape="none"))
+    assert _derived_leaf_color(n) == "none"
+    n = _node("x.s1", "tree", dict(base, pigment_pathway="anthocyanin",
+                                   pigment_expression=0.8,
+                                   pubescence=0.9))   # red beats gray
+    assert _derived_leaf_color(n) == "red"
+    n = _node("x.s1", "tree", dict(base, pubescence=0.7,
+                                   cuticle_thickness=0.9))  # gray > glauc
+    assert _derived_leaf_color(n) == "gray"
+    n = _node("x.s1", "tree", dict(base, cuticle_thickness=0.8))
+    assert _derived_leaf_color(n) == "glaucous"
+    n = _node("x.s1", "tree", dict(base, leaf_sla=25.0))
+    assert _derived_leaf_color(n) == "light_green"
+    n = _node("x.s1", "tree", dict(base, leaf_sla=5.0))
+    assert _derived_leaf_color(n) == "dark_green"
+    n = _node("x.s1", "tree", dict(base))
+    assert _derived_leaf_color(n) == "green"
+
+
+def test_derived_autumn_color():
+    """Evergreen/leafless -> none; deciduous hues by pathway x
+    expression; pathway none -> brown."""
+    from exp.k13_treegen.flora.derive import _derived_autumn_color
+    base = {"leaf_shape": "elliptical", "leaf_persistence": "evergreen",
+            "deciduous_trigger": "none", "pigment_pathway": "none",
+            "pigment_expression": 0.0}
+    n = _node("x.s1", "tree", dict(base))
+    assert _derived_autumn_color(n) == "none"          # evergreen
+    n = _node("x.s1", "tree", dict(base, leaf_shape="none",
+                                   leaf_persistence="winter_deciduous"))
+    assert _derived_autumn_color(n) == "none"          # leafless
+    dec = dict(base, leaf_persistence="winter_deciduous")
+    n = _node("x.s1", "tree", dict(dec))
+    assert _derived_autumn_color(n) == "brown"         # no pigment
+    n = _node("x.s1", "tree", dict(dec, pigment_pathway="anthocyanin",
+                                   pigment_expression=0.8))
+    assert _derived_autumn_color(n) == "red"
+    n = _node("x.s1", "tree", dict(dec, pigment_pathway="carotenoid",
+                                   pigment_expression=0.5))
+    assert _derived_autumn_color(n) == "yellow"
+    n = _node("x.s1", "tree", dict(dec, pigment_pathway="carotenoid",
+                                   pigment_expression=0.9))
+    assert _derived_autumn_color(n) == "orange"
+    n = _node("x.s1", "tree", dict(dec, deciduous_trigger="drought",
+                                   leaf_persistence="evergreen"))
+    assert _derived_autumn_color(n) == "brown"  # trigger alone counts
+
+
+def test_derived_canopy_density():
+    """Leafless -> 0; woody evergreen sclerophyll denser than a thin-
+    leaved deciduous herb; always inside [0, 1]."""
+    from exp.k13_treegen.flora.derive import _derived_canopy_density
+    leafless = _node("x.s1", "fungus", {"leaf_shape": "none"})
+    assert _derived_canopy_density(leafless) == 0.0
+    dense = _node("x.s1", "tree", {"leaf_shape": "needle",
+                                   "woodiness": 1.0, "leaf_sla": 4.0,
+                                   "leaf_persistence": "evergreen",
+                                   "succulence": 0.0})
+    open_ = _node("x.s1", "herb_forb", {
+        "leaf_shape": "elliptical", "woodiness": 0.0, "leaf_sla": 30.0,
+        "leaf_persistence": "winter_deciduous", "succulence": 0.0})
+    d, o = _derived_canopy_density(dense), _derived_canopy_density(open_)
+    assert d > o
+    assert 0.0 <= o < d <= 1.0
+    # every preset archetype lands in bounds
+    for axes in ({"leaf_shape": "elliptical", "woodiness": 1.0,
+                  "leaf_sla": 1.0, "leaf_persistence": "evergreen",
+                  "succulence": 1.0},
+                 {"leaf_shape": "blade", "woodiness": 0.0,
+                  "leaf_sla": 60.0, "leaf_persistence": "winter_deciduous",
+                  "succulence": 0.0}):
+        n = _node("x.s1", "tree", axes)
+        assert 0.0 <= _derived_canopy_density(n) <= 1.0
+
+
 # ── nomenclature ───────────────────────────────────────────────────────
 
 _SID_FALLBACK = re.compile(r"^sp[0-9a-f]{4,16}$")

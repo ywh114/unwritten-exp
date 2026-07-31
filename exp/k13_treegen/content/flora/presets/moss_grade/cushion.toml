@@ -16,6 +16,7 @@ shade_tolerance = 0.5
 pioneer_climax = 0.4
 layer = "ground"
 leaf_shape = "scale"
+leaf_arrangement = "none"
 leaf_size_cm = 0.1
 leaf_persistence = "evergreen"
 leaf_margin = "entire"
@@ -23,6 +24,7 @@ leaf_sla = 30.0
 root_type = "none"
 root_depth_m = 0.01
 root_spread_m = 0.04
+crown_spread_m = 0.08
 root_special = "none"
 mycorrhizal = "none"
 n_fixation = "none"
@@ -32,6 +34,7 @@ inflorescence = "none"
 pollination_syndrome = "none"
 fruit_type = "sporangium"
 fruit_size_mm = 2.0
+fruit_color = "brown"
 dispersal_channels = { local = 0.2, wind = 0.6, water = 0.0, animal = 0.0, jump = 0.2 }
 propagule_mass_mg = 0.001
 propagule_count = 500000.0
@@ -45,7 +48,9 @@ storage_organ = "none"
 clonal_spread_m = 0.2
 succulence = 0.3
 cuticle_thickness = 0.1
-pubescence = 0.0
+pubescence = 0.05  # hair-pointed hoary mosses exist; must sit above
+# the 0.0 floor or a downward run clips the whole clade to an exact
+# freeze and trips check_frozen_axis (metrics design note)
 leafout_month = 1
 deciduous_trigger = "none"
 bloom_start_month = 4

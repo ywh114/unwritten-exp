@@ -26,7 +26,8 @@ from exp.k13_treegen.model import Node
 DERIVED_AXES = frozenset({
     "raunkiaer", "provision_mast", "provision_graze", "provision_browse",
     "provision_nectar", "provision_shelter", "clonality_class",
-    "silhouette", "flower_color",
+    "silhouette", "flower_color", "leaf_color", "autumn_color",
+    "canopy_density",
 })
 
 # ── derived flower_color (B5 §5.2) ─────────────────────────────────────
@@ -161,6 +162,106 @@ def _derived_flower_color(node: Node) -> str:
     return _dull_color(node)   # unknown pathway: the wind set
 
 
+# ── display derivations (leaf/autumn color, canopy density) ──────────
+# leaf_color precedence thresholds (0..1 authored scales; sla on the
+# 1..60 economics spectrum).
+LEAF_RED_EXPR = 0.55         # pigment expression for red foliage
+LEAF_GRAY_PUB = 0.6          # pubescence at/above -> silvery gray
+LEAF_GLAUCOUS_CUT = 0.6      # cuticle wax at/above -> glaucous blue
+LEAF_LIGHT_SLA = 20.0        # thin cheap leaves -> light green
+LEAF_DARK_SLA = 8.0          # thick expensive leaves -> dark green
+# autumn: expression floors per pathway (below: unpigmented -> brown)
+AUTUMN_RED_EXPR = 0.35
+# canopy density (P9 provisional): base by woodiness, adjusted by the
+# leaf economics spectrum, evergreen cover and succulence.
+CD_WOODY_BASE = 0.55
+CD_HERB_BASE = 0.3
+CD_WOODY_T = 0.5             # woodiness at/above -> woody base
+CD_SLA_LOW = 8.0
+CD_SLA_LOW_ADD = 0.2         # sclerophyll foliage packs dense
+CD_SLA_HIGH = 20.0
+CD_SLA_HIGH_SUB = 0.1        # thin leaves = open canopy
+CD_EVERGREEN_ADD = 0.1       # year-round cover
+CD_SUCC_T = 0.5
+CD_SUCC_ADD = 0.1
+
+
+def _deciduous(node: Node) -> bool:
+    """Winter- or drought-shedding by either the persistence state or
+    the trigger (the sim's winter_deciduous/drought_deciduous flags)."""
+    lp = str(node.axes.get("leaf_persistence") or "evergreen")
+    dt = str(node.axes.get("deciduous_trigger") or "none")
+    return lp in ("winter_deciduous", "drought_deciduous") \
+        or dt in ("winter", "drought")
+
+
+def _num(axes: dict, key: str, default: float) -> float:
+    v = axes.get(key)
+    return float(v) if isinstance(v, (int, float)) else default
+
+
+def _derived_leaf_color(node: Node) -> str:
+    """Display bucket, precedence: leafless -> red pigment -> gray
+    pubescence -> glaucous wax -> sla economics -> green."""
+    axes = node.axes
+    if str(axes.get("leaf_shape") or "none") == "none":
+        return "none"
+    pathway = str(axes.get("pigment_pathway") or "none")
+    expr = _clip01(_num(axes, "pigment_expression", 0.0))
+    if pathway in ("anthocyanin", "betalain") and expr >= LEAF_RED_EXPR:
+        return "red"
+    if _num(axes, "pubescence", 0.0) >= LEAF_GRAY_PUB:
+        return "gray"
+    if _num(axes, "cuticle_thickness", 0.0) >= LEAF_GLAUCOUS_CUT:
+        return "glaucous"
+    sla = _num(axes, "leaf_sla", 10.0)
+    if sla >= LEAF_LIGHT_SLA:
+        return "light_green"
+    if sla <= LEAF_DARK_SLA:
+        return "dark_green"
+    return "green"
+
+
+def _derived_autumn_color(node: Node) -> str:
+    """Display bucket for the shedding season: evergreens and leafless
+    plans read none; the pathway sets the hue, expression the floor."""
+    axes = node.axes
+    if str(axes.get("leaf_shape") or "none") == "none" \
+            or not _deciduous(node):
+        return "none"
+    pathway = str(axes.get("pigment_pathway") or "none")
+    expr = _clip01(_num(axes, "pigment_expression", 0.0))
+    if pathway in ("anthocyanin", "betalain"):
+        return "red" if expr >= AUTUMN_RED_EXPR else "brown"
+    if pathway == "carotenoid":
+        if expr >= EXPR_ORANGE:
+            return "orange"
+        if expr >= EXPR_WHITE:
+            return "yellow"
+        return "brown"
+    return "brown"
+
+
+def _derived_canopy_density(node: Node) -> float:
+    """P9 provisional: how much light the canopy blocks, 0..1 — the
+    field the understory will read (never a direct pressure term)."""
+    axes = node.axes
+    if str(axes.get("leaf_shape") or "none") == "none":
+        return 0.0
+    d = CD_WOODY_BASE if _num(axes, "woodiness", 0.0) >= CD_WOODY_T \
+        else CD_HERB_BASE
+    sla = _num(axes, "leaf_sla", 10.0)
+    if sla <= CD_SLA_LOW:
+        d += CD_SLA_LOW_ADD
+    elif sla >= CD_SLA_HIGH:
+        d -= CD_SLA_HIGH_SUB
+    if not _deciduous(node):
+        d += CD_EVERGREEN_ADD
+    if _num(axes, "succulence", 0.0) >= CD_SUCC_T:
+        d += CD_SUCC_ADD
+    return _clip01(d)
+
+
 def _raunkiaer(node: Node) -> str:
     axes = node.axes
     if node.plan in ("fungus", "lichen"):
@@ -197,6 +298,9 @@ def derive_derived(node: Node, pack: ContentPack) -> None:
     axes = node.axes
     axes["raunkiaer"] = _raunkiaer(node)
     axes["flower_color"] = _derived_flower_color(node)
+    axes["leaf_color"] = _derived_leaf_color(node)
+    axes["autumn_color"] = _derived_autumn_color(node)
+    axes["canopy_density"] = _derived_canopy_density(node)
 
     # ── provision map (vocabulary §10: what the plant offers) ──
     animal_w = 0.0
