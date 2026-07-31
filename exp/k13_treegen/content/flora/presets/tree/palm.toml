@@ -44,7 +44,7 @@ inflorescence = "panicle"
 pollination_syndrome = "bee"
 sexuality = "monoecious"
 fruit_type = "drupe"
-dispersal_channels = { local = 0.4, wind = 0.0, water = 0.1, animal = 0.5, jump = 0.05 }
+dispersal_channels = { local = 0.35, wind = 0.0, water = 0.1, animal = 0.5, jump = 0.05 }
 propagule_mass_mg = 20000.0
 seed_bank = "transient"
 serotiny = "no"

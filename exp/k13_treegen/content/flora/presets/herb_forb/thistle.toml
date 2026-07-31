@@ -35,7 +35,7 @@ inflorescence = "head"
 pollination_syndrome = "bee"
 sexuality = "perfect"
 fruit_type = "achene"
-dispersal_channels = { local = 0.2, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.15 }
+dispersal_channels = { local = 0.15, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.15 }
 propagule_mass_mg = 2.0
 seed_bank = "persistent"
 masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)

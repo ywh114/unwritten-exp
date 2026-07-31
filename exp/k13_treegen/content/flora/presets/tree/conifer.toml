@@ -44,7 +44,7 @@ inflorescence = "cone"
 pollination_syndrome = "wind"
 sexuality = "monoecious"
 fruit_type = "cone"
-dispersal_channels = { local = 0.3, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.1 }
+dispersal_channels = { local = 0.2, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.1 }
 propagule_mass_mg = 50.0
 seed_bank = "persistent"
 serotiny = "yes"

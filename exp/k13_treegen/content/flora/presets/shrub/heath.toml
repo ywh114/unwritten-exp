@@ -44,7 +44,7 @@ inflorescence = "raceme"
 pollination_syndrome = "bee"
 sexuality = "perfect"
 fruit_type = "capsule"
-dispersal_channels = { local = 0.6, wind = 0.3, water = 0.0, animal = 0.0, jump = 0.05 }
+dispersal_channels = { local = 0.6, wind = 0.35, water = 0.0, animal = 0.0, jump = 0.05 }
 propagule_mass_mg = 0.05
 seed_bank = "persistent"
 serotiny = "no"

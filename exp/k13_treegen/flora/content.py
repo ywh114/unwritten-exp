@@ -81,6 +81,13 @@ def load_content(content_dir: str | Path) -> ContentPack:
     pdir = d / "presets"
     for f in sorted(pdir.rglob("*.toml")):
         pdata = _load_toml(f)
+        ch = pdata.get("axes", {}).get("dispersal_channels")
+        if ch is not None:
+            total = sum(float(v) for v in ch.values())
+            if abs(total - 1.0) > 1e-6:
+                raise ValueError(
+                    f"{f}: dispersal_channels is a pmf and must sum to "
+                    f"1.0 (got {total:.4f}) — owner ruling 2026-08-01")
         presets[pdata["preset"]["id"]] = pdata
 
     pins_toml = _load_toml(d / "pins.toml")

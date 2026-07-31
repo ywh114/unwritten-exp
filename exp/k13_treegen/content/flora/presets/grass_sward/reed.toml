@@ -33,7 +33,7 @@ inflorescence = "panicle"
 pollination_syndrome = "wind"
 sexuality = "perfect"
 fruit_type = "caryopsis"
-dispersal_channels = { local = 0.3, wind = 0.3, water = 0.4, animal = 0.0, jump = 0.1 }
+dispersal_channels = { local = 0.2, wind = 0.3, water = 0.4, animal = 0.0, jump = 0.1 }
 propagule_mass_mg = 0.3
 seed_bank = "transient"
 masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)

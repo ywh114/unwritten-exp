@@ -116,7 +116,7 @@ def test_derive_engine_dispersal_keys(sim, pack):
     assert set(ch) == {"local", "wind", "water", "animal", "jump"}
     assert all(isinstance(v, (int, float)) and v >= 0.0
                for v in ch.values())
-    assert sum(ch.values()) > 0.0        # authored weights, not a pmf
+    assert abs(sum(ch.values()) - 1.0) < 1e-6   # validated pmf
     assert isinstance(view["propagule_mass_mg"], (int, float))
     assert isinstance(view["seed_bank"], str)
 

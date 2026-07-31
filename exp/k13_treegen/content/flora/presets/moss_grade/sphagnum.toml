@@ -30,7 +30,7 @@ flower_size_mm = 0.3
 inflorescence = "none"
 pollination_syndrome = "none"
 fruit_type = "sporangium"
-dispersal_channels = { local = 0.3, wind = 0.6, water = 0.0, animal = 0.0, jump = 0.2 }
+dispersal_channels = { local = 0.2, wind = 0.6, water = 0.0, animal = 0.0, jump = 0.2 }
 propagule_mass_mg = 0.001
 seed_bank = "persistent"
 masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)

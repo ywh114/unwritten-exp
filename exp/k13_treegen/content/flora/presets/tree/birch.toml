@@ -44,7 +44,7 @@ inflorescence = "catkin"
 pollination_syndrome = "wind"
 sexuality = "monoecious"
 fruit_type = "samara"
-dispersal_channels = { local = 0.2, wind = 0.8, water = 0.0, animal = 0.0, jump = 0.15 }
+dispersal_channels = { local = 0.05, wind = 0.8, water = 0.0, animal = 0.0, jump = 0.15 }
 propagule_mass_mg = 0.5
 seed_bank = "transient"
 serotiny = "no"

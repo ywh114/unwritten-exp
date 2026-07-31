@@ -35,7 +35,7 @@ inflorescence = "solitary"
 pollination_syndrome = "bee"
 sexuality = "perfect"
 fruit_type = "capsule"
-dispersal_channels = { local = 0.6, wind = 0.0, water = 0.2, animal = 0.0, jump = 0.1 }
+dispersal_channels = { local = 0.6, wind = 0.0, water = 0.3, animal = 0.0, jump = 0.1 }
 propagule_mass_mg = 10.0
 seed_bank = "transient"
 masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
