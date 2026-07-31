@@ -76,8 +76,8 @@ coloniality = 0.9
 [niche]
 temp_opt_c = 16
 temp_breadth_c = 10.0
-moisture_opt = 0.9
-moisture_breadth = 0.1
+moisture_opt = 0.2
+moisture_breadth = 0.2
 
 [generics]
 support = "fibrous_culm"

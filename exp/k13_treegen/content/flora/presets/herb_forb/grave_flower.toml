@@ -77,8 +77,8 @@ coloniality = 0.3
 [niche]
 temp_opt_c = 14
 temp_breadth_c = 6.0
-moisture_opt = 0.7
-moisture_breadth = 0.2
+moisture_opt = 0.19
+moisture_breadth = 0.13
 
 [generics]
 support = "herbaceous_stem"

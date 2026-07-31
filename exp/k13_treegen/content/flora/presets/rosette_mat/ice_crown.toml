@@ -74,10 +74,10 @@ engineer_impact = 0.3
 coloniality = 0.4
 
 [niche]
-temp_opt_c = 2
+temp_opt_c = 5
 temp_breadth_c = 6.0
-moisture_opt = 0.5
-moisture_breadth = 0.3
+moisture_opt = 0.14
+moisture_breadth = 0.1
 
 [generics]
 support = "cushion_mat"

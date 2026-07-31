@@ -71,10 +71,10 @@ engineer_impact = 0.2
 coloniality = 0.5
 
 [niche]
-temp_opt_c = 12
+temp_opt_c = 9
 temp_breadth_c = 10.0
-moisture_opt = 0.6
-moisture_breadth = 0.3
+moisture_opt = 0.18
+moisture_breadth = 0.12
 
 [generics]
 support = "cushion_acrocarp"

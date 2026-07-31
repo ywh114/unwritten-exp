@@ -72,8 +72,8 @@ coloniality = 0.6
 [niche]
 temp_opt_c = 10
 temp_breadth_c = 12.0
-moisture_opt = 0.4
-moisture_breadth = 0.35
+moisture_opt = 0.15
+moisture_breadth = 0.15
 
 [generics]
 support = "crustose"

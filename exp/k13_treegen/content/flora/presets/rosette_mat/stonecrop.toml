@@ -76,8 +76,8 @@ coloniality = 0.6
 [niche]
 temp_opt_c = 16
 temp_breadth_c = 10.0
-moisture_opt = 0.35
-moisture_breadth = 0.25
+moisture_opt = 0.06
+moisture_breadth = 0.08
 
 [generics]
 support = "cushion_mat"

@@ -76,7 +76,7 @@ coloniality = 0.9
 [niche]
 temp_opt_c = 22
 temp_breadth_c = 8.0
-moisture_opt = 0.65
+moisture_opt = 0.35
 moisture_breadth = 0.2
 
 [generics]

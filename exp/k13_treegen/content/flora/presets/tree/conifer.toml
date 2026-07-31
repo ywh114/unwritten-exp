@@ -90,8 +90,8 @@ coloniality = 0.1
 [niche]
 temp_opt_c = 8
 temp_breadth_c = 8.0
-moisture_opt = 0.5
-moisture_breadth = 0.3
+moisture_opt = 0.25
+moisture_breadth = 0.13
 
 [generics]
 support = "trunk_single"

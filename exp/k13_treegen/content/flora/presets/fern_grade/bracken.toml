@@ -72,8 +72,8 @@ coloniality = 0.8
 [niche]
 temp_opt_c = 14
 temp_breadth_c = 10.0
-moisture_opt = 0.55
-moisture_breadth = 0.3
+moisture_opt = 0.19
+moisture_breadth = 0.13
 
 [generics]
 support = "herbaceous_frond"

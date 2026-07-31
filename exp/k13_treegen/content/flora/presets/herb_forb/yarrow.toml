@@ -75,10 +75,10 @@ engineer_impact = 0.2
 coloniality = 0.5
 
 [niche]
-temp_opt_c = 16
+temp_opt_c = 14
 temp_breadth_c = 10.0
-moisture_opt = 0.5
-moisture_breadth = 0.3
+moisture_opt = 0.13
+moisture_breadth = 0.12
 
 [generics]
 support = "herbaceous_stem"

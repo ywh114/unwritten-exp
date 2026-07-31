@@ -73,8 +73,8 @@ coloniality = 0.8
 [niche]
 temp_opt_c = 10
 temp_breadth_c = 8.0
-moisture_opt = 0.9
-moisture_breadth = 0.1
+moisture_opt = 0.22
+moisture_breadth = 0.15
 
 [generics]
 support = "mat_pleurocarp"

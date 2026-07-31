@@ -74,8 +74,8 @@ coloniality = 0.7
 [niche]
 temp_opt_c = 12
 temp_breadth_c = 6.0
-moisture_opt = 0.75
-moisture_breadth = 0.2
+moisture_opt = 0.19
+moisture_breadth = 0.13
 
 [generics]
 support = "mycelium_network"
