@@ -20,7 +20,8 @@ from exp.k15_simdiff.req_flora import (
     REQ_FERTILITY,
     REQ_FRESH_HABITAT,
     REQ_MEDIUM,
-    REQ_PH,
+    REQ_PH_HIGH,
+    REQ_PH_LOW,
     REQ_ROOTING,
     REQ_SALINITY,
     REQ_SUBMERGED_LIGHT,
@@ -246,23 +247,31 @@ def test_fertility_shortfall():
     assert np.allclose(poor[REQ_FERTILITY], 0.0)
 
 
-def test_ph_position():
+def test_ph_position_split():
     """ph_tolerance is a POSITION: opt = 4 + 5 x value, breadth ±1.
-    A calcifuge (0.0) on acid ground and a calcicole (1.0) on alkaline
-    ground both score 1; swapped, they fail."""
+    The factor is emitted SPLIT one-sided (req_flora ruling): ph_low
+    drops only when the cell is too acidic for the position, ph_high
+    only when too alkaline; their product is the symmetric distance."""
     ctx = make_ctx(ground_ph=np.full((H, W), 4.0, dtype=np.float32))
-    calcifuge = evaluate(base_view(ph_tolerance=0.0), ctx)[REQ_PH][0]
-    calcicole = evaluate(base_view(ph_tolerance=1.0), ctx)[REQ_PH][0]
-    assert np.allclose(calcifuge, 1.0)
-    assert np.allclose(calcicole, 0.0)          # opt 9.0 vs 4.0: saturated
+    cf = evaluate(base_view(ph_tolerance=0.0), ctx)
+    cc = evaluate(base_view(ph_tolerance=1.0), ctx)
+    assert np.allclose(cf[REQ_PH_LOW][0], 1.0)
+    assert np.allclose(cf[REQ_PH_HIGH][0], 1.0)
+    assert np.allclose(cc[REQ_PH_LOW][0], 0.0)    # opt 9.0 vs 4.0: too acid
+    assert np.allclose(cc[REQ_PH_HIGH][0], 1.0)   # not too alkaline
     ctxalk = make_ctx(ground_ph=np.full((H, W), 9.0, dtype=np.float32))
-    assert np.allclose(evaluate(base_view(ph_tolerance=1.0), ctxalk)
-                       [REQ_PH][0], 1.0)
+    cc2 = evaluate(base_view(ph_tolerance=1.0), ctxalk)
+    assert np.allclose(cc2[REQ_PH_LOW][0], 1.0)
+    assert np.allclose(cc2[REQ_PH_HIGH][0], 1.0)
+    cf2 = evaluate(base_view(ph_tolerance=0.0), ctxalk)
+    assert np.allclose(cf2[REQ_PH_LOW][0], 1.0)
+    assert np.allclose(cf2[REQ_PH_HIGH][0], 0.0)  # too alkaline
     # water plans read water_ph instead
     ctxw = make_ctx(water_ph=np.full((H, W), 9.0, dtype=np.float32))
     r = evaluate(base_view(medium="water", ph_tolerance=1.0,
                            salinity_tolerance=0.9), ctxw)
-    assert np.allclose(r[REQ_PH][0], 1.0)
+    assert np.allclose(r[REQ_PH_LOW][0], 1.0)
+    assert np.allclose(r[REQ_PH_HIGH][0], 1.0)
 
 
 def test_salinity_ionic_excess():

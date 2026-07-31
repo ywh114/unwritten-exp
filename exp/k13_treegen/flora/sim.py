@@ -23,21 +23,16 @@ through content/flora/stress_response.toml (loaded into the ContentPack)
 to the driftable traits that answer it. Magnitude = (1 - suitability) x
 row weight: the worse the factor, the harder the push. Responders are
 only ever driftable TRAITS (axes + generics); [niche] metadata and
-plan-level medium never receive pressure. Two documented rules:
+plan-level medium never receive pressure. One documented rule:
 
-* Direction-from-context ("use the factor's shortfall side"): a
-  requirement whose suitability is a symmetric distance in the trait's
-  own space (pressure:ph — dist_suit over the pH position) cannot know
-  which side the cell sits on: the verdict carries the factor, never the
-  cell (space-blind). Rule: push the position toward the MIDPOINT of its
-  legal bounds — the minimax response. A position parked at a bound is a
-  bet that the environment is on that side; with the side unknown, the
-  worst-case mismatch is minimized at the midpoint (deterministic,
-  verdict-only, no cell access).
 * No-responder requirements (pressure:climate — its terms are the
   [niche] metadata that never drifts; pressure:medium — medium is
   plan-level) emit NO pressure: the lineage accumulates nowhere and
   simply shrinks where it is unsuitable. Intended (interface ruling).
+
+(Symmetric requirements are SPLIT one-sided env-side — pressure:ph_low /
+pressure:ph_high, req_flora ruling 2026-08-01 — so every verdict factor
+carries its own sign and no direction-from-context hedge is needed.)
 
 ┌─ mutate ────────────────────────────────────────────────────────────
 Applies x.pressure to x.traits, then clears the plane. Continuous traits
@@ -161,22 +156,6 @@ def _generic_permissions(pack: ContentPack, plan) -> dict[str, list]:
         return {}
     ps = pack.registry.plans.get(plan)
     return ps.generics if ps is not None else {}
-
-
-def _context_sign(spec: AxisSpec | None, value) -> float:
-    """Direction-from-context sign (module docstring): push the position
-    toward the midpoint of its legal bounds; 0 at the midpoint. Returns
-    0.0 when the side cannot be decided (no bounds / non-numeric)."""
-    if spec is None or spec.bounds is None \
-            or not isinstance(value, (int, float)):
-        return 0.0
-    lo, hi = spec.bounds
-    mid = 0.5 * (lo + hi)
-    if value < mid:
-        return 1.0
-    if value > mid:
-        return -1.0
-    return 0.0
 
 
 def _toward_map(table: Mapping[str, list]) -> dict[str, frozenset]:
@@ -308,12 +287,7 @@ class FloraSim:
                             or not spec.applies_to(plan):
                         continue
                     d = row.get("dir", "up")
-                    if d == "context":
-                        sign = _context_sign(spec, traits.get(trait))
-                        if sign == 0.0:
-                            continue
-                    else:
-                        sign = 1.0 if d == "up" else -1.0
+                    sign = 1.0 if d == "up" else -1.0
                     pressure[trait] = pressure.get(trait, 0.0) + weight * sign
                     continue
                 generic = row.get("generic")

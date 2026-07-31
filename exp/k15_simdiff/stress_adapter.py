@@ -71,7 +71,8 @@ from exp.k15_simdiff.req_flora import (
     REQ_FERTILITY,
     REQ_FRESH_HABITAT,
     REQ_MEDIUM,
-    REQ_PH,
+    REQ_PH_HIGH,
+    REQ_PH_LOW,
     REQ_ROOTING,
     REQ_SALINITY,
     REQ_SUBMERGED_LIGHT,
@@ -82,7 +83,6 @@ from exp.k15_simdiff.req_flora import (
 from kernel.stress.stress import (
     W_P_DEFAULT,
     W_T_DEFAULT,
-    dist_suit,
     excess_suit,
     invert,
     sat,
@@ -136,6 +136,9 @@ WLOG_WET_REF = 0.45
 FERT_REF = 0.5
 # pH: optimum = PH_LO + PH_SPAN x ph_tolerance (position, not width);
 # breadth fixed at PH_BREADTH pH units (B5 §5.1, open question 1).
+# Emitted SPLIT one-sided (req_flora: pressure:ph_low / pressure:ph_high)
+# so select() can sign its response; the two factors' product is exactly
+# dist_suit, so F is unchanged.
 PH_LO = 4.0
 PH_SPAN = 5.0
 PH_BREADTH = 1.0
@@ -511,6 +514,17 @@ def _bloom_frost(view: dict, ctx: WorldContext) -> np.ndarray:
     return f.astype(np.float32)
 
 
+def _ph_suit_split(env_ph, opt_ph: float):
+    """The split one-sided pH suitability (req_flora ruling): the low
+    side is the shortfall toward the optimum (env too acidic), the high
+    side the excess past it (env too alkaline). low x high is exactly
+    dist_suit, so the composed F is unchanged by the split."""
+    opt = np.float32(opt_ph)
+    b = np.float32(PH_BREADTH)
+    return (shortfall_suit(env_ph, opt, b).astype(np.float32),
+            excess_suit(env_ph, opt, b).astype(np.float32))
+
+
 def _ground_terms(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
     """B5 §4.2 for LAND (and dual) plans: water availability, water-
     logging (with the inversion), fertility, pH, salinity — REQ_WATER
@@ -545,15 +559,14 @@ def _ground_terms(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
 
     ph_tol = _f(view.get("ph_tolerance"))
     if np.isnan(ph_tol):
-        f_ph = np.ones((H, W), dtype=np.float32)
+        f_ph_lo = f_ph_hi = np.ones((H, W), dtype=np.float32)
     else:
         opt_ph = PH_LO + PH_SPAN * min(max(ph_tol, 0.0), 1.0)
-        f_ph = dist_suit(ctx.ground_ph, np.float32(opt_ph),
-                         np.float32(PH_BREADTH))
+        f_ph_lo, f_ph_hi = _ph_suit_split(ctx.ground_ph, opt_ph)
         if view.get("medium") == "dual":
-            f_ph = np.minimum(f_ph, dist_suit(ctx.water_ph,
-                                              np.float32(opt_ph),
-                                              np.float32(PH_BREADTH)))
+            w_lo, w_hi = _ph_suit_split(ctx.water_ph, opt_ph)
+            f_ph_lo = np.minimum(f_ph_lo, w_lo)
+            f_ph_hi = np.minimum(f_ph_hi, w_hi)
 
     sal_tol = _f(view.get("salinity_tolerance"))
     if np.isnan(sal_tol):
@@ -571,7 +584,8 @@ def _ground_terms(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
         REQ_WATERLOGGING: f_wlog.astype(np.float32),
         REQ_FERTILITY: np.broadcast_to(f_fert.astype(np.float32),
                                        (12, H, W)).copy(),
-        REQ_PH: np.broadcast_to(f_ph.astype(np.float32), (12, H, W)).copy(),
+        REQ_PH_LOW: np.broadcast_to(f_ph_lo, (12, H, W)).copy(),
+        REQ_PH_HIGH: np.broadcast_to(f_ph_hi, (12, H, W)).copy(),
         REQ_SALINITY: np.broadcast_to(f_sal.astype(np.float32),
                                       (12, H, W)).copy(),
     }
@@ -585,11 +599,10 @@ def _water_chemistry(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
     H, W = ctx.H, ctx.W
     ph_tol = _f(view.get("ph_tolerance"))
     if np.isnan(ph_tol):
-        f_ph = np.ones((H, W), dtype=np.float32)
+        f_ph_lo = f_ph_hi = np.ones((H, W), dtype=np.float32)
     else:
         opt_ph = PH_LO + PH_SPAN * min(max(ph_tol, 0.0), 1.0)
-        f_ph = dist_suit(ctx.water_ph, np.float32(opt_ph),
-                         np.float32(PH_BREADTH))
+        f_ph_lo, f_ph_hi = _ph_suit_split(ctx.water_ph, opt_ph)
     sal_tol = _f(view.get("salinity_tolerance"))
     if np.isnan(sal_tol):
         f_sal = np.ones((H, W), dtype=np.float32)
@@ -598,7 +611,8 @@ def _water_chemistry(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
                             np.float32(min(max(sal_tol, 0.0), 1.0)),
                             np.float32(SAL_REF))
     return {
-        REQ_PH: np.broadcast_to(f_ph.astype(np.float32), (12, H, W)).copy(),
+        REQ_PH_LOW: np.broadcast_to(f_ph_lo, (12, H, W)).copy(),
+        REQ_PH_HIGH: np.broadcast_to(f_ph_hi, (12, H, W)).copy(),
         REQ_SALINITY: np.broadcast_to(f_sal.astype(np.float32),
                                       (12, H, W)).copy(),
     }

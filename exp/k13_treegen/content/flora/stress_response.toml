@@ -18,11 +18,11 @@
 #   { generic = "phenology", toward = ["winter_deciduous"], weight = 1.0 }
 #       discrete plan generic: same, targets intersected with the plan's
 #       permission table (model.rebind legality).
-#   { trait = "ph_tolerance", dir = "context", weight = 1.0 }
-#       direction-from-context: the sign is resolved per-verdict by the
-#       documented hedge rule (sim.py module docstring) — the verdict
-#       carries only the suitability factor, never which side of the
-#       optimum the cell sits on.
+#   { trait = "ph_tolerance", dir = "down", weight = 1.0 }
+#       (on pressure:ph_high) — symmetric requirements are SPLIT
+#       one-sided env-side (pressure:ph_low / pressure:ph_high,
+#       req_flora ruling 2026-08-01) so the factor itself carries the
+#       side and the responder sign is always explicit.
 #
 # PRINCIPLE (interface ruling): a requirement with NO driftable responder
 # maps to an EMPTY responders list. select() then emits no pressure — the
@@ -90,15 +90,23 @@ responders = [
 # where the soil does not.
 
 [[responder]]
-name = "pressure:ph"
+name = "pressure:ph_low"
 responders = [
-    { trait = "ph_tolerance", dir = "context", weight = 1.0 }
+    { trait = "ph_tolerance", dir = "up", weight = 1.0 }
 ]
-# Suitability is a symmetric distance in pH space (dist_suit over the
-# position; breadth fixed, B5 §5.1): the verdict carries the factor,
-# never the side of the cell. Direction-from-context rule (documented in
-# sim.py): hedge toward the midpoint of the legal bounds — the minimax
-# response when the side is unknowable.
+# The pH requirement is SPLIT one-sided env-side (req_flora ruling
+# 2026-08-01): the low-side factor drops when the cell is too ACIDIC
+# for the lineage's position, so the drift pushes ph_tolerance UP
+# (toward alkaline). No direction-from-context hedge is needed — the
+# split factor carries the side.
+
+[[responder]]
+name = "pressure:ph_high"
+responders = [
+    { trait = "ph_tolerance", dir = "down", weight = 1.0 }
+]
+# The mirror: too alkaline for the position — push ph_tolerance DOWN
+# (toward acidic).
 
 [[responder]]
 name = "pressure:salinity"

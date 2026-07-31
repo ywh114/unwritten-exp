@@ -18,7 +18,13 @@ REQ_BLOOM_FROST = "pressure:bloom_frost"    # extra cost term, never lethal
 REQ_WATER = "pressure:water"                # water_potential dry end
 REQ_WATERLOGGING = "pressure:waterlogging"  # saturated end (inverts)
 REQ_FERTILITY = "pressure:fertility"        # eff_nutrient shortfall
-REQ_PH = "pressure:ph"                      # ground_ph/water_ph by medium
+# pH is SPLIT one-sided (owner ruling 2026-08-01): a symmetric distance
+# factor is space-blind — select() cannot tell which side of the optimum
+# the cell sits on, so a single "pressure:ph" cannot be signed. Two
+# one-sided factors (their product is exactly dist_suit) let the
+# responder push ph_tolerance in the right direction directly.
+REQ_PH_LOW = "pressure:ph_low"              # env too acidic for position
+REQ_PH_HIGH = "pressure:ph_high"            # env too alkaline for position
 REQ_SALINITY = "pressure:salinity"          # ionic (osmotic half is in
                                             # water_potential already)
 
@@ -33,8 +39,8 @@ REQ_FRESH_HABITAT = "pressure:habitat"      # fresh_availability
 
 V1_FLORA = (
     REQ_CLIMATE, REQ_BLOOM_FROST, REQ_WATER, REQ_WATERLOGGING,
-    REQ_FERTILITY, REQ_PH, REQ_SALINITY, REQ_ROOTING, REQ_ANCHORING,
-    REQ_MEDIUM, REQ_SUBMERGED_LIGHT, REQ_FRESH_HABITAT,
+    REQ_FERTILITY, REQ_PH_LOW, REQ_PH_HIGH, REQ_SALINITY, REQ_ROOTING,
+    REQ_ANCHORING, REQ_MEDIUM, REQ_SUBMERGED_LIGHT, REQ_FRESH_HABITAT,
 )
 
 # ── the view the adapter expects from flora expose() ──────────────────

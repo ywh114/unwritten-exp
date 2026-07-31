@@ -196,7 +196,7 @@ def check_calcifuge(ctx: WorldContext, pack: ContentPack,
     """B5 §8.5: calcifuge lower on podzol/bog than rendzina/caliche; a
     freshwater taxon in bog-blackwater cells scores per its
     ph_tolerance position."""
-    from exp.k15_simdiff.req_flora import REQ_PH
+    from exp.k15_simdiff.req_flora import REQ_PH_HIGH, REQ_PH_LOW
     h = annual_stress(evaluate(preset_view(CALCIFUGE_PRESET, pack), ctx))
     land = ctx.land_cell
     acid = land & np.isin(ctx.ground_class, list(ACID_CLASSES))
@@ -210,8 +210,10 @@ def check_calcifuge(ctx: WorldContext, pack: ContentPack,
         & (ctx.water_ph < BLACKWATER_PH)
     bog = evaluate(preset_view(BOG_TAXON_PRESET, pack), ctx)
     fresh = evaluate(preset_view(FRESH_TAXON_PRESET, pack), ctx)
-    bog_ph = float(bog[REQ_PH][0, black].mean())
-    fresh_ph = float(fresh[REQ_PH][0, black].mean())
+    # the split factors' product IS the per-position pH suitability
+    bog_ph = float((bog[REQ_PH_LOW] * bog[REQ_PH_HIGH])[0, black].mean())
+    fresh_ph = float((fresh[REQ_PH_LOW]
+                      * fresh[REQ_PH_HIGH])[0, black].mean())
     # sphagnum (ph position 0.05 -> opt pH 4.25) fits blackwater;
     # duckweed (0.5 -> opt 6.5) does not.
     ok2 = bog_ph > fresh_ph + 0.05
@@ -219,8 +221,8 @@ def check_calcifuge(ctx: WorldContext, pack: ContentPack,
               f"s={a_mean:.3f} vs rendzina/caliche n={int(alk.sum())} mean "
               f"s={k_mean:.3f}; bog-blackwater n={int(black.sum())} "
               f"water_ph mean={float(ctx.water_ph[black].mean()):.2f}: "
-              f"sphagnum REQ_PH={bog_ph:.3f} vs duckweed "
-              f"REQ_PH={fresh_ph:.3f} (per-position)")
+              f"sphagnum ph_suit={bog_ph:.3f} vs duckweed "
+              f"ph_suit={fresh_ph:.3f} (per-position)")
     return ok1 and ok2, detail
 
 

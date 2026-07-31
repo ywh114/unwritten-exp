@@ -3,7 +3,7 @@
 Covers: protocol conformance (duck-typed against interface.KingdomSim),
 the req_flora DerivedView from derive(), select() routing (shortfall
 weighting, no-responder and unknown names, [niche] metadata never
-pressured, the pH direction-from-context hedge), mutate() (determinism,
+pressured, the split one-sided pH direction), mutate() (determinism,
 bounds, discrete threshold + pinned switch, anthocyanin ⊥ betalain,
 generic switches), and provisional vital rates (tree vs duckweed).
 
@@ -150,25 +150,24 @@ def test_select_unknown_names_do_not_crash(sim, pack):
 
 def test_select_never_pressures_niche_metadata(sim, pack):
     traits = _traits(pack, "tree.oak")
-    for prov in ({"pressure:climate": 0.1}, {"pressure:ph": 0.2},
+    for prov in ({"pressure:climate": 0.1}, {"pressure:ph_low": 0.2},
                  {"pressure:water": 0.2}):
         p = sim.select(StressVerdict(s=0.0, provenance=prov), traits, pack)
         assert not (set(p) & set(NICHE_KEYS)), (prov, p)
 
 
-def test_select_ph_hedge_direction(sim, pack):
-    """pressure:ph is direction-from-context: the verdict cannot say
-    which side of the optimum the cell sits on, so the sign hedges toward
-    the midpoint of the legal bounds (documented rule, sim.py)."""
+def test_select_ph_split_direction(sim, pack):
+    """The pH requirement is split one-sided env-side (req_flora ruling
+    2026-08-01): pressure:ph_low (cell too acidic for the position)
+    pushes ph_tolerance UP; pressure:ph_high (too alkaline) pushes it
+    DOWN — the factor carries the side, no hedge needed."""
     traits = _traits(pack, "tree.oak")
-    traits["ph_tolerance"] = 0.1               # acidophile -> push up
     p = sim.select(StressVerdict(s=0.0,
-                                 provenance={"pressure:ph": 0.2}),
+                                 provenance={"pressure:ph_low": 0.2}),
                    traits, pack)
     assert p["ph_tolerance"] > 0.0
-    traits["ph_tolerance"] = 0.9               # calcicole -> push down
     p = sim.select(StressVerdict(s=0.0,
-                                 provenance={"pressure:ph": 0.2}),
+                                 provenance={"pressure:ph_high": 0.2}),
                    traits, pack)
     assert p["ph_tolerance"] < 0.0
 
