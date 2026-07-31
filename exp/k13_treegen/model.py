@@ -9,6 +9,10 @@ mechanism, two permission levels).
 
 Slots are coordinate-less string enums (parts/slots as full records are
 deferred to the illustration layer); generics map generic -> realization id.
+
+Post-freeze amendment (2026-07-31): Rank.SUBSPECIES added below SPECIES for
+the sim era — a real, committed divide that is deliberately rare (see
+interface.py: the parse's narrow-band rule).
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ class Rank(IntEnum):
     FAMILY = 4
     GENUS = 5
     SPECIES = 6
+    SUBSPECIES = 7        # sim-era divide (see interface.py): real but rare
 
 
 RANK_PREFIX = {
@@ -36,6 +41,7 @@ RANK_PREFIX = {
     Rank.FAMILY: "f",
     Rank.GENUS: "g",
     Rank.SPECIES: "s",
+    Rank.SUBSPECIES: "ss",
 }
 
 
