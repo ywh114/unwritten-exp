@@ -179,7 +179,9 @@ Each is a one-sided `sat()` against the effective properties of §3:
   this axis. (Revisit post-A2.)
 - **Shade** (`shade_tolerance`): no canopy exists before P9. P7's
   light term is insolation/photic only; shade as COMPETITION is P9's
-  layered capacity.
+  layered capacity — and when it lands it is FIELD-MEDIATED (§7.1):
+  the canopy reduces the light field and the understory reads low
+  light, never a direct "tree pressure" term.
 - **Light on land**: v1 has no separate insolation product; T carries
   the latitudinal signal. Flag, don't build.
 
@@ -272,17 +274,39 @@ record property.
   across taxa (all share the 12 monthly world fields).
 - Determinism: pure functions of (world dump, record). No draws.
 
-## 7. Open questions
+## 7. Open questions — SETTLED (owner ruling 2026-07-31)
 
-1. `ph_tolerance` breadth: fixed ±1.0 v1 — key off a generalist flag
-   later, or leave?
-2. Climate weights `w_T`/`w_P` per plan: one global pair v1, or
-   plan-level overrides already?
-3. Waterlogging inversion (high tolerance → requirement): does the
-   same inversion apply to drought for obligate-aquatic-leaning land
-   plans, or is waterlogging special?
-4. Insolation: does P7 need a real light field before P9 (montane
-   shading exists in K11?), or does T suffice through v1?
+1. `ph_tolerance` breadth: FIXED ±1.0, probably permanently. Position
+   drift does the radiation work; if stat-settling exposes an
+   unauthorable generalist, the escape is a separate `ph_breadth`
+   axis — never a generalist-flag coupling (it would force a fake
+   correlation between independent niche dimensions).
+2. Climate weights: per-plan `[niche]` metadata override
+   (`w_T`/`w_P`), default = the global pair. Metadata, never drifts.
+   Breadths encode sensitivity; the weights only shape T↔P
+   compensability.
+3. NO drought inversion — waterlogging is special. Hydrophytes are
+   physiologically committed to anaerobic substrate; xerophytes are
+   avoidance-adapted and grow fine when wet — their rarity outside
+   arid lands emerges from the two-sided moisture term plus the
+   competition squeeze (density term), not from wet lethality. (A
+   narrow wet-side cost on the CAM↔succulence coupling — root-rot —
+   is deferred.)
+4. T suffices through v1; no land light field before P9. K11
+   insolation is latitude-row only (no slope/aspect/terrain shading);
+   at 1 km² cells aspect is mostly sub-cell noise, the first-order
+   light signal is latitudinal (T carries it), and shade-as-
+   competition is P9's canopy regardless. A future K14 insolation
+   raster slots in as one more multiplying stratum.
+
+### 7.1 Field-mediation principle (owner ruling 2026-07-31)
+
+Biotic effects with a PHYSICAL MEDIUM are field-mediated, never
+direct pressures: a dense large-tree canopy physically reduces the
+light field, so understory stress reads `light` (a resource/field
+term), not "tree competition". Only field-less biotics (predation)
+travel as direct provenance pressures. P9 consequence: the canopy
+WRITES the light field; consumers read it.
 
 ## 8. Acceptance (seed 1)
 
