@@ -37,7 +37,8 @@ REQ_VIEW_KEYS = (
     "medium", "anchoring_need", "holdfast", "submerged",
     # engine-side dispersal (K15 rounds; owner ruling 2026-08-01: every
     # trait the engine directly needs rides the view)
-    "dispersal_channels", "propagule_mass_mg", "seed_bank",
+    "dispersal_channels", "propagule_mass_mg", "propagule_count",
+    "seed_bank",
 )
 # [niche] metadata keys — clade metadata, never a driftable trait.
 NICHE_KEYS = ("temp_opt_c", "temp_breadth_c", "moisture_opt",
@@ -118,6 +119,8 @@ def test_derive_engine_dispersal_keys(sim, pack):
                for v in ch.values())
     assert abs(sum(ch.values()) - 1.0) < 1e-6   # validated pmf
     assert isinstance(view["propagule_mass_mg"], (int, float))
+    assert isinstance(view["propagule_count"], (int, float)) \
+        and view["propagule_count"] >= 1.0
     assert isinstance(view["seed_bank"], str)
 
 

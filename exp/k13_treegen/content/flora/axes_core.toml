@@ -291,6 +291,20 @@ plan_scope = "all"
 consumers = ["stress"]
 salience = 0.1
 
+[axis.root_spread_m]
+block = "morphometrics"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.4
+bounds = [0.02, 100.0]
+plan_scope = "all"
+consumers = ["id", "stress"]
+salience = 0.1
+# typical lateral reach of the root system from the stem, meters
+# (radius). Trees: comparable to the crown radius, often ~0.5-1x
+# height; herbs: comparable to root_depth_m.
+
 [axis.root_special]
 block = "morphometrics"
 tier = "steady"
@@ -436,6 +450,23 @@ consumers = ["id", "name", "pop"]
 salience = 0.4
 grammar_role = "part"
 
+[axis.fruit_size_mm]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.5
+bounds = [1.0, 500.0]
+plan_scope = "all"
+consumers = ["id", "pop"]
+salience = 0.3
+# diameter of the propagule-bearing structure, mm: the fruit for
+# fruiting plans, the fruiting body for fungi, the sporangium/sorus
+# cluster for spore plans, the propagule itself otherwise. The WHOLE
+# structure is sized: a multi-seeded cone/pod/capsule/aggregate is
+# many propagule diameters across (a conifer cone is ~80 mm, not
+# 1-2x one seed); single-seeded dry fruits are ~1-2x.
+
 [axis.dispersal_channels]
 block = "life_history"
 tier = "steady"
@@ -458,6 +489,21 @@ bounds = [0.0001, 100000.0]
 plan_scope = "all"
 consumers = ["stress", "pop"]
 salience = 0.2
+
+[axis.propagule_count]
+block = "life_history"
+tier = "steady"
+value_type = "scalar"
+mutation = "log_gaussian"
+sigma = 0.6
+bounds = [1.0, 10000000.0]
+plan_scope = "all"
+consumers = ["pop"]
+salience = 0.2
+# propagules per mature individual per year — the K15 engine's
+# emission quantity (threaded through the DerivedView). The classic
+# size/count trade-off: trades off against propagule_mass_mg (an oak:
+# ~1e4 acorns at ~3e3 mg; an orchid: ~1e6 dust seeds at ~1e-3 mg).
 
 [axis.seed_bank]
 block = "life_history"

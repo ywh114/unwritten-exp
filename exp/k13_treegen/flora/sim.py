@@ -254,6 +254,7 @@ class FloraSim:
             # establishment carryover in sink cells.
             "dispersal_channels": axes.get("dispersal_channels"),
             "propagule_mass_mg": axes.get("propagule_mass_mg"),
+            "propagule_count": axes.get("propagule_count"),
             "seed_bank": axes.get("seed_bank"),
         })
         return view

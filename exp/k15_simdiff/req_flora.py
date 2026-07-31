@@ -58,7 +58,8 @@ V1_FLORA = (
 # Engine-side dispersal keys (K15 rounds; the stress strata never read
 # them — threaded through the same view per the owner ruling
 # 2026-08-01: every trait the engine directly needs rides the view):
-#   dispersal_channels ({local, wind, water, animal, jump} weights),
-#   propagule_mass_mg, seed_bank
+#   dispersal_channels ({local, wind, water, animal, jump} pmf),
+#   propagule_mass_mg, propagule_count (emission quantity/yr),
+#   seed_bank
 # Env may read a key that is None/absent for a given plan — the
 # stratum then does not apply (e.g. no anchoring on a duckweed).
