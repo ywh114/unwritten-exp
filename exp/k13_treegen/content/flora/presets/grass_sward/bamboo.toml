@@ -38,7 +38,7 @@ sexuality = "perfect"
 fruit_type = "caryopsis"
 fruit_size_mm = 3.0
 fruit_color = "brown"
-dispersal_channels = { local = 0.8, wind = 0.0, water = 0.0, animal = 0.0, jump = 0.2 }
+dispersal_channels = { local = 0.95, wind = 0.0, water = 0.0, animal = 0.0, jump = 0.05 }
 propagule_mass_mg = 5.0
 propagule_count = 500000.0
 seed_bank = "transient"

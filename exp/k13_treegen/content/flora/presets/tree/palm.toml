@@ -12,7 +12,7 @@ height_m = 20.0
 woodiness = 1.0
 wood_density = 0.4
 growth_rate = 0.5
-longevity_yr = 100.0
+longevity_yr = 200.0
 shade_tolerance = 0.4
 pioneer_climax = 0.4
 layer = "canopy"
@@ -50,7 +50,7 @@ fruit_type = "drupe"
 fruit_size_mm = 80.0
 fruit_color = "red"
 dispersal_channels = { local = 0.35, wind = 0.0, water = 0.1, animal = 0.5, jump = 0.05 }
-propagule_mass_mg = 20000.0
+propagule_mass_mg = 1500.0
 propagule_count = 1000.0
 seed_bank = "transient"
 serotiny = "no"

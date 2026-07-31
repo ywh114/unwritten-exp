@@ -33,7 +33,7 @@ leaf_arrangement = "alternate"
 leaf_sla = 15.0
 drip_tips = 0.2
 root_type = "fibrous"
-root_depth_m = 2.0
+root_depth_m = 1.2
 root_spread_m = 10.0
 crown_spread_m = 8.0
 root_special = "none"
@@ -90,8 +90,8 @@ coloniality = 0.5
 [niche]
 temp_opt_c = 12
 temp_breadth_c = 8.0
-moisture_opt = 0.85
-moisture_breadth = 0.15
+moisture_opt = 0.6
+moisture_breadth = 0.35
 
 [generics]
 support = "trunk_multi"
