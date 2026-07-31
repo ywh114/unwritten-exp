@@ -141,12 +141,17 @@ def _betalain_color(expr: float) -> str:
 
 def _derived_flower_color(node: Node) -> str:
     """B5 §5.2: pathway × expression × ph_tolerance position -> the
-    legacy named bucket. None (or ~0 expression) is the dull wind set."""
+    legacy named bucket. None (or ~0 expression) is the dull wind set.
+    (No falsy-`or` defaults: 0.0 is a legitimate authored value on both
+    scalars — an obligate calcifuge at ph 0.0 must not read neutral.)"""
     pathway = str(node.axes.get("pigment_pathway") or "none")
-    expr = _clip01(float(node.axes.get("pigment_expression") or 0.0))
+    expr_v = node.axes.get("pigment_expression")
+    expr = _clip01(float(expr_v)) if isinstance(expr_v, (int, float)) \
+        else 0.0
     if pathway == "none" or expr < EXPR_WHITE:
         return _dull_color(node) if pathway == "none" else "white"
-    ph = _clip01(float(node.axes.get("ph_tolerance") or 0.5))
+    ph_v = node.axes.get("ph_tolerance")
+    ph = _clip01(float(ph_v)) if isinstance(ph_v, (int, float)) else 0.5
     if pathway == "anthocyanin":
         return _anthocyanin_color(expr, ph)
     if pathway == "carotenoid":

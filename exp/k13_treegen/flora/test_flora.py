@@ -323,6 +323,21 @@ def test_built_species_single_pigment_pathway(tree1):
                         n.axes.get("pigment_pathway") == "betalain")
 
 
+def test_derived_flower_color_ph_zero_is_acid():
+    """Regression: ph_tolerance 0.0 is a legitimate authored value
+    (obligate calcifuge) and must read ACID (pink/red), never neutral —
+    guards against falsy-`or` defaults (0.0 or 0.5 -> 0.5)."""
+    from exp.k13_treegen.flora.derive import _derived_flower_color
+    n = Node(path="a", rank=Rank.SPECIES, parent="k1", sid="0" * 16,
+             axes={"pigment_pathway": "anthocyanin",
+                   "pigment_expression": 0.9, "ph_tolerance": 0.0})
+    assert _derived_flower_color(n) == "red"
+    n.axes["ph_tolerance"] = 0.5
+    assert _derived_flower_color(n) == "purple"     # neutral sanity
+    n.axes["ph_tolerance"] = 1.0
+    assert _derived_flower_color(n) == "blue"       # alkaline sanity
+
+
 # ── nomenclature ───────────────────────────────────────────────────────
 
 _SID_FALLBACK = re.compile(r"^sp[0-9a-f]{4,16}$")
