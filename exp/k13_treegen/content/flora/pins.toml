@@ -3,7 +3,9 @@
 # anchor the everyday register; landmark species pins (rank = "species",
 # no radiation) sit under their binomial genus automatically (K13
 # backbone rule). Axis overrides use the M1 registry axis names
-# (height_m, leaf_shape, flower_color, ...).
+# (height_m, leaf_shape, pigment_pathway, ...). flower_color is DERIVED
+# (B5 §5.2) — pins tune it via pigment_pathway / pigment_expression /
+# ph_tolerance, never by authoring the bucket directly.
 
 # ──  trees / shrubs  ───────────────────────────────────────────────────
 [[pin]]
@@ -57,7 +59,7 @@ label = "heathers"
 name = { binomial = "Calluna", folk = "heather" }
 rank = "genus"
 radiation = 3
-axes = { leaf_shape = "scale", mycorrhizal = "ericoid", flower_color = "purple" }
+axes = { leaf_shape = "scale", mycorrhizal = "ericoid" }
 flags = ["pinned"]
 
 # ──  sward / wetland  ──────────────────────────────────────────────────
@@ -122,7 +124,7 @@ label = "ludwigias"
 name = { binomial = "Ludwigia", folk = "ludwigia" }
 rank = "genus"
 radiation = 3
-axes = { flower_color = "yellow", clonal_spread_m = 1.5 }
+axes = { clonal_spread_m = 1.5 }
 flags = ["pinned"]
 
 [[pin]]
@@ -131,7 +133,9 @@ label = "sword-plants"
 name = { binomial = "Sagittaria", folk = "sword-plant" }
 rank = "genus"
 radiation = 3
-axes = { leaf_shape = "lanceolate", flower_color = "white" }
+# sword-plants (Sagittaria): white flowers — anthocyanin at ~zero
+# expression (overrides the ludwigia preset's carotenoid yellow).
+axes = { leaf_shape = "lanceolate", pigment_pathway = "anthocyanin", pigment_expression = 0.1 }
 flags = ["pinned"]
 
 [[pin]]
@@ -150,7 +154,7 @@ label = "field agarics"
 name = { binomial = "Agaricus", folk = "field mushroom" }
 rank = "genus"
 radiation = 5
-axes = { saprotrophy = "litter", flower_color = "brown" }
+axes = { saprotrophy = "litter" }
 flags = ["pinned"]
 
 [[pin]]
@@ -169,7 +173,7 @@ preset = "herb_forb.yarrow"
 label = "yarrow"
 name = { binomial = "Achillea millefolium", folk = "yarrow" }
 rank = "species"
-axes = { flower_symmetry = "composite_head", flower_color = "white" }
+axes = { flower_symmetry = "composite_head" }
 flags = ["pinned"]
 
 [[pin]]
@@ -177,7 +181,7 @@ preset = "herb_forb.carrot"
 label = "wild carrot"
 name = { binomial = "Daucus carota", folk = "wild carrot" }
 rank = "species"
-axes = { inflorescence = "umbel", flower_color = "white", root_type = "tap" }
+axes = { inflorescence = "umbel", root_type = "tap" }
 flags = ["pinned"]
 
 [[pin]]
@@ -185,7 +189,9 @@ preset = "herb_forb.iris"
 label = "sword-iris"
 name = { binomial = "Iris laevigata", folk = "sword-iris" }
 rank = "species"
-axes = { flower_color = "blue", leaf_shape = "linear" }
+# sword-iris (Iris laevigata): blue — anthocyanin high-expression,
+# alkaline-leaning (B5 §5.2: iris blue -> the hydrangea zone).
+axes = { pigment_pathway = "anthocyanin", pigment_expression = 0.9, ph_tolerance = 0.8, leaf_shape = "linear" }
 flags = ["pinned"]
 
 [[pin]]
@@ -201,7 +207,7 @@ preset = "rosette_mat.ice_crown"
 label = "ice-crown"
 name = { binomial = "Saxifraga glacialis", folk = "ice-crown" }
 rank = "species"
-axes = { growing_season_req = 1.5, flower_color = "white" }
+axes = { growing_season_req = 1.5 }
 flags = ["pinned"]
 
 [[pin]]
@@ -209,7 +215,7 @@ preset = "rosette_mat.stonecrop"
 label = "stonecrop"
 name = { binomial = "Sedum acre", folk = "stonecrop" }
 rank = "species"
-axes = { photosynthesis = "CAM", flower_color = "yellow", succulence = 0.8 }
+axes = { photosynthesis = "CAM", succulence = 0.8 }
 flags = ["pinned"]
 
 [[pin]]
@@ -217,5 +223,5 @@ preset = "herb_forb.grave_flower"
 label = "grave-flower"
 name = { binomial = "Monotropa uniflora", folk = "grave-flower" }
 rank = "species"
-axes = { photosynthesis = "none", mycoheterotrophy = "yes", flower_color = "white" }
+axes = { photosynthesis = "none", mycoheterotrophy = "yes" }
 flags = ["pinned"]

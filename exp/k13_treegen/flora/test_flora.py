@@ -163,27 +163,39 @@ def test_enforce_state_plans_snap_back(pack):
     assert child.axes["height_m"] == 20.0
 
 
-def test_enforce_palette_aware_snap(pack):
-    """bird_syndrome_red on a moss: red/orange are outside the moss
-    palette, so there is no legal candidate — the trigger (bird
-    syndrome) must snap back instead of committing a palette breach."""
-    r = Rule.from_toml({"id": "bird_syndrome_red",
+def test_enforce_pigment_legality(pack):
+    """B5 §5.2: pigment legality is trait-side now. A bee-pollinated
+    lineage cannot carry the "none" pathway (that is the dull wind set) —
+    the gate snaps the pathway to a pigment, never the derived bucket."""
+    r = Rule.from_toml({"id": "insect_syndrome_showy",
                         "when": {"axis": "pollination_syndrome",
-                                 "state": "bird"},
-                        "require_min": {"flower_size_mm": 10.0},
-                        "require_enum": {"flower_color": ["red",
-                                                          "orange"]}})
-    pack2 = type(pack)(registry=pack.registry, palettes=pack.palettes,
-                       constraints=[r])
-    parent = _node("p", "moss_grade",
-                   {"pollination_syndrome": "none", "flower_color": "green",
-                    "flower_size_mm": 1.0})
-    child = _node("p.s1", "moss_grade",
-                  {"pollination_syndrome": "bird", "flower_color": "green",
-                   "flower_size_mm": 1.0})
+                                 "state": ["bee", "moth", "beetle", "fly"]},
+                        "forbid_enum": {"pigment_pathway": ["none"]}})
+    pack2 = type(pack)(registry=pack.registry, constraints=[r])
+    parent = _node("p", "tree",
+                   {"pollination_syndrome": "wind",
+                    "pigment_pathway": "none"})
+    child = _node("p.s1", "tree",
+                  {"pollination_syndrome": "bee",
+                   "pigment_pathway": "none"})
     enforce(parent, child, pack2)
-    assert child.axes["flower_color"] in pack.palettes["moss_grade"]
-    assert child.axes["pollination_syndrome"] == "none"  # snapped back
+    assert child.axes["pigment_pathway"] == "anthocyanin"
+    assert "insect_syndrome_showy" in child.edge_delta["constraint"]
+
+
+def test_pigment_anthocyanin_excludes_betalain(pack):
+    """B5 §5.2/§8.6: anthocyanin ⊥ betalain is a sampler-legality rule in
+    the CAM↔succulence pattern. The pathway enum is single-valued, so a
+    committed record can never hold both — the rule is the explicit gate
+    and fires on either side of the pairing."""
+    rule = next(r for r in pack.constraints
+                if r.id == "pigment_anthocyanin_betalain_exclusive")
+    assert triggered(rule, {"pigment_pathway": "anthocyanin"})
+    # single-valued: the forbidding side of the pair is never present
+    assert not violations(
+        _node("x.s1", "tree", {"pigment_pathway": "anthocyanin"}), pack)
+    assert not violations(
+        _node("x.s2", "tree", {"pigment_pathway": "betalain"}), pack)
 
 
 def test_violations_reports_breach(pack):
@@ -249,6 +261,66 @@ def test_derived_recompute_is_pure(tree1, pack):
     for p, n in tree1.nodes.items():
         for ax in DERIVED_AXES:
             assert n.axes.get(ax) == before[p].get(ax)
+
+
+# ── derived flower_color (B5 §5.2) ─────────────────────────────────────
+
+
+def test_derived_flower_color_vocab(tree1):
+    """B5 §8.6: every species' derived flower_color is inside the legacy
+    vocab the naming stems / id / tell consumers read."""
+    from exp.k13_treegen.flora.derive import FLOWER_COLOR_VOCAB
+    for n in tree1.nodes.values():
+        if n.rank is Rank.SPECIES:
+            assert n.axes.get("flower_color") in FLOWER_COLOR_VOCAB, n.path
+
+
+def test_derived_flower_color_presets(tree1):
+    """The archetype (order) records reproduce the authored palette
+    colors — the mechanical migration (authored color -> nearest
+    pathway + expression + ph position) keeps the F0 colors stable."""
+    expected = {
+        "tree.oak": "green", "tree.conifer": "green", "tree.birch": "green",
+        "tree.willow": "green", "tree.palm": "cream",
+        "shrub.bramble": "white", "shrub.heath": "pink",
+        "herb_forb.carrot": "white", "herb_forb.chive": "pink",
+        "herb_forb.forb": "white", "herb_forb.grave_flower": "white",
+        "herb_forb.iris": "purple", "herb_forb.legume": "pink",
+        "herb_forb.thistle": "purple", "herb_forb.yarrow": "white",
+        "grass_sward.bamboo": "green", "grass_sward.reed": "brown",
+        "grass_sward.sedge": "brown", "grass_sward.tussock": "brown",
+        "succulent.cactus": "red", "rosette_mat.ice_crown": "white",
+        "rosette_mat.stonecrop": "yellow",
+        "fern_grade.bracken": "brown",
+        "moss_grade.cushion": "green", "moss_grade.sphagnum": "green",
+        "runner_meadow.seagrass": "green",
+        "floating_leaf.ludwigia": "yellow", "floating_leaf.waterlily": "white",
+        "floater.duckweed": "green",
+        "macroalgae_holdfast.kelp": "brown",
+        "coral_grade.branching_coral": "brown",
+        "sponge_grade.barrel_sponge": "brown",
+        "fungus.agaric": "brown", "fungus.bracket": "brown",
+        "lichen.crust": "brown",
+    }
+    by_order = {}
+    for n in tree1.nodes.values():
+        if n.rank is Rank.ORDER and n.preset:
+            by_order.setdefault(n.preset, n.axes.get("flower_color"))
+    for pid, want in expected.items():
+        assert by_order.get(pid) == want, (pid, by_order.get(pid))
+
+
+def test_built_species_single_pigment_pathway(tree1):
+    """B5 §8.6: the sampler commits exactly one legal pathway per seed
+    species (anthocyanin ⊥ betalain by construction) — every committed
+    value is a registry state and never both."""
+    from exp.k13_treegen.flora.derive import PIGMENT_PATHWAYS
+    for n in tree1.nodes.values():
+        if n.rank is Rank.SPECIES and n.axes.get("pigment_pathway") is not None:
+            p = n.axes["pigment_pathway"]
+            assert p in PIGMENT_PATHWAYS, (n.path, p)
+            assert not (p == "anthocyanin" and
+                        n.axes.get("pigment_pathway") == "betalain")
 
 
 # ── nomenclature ───────────────────────────────────────────────────────

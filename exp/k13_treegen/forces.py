@@ -231,9 +231,10 @@ def _mutate_scalar(spec: AxisSpec, x: float, dg: float, g: float,
 
 # enum axes whose legal states are palette-restricted (M3: the sampler
 # must respect palettes, not just authored content — the first named
-# build produced 71 green/iridescent tetrapods without this). K14 flora:
-# flower_color is the same mechanism (plan palettes, syndrome-color
-# correlation stays a k14 constraint, not a palette cut).
+# build produced 71 green/iridescent tetrapods without this). K14 flora
+# flower_color was the same mechanism pre-B5 §5.2; it is DERIVED now
+# (flora DERIVED_AXES — never sampled), so the palette cut no longer
+# applies to it and the entry stays only for the shared fauna axes.
 COLOR_AXES = ("base_color", "belly_color", "accent_color", "flower_color")
 
 # vertical_stratum redraw legality (user: "Canis giganteus is an aerial

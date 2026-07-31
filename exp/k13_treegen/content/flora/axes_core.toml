@@ -334,6 +334,13 @@ plan_scope = "all"
 consumers = ["runaway", "id", "name"]
 salience = 0.3
 
+# flower_color is DERIVED, not a drifted trait (B5 §5.2 owner ruling):
+# computed at derive time from pigment_pathway × pigment_expression ×
+# ph_tolerance position (see flora/derive.py). Registry presence only
+# feeds naming salience and part grammar — the sampler never moves it
+# (it sits in the flora DERIVED_AXES set; the drift substrate is
+# pigment_expression). States are the legacy vocab the naming stems
+# (stems_flora.toml color pools), id, and tell consumers read.
 [axis.flower_color]
 block = "patternation"
 tier = "labile"
@@ -342,9 +349,33 @@ mutation = "enum_redraw"
 states = ["white", "cream", "yellow", "orange", "red", "pink",
           "purple", "blue", "green", "brown", "black"]
 plan_scope = "all"
-consumers = ["runaway", "id", "name", "tell"]
+consumers = ["id", "name", "tell"]
 salience = 0.6
 grammar_role = "part"
+
+# ── pigment chemistry (B5 §5.2; the order tuple "chemistry" slot) ───────
+[axis.pigment_pathway]
+block = "patternation"
+tier = "invariant"
+value_type = "enum"
+mutation = "none"
+states = ["none", "anthocyanin", "carotenoid", "betalain"]
+plan_scope = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat",
+              "succulent", "runner_meadow", "floating_leaf", "floater"]
+consumers = ["id", "name", "tell"]
+salience = 0.3
+
+[axis.pigment_expression]
+block = "patternation"
+tier = "labile"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]                # 0 unpigmented .. 1 deep saturation
+plan_scope = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat",
+              "succulent", "runner_meadow", "floating_leaf", "floater"]
+consumers = ["runaway", "id", "name", "tell"]
+salience = 0.5
 
 [axis.flower_size_mm]
 block = "patternation"
@@ -720,6 +751,21 @@ value_type = "scalar"
 mutation = "ratio"
 sigma = 0.1
 bounds = [0.0, 1.0]                # HAND band (mangrove/wetland grades)
+plan_scope = "all"
+consumers = ["stress"]
+salience = 0.2
+
+[axis.ph_tolerance]
+block = "niche"
+tier = "steady"
+value_type = "scalar"
+mutation = "ratio"
+sigma = 0.1
+bounds = [0.0, 1.0]                # POSITION: 0 → obligate calcifuge
+                                  # (opt ≈ pH 4), 1 → obligate calcicole
+                                  # (opt ≈ pH 9); pH optimum = 4.0 + 5.0×value,
+                                  # breadth fixed ±1.0 (B5 §5.1). Position
+                                  # drifts so radiation can cross the split.
 plan_scope = "all"
 consumers = ["stress"]
 salience = 0.2

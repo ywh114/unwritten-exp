@@ -1,8 +1,11 @@
-# K14 flora — flower-color palettes per plan. Seed plans: full gamut
-# (syndrome-color correlation is a CONSTRAINT, not a palette cut —
-# wind-pollinated lineages stay dull via the constraint rules, not by
-# making red illegal). Spore/decomposer plans: spore-mass colors only.
-# Lint checks preset/pin flower_color against these.
+# K14 flora — flower-color palettes per plan. SUPERSEDED by B5 §5.2
+# (pathway gating): flower_color is now a DERIVED bucket computed from
+# pigment_pathway × pigment_expression × ph_tolerance at derive time,
+# and per-plan color legality is enforced by the pigment constraint
+# rules (wind → none, insect → not none, bird → saturated pigment) and
+# metrics.check_pigment_legality — NOT by this file. Kept for reference
+# and structural compatibility (content.py still loads it; nothing
+# enforces it since flower_color is never sampled).
 
 [palette.tree]
 colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",

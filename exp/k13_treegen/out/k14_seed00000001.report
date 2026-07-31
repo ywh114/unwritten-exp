@@ -5,6 +5,6 @@ diversity: 0
 frozen_axis: 0
 g_clock: 0
 nomenclature: 0
-palette_legality: 0
+pigment_legality: 0
 pin_coherence: 0
 pin_integration: 0

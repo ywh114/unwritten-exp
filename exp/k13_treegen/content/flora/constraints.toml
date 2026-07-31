@@ -25,20 +25,24 @@ id = "c4_warm_open"
 when = { axis = "photosynthesis", state = "C4" }
 require_min = { drought_tolerance = 0.4 }
 
-# Wind pollination: small, dull, petal-less flowers. Showy colors are
-# animal-advertising and are snapped out.
+# Wind pollination: small, dull, petal-less flowers. Showy pigments are
+# animal-advertising and are snapped out — B5 §5.2 gates the PATHWAY
+# (flower_color is derived, not snapped): wind lineages are
+# pigment_pathway "none" (the dull wind set).
 [[rule]]
 id = "wind_poll_inconspicuous"
 when = { axis = "pollination_syndrome", state = "wind" }
 require_max = { flower_size_mm = 5.0 }
-forbid_enum = { flower_color = ["red", "pink", "purple", "blue", "orange"] }
+require_enum = { pigment_pathway = ["none"] }
 
-# Bird syndrome: red, odorless, copious (the mirror of wind).
+# Bird syndrome: red, odorless, copious (the mirror of wind). The hue
+# follows ph_tolerance position; the rule guarantees a saturated pigment
+# on a red-capable pathway (anthocyanin acid-red, carotenoid orange-red).
 [[rule]]
 id = "bird_syndrome_red"
 when = { axis = "pollination_syndrome", state = "bird" }
-require_min = { flower_size_mm = 10.0 }
-require_enum = { flower_color = ["red", "orange"] }
+require_min = { flower_size_mm = 10.0, pigment_expression = 0.5 }
+require_enum = { pigment_pathway = ["anthocyanin", "carotenoid"] }
 
 # Serotiny only exists where fire is a regime the clade answers — and
 # only on woody plans (a moss cannot be serotinous).
@@ -178,11 +182,23 @@ id = "sporangium_plans"
 when = { axis = "fruit_type", state = "sporangium" }
 state_plans = ["moss_grade", "fungus", "lichen", "coral_grade", "sponge_grade"]
 
-# Insect-pollinated flowers ADVERTISE: green/brown/black are camouflage
-# (the wind-pollinated palette), not insect signals. Bee vision is
-# blue/yellow/white-forward; brown/green insect flowers are the wind
-# syndrome wearing the wrong label.
+# Insect-pollinated flowers ADVERTISE: the dull wind set (green/brown/
+# black — only reachable from the "none" pathway or ~0 expression) is
+# camouflage, not an insect signal. Bee vision is blue/yellow/white-
+# forward; the "none" pathway is the wind syndrome wearing the wrong
+# label, so it snaps to a pigment pathway (B5 §5.2 trait-side gate —
+# flower_color itself is derived and never snapped).
 [[rule]]
 id = "insect_syndrome_showy"
 when = { axis = "pollination_syndrome", state = ["bee", "moth", "beetle", "fly"] }
-forbid_enum = { flower_color = ["green", "brown", "black"] }
+forbid_enum = { pigment_pathway = ["none"] }
+
+# Pigment chemistry is mutually exclusive in real biochemistry
+# (anthocyanin ⊥ betalain — the Caryophyllales rule; B5 §5.2 §8.6). The
+# enum is single-valued so the sampler can never commit both; this rule
+# is the explicit legality gate for the pairing (the CAM↔succulence
+# house pattern), guarding the order-tuple "chemistry" slot.
+[[rule]]
+id = "pigment_anthocyanin_betalain_exclusive"
+when = { axis = "pigment_pathway", state = "anthocyanin" }
+forbid_enum = { pigment_pathway = ["betalain"] }

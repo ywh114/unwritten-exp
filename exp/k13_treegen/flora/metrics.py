@@ -331,19 +331,25 @@ def check_nomenclature(tree: Tree, pack: ContentPack) -> list[str]:
     return errs
 
 
-def check_palette_legality(tree: Tree, pack: ContentPack) -> list[str]:
-    """The SAMPLER must respect palettes too — no generated species
-    outside its plan flower palette (+ preset extras)."""
+def check_pigment_legality(tree: Tree, pack: ContentPack) -> list[str]:
+    """B5 §5.2 / §8.6: per-plan color palettes are superseded by pathway
+    gating (palettes.toml is kept for reference only). The standing
+    pigment gate: every species' derived flower_color stays inside the
+    legacy vocab the stems/id/tell consumers read, and every committed
+    pigment_pathway is a legal single value (anthocyanin ⊥ betalain is
+    the enum's single-valuedness — the sampler can never commit both)."""
+    from exp.k13_treegen.flora.derive import FLOWER_COLOR_VOCAB, \
+        PIGMENT_PATHWAYS
     errs: list[str] = []
     for n in _species(tree):
-        legal = pack.palettes.get(n.plan or "", [])
-        preset = pack.presets.get(n.preset or "", {})
-        legal = legal + list(preset.get("preset", {})
-                             .get("palette_extra", []))
         c = n.axes.get("flower_color")
-        if c is not None and c != "N/A" and c not in legal:
-            errs.append(f"{n.path}: flower_color {c!r} outside {n.plan} "
-                        f"palette (sampler legality)")
+        if c is not None and c != "N/A" and c not in FLOWER_COLOR_VOCAB:
+            errs.append(f"{n.path}: derived flower_color {c!r} outside "
+                        f"the legacy vocab (naming regression)")
+        p = n.axes.get("pigment_pathway")
+        if p is not None and p not in PIGMENT_PATHWAYS:
+            errs.append(f"{n.path}: pigment_pathway {p!r} not in "
+                        f"{list(PIGMENT_PATHWAYS)}")
     return errs
 
 
@@ -356,7 +362,7 @@ CHECKS = [
     ("backbone", check_backbone),
     ("pin_integration", check_pin_integration),
     ("nomenclature", check_nomenclature),
-    ("palette_legality", check_palette_legality),
+    ("pigment_legality", check_pigment_legality),
 ]
 
 
