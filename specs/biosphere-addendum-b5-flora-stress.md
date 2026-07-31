@@ -10,23 +10,49 @@ B3 (ground), B4 (water column, `water_ph`).
 
 ## 1. Intent (owner ruling 2026-07-30)
 
-**Stress is a driver, not a filter.** The pass produces a continuous
-cost field per (taxon, cell, month) ∈ [0, 1]. It issues NO verdicts —
-no passable/costly/blocked masks (this supersedes the build plan's P7
-wording). Downstream consumers decide what cost means:
+**Stress is a driver, not a filter — and it is SIGNED.** The pass
+produces a continuous environmental stress per (taxon, cell, month)
+on **[−1, +1]**: s > 0 costs (1 = lethal), s = 0 is the viability
+breakeven, s < 0 is VIGOR (−1 = every axis optimal; the good end
+keeps its gradient — "acceptable" and "ideal" do not both read 0).
+It issues NO verdicts — no passable/costly/blocked masks (this
+supersedes the build plan's P7 wording). Downstream consumers read
+vital rates from it:
 
-- **P8 dispersal**: diffusion is biased toward low-stress cells; high
-  stress discounts, never walls (water-riding upstream-of-waterfall
-  rules are P8's own geodesic constraints, not stress).
-- **Rounds (population)**: high-stress regions shrink the local
-  population — and the same stress is the selection pressure that
-  ADAPTS the local population (traits drift toward the local
-  environment). A taxon with high stress everywhere is not illegal; it
-  is rare, marginal, or adapting. There are no paper-taxon gates in
-  `evolve`.
-- **P9 competition**: enters through productivity/carrying capacity,
-  not through additional stress terms. P7 never reads the productivity
-  fields.
+- **P8 dispersal**: the movement kernels (wind, water, local scatter,
+  rare jumps) are stress-BLIND — wind doesn't know the map. Stress
+  acts AFTER arrival, on establishment and survival, never on
+  movement (water-riding upstream-of-waterfall rules are P8's own
+  geodesic constraints, not stress).
+- **Two-density accounting** (why there is no sink bleed):
+  ESTABLISHED density — the persistent cloud, the drawn range —
+  grows where s < 0 (toward the productivity carrying capacity,
+  where P9 enters) and shrinks where s > 0. PROPAGULE RAIN — kernel
+  arrivals — is cheap: production is effectively unlimited at L0
+  granularity, so rain dying in a hostile cell costs the parent
+  nothing and accumulates nothing. The VANGUARD is the leading edge
+  where rain establishes at s ≈ 0: a small pioneer population that
+  hangs on, ADAPTS (local trait drift lowers its s over rounds), and
+  either founders a real population or flickers out — never a
+  standing population bleeding into a sink.
+- **Rounds (population)**: growth rate scales with max(−s, 0),
+  mortality with max(s, 0); the same stress is the selection pressure
+  that adapts the local population. A taxon with high stress
+  everywhere is not illegal; it is rare, marginal, or adapting. No
+  paper-taxon gates in `evolve`.
+- **Density (internal) stress**: crowding is a ROUND-TIME term on the
+  same scale, not a P7 input (P7 is a pure function of record ×
+  world; density is state the rounds own):
+  `s_realized = s_env + c · (total demand / N)`, N = the cell's
+  productivity carrying capacity. Per-capita growth ∝ −s_realized.
+  Equilibrium: every resident's realized growth hits zero together,
+  so CLOSE suitabilities coexist at a ratio (the weaker is squeezed,
+  not excluded — its shrinking density relieves the crowding that
+  was killing it) and only LARGE margins take over. Competition "via
+  productivity" is literal: N is the density term's denominator. The
+  constant c lives in the rounds/P9 spec.
+- **P9 competition**: enters through the density term above (P9's
+  `suit` is −s). P7 itself never reads the productivity fields.
 
 The one near-absolute: the **medium boundary** (a land plan on an
 ocean cell, a submerged plan on dry land) costs ≈ 1 always, modulo the
@@ -42,9 +68,10 @@ discipline).
 
 ## 2. The primitive and its form
 
-`stress(record, cell, month) → [0, 1]` — a pure, vectorized function
-(build plan decision 2). Rounds integrate over 12 months; the game
-queries one date. **No per-taxon state is persisted**: the function
+`s_env(record, cell, month) → [−1, +1]` — a pure, vectorized function
+(build plan decision 2). Rounds integrate over 12 months and add the
+density term (§1); the game queries one date. **No per-taxon state is
+persisted**: the function
 evaluates lazily over the persisted world components (§3) and the
 species record. This makes storage flat in taxon count (150 species ≈
 3–5 s; the ~10³-species radiated tree ≈ 30 s, batchable by plan-shared
@@ -76,16 +103,19 @@ water plans read `water_ph`; mangrove-grade reads both (dual-domain).
 
 ## 4. The stress function
 
-Three strata, combined as a probabilistic OR:
+Each stratum yields a suitability `f ∈ [0, 1]` (1 = optimal, 0 =
+lethal); strata multiply, and the emitted stress is signed:
 
 ```
-s = 1 − Π_strata (1 − s_stratum)        s, s_stratum ∈ [0, 1]
+F = Π_strata f_stratum          F ∈ [0, 1]
+s_env = 1 − 2·F                 s ∈ [−1, +1]
 ```
 
-The OR makes any near-1 term dominate (Liebig semantics in the tail:
-one failed non-compensable → cost ≈ 1) while mid-range terms blend
-smoothly. No term ever hard-zeros another; the product form just
-bounds the sum at 1.
+The product keeps Liebig tail-dominance (one failed non-compensable →
+F ≈ 0 → s ≈ +1) AND the good end's gradient (F near 1 only when every
+axis is near-optimal → s → −1); s = 0 is the breakeven the vanguard
+sits at. The additive climate distance below reads `f = 1 − s_clim`;
+the one-sided ground/tail terms read `f = 1 − sat(term)`.
 
 ### 4.1 Climate stratum (monthly, compensable — fauna §3 shape)
 
@@ -263,3 +293,7 @@ record property.
    `flower_color` matches the legacy enum's consumers (stems, id, tell)
    with no naming regressions on the 35 presets.
 7. Budget: full 150-species annual evaluation ≤ 5 s on seed 1.
+8. Signed scale: an every-axis-near-optimal cell for a given taxon
+   reads s < 0 (vigor gradient preserved — a merely acceptable cell
+   reads closer to 0); the breakeven s = 0 separates establishment
+   from decline in the rounds contract.
