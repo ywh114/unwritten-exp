@@ -665,7 +665,8 @@ def _ground_terms(view: dict, ctx: WorldContext,
     """B5 §4.2 for LAND (and dual) plans: water availability and
     waterlogging (wet-obligate plans read fresh_availability for both —
     owner ruling 2026-08-01) monthly; fertility, pH, salinity annual
-    best-of-class (the mix's patches, not its mean)."""
+    best-of-class (the mix's patches, not its mean). Water terms are
+    dormant-month gated (below GROW_T_C: no uptake, no waterlogging)."""
     H, W = ctx.H, ctx.W
     opt_p = _f(view.get("moisture_opt"))
     drought = _f(view.get("drought_tolerance"))
@@ -694,6 +695,14 @@ def _ground_terms(view: dict, ctx: WorldContext,
             f_wlog = excess_suit(ctx.water_potential,
                                  np.float32(WLOG_DRY_LIMIT),
                                  np.float32(WLOG_DRY_REF))
+
+    # growing-season dormancy (the climate ruling applied to uptake):
+    # a dormant plant does not transpire and frozen ground does not
+    # waterlog roots — no water/waterlogging cost below GROW_T_C.
+    if not int(view.get("submerged") or 0):
+        grow = ctx.t_c >= np.float32(GROW_T_C)
+        f_water = np.where(grow, f_water, np.float32(1.0))
+        f_wlog = np.where(grow, f_wlog, np.float32(1.0))
 
     out = {
         REQ_WATER: f_water.astype(np.float32),

@@ -43,7 +43,7 @@ import numpy as np
 from exp.k13_treegen.flora.__main__ import CONTENT as FLORA_CONTENT
 from exp.k13_treegen.flora.content import ContentPack, load_content
 from exp.k13_treegen.model import Rank, Tree
-from exp.k14_worldprod.derived import _spread_max
+from exp.k14_worldprod.derived import GROW_T_C, _spread_max
 from exp.k14_worldprod.ground import GROUND_ID
 from exp.k15_simdiff.stress_adapter import (
     WorldContext,
@@ -69,8 +69,12 @@ MARSH_FRESH = 0.6
 # class is fen/bog/gleysol.
 WETLAND_CLASSES = (GROUND_ID["fen"], GROUND_ID["bog"], GROUND_ID["gleysol"])
 # arid band for the xeric check: annual-mean normalized P below this
-# (~80 mm/yr at 400 mm/month max).
+# (~80 mm/yr at 400 mm/month max). The preset is a HOT-desert CAM
+# succulent — since the biome split added cold deserts, the band is
+# further gated to growing-season mean T above ARID_T_GS (cool arid
+# belongs to the stonecrop grade, not this one).
 ARID_P_ANN = 0.2
+ARID_T_GS = 18.0
 # kelp-grade substrate/depth bands (B5 §8.4): eff_hard mix share and
 # column-depth thresholds.
 KELP_HARD = 0.7
@@ -157,15 +161,19 @@ def check_mangrove(ctx: WorldContext, pack: ContentPack,
 
 def check_xeric(ctx: WorldContext, pack: ContentPack,
                 dist_ocean) -> tuple[bool, str]:
-    """B5 §8.3: high stress on wetland cells, low in the arid band —
-    measured on the engine's worst-month stress (the dormancy gate
-    makes annual means read mild; the growing-season worst month is
-    what the rounds cache)."""
+    """B5 §8.3: high stress on wetland cells, low in the HOT arid band
+    (the preset is a hot-desert CAM succulent; cool arid is the
+    stonecrop grade's habitat) — measured on the engine's worst-month
+    stress (the dormancy gate makes annual means read mild; the
+    growing-season worst month is what the rounds cache)."""
     c = worst_stress(evaluate(preset_view(XERIC_PRESET, pack), ctx))
     land = ctx.land_cell
     wetland = land & np.isin(ctx.ground_class, list(WETLAND_CLASSES))
     p_ann = ctx.p_norm.mean(axis=0)
-    arid = land & (p_ann < ARID_P_ANN)
+    grow = ctx.t_c >= np.float32(GROW_T_C)
+    t_gs = ((ctx.t_c * grow).sum(axis=0)
+            / np.maximum(grow.sum(axis=0), 1))
+    arid = land & (p_ann < ARID_P_ANN) & (t_gs > ARID_T_GS)
     y, x = np.unravel_index(np.argmin(c), c.shape)
     w_mean = float(c[wetland].mean())
     a_mean = float(c[arid].mean())

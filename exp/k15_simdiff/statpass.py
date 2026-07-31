@@ -47,8 +47,8 @@ K14_OUT = Path("exp/k14_worldprod/out")
 
 # ── spec §13 defaults under settlement (cal) ──────────────────────────
 ROUND_YEARS = 100
-GENESIS_F = 0.6
-EST_F_MIN = 0.35
+GENESIS_F = 0.5      # settled 2026-08-01 (stat pass seeds 1-3)
+EST_F_MIN = 0.3      # settled 2026-08-01 (stat pass seeds 1-3)
 N_FLOOR = 0.01
 BIOMASS_REF = 25.0
 PROD_CAP_SCALE = 1.0
