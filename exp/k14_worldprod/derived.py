@@ -709,6 +709,24 @@ def build(seed: int) -> dict:
                             0.0))
     products["water_ph"] = np.where(d_ocean | d_fresh_w, wph, 0.0)
 
+    # B5 plant water relations (owner ruling 2026-07-31): the effective
+    # ground properties (B5 §3 shared precompute, anchor res — consumed
+    # by the stress engine later), then the two monthly water fields —
+    # water_potential (soil water status, land) and fresh_availability
+    # (unwritten freshwater habitat, land + fresh water).
+    from exp.k14_worldprod.ground import eff_props
+    from exp.k14_worldprod import moisture as _moist
+    eff = eff_props(g["mix_ids"], g["mix_w"])
+    for k, a in eff.items():
+        products[f"ground_eff_{k}"] = a
+    mo = _moist.build_moisture(z, sea, eff)
+    products["water_potential"] = np.stack(
+        [np.where(d_land, _upsample(mo["water_potential"][m], factor), 0.0)
+         for m in range(12)])
+    products["fresh_availability"] = np.stack(
+        [np.where(~d_ocean, _upsample(mo["fresh_availability"][m], factor),
+                  0.0) for m in range(12)])
+
     # points carry anchor coords; scale to delivery for the viewer
     # (waterfalls already snapped to the delivered river line above)
     for name, lst in points.items():

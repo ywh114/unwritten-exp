@@ -109,6 +109,22 @@ mix — `mix_ph` is pointwise).
 Ground pH vs water pH by plan medium: land plans read `ground_ph`,
 water plans read `water_ph`; mangrove-grade reads both (dual-domain).
 
+Water relations (K14 `moisture` products, monthly, anchor — owner
+ruling 2026-07-31): `water_potential` [0,1] land — the UNIFIED soil
+water-status field (retention-weighted monthly P vs T-driven demand;
+saturation end from HAND × retention × catchment feed; frozen months
+lock water as ice; the osmotic salinity penalty is baked in).
+`fresh_availability` [0,1] — UNWRITTEN freshwater habitat (§7.2):
+mapped fresh water = 1; implicit habitat on land capped at 0.8, from
+sub-threshold flow accumulation (the river field, thresholded lower —
+no parallel hydrology), ponding (HAND × flatness × retention × feed),
+and water adjacency; permanence vs seasonality from catchment size and
+the monthly water balance. The effective ground properties
+(`eff_retention`, `eff_nutrient`, `eff_rooting_m`, `eff_sal_add`,
+`eff_hard`, `eff_loose`) exist as persisted anchor rasters
+(`ground_eff_*` in derived.npz) — the §6 shared-precompute clause,
+implemented.
+
 ## 4. The stress function
 
 Each stratum yields a suitability `f ∈ [0, 1]` (1 = optimal, 0 =
@@ -148,17 +164,18 @@ s_clim(m) = Σ_i w_i · sat(|env_i(m) − opt_i| / breadth_i)   i ∈ {T, P}
 - `photosynthesis` path interacts with cold: C4/CAM carry a cold
   penalty term, C3 none.
 
-### 4.2 Ground stratum (annual, one-sided saturating terms)
+### 4.2 Ground stratum (one-sided saturating terms)
 
-Each is a one-sided `sat()` against the effective properties of §3:
+Each is a one-sided `sat()` against the effective properties of §3
+(water terms are monthly via `water_potential`; the rest annual):
 
 | term | env side | trait side | note |
 |---|---|---|---|
-| water availability | monthly P × `eff_retention` | moisture need, `drought_tolerance` | marries 4.1's P term to the soil |
-| waterlogging | `eff_retention` ≈ 1, low HAND | `waterlogging_tolerance` | high tolerance INVERTS to a requirement (mangrove/wetland grades) |
+| water availability | `water_potential` (dry end) | moisture need, `drought_tolerance` | the unified field — monthly P × retention is INSIDE it |
+| waterlogging | `water_potential` saturated end | `waterlogging_tolerance` | high tolerance INVERTS to a requirement (mangrove/wetland grades) |
 | fertility | `eff_nutrient` | `fertility_requirement` | low requirement on rich soil is not penalized |
 | pH | `ground_ph` / `water_ph` (by medium) | `ph_tolerance` (§5.1) | the calcicole/calcifuge split |
-| salinity | `eff_sal_add` / `h_salinity` | `salinity_tolerance` | underwater rows read the water |
+| salinity (ionic) | `eff_sal_add` / `h_salinity` | `salinity_tolerance` | underwater rows read the water; the OSMOTIC half already rides `water_potential` — solonchak is doubly hostile, which is realistic |
 
 ### 4.3 Tail terms (steep; cost → ≈1, never a verdict)
 
@@ -184,6 +201,17 @@ Each is a one-sided `sat()` against the effective properties of §3:
   light, never a direct "tree pressure" term.
 - **Light on land**: v1 has no separate insolation product; T carries
   the latitudinal signal. Flag, don't build.
+
+### 4.5 Freshwater habitat stratum (owner ruling 2026-07-31)
+
+Freshwater plans read `fresh_availability` as their habitat term `f`:
+mapped water = 1 (rivers in their wet months; lakes and mangrove
+always), implicit habitat on land GRADED (unwritten creeks/ponds —
+§3) and capped at 0.8, never equal to mapped water. Marine obligates
+stay strict: there is no implicit ocean on land — the medium boundary
+(§1) stands. The land-cell density this produces means "present in
+the cell's unwritten hydrology"; L1/L2 consumes the SAME field as the
+pond/creek PLACEMENT PRIOR — biology locates the water it needs.
 
 ## 5. Content changes
 
@@ -266,9 +294,9 @@ record property.
 
 - Persisted: nothing per-taxon. The world components of §3 are already
   on disk (`world.npz`, `derived.npz`); the ground property reduction
-  is 7 anchor rasters, computed once per world, persistable as part of
-  the D0 products (game-loadable, per decision 2's shared-precompute
-  clause).
+  (`ground_eff_*` anchor rasters) and the monthly `water_potential` /
+  `fresh_availability` fields are D0 products, computed once per world
+  (game-loadable, per decision 2's shared-precompute clause).
 - Budget: ~10 axis terms × 65k cells × 12 months ≈ 10⁷ elementwise
   ops per taxon — tens of ms vectorized; climate stratum batched
   across taxa (all share the 12 monthly world fields).
@@ -307,6 +335,20 @@ light field, so understory stress reads `light` (a resource/field
 term), not "tree competition". Only field-less biotics (predation)
 travel as direct provenance pressures. P9 consequence: the canopy
 WRITES the light field; consumers read it.
+
+### 7.2 Aquatic implicit habitat (owner ruling 2026-07-31)
+
+Freshwater flora may persist in UNWRITTEN freshwater hydrology
+(graded, capped below mapped water) rather than being confined to
+mapped water with L1/L2 interpolation; marine obligates stay
+water-only. The detection field (`fresh_availability`, §3) is built
+from the hydrology side — sub-threshold flow accumulation, ponding,
+adjacency — NOT from `water_potential`: saturated soil is not open
+water (a bog scores top water potential and offers a duckweed
+nothing; a creekside loam scores moderate potential while its creek
+holds a pond community). Division of labor: `water_potential` = how
+the soil treats roots; `fresh_availability` = whether habitat exists
+(and where L1/L2 writes ponds); `water_ph` = the chemistry once in.
 
 ## 8. Acceptance (seed 1)
 

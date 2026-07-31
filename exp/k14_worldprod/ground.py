@@ -754,6 +754,36 @@ def mix_ph(mix_ids: np.ndarray, mix_w: np.ndarray) -> np.ndarray:
     return (mix_w * CLASS_PH[mix_ids]).sum(axis=0).astype(np.float32)
 
 
+# Effective-property tables (B5 §3): the consume-time reduction of the
+# class property rows, mix-weighted like mix_ph. sal_add is None for
+# underwater rows (the water's own salinity is the water module's) -> 0
+# here; hard/loose become mix SHARES of flagged classes.
+_PROP_TABLES = {
+    "retention": np.array([c["retention"] for c in GROUND_CLASSES],
+                          dtype=np.float32),
+    "nutrient": np.array([c["nutrient"] for c in GROUND_CLASSES],
+                         dtype=np.float32),
+    "rooting_m": np.array([c["rooting_m"] for c in GROUND_CLASSES],
+                          dtype=np.float32),
+    "sal_add": np.array([c["sal_add"] or 0.0 for c in GROUND_CLASSES],
+                        dtype=np.float32),
+    "hard": np.array([1.0 if c["hard"] else 0.0 for c in GROUND_CLASSES],
+                     dtype=np.float32),
+    "loose": np.array([1.0 if c["loose"] else 0.0 for c in GROUND_CLASSES],
+                      dtype=np.float32),
+}
+
+
+def eff_props(mix_ids: np.ndarray, mix_w: np.ndarray) -> dict:
+    """Consume-time effective-property rasters (B5 §3 shared precompute):
+    the top-3 mix-weighted mean of each class property row — eff_retention,
+    eff_nutrient, eff_rooting_m, eff_sal_add, eff_hard, eff_loose (the
+    eff_ prefix is the consumers'). Pointwise like mix_ph, so the same
+    helper serves anchor and delivery-res mixes."""
+    return {name: (mix_w * table[mix_ids]).sum(axis=0).astype(np.float32)
+            for name, table in _PROP_TABLES.items()}
+
+
 # ── delivery-resolution re-derivation (de-blocking) ─────────────────────
 # The classification rule is POINTWISE per cell, so it reruns at delivery
 # res (1024²) instead of kron-stamping the anchor map into 4x4 px blocks —

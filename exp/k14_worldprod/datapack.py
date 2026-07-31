@@ -206,6 +206,12 @@ def build_pack(result: dict, out_path: Path) -> Path:
     # peat; "water" mask = ocean|sea|lake|river in the viewer
     continuous("water_ph", "Water pH", "water_ph", 3.5, 9.5, RAMP_PH,
                0.6, "water", "")
+    # B5 plant water relations — monthly
+    continuous("water_potential", "Water potential", "water_potential",
+               0, 1, RAMP_PULSE, 0.6, "land", "", month_dim=12)
+    continuous("fresh_avail", "Freshwater availability",
+               "fresh_availability", 0, 1, RAMP_FRESH, 0.6, None, "",
+               month_dim=12)
 
     for pid, label, color in (
             ("waterfalls", "Waterfalls", [80, 200, 240]),
