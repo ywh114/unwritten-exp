@@ -1,0 +1,157 @@
+# K14 flora — stress_response.toml: select() routing table (the sim-era
+# organism side; consumed by exp.k13_treegen.flora.sim.FloraSim.select via
+# the ContentPack). One [[responder]] table per requirement name from
+# exp/k15_simdiff/req_flora.py — the names are ENV-defined and used
+# EXACTLY here; select() dispatches on them and never reinterprets.
+#
+# Each responders row is ONE driftable responder:
+#
+#   { trait = "drought_tolerance", dir = "up", weight = 1.0 }
+#       continuous (scalar/int) axis: pressure is signed by dir
+#       ("up" = raise, "down" = lower); magnitude = (1 - suitability) x
+#       weight — the worse the factor, the harder the push.
+#   { trait = "leaf_persistence", toward = ["winter_deciduous"], weight = 1.0 }
+#       discrete enum axis: pressure is a magnitude; past
+#       DISCRETE_THRESHOLD (sim.py) it becomes a switch propensity
+#       resolved by an rng draw among these target states, intersected
+#       with the axis registry states AND the constraint gate.
+#   { generic = "phenology", toward = ["winter_deciduous"], weight = 1.0 }
+#       discrete plan generic: same, targets intersected with the plan's
+#       permission table (model.rebind legality).
+#   { trait = "ph_tolerance", dir = "context", weight = 1.0 }
+#       direction-from-context: the sign is resolved per-verdict by the
+#       documented hedge rule (sim.py module docstring) — the verdict
+#       carries only the suitability factor, never which side of the
+#       optimum the cell sits on.
+#
+# PRINCIPLE (interface ruling): a requirement with NO driftable responder
+# maps to an EMPTY responders list. select() then emits no pressure — the
+# lineage accumulates nowhere and simply shrinks where it is unsuitable
+# (that is intended). pressure:climate is that case (its terms are the
+# [niche] metadata baseline, which never drifts — see the row comment);
+# pressure:medium too (medium is plan-level registry data).
+
+[[responder]]
+name = "pressure:climate"
+responders = []
+# The climate factor (B5 §4.1) is dominated by (T, P) distance from the
+# [niche] baseline — clade METADATA, never a stored trait, so nothing
+# driftable answers it. The growing-season and drought-widening sub-terms
+# are folded into pressure:water's drought_tolerance route; routing them
+# here too would double-count the same dial, so climate is left with no
+# target and unsuitable lineages shrink there.
+
+[[responder]]
+name = "pressure:bloom_frost"
+responders = [
+    { trait = "bloom_start_month", dir = "up", weight = 1.0 },
+    { trait = "leafout_month", dir = "up", weight = 1.0 },
+    { trait = "bloom_length_months", dir = "down", weight = 0.5 },
+    { trait = "leaf_persistence", toward = ["winter_deciduous"], weight = 1.0 },
+    { trait = "deciduous_trigger", toward = ["winter"], weight = 1.0 },
+    { generic = "phenology", toward = ["winter_deciduous"], weight = 1.0 }
+]
+# A frost in the bloom window (B5 §4.1, "costly, never lethal") is
+# answered by shifting the window later, shortening it, leafing out later
+# (dormant months carry no cold cost), and taking the deciduous route —
+# dormancy is the frost-safe state.
+
+[[responder]]
+name = "pressure:water"
+responders = [
+    { trait = "drought_tolerance", dir = "up", weight = 1.0 },
+    { trait = "succulence", dir = "up", weight = 0.5 },
+    { trait = "cuticle_thickness", dir = "up", weight = 0.3 }
+]
+# Dry-end shortfall (water_potential below moisture_opt x (1 - drought_
+# tolerance)): raise drought_tolerance directly — it both lowers the
+# water need AND widens the dry side of the moisture breadth. Succulence
+# is the water-storage answer (and the CAM rule requires it); cuticle
+# thickness trims transpiration.
+
+[[responder]]
+name = "pressure:waterlogging"
+responders = [
+    { trait = "waterlogging_tolerance", dir = "up", weight = 1.0 }
+]
+# Saturated end: wet-tolerance is the single driftable answer.
+# Pneumatophore root_special is a woody-plant part owned by the plan gate
+# (state_plans), not a pressure target here.
+
+[[responder]]
+name = "pressure:fertility"
+responders = [
+    { trait = "fertility_requirement", dir = "down", weight = 1.0 },
+    { trait = "mycorrhizal", toward = ["arbuscular", "ecto", "ericoid", "orchid"], weight = 0.5 },
+    { trait = "n_fixation", toward = ["rhizobium", "frankia", "cyanobacterial"], weight = 0.5 }
+]
+# eff_nutrient shortfall: lower the requirement (need less) AND gain
+# symbiont acquisition — mycorrhizal and N-fixing partners feed the plant
+# where the soil does not.
+
+[[responder]]
+name = "pressure:ph"
+responders = [
+    { trait = "ph_tolerance", dir = "context", weight = 1.0 }
+]
+# Suitability is a symmetric distance in pH space (dist_suit over the
+# position; breadth fixed, B5 §5.1): the verdict carries the factor,
+# never the side of the cell. Direction-from-context rule (documented in
+# sim.py): hedge toward the midpoint of the legal bounds — the minimax
+# response when the side is unknowable.
+
+[[responder]]
+name = "pressure:salinity"
+responders = [
+    { trait = "salinity_tolerance", dir = "up", weight = 1.0 },
+    { trait = "nutrient_package", toward = ["halophyte"], weight = 0.5 }
+]
+# Ionic excess: raise salinity_tolerance; the halophyte nutrient package
+# is the salt-adapted grade.
+
+[[responder]]
+name = "pressure:rooting"
+responders = [
+    { trait = "root_depth_m", dir = "down", weight = 1.0 }
+]
+# Roots deeper than the soil (excess of root_depth_m over eff_rooting_m,
+# B5 §4.3 "saturating excess"): a deep root on a thin soil is the cost —
+# grow SHALLOWER. That is the axis's whole job.
+
+[[responder]]
+name = "pressure:anchoring"
+responders = [
+    { trait = "height_m", dir = "down", weight = 1.0 },
+    { trait = "woodiness", dir = "down", weight = 0.5 }
+]
+# Need = height x woodiness / ANCHOR_REF_M (land trees; holdfast plans
+# attach to hard substrate): the driftable answer is to shrink the
+# exposure that drives the need. holdfast itself is a root_type state
+# defined by the plan (aquatic holdfast plans) — not a pressure target.
+
+[[responder]]
+name = "pressure:medium"
+responders = []
+# Medium is plan-level registry data, never a driftable trait. The
+# freshwater flip (a water plan re-classifying below FRESH_SAL_MAX) is
+# emergent from pressure:salinity's drift, not a direct responder.
+
+[[responder]]
+name = "pressure:light"
+responders = [
+    { trait = "shade_tolerance", dir = "up", weight = 1.0 },
+    { trait = "height_m", dir = "up", weight = 0.5 }
+]
+# Submerged below the photic depth (B5 §4.3): shade_tolerance is the
+# light-strategy axis (one-axis ruling), and taller growth reaches the
+# photic zone (kelp stipes, seagrass blades).
+
+[[responder]]
+name = "pressure:habitat"
+responders = [
+    { trait = "salinity_tolerance", dir = "down", weight = 1.0 }
+]
+# Freshwater-habitat term (B5 §4.5): the plan is a FRESH water plan when
+# salinity_tolerance sits below FRESH_SAL_MAX. Pushing tolerance down
+# holds the graded habitat term instead of falling to the hard medium
+# boundary.

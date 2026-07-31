@@ -27,6 +27,9 @@ class ContentPack:
     constraints: list = field(default_factory=list)         # Rule records
     stems: dict = field(default_factory=dict)  # stems_flora.toml, raw tables
     budget: dict = field(default_factory=dict)  # pins.toml [budget] table
+    stress_response: dict[str, list] = field(default_factory=dict)
+    # stress_response.toml: req_flora name -> responder rows (sim.select
+    # dispatch; loaded the same way as every other authored table)
 
     def preset(self, preset_id: str) -> dict:
         return self.presets[preset_id]
@@ -93,6 +96,12 @@ def load_content(content_dir: str | Path) -> ContentPack:
 
     stems = _load_toml(d / "stems_flora.toml")
 
+    stress_response: dict[str, list] = {}
+    for tbl in _load_toml(d / "stress_response.toml").get("responder", []):
+        stress_response[tbl["name"]] = [dict(r) for r in
+                                        tbl.get("responders", [])]
+
     return ContentPack(registry=registry, presets=presets, pins=pins,
                        palettes=palettes, constraints=constraints,
-                       stems=stems, budget=budget)
+                       stems=stems, budget=budget,
+                       stress_response=stress_response)
