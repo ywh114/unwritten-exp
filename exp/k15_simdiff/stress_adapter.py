@@ -56,6 +56,7 @@ from exp.k14_worldprod import water as _water
 from exp.k14_worldprod.derived import (
     PLUME_WEIGHT,
     _plume_source,
+    _upsample,
     growing_season,
     marine_productivity,
 )
@@ -160,6 +161,14 @@ ROOT_REF_M = 1.0
 # holdfast plans attach to hard substrate, strength = eff_hard.
 ANCHOR_REF_M = 25.0
 HOLDFAST_NEED = 0.6
+# wind exposure MODULATES the land-tree anchoring need (the need side,
+# env-side — the requirement name and its flora responders do not
+# change): need_eff = need x clip(wind_ms / WIND_REF_MS, MIN, MAX).
+# wind_ms is the storm proxy: the max over months of the monthly-mean
+# surface speed (windthrow is a storm phenomenon, not a mean one).
+WIND_REF_MS = 8.0
+WIND_MOD_MIN = 0.5
+WIND_MOD_MAX = 2.0
 # submerged light: shortfall of photic_depth_m below the column depth,
 # scaled by LIGHT_REF_M — a seagrass below the photic zone costs ~1.
 LIGHT_REF_M = 10.0
@@ -235,6 +244,12 @@ class WorldContext:
     hand_m: np.ndarray          # (H,W) m height above nearest drainage
     ground_class: np.ndarray    # (H,W) uint8 argmin over ground_d2
     eff_retention: np.ndarray   # (H,W) (kept for completeness/debug)
+    wind_ms: np.ndarray         # (H,W) m/s storm proxy: max over months
+                                # of the monthly-mean surface wind speed
+    bottom_temp: np.ndarray     # (H,W) degC annual bottom temperature
+                                # (ocean; 0 on land) — submerged plans
+                                # read THIS for the climate T term (B4:
+                                # the deep bottom has no seasons)
     def __init__(self) -> None:
         pass
 
@@ -288,6 +303,22 @@ def load_world(seed: int) -> WorldContext:
     river_any = river_any.astype(bool)
     ctx.sal_water = np.clip(z["h_salinity"].astype(np.float32)
                             / SAL_REF_GKG, 0.0, 1.0)
+
+    # ── wind exposure + bottom temperature at anchor (pure functions
+    # ── of the delivered dump — recompute, never downsample).
+    wu, wv = z["c_wind_u"], z["c_wind_v"]
+    monthly_speed = np.hypot(wu, wv).mean(axis=1)      # (12,h,w) m/s
+    wind = monthly_speed.max(axis=0).astype(np.float32)  # storm proxy
+    if wind.shape != (H, W):
+        # the delivered wind lives on its own coarser grid (wind_coarse;
+        # 128² vs anchor 256² on seed 1) — bilinear-upsample the smooth
+        # forcing field (the k14 marine-biome lesson: kron reads blocky)
+        fy, fx = H // wind.shape[0], W // wind.shape[1]
+        wind = _upsample(wind, fy) if fx == fy else \
+            np.repeat(np.repeat(wind, fy, axis=0), fx, axis=1)
+    ctx.wind_ms = wind.astype(np.float32)
+    ctx.bottom_temp = _water.bottom_temp_c(
+        z, sea, _water.bathymetry_m(z, sea)).astype(np.float32)
 
     # ── ground properties: the anchor top-3 mix re-derived by re-running
     # ── the deterministic B3 pass, verified against the persisted
@@ -461,7 +492,12 @@ def _climate_suitability(view: dict, ctx: WorldContext) -> np.ndarray:
 
     cost = np.zeros((12, H, W), dtype=np.float32)
     if not np.isnan(opt_t) and b_t > 0:
-        c = sat(np.abs(ctx.t_c - np.float32(opt_t)) / np.float32(b_t))
+        # submerged (benthic water) plans read the ANNUAL bottom
+        # temperature, not the surface monthly field — B4: the deep
+        # bottom has no seasons, shelf bottoms are damped.
+        t_field = ctx.bottom_temp[None] if int(view.get("submerged")
+                                               or 0) else ctx.t_c
+        c = sat(np.abs(t_field - np.float32(opt_t)) / np.float32(b_t))
         if winter_dec and isinstance(leafout, (int, float)):
             leaf_on = (_MONTH1 >= int(leafout))[:, None, None]
             c = np.where(leaf_on, c, 0.0)      # dormant months: no cold
@@ -644,8 +680,11 @@ def _tail_terms(view: dict, ctx: WorldContext,
     elif medium == "land" and not np.isnan(wood) and wood > 0.0:
         need = float(view.get("anchoring_need") or 0.0)
         if need > 0.0:
+            wmod = np.clip(ctx.wind_ms / np.float32(WIND_REF_MS),
+                           np.float32(WIND_MOD_MIN),
+                           np.float32(WIND_MOD_MAX))
             f_anchor = shortfall_suit(1.0 - ctx.eff_hard,
-                                      np.float32(need), 1.0)
+                                      np.float32(need) * wmod, 1.0)
     if f_anchor is not None:
         out[REQ_ANCHORING] = np.broadcast_to(f_anchor.astype(np.float32),
                                              (12, H, W)).copy()

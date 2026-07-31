@@ -31,6 +31,7 @@ from exp.k15_simdiff.req_flora import (
 from exp.k15_simdiff.stress_adapter import (
     FRESH_SAL_MAX,
     MEDIUM_VIOLATION_F,
+    WIND_REF_MS,
     WLOG_DRY_LIMIT,
     WLOG_INVERT_T,
     WorldContext,
@@ -79,6 +80,8 @@ def make_ctx(**overrides) -> WorldContext:
     ctx.land_cell = np.ones((H, W), dtype=bool)
     ctx.hand_m = ones
     ctx.ground_class = np.zeros((H, W), dtype=np.uint8)
+    ctx.wind_ms = np.full((H, W), WIND_REF_MS, dtype=np.float32)  # neutral
+    ctx.bottom_temp = np.zeros((H, W), dtype=np.float32)
     for k, v in overrides.items():
         setattr(ctx, k, v)
     return ctx
@@ -348,6 +351,41 @@ def test_rooting_excess_and_anchoring():
     no_anchor = evaluate(base_view(woodiness=0.0, root_depth_m=None),
                          ctx)
     assert REQ_ANCHORING not in no_anchor
+
+
+def test_anchoring_wind_modulation():
+    """Wind exposure scales the land-tree anchoring need (storm proxy =
+    max monthly-mean speed): the same tree is undocked at the calm
+    floor, docked at the neutral reference, and heavily docked at the
+    storm cap. need 0.6 x mod vs strength 1 - eff_hard = 0.5."""
+    hard = np.full((H, W), 0.5, dtype=np.float32)
+    kw = dict(anchoring_need=0.6, woodiness=1.0)
+    calm = evaluate(base_view(**kw), make_ctx(
+        eff_hard=hard, wind_ms=np.zeros((H, W), dtype=np.float32)))
+    assert np.allclose(calm[REQ_ANCHORING][0], 1.0)      # need 0.3 < 0.5
+    neut = evaluate(base_view(**kw), make_ctx(eff_hard=hard))
+    assert np.allclose(neut[REQ_ANCHORING][0], 0.9)      # need 0.6 vs 0.5
+    storm = evaluate(base_view(**kw), make_ctx(
+        eff_hard=hard,
+        wind_ms=np.full((H, W), 3.0 * WIND_REF_MS, dtype=np.float32)))
+    assert np.allclose(storm[REQ_ANCHORING][0], 0.3)     # need 1.2 vs 0.5
+
+
+def test_climate_submerged_reads_bottom_temp():
+    """A submerged benthic plan reads the ANNUAL bottom temperature for
+    the climate T term, not the surface monthly field (B4: the deep
+    bottom has no seasons). Surface plan: sat cost w_T x 1 -> f = 0.5;
+    submerged at the optimum: f = 1."""
+    ctx = make_ctx(t_c=np.full((N, H, W), -20.0, dtype=np.float32),
+                   bottom_temp=np.full((H, W), 15.0, dtype=np.float32))
+    surf = evaluate(base_view(medium="water", submerged=0,
+                              salinity_tolerance=0.9),
+                    ctx)[REQ_CLIMATE]
+    assert np.allclose(surf, 0.5)         # sat(1 - 0.5 x 1), T half only
+    sub = evaluate(base_view(medium="water", submerged=1,
+                             salinity_tolerance=0.9),
+                   ctx)[REQ_CLIMATE]
+    assert np.allclose(sub, 1.0)          # bottom 15 == opt 15
 
 
 # ── freshwater habitat stratum (B5 §4.5) ──────────────────────────────
