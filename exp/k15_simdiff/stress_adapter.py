@@ -447,6 +447,11 @@ def _view_from_record(axes: dict, preset_id: str | None,
         "holdfast": int(str(axes.get("root_type") or "") == "holdfast"),
         "submerged": int(str(axes.get("layer") or "")
                          == "aquatic_benthic"),
+        # engine-side dispersal keys (K15 rounds; the stress strata
+        # never read them) — mirrors FloraSim.derive.
+        "dispersal_channels": axes.get("dispersal_channels"),
+        "propagule_mass_mg": axes.get("propagule_mass_mg"),
+        "seed_bank": axes.get("seed_bank"),
     }
 
 

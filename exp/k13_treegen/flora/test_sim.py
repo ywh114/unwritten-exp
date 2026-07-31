@@ -35,6 +35,9 @@ REQ_VIEW_KEYS = (
     "photosynthesis", "winter_deciduous", "leafout_month",
     "drought_deciduous", "bloom_start_month", "bloom_length_months",
     "medium", "anchoring_need", "holdfast", "submerged",
+    # engine-side dispersal (K15 rounds; owner ruling 2026-08-01: every
+    # trait the engine directly needs rides the view)
+    "dispersal_channels", "propagule_mass_mg", "seed_bank",
 )
 # [niche] metadata keys — clade metadata, never a driftable trait.
 NICHE_KEYS = ("temp_opt_c", "temp_breadth_c", "moisture_opt",
@@ -102,6 +105,20 @@ def test_derive_medium_gating_land_vs_aquatic(sim, pack):
     assert oak["submerged"] == 0 and kelp["submerged"] == 1
     assert oak["winter_deciduous"] == 1 and kelp["winter_deciduous"] == 0
     assert kelp["photosynthesis"] == "C3"
+
+
+def test_derive_engine_dispersal_keys(sim, pack):
+    """The engine's dispersal inputs ride the view (owner ruling
+    2026-08-01): channel weights as a 5-vector, a numeric propagule
+    mass, a seed-bank label."""
+    view = sim.derive(_traits(pack, "tree.oak"), pack)
+    ch = view["dispersal_channels"]
+    assert set(ch) == {"local", "wind", "water", "animal", "jump"}
+    assert all(isinstance(v, (int, float)) and v >= 0.0
+               for v in ch.values())
+    assert sum(ch.values()) > 0.0        # authored weights, not a pmf
+    assert isinstance(view["propagule_mass_mg"], (int, float))
+    assert isinstance(view["seed_bank"], str)
 
 
 # ── select ────────────────────────────────────────────────────────────

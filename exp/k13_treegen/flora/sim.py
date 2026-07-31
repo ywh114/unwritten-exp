@@ -248,6 +248,13 @@ class FloraSim:
             "holdfast": int(str(axes.get("root_type") or "") == "holdfast"),
             "submerged": int(str(axes.get("layer") or "")
                              == "aquatic_benthic"),
+            # engine-side dispersal (K15 rounds, not the stress
+            # adapter): channel weights drive per-vector radius, the
+            # propagule mass the distance decay, the seed bank the
+            # establishment carryover in sink cells.
+            "dispersal_channels": axes.get("dispersal_channels"),
+            "propagule_mass_mg": axes.get("propagule_mass_mg"),
+            "seed_bank": axes.get("seed_bank"),
         })
         return view
 

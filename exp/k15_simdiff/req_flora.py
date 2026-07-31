@@ -55,5 +55,10 @@ V1_FLORA = (
 #   bloom_start_month, bloom_length_months,
 #   medium ("land"/"water"/"dual"), anchoring_need (0..1),
 #   holdfast (0/1)
+# Engine-side dispersal keys (K15 rounds; the stress strata never read
+# them — threaded through the same view per the owner ruling
+# 2026-08-01: every trait the engine directly needs rides the view):
+#   dispersal_channels ({local, wind, water, animal, jump} weights),
+#   propagule_mass_mg, seed_bank
 # Env may read a key that is None/absent for a given plan — the
 # stratum then does not apply (e.g. no anchoring on a duckweed).
