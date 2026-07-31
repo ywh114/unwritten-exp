@@ -110,10 +110,15 @@ TAU = 1.0                     # softmax over -d2; at TAU=1 softmax(-d2) is
 # earth, laterite < rendzina, solonchak < solonetz) is the content.
 GROUND_CLASSES: list[dict] = [
     # ── terrestrial — physical ──────────────────────────────────────────
-    dict(name="dune sand", retention=0.05, rooting_m=0.3, sal_add=0.0,
+    # rooting_m = depth of rootable medium before an impenetrable layer
+    # (hardpan/rock/permafrost), NOT how deep roots happen to go: loose
+    # deep deposits (dunes, loess, alluvium, ferralsol) read several
+    # metres — real soil profiles, not turf. (Deepened 2026-08-01: the
+    # old table maxed at 2.2 m, making >2 m rooters extinct-by-map.)
+    dict(name="dune sand", retention=0.05, rooting_m=2.0, sal_add=0.0,
          nutrient=0.15, ph=6.5, hard=False, loose=True, color=[222, 200, 130],
          genesis="most-arid deposition only", genesis_tag="physical"),
-    dict(name="sand sheet", retention=0.10, rooting_m=0.5, sal_add=0.0,
+    dict(name="sand sheet", retention=0.10, rooting_m=2.5, sal_add=0.0,
          nutrient=0.20, ph=6.5, hard=False, loose=True, color=[210, 188, 128],
          genesis="arid", genesis_tag="physical"),
     dict(name="reg / desert pavement", retention=0.05, rooting_m=0.2,
@@ -126,30 +131,30 @@ GROUND_CLASSES: list[dict] = [
     dict(name="bedrock outcrop", retention=0.02, rooting_m=0.05,
          sal_add=0.0, nutrient=0.02, ph=7.0, hard=True, loose=False,
          color=[120, 118, 116], genesis="erosion", genesis_tag="physical"),
-    dict(name="alluvium", retention=0.65, rooting_m=2.0, sal_add=0.0,
+    dict(name="alluvium", retention=0.65, rooting_m=4.0, sal_add=0.0,
          nutrient=0.80, ph=6.8, hard=False, loose=True, color=[160, 140, 95],
          genesis="deposition", genesis_tag="physical"),
-    dict(name="loess", retention=0.55, rooting_m=1.5, sal_add=0.0,
+    dict(name="loess", retention=0.55, rooting_m=4.0, sal_add=0.0,
          nutrient=0.70, ph=7.8, hard=False, loose=True, color=[190, 170, 120],
          genesis="glacial-margin wind", genesis_tag="physical"),
-    dict(name="silt", retention=0.60, rooting_m=1.2, sal_add=0.0,
+    dict(name="silt", retention=0.60, rooting_m=3.0, sal_add=0.0,
          nutrient=0.65, ph=6.8, hard=False, loose=True, color=[170, 155, 120],
          genesis="low-energy deposition", genesis_tag="physical"),
-    dict(name="clay", retention=0.65, rooting_m=0.8, sal_add=0.0,
+    dict(name="clay", retention=0.65, rooting_m=1.5, sal_add=0.0,
          nutrient=0.55, ph=6.5, hard=False, loose=False, color=[150, 120, 95],
          genesis="still water (plant-available, not total)",
          genesis_tag="physical"),   # cohesive: rootable, not a dig medium
-    dict(name="vertisol", retention=0.75, rooting_m=1.2, sal_add=0.0,
+    dict(name="vertisol", retention=0.75, rooting_m=2.0, sal_add=0.0,
          nutrient=0.70, ph=7.8, hard=False, loose=False, color=[110, 95, 80],
          genesis="shrink-swell smectite, seasonal cracks",
          genesis_tag="physical"),
-    dict(name="till", retention=0.45, rooting_m=0.8, sal_add=0.0,
+    dict(name="till", retention=0.45, rooting_m=1.0, sal_add=0.0,
          nutrient=0.50, ph=6.8, hard=False, loose=False, color=[140, 130, 110],
          genesis="glacial", genesis_tag="physical"),
-    dict(name="outwash gravel", retention=0.15, rooting_m=0.4, sal_add=0.0,
+    dict(name="outwash gravel", retention=0.15, rooting_m=0.6, sal_add=0.0,
          nutrient=0.35, ph=6.5, hard=False, loose=False, color=[165, 155, 135],
          genesis="glaciofluvial", genesis_tag="physical"),
-    dict(name="andisol", retention=0.80, rooting_m=1.0, sal_add=0.0,
+    dict(name="andisol", retention=0.80, rooting_m=2.5, sal_add=0.0,
          nutrient=0.70, ph=5.5, hard=False, loose=False, color=[95, 80, 70],
          genesis="vent proximity (allophane: high water, P fixed)",
          genesis_tag="physical"),
@@ -168,43 +173,43 @@ GROUND_CLASSES: list[dict] = [
     dict(name="caliche", retention=0.12, rooting_m=0.25, sal_add=0.0,
          nutrient=0.20, ph=8.2, hard=True, loose=False, color=[200, 190, 165],
          genesis="petrocalcic hardpan, semi-arid", genesis_tag="physical"),
-    dict(name="solonchak", retention=0.10, rooting_m=0.3, sal_add=1.0,
+    dict(name="solonchak", retention=0.10, rooting_m=0.5, sal_add=1.0,
          nutrient=0.05, ph=8.5, hard=False, loose=False, color=[235, 230, 210],
          genesis="endorheic/coastal evaporite (absorbs sabkha)",
          genesis_tag="physical"),
-    dict(name="solonetz", retention=0.35, rooting_m=0.5, sal_add=0.45,
+    dict(name="solonetz", retention=0.35, rooting_m=0.8, sal_add=0.45,
          nutrient=0.25, ph=9.0, hard=False, loose=False, color=[200, 185, 150],
          genesis="sodic, dispersed clay", genesis_tag="physical"),
-    dict(name="coastal sand", retention=0.10, rooting_m=0.4, sal_add=0.3,
+    dict(name="coastal sand", retention=0.10, rooting_m=1.5, sal_add=0.3,
          nutrient=0.20, ph=7.5, hard=False, loose=True, color=[230, 220, 170],
          genesis="littoral", genesis_tag="physical"),
     # ── terrestrial — biotic / mixed ────────────────────────────────────
-    dict(name="mollisol", retention=0.70, rooting_m=2.2, sal_add=0.0,
+    dict(name="mollisol", retention=0.70, rooting_m=3.0, sal_add=0.0,
          nutrient=0.95, ph=6.8, hard=False, loose=False, color=[120, 90, 55],
          genesis="grassland", genesis_tag="biotic"),
-    dict(name="podzol", retention=0.45, rooting_m=0.9, sal_add=0.0,
+    dict(name="podzol", retention=0.45, rooting_m=1.5, sal_add=0.0,
          nutrient=0.25, ph=4.5, hard=False, loose=False, color=[100, 85, 70],
          genesis="conifer/taiga", genesis_tag="biotic"),
-    dict(name="ferralsol", retention=0.55, rooting_m=1.5, sal_add=0.0,
+    dict(name="ferralsol", retention=0.55, rooting_m=4.0, sal_add=0.0,
          nutrient=0.15, ph=5.0, hard=False, loose=False, color=[180, 100, 60],
          genesis="rainforest (nutrients in biomass)", genesis_tag="biotic"),
-    dict(name="brown earth", retention=0.60, rooting_m=1.5, sal_add=0.0,
+    dict(name="brown earth", retention=0.60, rooting_m=3.0, sal_add=0.0,
          nutrient=0.65, ph=6.0, hard=False, loose=False, color=[130, 100, 65],
          genesis="temperate broadleaf", genesis_tag="biotic"),
-    dict(name="fen", retention=0.92, rooting_m=0.5, sal_add=0.0,
+    dict(name="fen", retention=0.92, rooting_m=1.0, sal_add=0.0,
          nutrient=0.45, ph=6.2, hard=False, loose=False, color=[110, 120, 80],
          genesis="groundwater-fed peat", genesis_tag="mixed"),
-    dict(name="bog", retention=0.98, rooting_m=0.3, sal_add=0.0,
+    dict(name="bog", retention=0.98, rooting_m=0.8, sal_add=0.0,
          nutrient=0.05, ph=4.0, hard=False, loose=False, color=[140, 115, 80],
          genesis="rain-fed Sphagnum dome (carnivory's home)",
          genesis_tag="mixed"),
-    dict(name="gleysol", retention=0.85, rooting_m=0.3, sal_add=0.0,
+    dict(name="gleysol", retention=0.85, rooting_m=0.8, sal_add=0.0,
          nutrient=0.30, ph=5.5, hard=False, loose=False, color=[120, 130, 130],
          genesis="groundwater waterlogging", genesis_tag="mixed"),
     dict(name="gelisol", retention=0.60, rooting_m=0.4, sal_add=0.0,
          nutrient=0.30, ph=5.5, hard=False, loose=False, color=[180, 190, 195],
          genesis="permafrost + cryoturbation", genesis_tag="mixed"),
-    dict(name="mangrove mud", retention=0.90, rooting_m=0.5, sal_add=0.6,
+    dict(name="mangrove mud", retention=0.90, rooting_m=1.0, sal_add=0.6,
          nutrient=0.50, ph=6.5, hard=False, loose=False, color=[90, 100, 70],
          genesis="mangrove", genesis_tag="biotic"),
     dict(name="montane ranker", retention=0.35, rooting_m=0.4, sal_add=0.0,
@@ -758,7 +763,10 @@ def mix_ph(mix_ids: np.ndarray, mix_w: np.ndarray) -> np.ndarray:
 # class property rows, mix-weighted like mix_ph. sal_add is None for
 # underwater rows (the water's own salinity is the water module's) -> 0
 # here; hard/loose become mix SHARES of flagged classes.
-_PROP_TABLES = {
+# PUBLIC (2026-08-01): the K15 stress adapter reads the per-class rows
+# directly for its best-of-class substrate semantics (the three mix
+# classes are physically present; the plan reads the best patch).
+PROP_TABLES = {
     "retention": np.array([c["retention"] for c in GROUND_CLASSES],
                           dtype=np.float32),
     "nutrient": np.array([c["nutrient"] for c in GROUND_CLASSES],
@@ -781,7 +789,7 @@ def eff_props(mix_ids: np.ndarray, mix_w: np.ndarray) -> dict:
     eff_ prefix is the consumers'). Pointwise like mix_ph, so the same
     helper serves anchor and delivery-res mixes."""
     return {name: (mix_w * table[mix_ids]).sum(axis=0).astype(np.float32)
-            for name, table in _PROP_TABLES.items()}
+            for name, table in PROP_TABLES.items()}
 
 
 # ── delivery-resolution re-derivation (de-blocking) ─────────────────────
