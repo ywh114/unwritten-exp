@@ -83,6 +83,14 @@ live in the rounds, not here).
 evaluation at delivery res (~100× over); delivery res is masks and
 display, via the existing upsample/pointwise-rederive convention.
 
+**Placement** (owner ruling 2026-07-30): the stress MATH is
+organism-agnostic and lives in `kernel/stress/` (shared by flora and
+fauna — not under any tree experiment). The adapter (load world
+components, evaluate per record) lives in K15 sim-diff, which also
+owns dispersal/cover/rounds; K14 (`k14_worldprod`) keeps only the
+world-side component products of §3. This supersedes the build plan's
+`world/stress.py` module path.
+
 ## 3. World inputs (all existing products)
 
 Climate (K11, monthly): `c_T_monthly`, `c_P_monthly`, growing season,

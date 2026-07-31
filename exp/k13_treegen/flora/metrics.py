@@ -1,4 +1,4 @@
-"""K14 metrics harness: the standing gate for generated flora trees.
+"""Flora metrics harness: the standing gate for generated flora trees.
 
 Mirrors K13 M11. Checks consume ``(tree, pack)`` and return violation
 strings. The report is byte-stable per seed: sorted checks, sorted
@@ -11,10 +11,10 @@ import math
 from dataclasses import dataclass, field
 
 from exp.k13_treegen.registry import MutationKind, ValueType
-from exp.k14_flora.constraints import violations as constraint_violations
-from exp.k14_flora.content import ContentPack, merged_pin
-from exp.k14_flora.derive import DERIVED_AXES
-from exp.k14_flora.model import Rank, Tree
+from exp.k13_treegen.flora.constraints import violations as constraint_violations
+from exp.k13_treegen.flora.content import ContentPack, merged_pin
+from exp.k13_treegen.flora.derive import DERIVED_AXES
+from exp.k13_treegen.model import Rank, Tree
 
 # diversity: a generated tree with <2 species or a single grade is the
 # low-diversity failure shape.
@@ -223,7 +223,7 @@ def check_pin_integration(tree: Tree, pack: ContentPack) -> list[str]:
     """Every pin present at its authored rank; pinned records byte-exact
     vs merged_pin (scalars within pin jitter); every species pin has a
     sibling; radiation counts within soft range [N/3, 3N]."""
-    from exp.k14_flora.backbone import PIN_JITTER_Z
+    from exp.k13_treegen.flora.backbone import PIN_JITTER_Z
     errs: list[str] = []
     by_label = {n.label: n for n in tree.nodes.values() if n.label}
     species_paths = [n.path for n in _species(tree)]

@@ -1,9 +1,9 @@
 """K14 P6 — derived-products layer D0: ecology-relevant fields computed
 from a K11 world dump (read-only input, via exp.artifacts).
 
-    uv run python -m exp.k14_flora.world.derived --seed 1
+    uv run python -m exp.k14_worldprod.derived --seed 1
 
-Writes to exp/k14_flora/out/world/seed_NNNNNNNN/ (gitignored):
+Writes to exp/k14_worldprod/out/seed_NNNNNNNN/ (gitignored):
     derived.npz      the engine form (all products, delivery 1024²)
     derived.k11pack  the viewer form (unified overlay datapack)
     manifest.json    input provenance (exp.artifacts stamp+hash)
@@ -32,9 +32,8 @@ from exp.k11_worldgen.units import ELEV_MAX_M, alt_m, hand_m, precip_mm, \
     temp_c
 
 HERE = Path(__file__).parent
-OUT = HERE.parent / "out"          # out/seed_NNNNNNNN/ (shared with the
-                                   # k14 tree json+report — one dir per
-                                   # seed, derived products flat inside)
+OUT = HERE / "out"                 # out/seed_NNNNNNNN/ (one dir per seed,
+                                   # derived products flat inside)
 
 # ── waterfalls / rapids (single 4 km step drops at L0 fidelity) ─────────
 RAPIDS_DROP_M = 25.0            # concentrated drop -> rapids
@@ -595,8 +594,8 @@ def build(seed: int) -> dict:
     # dormancy shares the ground pass's K1 roll (same point list, same
     # stream) so "active" means the same thing everywhere.
     mprod_prov = marine_productivity(z, currents)
-    from exp.k14_flora.world import water as _water
-    from exp.k14_flora.world.ground import _vent_active
+    from exp.k14_worldprod import water as _water
+    from exp.k14_worldprod.ground import _vent_active
     dis_ref = max(float(np.percentile(z["h_discharge"], 99.0)), 1e-12)
     plume = _plume_source(z, z["h_ocean_mask"] | z["h_sea_mask"], dis_ref)
     wc = _water.build_column(
@@ -667,7 +666,7 @@ def build(seed: int) -> dict:
     # substrate ("ground") classification — biosphere addendum B3. Ground
     # builds its OWN volcanic evidence from the vent/spring points (most
     # vents dormant — K1 roll inside), not from the raw fault field above.
-    from exp.k14_flora.world.ground import (
+    from exp.k14_worldprod.ground import (
         build_ground, build_ground_hires, mix_ph)
     g = build_ground(z, manifest, sea, vent_pts + spring_pts)
     # d2 stays at ANCHOR res on purpose: 41x1024² float32 is ~170 MB/world
@@ -690,7 +689,7 @@ def build(seed: int) -> dict:
     # zero holes) — ocean from delivered bathymetry, fresh from the
     # delivered bed (ground_ph) + the catchment inputs upsampled from
     # anchor (a PH_WINDOW_C box mean: surrounding soil + peat share).
-    from exp.k14_flora.world.ground import GROUND_ID as _GID
+    from exp.k14_worldprod.ground import GROUND_ID as _GID
     bed_ph = mix_ph(g["mix_ids"], g["mix_w"])
     land_a = ~z["h_ocean_mask"] & ~z["h_sea_mask"] & ~z["h_lake_mask"]
     land_w = land_a.astype(np.float64)
@@ -742,7 +741,7 @@ def save(result: dict, out_dir: Path) -> None:
                         ground_meta=json.dumps(result["ground_meta"]))
     write_manifest(out_dir, inputs=[("k11", result["seed"])],
                    note="k14 D0 derived products")
-    from exp.k14_flora.world.datapack import build_pack
+    from exp.k14_worldprod.datapack import build_pack
     build_pack(result, out_dir / "derived.k11pack")
 
 

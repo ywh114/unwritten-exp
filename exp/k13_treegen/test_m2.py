@@ -15,7 +15,7 @@ import pytest
 from exp.k13_treegen.content import ContentPack, load_content
 from exp.k13_treegen.lint import lint
 
-CONTENT = pathlib.Path(__file__).parent / "content"
+CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")

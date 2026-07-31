@@ -1,7 +1,7 @@
-"""K14 tests — flora engine gate. Mirrors K13's test discipline:
+"""Flora tests — flora engine gate. Mirrors K13's test discipline:
 determinism (byte-exact replay), structure, constraint-gate unit
 semantics, pin integration, derived axes, nomenclature guarantees, and
-the metrics gate across seeds. Run: uv run pytest -q exp/k14_flora/
+the metrics gate across seeds. Run: uv run pytest -q exp/k13_treegen/flora/
 """
 
 from __future__ import annotations
@@ -11,15 +11,15 @@ import re
 
 import pytest
 
-from exp.k14_flora.backbone import ENVELOPE_LOG10, build
-from exp.k14_flora.constraints import Rule, enforce, triggered, violations
-from exp.k14_flora.content import load_content, merged_pin
-from exp.k14_flora.derive import DERIVED_AXES
-from exp.k14_flora.metrics import run_checks
-from exp.k14_flora.model import Node, Rank
-from exp.k14_flora.naming import assign_names
+from exp.k13_treegen.flora.backbone import ENVELOPE_LOG10, build
+from exp.k13_treegen.flora.constraints import Rule, enforce, triggered, violations
+from exp.k13_treegen.flora.content import load_content, merged_pin
+from exp.k13_treegen.flora.derive import DERIVED_AXES
+from exp.k13_treegen.flora.metrics import run_checks
+from exp.k13_treegen.model import Node, Rank
+from exp.k13_treegen.flora.naming import assign_names
 
-CONTENT = pathlib.Path(__file__).parent / "content"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "flora"
 
 
 @pytest.fixture(scope="module")
@@ -94,7 +94,7 @@ def test_structure(tree1):
 
 
 def test_meta_generator(tree1):
-    assert tree1.to_json()["meta"]["generator"] == "k14_flora"
+    assert tree1.to_json()["meta"]["generator"] == "k13_flora"
 
 
 # ── constraint gate (unit semantics) ───────────────────────────────────
@@ -243,7 +243,7 @@ def test_derived_populated(tree1):
 
 def test_derived_recompute_is_pure(tree1, pack):
     """Derived axes never drift: re-running derive reproduces them."""
-    from exp.k14_flora.derive import derive_tree
+    from exp.k13_treegen.flora.derive import derive_tree
     before = {p: dict(n.axes) for p, n in tree1.nodes.items()}
     derive_tree(tree1.nodes.values(), pack)
     for p, n in tree1.nodes.items():

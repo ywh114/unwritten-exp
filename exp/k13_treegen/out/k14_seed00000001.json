@@ -1,6 +1,6 @@
 {
  "meta": {
-  "commit": "dd3789eff07c974c8c1be691597f38360074a49c",
+  "commit": "6564156a1a21d05e275bcbd1fd540e108a419dc5",
   "counts": {
    "class": 16,
    "family": 35,
@@ -10,7 +10,7 @@
    "phylum": 3,
    "species": 150
   },
-  "generator": "k14_flora",
+  "generator": "k13_flora",
   "seed": 1,
   "version": 2
  },

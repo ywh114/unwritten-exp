@@ -22,7 +22,7 @@ from exp.k13_treegen.metrics import run_checks
 from exp.k13_treegen.model import Rank
 from exp.k13_treegen.nomenclature import assign_names
 
-CONTENT = pathlib.Path(__file__).parent / "content"
+CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
 OUT = pathlib.Path(__file__).parent / "out"
 
 

@@ -22,7 +22,7 @@ const HTML_PATH = resolve(__dirname, "map.html");
 const BUNDLE_PATH = resolve(
   REPO, "exp", "k11_worldgen", "out", "seed_00000001", "seed_00000001.k11view");
 const PACK_PATH = resolve(
-  REPO, "exp", "k14_flora", "out", "seed_00000001", "derived.k11pack");
+  REPO, "exp", "k14_worldprod", "out", "seed_00000001", "derived.k11pack");
 
 const tests = [];
 let failures = 0;
@@ -38,7 +38,7 @@ let browser, page;
 
 test("launch + load viewer, bundle, pack", async () => {
   if (!existsSync(PACK_PATH)) {
-    throw new Error(`pack missing — run: uv run python -m exp.k14_flora.world.derived --seed 1`);
+    throw new Error(`pack missing — run: uv run python -m exp.k14_worldprod.derived --seed 1`);
   }
   browser = await puppeteer.launch({ headless: true,
     args: ["--no-sandbox", "--allow-file-access-from-files"] });
@@ -74,7 +74,7 @@ test("pack registered with all layers", async () => {
                     "springs"]) {
     if (!info.layers.includes(id)) throw new Error(`layer ${id} missing`);
   }
-  if (info.generator !== "k14_flora") throw new Error(`generator: ${info.generator}`);
+  if (info.generator !== "k14_worldprod") throw new Error(`generator: ${info.generator}`);
 });
 
 test("overlay buttons built from pack metadata", async () => {

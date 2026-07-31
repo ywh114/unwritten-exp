@@ -1,13 +1,13 @@
-"""K14 persistence & CLI: TOML content in, JSON tree out.
+"""K13 flora persistence & CLI: TOML content in, JSON tree out.
 
-    uv run python -m exp.k14_flora SEED [--out DIR] [--species N]
+    uv run python -m exp.k13_treegen.flora SEED [--out DIR] [--species N]
 
 Builds the flora tree for SEED (8-digit zero-padded in output names),
 names it, runs the metrics gate, and writes:
     <out>/k14_seedNNNNNNNN.json    the committed tree (byte-stable)
     <out>/k14_seedNNNNNNNN.report  the metrics report (diff-able)
 With --species, also prints N sample species one-liners. Defaults:
-out = exp/k14_flora/out.
+out = exp/k13_treegen/out.
 """
 
 from __future__ import annotations
@@ -15,14 +15,14 @@ from __future__ import annotations
 import argparse
 import pathlib
 
-from exp.k14_flora.backbone import build
-from exp.k14_flora.content import load_content
-from exp.k14_flora.metrics import run_checks
-from exp.k14_flora.model import Rank
-from exp.k14_flora.naming import assign_names
+from exp.k13_treegen.flora.backbone import build
+from exp.k13_treegen.flora.content import load_content
+from exp.k13_treegen.flora.metrics import run_checks
+from exp.k13_treegen.model import Rank
+from exp.k13_treegen.flora.naming import assign_names
 
-CONTENT = pathlib.Path(__file__).parent / "content"
-OUT = pathlib.Path(__file__).parent / "out"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "flora"
+OUT = pathlib.Path(__file__).parent.parent / "out"
 
 
 def generate(seed: int, pack) -> tuple:
@@ -49,7 +49,7 @@ def main() -> None:
 
     pack = load_content(CONTENT)
     tree, report = generate(args.seed, pack)
-    out_dir = args.out or (OUT / f"seed_{args.seed:08d}")
+    out_dir = args.out or OUT
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = f"k14_seed{args.seed:08d}"
     tree_path = out_dir / f"{stem}.json"

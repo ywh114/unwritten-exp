@@ -1,4 +1,4 @@
-"""K14 constraint rules (vocabulary §8.10): the legality gate.
+"""Flora constraint rules (vocabulary §8.10): the legality gate.
 
 Data-driven, enforced at sampling time inside the same evolve edge (the
 gate pattern — trigger fires, required axes snap into compliance, the

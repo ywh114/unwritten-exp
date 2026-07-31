@@ -1,6 +1,6 @@
 """K14 P6 tests — derived products (D0) over the K11 seed-1 dump.
 
-Run: uv run pytest -q exp/k14_flora/world/
+Run: uv run pytest -q exp/k14_worldprod/
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 from exp.artifacts import find as artifact_find
-from exp.k14_flora.world import derived
+from exp.k14_worldprod import derived
 
 SEED = 1
 
@@ -404,7 +404,7 @@ def test_vents_extracted(result, inputs):
 
 
 def test_pack_roundtrip(result, tmp_path):
-    from exp.k14_flora.world.datapack import build_pack
+    from exp.k14_worldprod.datapack import build_pack
     path = build_pack(result, tmp_path / "derived.k11pack")
     raw = path.read_bytes()
     assert raw[:4] == b"K11P"

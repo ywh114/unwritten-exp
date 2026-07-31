@@ -19,8 +19,8 @@ tmp/
 # K11 demo outputs (PNGs, world.npz dumps)
 exp/k11_worldgen/out/
 
-# K14 world-facing outputs (derived.npz, datapacks, manifest) — the
-# k14 tree json+report in the same seed dir stay committed
-exp/k14_flora/out/seed_*/derived.npz
-exp/k14_flora/out/seed_*/derived.k11pack
-exp/k14_flora/out/seed_*/manifest.json
+# K14 world product outputs (derived.npz, datapacks, manifest) — the
+# flora tree json+report stay committed under exp/k13_treegen/out/
+exp/k14_worldprod/out/seed_*/derived.npz
+exp/k14_worldprod/out/seed_*/derived.k11pack
+exp/k14_worldprod/out/seed_*/manifest.json

@@ -14,7 +14,7 @@ from exp.k13_treegen.derive import (
     DERIVED_AXES, derive_derived, effective_climate)
 from exp.k13_treegen.model import Node, Rank
 
-CONTENT = pathlib.Path(__file__).parent / "content"
+CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")

@@ -1,4 +1,4 @@
-"""K14 content loader — mirrors K13 M2. Assembles the authored TOML
+"""Flora content loader — mirrors K13 M2. Assembles the authored TOML
 content pack into a validated ``ContentPack``: the M1 registry (core
 axes + growth-form plans), presets, pins, palettes, constraint rules,
 and nomenclature stems.
@@ -87,7 +87,7 @@ def load_content(content_dir: str | Path) -> ContentPack:
                 for plan, tbl in _load_toml(d / "palettes.toml")
                 .get("palette", {}).items()}
 
-    from exp.k14_flora.constraints import Rule
+    from exp.k13_treegen.flora.constraints import Rule
     constraints = [Rule.from_toml(t) for t in
                    _load_toml(d / "constraints.toml").get("rule", [])]
 

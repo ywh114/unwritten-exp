@@ -1,4 +1,4 @@
-"""K14 derived axes & effective climate preference — same ruling as K13
+"""Flora derived axes & effective climate preference — same ruling as K13
 (2026-07-29): axes that can be calculated ARE calculated. TRAITS are
 stored and drift-and-commit; DERIVED parameters are pure functions of
 the record, recomputed at consumption; climate preference is clade
@@ -19,8 +19,8 @@ traits for the rounds' stress model (P7).
 
 from __future__ import annotations
 
-from exp.k14_flora.content import ContentPack
-from exp.k14_flora.model import Node
+from exp.k13_treegen.flora.content import ContentPack
+from exp.k13_treegen.model import Node
 
 DERIVED_AXES = frozenset({
     "raunkiaer", "provision_mast", "provision_graze", "provision_browse",

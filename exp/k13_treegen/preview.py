@@ -20,7 +20,7 @@ from exp.k13_treegen.content import ContentPack, load_content, merged_pin
 from exp.k13_treegen.model import Node, Rank
 from exp.k13_treegen.seeding import STAGE_PINS, stage_stream
 
-CONTENT = pathlib.Path(__file__).parent / "content"
+CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
 
 
 def resolve_pin(pack: ContentPack, label: str, seed: int = 0) -> Node:

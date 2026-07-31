@@ -1,4 +1,4 @@
-"""K14 master-seed / substream discipline — mirrors K13 seeding (contract
+"""Flora master-seed / substream discipline — mirrors K13 seeding (contract
 C3) with its own root persona, so flora draws never alias fauna draws.
 """
 

@@ -38,7 +38,7 @@ from kernel.hashrng import Stream
 # reuse the B2 reference values where the evidence is the same quantity,
 # plus the bilinear _upsample helper for the delivery-res re-derivation,
 # the _spread_max dilation helper, and the flood-pulse footprint
-from exp.k14_flora.world.derived import ACC_REF, HAND_REF_M, P_REF_MMYR, \
+from exp.k14_worldprod.derived import ACC_REF, HAND_REF_M, P_REF_MMYR, \
     _spread_max, _upsample, flood_pulse
 
 # ── derivation bounds (knob set #2 — each saturates one evidence term) ──

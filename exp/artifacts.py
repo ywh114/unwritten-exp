@@ -1,9 +1,9 @@
 """Cross-exp artifact resolution (owner ruling 2026-07-29: don't copy —
 reference by (generator, seed) with provenance).
 
-Every generated artifact (K11 world dump, K13/K14 tree JSON) is a
-REGENERABLE CACHE, never a source of truth and never copied into a
-consumer's tree. Consumers resolve the producer's artifact by
+Every generated artifact (K11 world dump, K13 tree JSON — fauna/flora)
+is a REGENERABLE CACHE, never a source of truth and never copied into
+a consumer's tree. Consumers resolve the producer's artifact by
 (generator, seed), check its provenance stamp (version + git commit +
 byte hash), and regenerate via the producer's CLI when missing.
 
@@ -11,12 +11,12 @@ byte hash), and regenerate via the producer's CLI when missing.
 
     world_dir = require("k11", seed=1)          # path, regenerating if needed
     info = stamp("k11", seed=1)                 # provenance dict
-    write_manifest(out_dir, inputs=[("k11", 1), ("k14", 1)])
+    write_manifest(out_dir, inputs=[("k11", 1), ("flora", 1)])
 
 Layout convention (producer-owned):
-    k11 -> exp/k11_worldgen/out/seed_{seed:08d}/   (world.json + world.npz)
-    k13 -> exp/k13_treegen/out/k13_seed{seed:08d}.json
-    k14 -> exp/k14_flora/out/k14_seed{seed:08d}.json
+    k11   -> exp/k11_worldgen/out/seed_{seed:08d}/   (world.json + world.npz)
+    k13   -> exp/k13_treegen/out/k13_seed{seed:08d}.json
+    flora -> exp/k13_treegen/out/k14_seed{seed:08d}.json
 
 The stamp is the contract: {generator, version, seed, commit, sha256}.
 ``sha256`` covers the canonical artifact bytes (for k11: world.json
@@ -62,13 +62,13 @@ GENERATORS: dict[str, GeneratorSpec] = {
         stamp_files=(),
         version_key="version",
         cli=("exp.k13_treegen", "{seed}")),
-    "k14": GeneratorSpec(
-        name="k14_flora",
-        rel_path="exp/k14_flora/out/seed_{seed:08d}/k14_seed{seed:08d}.json",
+    "flora": GeneratorSpec(
+        name="k13_flora",
+        rel_path="exp/k13_treegen/out/k14_seed{seed:08d}.json",
         is_dir=False,
         stamp_files=(),
         version_key="version",
-        cli=("exp.k14_flora", "{seed}")),
+        cli=("exp.k13_treegen.flora", "{seed}")),
 }
 
 _commit_cache: str | None = None

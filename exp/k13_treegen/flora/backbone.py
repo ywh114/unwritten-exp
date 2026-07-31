@@ -1,10 +1,10 @@
-"""K14 backbone: the blind flora tree-build (mirrors K13 M7).
+"""Flora backbone: the blind flora tree-build (mirrors K13 M7).
 
 Assembles the committed Tree from the content pack. Kingdom root plantae
 -> phyla (the seed / spore / decomposer lines, grouped by plan.phylum)
 -> one class per growth-form plan -> one order per preset ->
 families/genera/species evolved with the K13 evolve engine (flora
-rebind tables, no fauna couplings) + the K14 constraint gate + the
+rebind tables, no fauna couplings) + the flora constraint gate + the
 height envelope. Pins placed at authored ranks, byte-exact; radiations
 seeded around authored targets. World-blind: benign Condition
 throughout.
@@ -12,7 +12,7 @@ throughout.
 Differences from K13's backbone, all deliberate:
 - size axis is height_m, so gen_time and the soft envelope key off
   height (ENVELOPE_LOG10/DAMP, same shape as K13's mass envelope);
-- evolve runs with couplings=False (flora legality is the K14
+- evolve runs with couplings=False (flora legality is the flora
   constraint gate, not the fauna M6 rule table) and the flora
   rebindable set (dispersal replaces locomotor);
 - background radiation is thinner (BG_RADIATION 1-2): the authored
@@ -27,11 +27,11 @@ import math
 
 from exp.k13_treegen.forces import (
     Condition, evolve, gen_time_years, rate_multiplier)
-from exp.k14_flora.constraints import enforce
-from exp.k14_flora.content import ContentPack, merged_pin, merged_preset
-from exp.k14_flora.derive import DERIVED_AXES, derive_tree
-from exp.k14_flora.model import Node, Rank, Tree
-from exp.k14_flora.seeding import stage_stream
+from exp.k13_treegen.flora.constraints import enforce
+from exp.k13_treegen.flora.content import ContentPack, merged_pin, merged_preset
+from exp.k13_treegen.flora.derive import DERIVED_AXES, derive_tree
+from exp.k13_treegen.model import Node, Rank, Tree
+from exp.k13_treegen.flora.seeding import stage_stream
 
 # dg budgets per rank step (generations, lognormal median): deep splits
 # are older. Same shape as K13.
@@ -172,7 +172,7 @@ def build(seed: int, pack: ContentPack) -> Tree:
     """Build the committed tree for *seed*."""
     root_stream = stage_stream(seed, "backbone")
     tree = Tree(seed=seed)
-    tree.meta["generator"] = "k14_flora"   # model default is k13_treegen
+    tree.meta["generator"] = "k13_flora"   # model default is k13_treegen
     from exp.artifacts import current_commit
     tree.meta["commit"] = current_commit()  # provenance stamp
     tree.add(Node(path="k1", rank=Rank.KINGDOM, parent=None,

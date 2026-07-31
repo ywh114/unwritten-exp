@@ -18,7 +18,7 @@ from exp.k13_treegen.metrics import run_checks
 from exp.k13_treegen.model import Rank
 from exp.k13_treegen.seeding import stage_stream
 
-CONTENT = pathlib.Path(__file__).parent / "content"
+CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")

@@ -1,7 +1,7 @@
 """K14 P6 tests — substrate ("ground") classification (B3) over the K11
 seed-1 dump, plus synthetic z dicts for the per-genesis unit rules.
 
-Run: uv run pytest -q exp/k14_flora/world/
+Run: uv run pytest -q exp/k14_worldprod/
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ import pytest
 
 from exp.artifacts import find as artifact_find
 from exp.k11_worldgen.units import DEPTH_MAX_M, ELEV_MAX_M
-from exp.k14_flora.world import derived, ground
-from exp.k14_flora.world.ground import GROUND_ID, N_CLASSES
+from exp.k14_worldprod import derived, ground
+from exp.k14_worldprod.ground import GROUND_ID, N_CLASSES
 
 SEED = 1
 SEA = 0.35                      # synthetic sea level (matches the k11 dump)
@@ -500,7 +500,7 @@ def _read_pack(path):
 
 
 def test_pack_categorical_layer(result, tmp_path):
-    from exp.k14_flora.world.datapack import build_pack
+    from exp.k14_worldprod.datapack import build_pack
     path = build_pack(result, tmp_path / "derived.k11pack")
     header, arrays = _read_pack(path)
 

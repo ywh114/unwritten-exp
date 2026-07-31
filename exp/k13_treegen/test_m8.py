@@ -15,7 +15,7 @@ from exp.k13_treegen.model import Node, Rank, Tree
 from exp.k13_treegen.nomenclature import (
     NameContext, _agree, assign_names)
 
-CONTENT = pathlib.Path(__file__).parent / "content"
+CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")

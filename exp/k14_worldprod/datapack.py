@@ -166,7 +166,7 @@ def build_pack(result: dict, out_path: Path) -> Path:
                -2, 30, RAMP_BOTTOM_T, 0.5, "ocean", " °C",
                tooltip_only=True)
     # depth zones — categorical, same convention as the ground layer
-    from exp.k14_flora.world.water import ZONES
+    from exp.k14_worldprod.water import ZONES
     zclasses = [dict(name=z_["name"], color=list(z_["color"]))
                 for z_ in ZONES]
     layers.append({
@@ -217,5 +217,5 @@ def build_pack(result: dict, out_path: Path) -> Path:
                        "points": result["points"][key], "color": color})
 
     return write_pack(out_path, layers, arrays,
-                      {"generator": "k14_flora", "pack": "d0_derived",
+                      {"generator": "k14_worldprod", "pack": "d0_derived",
                        "seed": result["seed"]})

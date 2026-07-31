@@ -16,7 +16,7 @@ from exp.k13_treegen.content import load_content
 from exp.k13_treegen.metrics import run_checks
 from exp.k13_treegen.model import Node, Rank, Tree
 
-CONTENT = pathlib.Path(__file__).parent / "content"
+CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")

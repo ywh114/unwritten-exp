@@ -2,7 +2,7 @@
 fields; no k11 dump needed). Real-data integration assertions live in
 test_derived.py (shared build fixture).
 
-Run: uv run pytest -q exp/k14_flora/world/test_water.py
+Run: uv run pytest -q exp/k14_worldprod/test_water.py
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from exp.k14_flora.world import water
+from exp.k14_worldprod import water
 
 
 def _bathy(field_m: np.ndarray) -> np.ndarray:
