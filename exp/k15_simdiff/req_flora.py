@@ -60,6 +60,7 @@ V1_FLORA = (
 # 2026-08-01: every trait the engine directly needs rides the view):
 #   dispersal_channels ({local, wind, water, animal, jump} pmf),
 #   propagule_mass_mg, propagule_count (emission quantity/yr),
-#   seed_bank, crown_spread_m (per-capita space demand)
+#   seed_bank, crown_spread_m (per-capita space demand),
+#   jump_rate (long-range hops/yr)
 # Env may read a key that is None/absent for a given plan — the
 # stratum then does not apply (e.g. no anchoring on a duckweed).

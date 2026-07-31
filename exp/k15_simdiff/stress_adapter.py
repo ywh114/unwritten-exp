@@ -455,6 +455,8 @@ def _view_from_record(axes: dict, preset_id: str | None,
         "seed_bank": axes.get("seed_bank"),
         # per-capita space demand for the engine's density term
         "crown_spread_m": axes.get("crown_spread_m"),
+        # jump-dispersal frequency (long-range hops/yr) for the engine
+        "jump_rate": axes.get("jump_rate"),
     }
 
 

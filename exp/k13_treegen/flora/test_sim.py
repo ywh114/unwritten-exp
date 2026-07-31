@@ -38,7 +38,7 @@ REQ_VIEW_KEYS = (
     # engine-side dispersal (K15 rounds; owner ruling 2026-08-01: every
     # trait the engine directly needs rides the view)
     "dispersal_channels", "propagule_mass_mg", "propagule_count",
-    "seed_bank", "crown_spread_m",
+    "seed_bank", "crown_spread_m", "jump_rate",
 )
 # [niche] metadata keys — clade metadata, never a driftable trait.
 NICHE_KEYS = ("temp_opt_c", "temp_breadth_c", "moisture_opt",
@@ -124,6 +124,9 @@ def test_derive_engine_dispersal_keys(sim, pack):
     assert isinstance(view["seed_bank"], str)
     assert isinstance(view["crown_spread_m"], (int, float)) \
         and view["crown_spread_m"] > 0.0
+    assert isinstance(view["jump_rate"], (int, float)) \
+        and view["jump_rate"] >= 0.0
+    assert view["jump_rate"] == 0.05   # oak authors jump_rate = 0.05
 
 
 # ── select ────────────────────────────────────────────────────────────
