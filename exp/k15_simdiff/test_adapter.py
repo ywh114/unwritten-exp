@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from exp.k13_treegen.interface import StressVerdict
+from exp.k14_worldprod.ground import GROUND_ID, PROP_TABLES
 from exp.k15_simdiff.req_flora import (
     REQ_ANCHORING,
     REQ_BLOOM_FROST,
@@ -51,9 +52,32 @@ from kernel.stress import (
 H = W = 4
 N = 12
 
+# default uniform ground mix for the synthetic world (nutrient 0.65,
+# rooting 3.0 m, pH 6.0, sal 0, non-hard)
+DEFAULT_MIX_CLASS = "brown earth"
+
+
+def mix_arrays(*weighted_classes) -> tuple[np.ndarray, np.ndarray]:
+    """(mix_ids, mix_w) at (3,H,W) from ("class name", weight) pairs —
+    the best-of-class semantics read these; weights renormalize over
+    the used slots, remaining slots repeat the first id at weight 0."""
+    ids = np.zeros((3, H, W), dtype=np.uint8)
+    w = np.zeros((3, H, W), dtype=np.float32)
+    first = GROUND_ID[weighted_classes[0][0]]
+    ids[:] = first
+    total = sum(float(wt) for _, wt in weighted_classes)
+    for slot, (name, wt) in enumerate(weighted_classes[:3]):
+        ids[slot] = GROUND_ID[name]
+        w[slot] = float(wt) / total
+    return ids, w
+
 
 def make_ctx(**overrides) -> WorldContext:
-    """A tiny synthetic world: everything constant unless overridden."""
+    """A tiny synthetic world: everything constant unless overridden.
+    The ground mix defaults to a uniform DEFAULT_MIX_CLASS patch; pass
+    mix=mix_arrays(("class", w), ...) to override (eff_hard stays an
+    independent override for the anchoring SHARE tests)."""
+    mix = overrides.pop("mix", None)
     ctx = WorldContext()
     ctx.seed = 1
     ctx.H, ctx.W = H, W
@@ -82,6 +106,8 @@ def make_ctx(**overrides) -> WorldContext:
     ctx.ground_class = np.zeros((H, W), dtype=np.uint8)
     ctx.wind_ms = np.full((H, W), WIND_REF_MS, dtype=np.float32)  # neutral
     ctx.bottom_temp = np.zeros((H, W), dtype=np.float32)
+    ctx.mix_ids, ctx.mix_w = mix if mix is not None else \
+        mix_arrays((DEFAULT_MIX_CLASS, 1.0))
     for k, v in overrides.items():
         setattr(ctx, k, v)
     return ctx
@@ -149,15 +175,25 @@ def test_drought_widens_dry_side_asymmetric():
 
 def test_phenology_gates_cold_months():
     """winter_deciduous: the T cost is dropped in dormant months
-    (m < leafout_month); an evergreen pays it year-round."""
-    ctx = make_ctx(t_c=np.full((N, H, W), -10.0, dtype=np.float32),
+    (m < leafout_month); an evergreen pays it year-round — but only in
+    the GROWING season: months below GROW_T_C are dormant for every
+    surface plan (owner ruling 2026-08-01)."""
+    # 7 C: inside the growing band — evergreen pays, deciduous gated
+    ctx = make_ctx(t_c=np.full((N, H, W), 7.0, dtype=np.float32),
                    p_norm=np.full((N, H, W), 0.5, dtype=np.float32))
     dec = evaluate(base_view(winter_deciduous=1, leafout_month=4),
                    ctx)[REQ_CLIMATE]
     evg = evaluate(base_view(winter_deciduous=0), ctx)[REQ_CLIMATE]
-    assert np.allclose(dec[:3], 1.0)            # dormant months: no cost
+    assert np.allclose(dec[:3], 1.0)            # pre-leafout: no cost
     assert np.allclose(dec[3:], evg[3:])        # leaf-on: same as evergreen
-    assert (dec[3:] < 1.0).any()                # leaf-on cold cost bites
+    assert np.allclose(evg, 0.6)                # |7-15|/10 x w_T=0.5 -> 0.4
+    # -10 C: dormant for everyone, deciduous or not
+    cold = make_ctx(t_c=np.full((N, H, W), -10.0, dtype=np.float32),
+                    p_norm=np.full((N, H, W), 0.5, dtype=np.float32))
+    assert np.allclose(evaluate(base_view(winter_deciduous=0),
+                                cold)[REQ_CLIMATE], 1.0)
+    assert np.allclose(evaluate(base_view(winter_deciduous=1),
+                                cold)[REQ_CLIMATE], 1.0)
 
 
 def test_drought_deciduous_relaxes_dry_season():
@@ -169,19 +205,23 @@ def test_drought_deciduous_relaxes_dry_season():
 
 
 def test_c4_cam_cold_penalty():
-    """C4/CAM carry a cold penalty term (C3 none): on a cold cell the
-    climate factor drops below the plain distance."""
-    ctx = make_ctx(t_c=np.full((N, H, W), 0.0, dtype=np.float32),
+    """C4/CAM carry a cold penalty term (C3 none) in the COOL GROWING
+    band; below GROW_T_C every plan is dormant and the penalty lifts."""
+    ctx = make_ctx(t_c=np.full((N, H, W), 7.0, dtype=np.float32),
                    p_norm=np.full((N, H, W), 0.5, dtype=np.float32))
     c3 = evaluate(base_view(photosynthesis="C3"), ctx)[REQ_CLIMATE][0]
     c4 = evaluate(base_view(photosynthesis="C4"), ctx)[REQ_CLIMATE][0]
     cam = evaluate(base_view(photosynthesis="CAM"), ctx)[REQ_CLIMATE][0]
     assert (c4 < c3).all() and (cam < c3).all()
-    # the penalty is bounded ("costly, never lethal"): at T=0 the plain
-    # distance factor is 0.5 (breadth cost) and the cold penalty docks
-    # at most 40% of it -> floor 0.3, never 0.
-    assert np.allclose(c3, 0.5)
-    assert np.allclose(c4, 0.3) and np.allclose(cam, 0.3)
+    # at 7 C: plain distance |7-15|/10 x w_T=0.5 -> 0.6; the cold
+    # penalty sat((10-7)/5)=0.6 docks 40% x 0.6 of that -> x 0.76
+    assert np.allclose(c3, 0.6)
+    assert np.allclose(c4, 0.6 * 0.76) and np.allclose(cam, 0.6 * 0.76)
+    # dormant months (below GROW_T_C): no distance cost, no penalty
+    cold = make_ctx(t_c=np.full((N, H, W), 0.0, dtype=np.float32),
+                    p_norm=np.full((N, H, W), 0.5, dtype=np.float32))
+    assert np.allclose(evaluate(base_view(photosynthesis="C4"),
+                                cold)[REQ_CLIMATE], 1.0)
 
 
 def test_bloom_frost_only_in_bloom_window():
@@ -222,53 +262,77 @@ def test_water_dry_end_shortfall():
 
 
 def test_waterlogging_inversion():
-    """High waterlogging_tolerance INVERTS the term: the saturated end
-    becomes the requirement (dry ground is the cost); dry plans keep
-    the excess shape (saturated ground is the cost)."""
-    ctx_wet = make_ctx(water_potential=np.full((N, H, W), 1.0,
-                                               dtype=np.float32))
-    ctx_dry = make_ctx(water_potential=np.zeros((N, H, W),
-                                                dtype=np.float32))
+    """High waterlogging_tolerance INVERTS the term — and reads
+    fresh_availability (the unwritten-wetland field, owner ruling
+    2026-08-01): the marsh is the habitat, dry ground the cost. Dry
+    plans keep the excess shape against water_potential."""
+    ctx_marsh = make_ctx(fresh_availability=np.full((N, H, W), 1.0,
+                                                    dtype=np.float32))
+    ctx_dry = make_ctx()                        # fresh_availability = 0
     wet_plan = base_view(waterlogging_tolerance=1.0)
-    dry_plan = base_view(waterlogging_tolerance=0.0)
-    f_wet = evaluate(wet_plan, ctx_wet)[REQ_WATERLOGGING][0]
-    f_dry = evaluate(dry_plan, ctx_dry)[REQ_WATERLOGGING][0]
-    assert np.allclose(f_wet, 1.0) and np.allclose(f_dry, 1.0)
+    f_wet = evaluate(wet_plan, ctx_marsh)[REQ_WATERLOGGING][0]
+    assert np.allclose(f_wet, 1.0)
     bad_wet = evaluate(wet_plan, ctx_dry)[REQ_WATERLOGGING][0]
-    bad_dry = evaluate(dry_plan, ctx_wet)[REQ_WATERLOGGING][0]
-    assert np.allclose(bad_wet, 0.0) and np.allclose(bad_dry, 0.0)
+    assert np.allclose(bad_wet, 0.0)
+    # the water-availability term reads the marsh too
+    assert np.allclose(
+        evaluate(wet_plan, ctx_marsh)[REQ_WATER][0], 1.0)
+    # dry plan: water_potential drives the excess cost as before
+    wp_wet = make_ctx(water_potential=np.full((N, H, W), 1.0,
+                                              dtype=np.float32))
+    wp_dry = make_ctx(water_potential=np.zeros((N, H, W),
+                                               dtype=np.float32))
+    dry_plan = base_view(waterlogging_tolerance=0.0)
+    assert np.allclose(evaluate(dry_plan, wp_dry)[REQ_WATERLOGGING][0],
+                       1.0)
+    assert np.allclose(evaluate(dry_plan, wp_wet)[REQ_WATERLOGGING][0],
+                       0.0)
 
 
 def test_fertility_shortfall():
-    """REQ_FERTILITY = shortfall of eff_nutrient below the requirement
-    (low requirement on rich soil is not penalized)."""
-    ctx = make_ctx(eff_nutrient=np.full((H, W), 0.9, dtype=np.float32))
+    """REQ_FERTILITY = shortfall of the BEST mix class's nutrient below
+    the requirement (best-of-class; low requirement on rich soil is not
+    penalized)."""
+    ctx = make_ctx(mix=mix_arrays(("mollisol", 1.0)))      # nutrient .95
     rich = evaluate(base_view(fertility_requirement=0.3), ctx)
     assert np.allclose(rich[REQ_FERTILITY], 1.0)
-    ctxpoor = make_ctx(eff_nutrient=np.zeros((H, W), dtype=np.float32))
+    ctxpoor = make_ctx(mix=mix_arrays(("scree", 1.0)))     # nutrient .05
     poor = evaluate(base_view(fertility_requirement=0.5), ctxpoor)
-    assert np.allclose(poor[REQ_FERTILITY], 0.0)
+    assert np.allclose(poor[REQ_FERTILITY],
+                       1.0 - sat((0.5 - 0.05) / 0.5))
+    # a 50/50 scree+mollisol cell: the plan reads the mollisol patch
+    ctxmix = make_ctx(mix=mix_arrays(("scree", 1.0), ("mollisol", 1.0)))
+    best = evaluate(base_view(fertility_requirement=0.3), ctxmix)
+    assert np.allclose(best[REQ_FERTILITY], 1.0)
 
 
 def test_ph_position_split():
-    """ph_tolerance is a POSITION: opt = 4 + 5 x value, breadth ±1.
+    """ph_tolerance is a POSITION: opt = 4 + 5 x value, breadth ±1,
+    read against the BEST mix class (bog pH 4.0, solonetz pH 9.0).
     The factor is emitted SPLIT one-sided (req_flora ruling): ph_low
     drops only when the cell is too acidic for the position, ph_high
     only when too alkaline; their product is the symmetric distance."""
-    ctx = make_ctx(ground_ph=np.full((H, W), 4.0, dtype=np.float32))
+    ctx = make_ctx(mix=mix_arrays(("bog", 1.0)))           # pH 4.0
     cf = evaluate(base_view(ph_tolerance=0.0), ctx)
     cc = evaluate(base_view(ph_tolerance=1.0), ctx)
     assert np.allclose(cf[REQ_PH_LOW][0], 1.0)
     assert np.allclose(cf[REQ_PH_HIGH][0], 1.0)
     assert np.allclose(cc[REQ_PH_LOW][0], 0.0)    # opt 9.0 vs 4.0: too acid
     assert np.allclose(cc[REQ_PH_HIGH][0], 1.0)   # not too alkaline
-    ctxalk = make_ctx(ground_ph=np.full((H, W), 9.0, dtype=np.float32))
+    ctxalk = make_ctx(mix=mix_arrays(("solonetz", 1.0)))   # pH 9.0
     cc2 = evaluate(base_view(ph_tolerance=1.0), ctxalk)
     assert np.allclose(cc2[REQ_PH_LOW][0], 1.0)
     assert np.allclose(cc2[REQ_PH_HIGH][0], 1.0)
     cf2 = evaluate(base_view(ph_tolerance=0.0), ctxalk)
     assert np.allclose(cf2[REQ_PH_LOW][0], 1.0)
     assert np.allclose(cf2[REQ_PH_HIGH][0], 0.0)  # too alkaline
+    # a mixed bog+solonetz cell serves BOTH the acidophile and the
+    # basiphile (each finds its patch) — the mean would serve neither
+    ctxmix = make_ctx(mix=mix_arrays(("bog", 1.0), ("solonetz", 1.0)))
+    assert np.allclose(
+        evaluate(base_view(ph_tolerance=0.0), ctxmix)[REQ_PH_LOW][0], 1.0)
+    assert np.allclose(
+        evaluate(base_view(ph_tolerance=1.0), ctxmix)[REQ_PH_LOW][0], 1.0)
     # water plans read water_ph instead
     ctxw = make_ctx(water_ph=np.full((H, W), 9.0, dtype=np.float32))
     r = evaluate(base_view(medium="water", ph_tolerance=1.0,
@@ -278,13 +342,19 @@ def test_ph_position_split():
 
 
 def test_salinity_ionic_excess():
-    """REQ_SALINITY = one-sided excess: land plans read eff_sal_add,
-    water plans read the normalized h_salinity."""
-    ctx = make_ctx(eff_sal_add=np.full((H, W), 0.9, dtype=np.float32))
+    """REQ_SALINITY = one-sided excess over the best mix class's
+    sal_add (solonchak sal_add 1.0); water plans read the normalized
+    h_salinity."""
+    ctx = make_ctx(mix=mix_arrays(("solonchak", 1.0)))
     low = evaluate(base_view(salinity_tolerance=0.1), ctx)[REQ_SALINITY][0]
     high = evaluate(base_view(salinity_tolerance=0.95), ctx)[REQ_SALINITY][0]
     assert (high > low).all()
-    assert np.allclose(low, 1.0 - sat((0.9 - 0.1) / 1.0))
+    assert np.allclose(low, 1.0 - sat((1.0 - 0.1) / 1.0))
+    # a fresh patch rescues the intolerant plan (best-of-class)
+    ctxmix = make_ctx(mix=mix_arrays(("solonchak", 1.0), ("bog", 1.0)))
+    rescued = evaluate(base_view(salinity_tolerance=0.1),
+                       ctxmix)[REQ_SALINITY][0]
+    assert np.allclose(rescued, 1.0)
 
 
 # ── tail terms (B5 §4.3) ──────────────────────────────────────────────
@@ -328,14 +398,20 @@ def test_submerged_light():
 
 
 def test_rooting_excess_and_anchoring():
-    """rooting = saturating excess of root_depth over eff_rooting;
-    anchoring = hard substrate for holdfasts, (1 - eff_hard) for woody
-    land plants; absent for non-woody non-holdfast plans."""
-    ctx = make_ctx(eff_rooting_m=np.full((H, W), 0.5, dtype=np.float32))
+    """rooting = saturating excess of root_depth over the BEST mix
+    class's rooting_m (fen 1.0 m); anchoring = hard substrate SHARE for
+    holdfasts, (1 - eff_hard) for woody land plants; absent for
+    non-woody non-holdfast plans."""
+    ctx = make_ctx(mix=mix_arrays(("fen", 1.0)))           # rooting 1.0 m
     deep = evaluate(base_view(root_depth_m=2.0), ctx)[REQ_ROOTING][0]
     shallow = evaluate(base_view(root_depth_m=0.2), ctx)[REQ_ROOTING][0]
     assert (shallow > deep).all()
-    assert np.allclose(deep, 1.0 - sat((2.0 - 0.5) / 1.0))
+    assert np.allclose(deep, 1.0 - sat((2.0 - 1.0) / 1.0))
+    # best-of-class: a fen patch in a bedrock cell roots fine
+    ctxmix = make_ctx(mix=mix_arrays(("bedrock outcrop", 1.0),
+                                     ("fen", 1.0)))
+    patched = evaluate(base_view(root_depth_m=0.2), ctxmix)[REQ_ROOTING][0]
+    assert np.allclose(patched, 1.0)
     hf = make_ctx(eff_hard=np.zeros((H, W), dtype=np.float32))
     hold = evaluate(base_view(medium="water", holdfast=1, woodiness=0.0,
                               root_depth_m=None, salinity_tolerance=0.9,
@@ -373,19 +449,24 @@ def test_anchoring_wind_modulation():
 
 def test_climate_submerged_reads_bottom_temp():
     """A submerged benthic plan reads the ANNUAL bottom temperature for
-    the climate T term, not the surface monthly field (B4: the deep
-    bottom has no seasons). Surface plan: sat cost w_T x 1 -> f = 0.5;
-    submerged at the optimum: f = 1."""
+    the climate T term, not the surface monthly field — and carries NO
+    dormancy gate (the deep sea has no winter): a -20 C bottom costs
+    the full distance. A surface plan at -20 C is simply dormant."""
     ctx = make_ctx(t_c=np.full((N, H, W), -20.0, dtype=np.float32),
-                   bottom_temp=np.full((H, W), 15.0, dtype=np.float32))
+                   bottom_temp=np.full((H, W), -20.0, dtype=np.float32))
     surf = evaluate(base_view(medium="water", submerged=0,
                               salinity_tolerance=0.9),
                     ctx)[REQ_CLIMATE]
-    assert np.allclose(surf, 0.5)         # sat(1 - 0.5 x 1), T half only
+    assert np.allclose(surf, 1.0)         # dormant: no T-distance cost
     sub = evaluate(base_view(medium="water", submerged=1,
                              salinity_tolerance=0.9),
                    ctx)[REQ_CLIMATE]
-    assert np.allclose(sub, 1.0)          # bottom 15 == opt 15
+    assert np.allclose(sub, 0.5)          # sat cost w_T x 1, no dormancy
+    warm = make_ctx(bottom_temp=np.full((H, W), 15.0, dtype=np.float32))
+    sub_warm = evaluate(base_view(medium="water", submerged=1,
+                                  salinity_tolerance=0.9),
+                        warm)[REQ_CLIMATE]
+    assert np.allclose(sub_warm, 1.0)     # bottom 15 == opt 15
 
 
 # ── freshwater habitat stratum (B5 §4.5) ──────────────────────────────
@@ -416,21 +497,25 @@ def test_fresh_habitat_replaces_medium_for_freshwater_plans():
 
 def test_F_product_and_signed_s():
     """F is the product of every factor and s = 1 - 2F (Liebig
-    tail-dominance and the signed scale), wired through the kernel."""
+    tail-dominance and the signed scale), wired through the kernel.
+    substrate_share rides along as capacity metadata — never in F."""
     ctx = make_ctx(t_c=np.full((N, H, W), 15.0, dtype=np.float32),
                    p_norm=np.full((N, H, W), 0.5, dtype=np.float32))
     r = evaluate(base_view(), ctx)
     F = np.ones((N, H, W), dtype=np.float32)
     for k, a in r.items():
-        if k in ("F", "s_env"):
+        if k in ("F", "s_env", "substrate_share"):
             continue
         F *= a
     assert np.allclose(r["F"], F, atol=1e-6)
     assert np.allclose(r["s_env"], 1.0 - 2.0 * F, atol=1e-6)
     # a genuinely every-axis-optimal view reads s = -1 (vigor); the
-    # base mesic view on a neutral cell sits below 0 too
+    # wet-obligate reads fresh_availability, so the marsh is optimal;
+    # the clay patch (pH 6.5, nutrient 0.55) hits the view's optimum
     opt = make_ctx(water_potential=np.ones((N, H, W), dtype=np.float32),
-                   ground_ph=np.full((H, W), 6.5, dtype=np.float32))
+                   fresh_availability=np.ones((N, H, W),
+                                              dtype=np.float32),
+                   mix=mix_arrays(("clay", 1.0)))
     r_opt = evaluate(base_view(waterlogging_tolerance=1.0,
                                woodiness=0.0, root_depth_m=None), opt)
     assert np.allclose(r_opt["s_env"], -1.0, atol=1e-5)
@@ -451,14 +536,43 @@ def test_verdict_at_materialization():
     r = evaluate(base_view(), ctx)
     v = verdict_at(r, 2, 3, 5)
     assert isinstance(v, StressVerdict)
-    # provenance is the per-requirement scalars at that cell-month
+    # provenance is the per-requirement scalars at that cell-month;
+    # capacity metadata (substrate_share) is NOT provenance
     for k, a in r.items():
-        if k in ("F", "s_env"):
+        if k in ("F", "s_env", "substrate_share"):
             continue
         assert k in v.provenance
         assert v.provenance[k] == pytest.approx(float(a[5, 2, 3]))
+    assert "substrate_share" not in v.provenance
     # s/F wiring goes through the kernel compose (same math, same shape)
     expect = compose(v.provenance)
     assert v.s == pytest.approx(expect.s)
     assert v.s == pytest.approx(1.0 - 2.0 * float(r["F"][5, 2, 3]))
     assert -1.0 <= v.s <= 1.0
+
+
+def test_substrate_share_capacity_split():
+    """substrate_share = sum w_i x prod f_i over the mix classes — the
+    engine's capacity split (owner ruling 2026-08-01): a 50/50 cell of
+    a perfect patch and a failed patch gives suitability 1.0 (the plan
+    lives on the good patch) but share 0.5 (only half the cell carries
+    it). Computed from the class property rows, self-consistent."""
+    mix = mix_arrays(("scree", 1.0), ("mollisol", 1.0))
+    ctx = make_ctx(mix=mix)
+    view = base_view(fertility_requirement=0.5, ph_tolerance=None,
+                     salinity_tolerance=None, root_depth_m=None)
+    r = evaluate(view, ctx)
+    nut = PROP_TABLES["nutrient"]
+    f_scree = float(shortfall_suit(nut[GROUND_ID["scree"]], 0.5, 0.5))
+    f_moll = float(shortfall_suit(nut[GROUND_ID["mollisol"]], 0.5, 0.5))
+    assert f_scree < 1.0 and f_moll == 1.0
+    # the cell factor reads the BEST patch
+    assert np.allclose(r[REQ_FERTILITY][0], 1.0)
+    # the share weights the patches (fertility is the only substrate
+    # requirement this view carries)
+    assert np.allclose(r["substrate_share"],
+                       0.5 * f_scree + 0.5 * f_moll)
+    assert r["substrate_share"].shape == (H, W)
+    # water-medium plans carry no ground: share is 1.0 everywhere
+    rw = evaluate(base_view(medium="water", salinity_tolerance=0.9), ctx)
+    assert np.allclose(rw["substrate_share"], 1.0)

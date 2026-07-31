@@ -15,9 +15,16 @@ REQ_CLIMATE = "pressure:climate"            # T/P distance from [niche]
 REQ_BLOOM_FROST = "pressure:bloom_frost"    # extra cost term, never lethal
 
 # ── ground stratum (B5 §4.2, rewired 2026-07-31) ──────────────────────
+# Substrate requirements (fertility, pH, salinity, rooting) are
+# BEST-OF-CLASS (owner ruling 2026-08-01): the cell's top-3 ground mix
+# is three physically-present patches — the plan reads the best patch;
+# the usable share rides "substrate_share" (capacity metadata for the
+# engine's K split, never a stress factor). Wet-obligate land plans
+# (waterlogging_tolerance >= WLOG_INVERT_T) read fresh_availability for
+# BOTH water and waterlogging (the marsh is the habitat).
 REQ_WATER = "pressure:water"                # water_potential dry end
 REQ_WATERLOGGING = "pressure:waterlogging"  # saturated end (inverts)
-REQ_FERTILITY = "pressure:fertility"        # eff_nutrient shortfall
+REQ_FERTILITY = "pressure:fertility"        # best-patch nutrient shortfall
 # pH is SPLIT one-sided (owner ruling 2026-08-01): a symmetric distance
 # factor is space-blind — select() cannot tell which side of the optimum
 # the cell sits on, so a single "pressure:ph" cannot be signed. Two
@@ -29,7 +36,7 @@ REQ_SALINITY = "pressure:salinity"          # ionic (osmotic half is in
                                             # water_potential already)
 
 # ── tail terms (B5 §4.3; steep, cost -> ~1, never a verdict) ──────────
-REQ_ROOTING = "pressure:rooting"            # root_depth vs eff_rooting_m
+REQ_ROOTING = "pressure:rooting"            # root_depth vs best patch
 REQ_ANCHORING = "pressure:anchoring"        # holdfast/exposed trees
 REQ_MEDIUM = "pressure:medium"              # medium boundary (~1 always)
 REQ_SUBMERGED_LIGHT = "pressure:light"      # below photic depth

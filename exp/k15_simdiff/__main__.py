@@ -7,13 +7,15 @@ anchor world context, evaluates all 150 radiated species (timed), and
 prints the B5 §8 acceptance table on seed 1:
 
   (1) determinism — two full runs, byte-identical arrays;
-  (2) mangrove-grade — the wet-adapted coastal tree's lowest stress is
-      in the high-HAND coastal band (graded, not binary);
-  (3) xeric-grade — high stress on wetland (fen/bog/gleysol) cells,
-      low in its arid band;
+  (2) mangrove-grade — the wet-adapted tree's lowest worst-month
+      stress is in the marsh band (annual fresh_availability >= 0.6;
+      graded, not binary);
+  (3) xeric-grade — high worst-month stress on wetland
+      (fen/bog/gleysol) cells, low in its arid band;
   (4) kelp-grade — low stress only on hard, shallow, photic bottom;
       deep soft bottom ≈ 1;
-  (5) calcifuge — lower stress on podzol/bog than rendzina/caliche;
+  (5) calcifuge — excluded from rendzina/caliche country by the
+      usable-substrate share (capacity split, post-ruling 2026-08-01);
       a freshwater taxon in bog-blackwater cells scores per its
       ph_tolerance position;
   (7) budget — full 150-species annual evaluation ≤ 5 s;
@@ -50,20 +52,19 @@ from exp.k15_simdiff.stress_adapter import (
     load_world,
     preset_view,
     species_view,
+    worst_stress,
 )
 
 HERE = Path(__file__).resolve().parent
 TREE_OUT = HERE.parent / "k13_treegen" / "out"
 
 # ── acceptance band definitions (seed 1; named tunables) ───────────────
-# The high-HAND coastal band (B5 §8.2): HAND waterlogging is exp(-hand/
-# HAND_REF) — the "high-HAND" band is the drainage-adjacent lowland
-# (hand below HAND_WET_M) within COASTAL_REACH_C cells (~48 km at the
-# 4 km anchor) of the ocean. Graded, not binary: mean stress inside the
-# band must sit below the outside mean, and the global minimum must
-# fall in the band.
-COASTAL_REACH_C = 12
-HAND_WET_M = 1.0
+# The marsh band (B5 §8.2, post-ruling 2026-08-01): wet-obligate plans
+# read fresh_availability — the band is the marsh itself (annual fresh
+# availability at/above MARSH_FRESH). Graded, not binary: mean stress
+# inside the band must sit below the outside mean, and the global
+# minimum must fall in the band.
+MARSH_FRESH = 0.6
 # wetland cells for the xeric check (B5 §8.3): the dominant ground
 # class is fen/bog/gleysol.
 WETLAND_CLASSES = (GROUND_ID["fen"], GROUND_ID["bog"], GROUND_ID["gleysol"])
@@ -134,26 +135,33 @@ def _fmt(ok: bool, name: str, detail: str) -> str:
 
 def check_mangrove(ctx: WorldContext, pack: ContentPack,
                    dist_ocean) -> tuple[bool, str]:
-    """B5 §8.2: lowest stress in the high-HAND coastal band, graded."""
-    w = annual_stress(evaluate(preset_view(MANGROVE_PRESET, pack), ctx))
+    """B5 §8.2: lowest stress in the WETLAND band, graded. Post-ruling
+    (2026-08-01): wet-obligate plans read fresh_availability, so the
+    band IS the marsh (annual fresh_availability >= MARSH_FRESH); the
+    engine's worst-month stress is measured."""
+    fac = evaluate(preset_view(MANGROVE_PRESET, pack), ctx)
+    w = worst_stress(fac)
     land = ctx.land_cell
-    band = land & (dist_ocean <= COASTAL_REACH_C) & (ctx.hand_m < HAND_WET_M)
+    band = land & (ctx.fresh_availability.mean(axis=0) >= MARSH_FRESH)
     y, x = np.unravel_index(np.argmin(w), w.shape)
     in_band = bool(band[y, x])
     band_mean = float(w[band].mean())
     out_mean = float(w[land & ~band].mean())
     ok = in_band and band_mean < out_mean
-    detail = (f"min s={w[y, x]:.3f} at ({y},{x}) dist_ocean="
-              f"{dist_ocean[y, x]} hand={ctx.hand_m[y, x]:.2f}m "
-              f"in-band={in_band}; band n={int(band.sum())} mean "
+    detail = (f"min s_worst={w[y, x]:.3f} at ({y},{x}) fresh="
+              f"{float(ctx.fresh_availability.mean(axis=0)[y, x]):.2f} "
+              f"in-band={in_band}; marsh n={int(band.sum())} mean "
               f"{band_mean:.4f} vs outside {out_mean:.4f} (graded)")
     return ok, detail
 
 
 def check_xeric(ctx: WorldContext, pack: ContentPack,
                 dist_ocean) -> tuple[bool, str]:
-    """B5 §8.3: high stress on wetland cells, low in the arid band."""
-    c = annual_stress(evaluate(preset_view(XERIC_PRESET, pack), ctx))
+    """B5 §8.3: high stress on wetland cells, low in the arid band —
+    measured on the engine's worst-month stress (the dormancy gate
+    makes annual means read mild; the growing-season worst month is
+    what the rounds cache)."""
+    c = worst_stress(evaluate(preset_view(XERIC_PRESET, pack), ctx))
     land = ctx.land_cell
     wetland = land & np.isin(ctx.ground_class, list(WETLAND_CLASSES))
     p_ann = ctx.p_norm.mean(axis=0)
@@ -164,9 +172,10 @@ def check_xeric(ctx: WorldContext, pack: ContentPack,
     gap = w_mean - a_mean
     ok = w_mean > 0.8 and a_mean < 0.7 and gap > 0.3 and bool(arid[y, x])
     detail = (f"wetland(fen/bog/gleysol) n={int(wetland.sum())} mean "
-              f"s={w_mean:.3f}; arid(p<{ARID_P_ANN}) n={int(arid.sum())} "
-              f"mean s={a_mean:.3f} (gap {gap:+.3f}); global min "
-              f"s={c[y, x]:.3f} at ({y},{x}) arid={bool(arid[y, x])}")
+              f"s_worst={w_mean:.3f}; arid(p<{ARID_P_ANN}) "
+              f"n={int(arid.sum())} mean s_worst={a_mean:.3f} (gap "
+              f"{gap:+.3f}); global min s={c[y, x]:.3f} at ({y},{x}) "
+              f"arid={bool(arid[y, x])}")
     return ok, detail
 
 
@@ -193,17 +202,21 @@ def check_kelp(ctx: WorldContext, pack: ContentPack,
 
 def check_calcifuge(ctx: WorldContext, pack: ContentPack,
                     dist_ocean) -> tuple[bool, str]:
-    """B5 §8.5: calcifuge lower on podzol/bog than rendzina/caliche; a
-    freshwater taxon in bog-blackwater cells scores per its
-    ph_tolerance position."""
+    """B5 §8.5, post-ruling (2026-08-01): the calcifuge is excluded from
+    alkaline country by CAPACITY — best-of-class suitability finds the
+    acid patch even in lime country, so the usable-substrate share
+    carries the exclusion (podzol/bog share >> rendzina/caliche share);
+    a freshwater taxon in bog-blackwater cells scores per its
+    ph_tolerance position (stress-side, unchanged)."""
     from exp.k15_simdiff.req_flora import REQ_PH_HIGH, REQ_PH_LOW
-    h = annual_stress(evaluate(preset_view(CALCIFUGE_PRESET, pack), ctx))
+    fac = evaluate(preset_view(CALCIFUGE_PRESET, pack), ctx)
+    share = fac["substrate_share"]
     land = ctx.land_cell
     acid = land & np.isin(ctx.ground_class, list(ACID_CLASSES))
     alk = land & np.isin(ctx.ground_class, list(ALKALINE_CLASSES))
-    a_mean = float(h[acid].mean())
-    k_mean = float(h[alk].mean())
-    ok1 = a_mean < k_mean
+    a_share = float(share[acid].mean())
+    k_share = float(share[alk].mean())
+    ok1 = a_share > k_share + 0.2
     # bog-blackwater: dominant bog class, low water pH (the implicit
     # hydrology chemistry of B5 §7.2).
     black = land & (ctx.ground_class == GROUND_ID["bog"]) \
@@ -217,12 +230,13 @@ def check_calcifuge(ctx: WorldContext, pack: ContentPack,
     # sphagnum (ph position 0.05 -> opt pH 4.25) fits blackwater;
     # duckweed (0.5 -> opt 6.5) does not.
     ok2 = bog_ph > fresh_ph + 0.05
-    detail = (f"heath on podzol/bog n={int(acid.sum())} mean "
-              f"s={a_mean:.3f} vs rendzina/caliche n={int(alk.sum())} mean "
-              f"s={k_mean:.3f}; bog-blackwater n={int(black.sum())} "
-              f"water_ph mean={float(ctx.water_ph[black].mean()):.2f}: "
-              f"sphagnum ph_suit={bog_ph:.3f} vs duckweed "
-              f"ph_suit={fresh_ph:.3f} (per-position)")
+    detail = (f"heath share on podzol/bog n={int(acid.sum())} mean "
+              f"{a_share:.3f} vs rendzina/caliche n={int(alk.sum())} "
+              f"mean {k_share:.3f} (capacity split); bog-blackwater "
+              f"n={int(black.sum())} water_ph mean="
+              f"{float(ctx.water_ph[black].mean()):.2f}: sphagnum "
+              f"ph_suit={bog_ph:.3f} vs duckweed ph_suit={fresh_ph:.3f} "
+              f"(per-position)")
     return ok1 and ok2, detail
 
 
@@ -234,7 +248,7 @@ def check_signed_scale(ctx: WorldContext, pack: ContentPack,
     s = r["s_env"]
     m, y, x = np.unravel_index(np.argmin(s), s.shape)
     factors = {k: float(a[m, y, x]) for k, a in r.items()
-               if k not in ("F", "s_env")}
+               if k not in ("F", "s_env", "substrate_share")}
     fmin = min(factors.values())
     ok = float(s[m, y, x]) < 0.0 and fmin >= NEAR_OPTIMAL_F
     detail = (f"{VIGOR_TAXON_PRESET} at (m={m},y={y},x={x}) "
@@ -288,7 +302,7 @@ def run(seed: int) -> int:
 
     dist_ocean = dist_to_ocean(ctx)
     for name, fn in (
-            ("(2) mangrove-grade: min in high-HAND coastal band",
+            ("(2) mangrove-grade: min in the marsh band",
              check_mangrove),
             ("(3) xeric-grade: wetland high, arid band low", check_xeric),
             ("(4) kelp-grade: hard shallow photic only; deep soft ~1",

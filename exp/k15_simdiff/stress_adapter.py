@@ -38,6 +38,30 @@ Resolution rules followed here (B5 §3 + the K14 deliver convention):
 - photic_depth_m (B4) at anchor from the anchor bathymetry + plume +
   provisional marine productivity (same inputs the delivery product
   was upsampled from).
+
+Owner rulings 2026-08-01 (stat-pass settling):
+
+- BEST-OF-CLASS substrate semantics: the cell's top-3 ground mix is
+  three physically-present patches, not an average. The substrate
+  requirements (rooting, fertility, pH, salinity) read the BEST class
+  in the mix (max over classes of the per-class suitability); the
+  usable-substrate share U = sum w_i x prod f_i is exported as
+  "substrate_share" for the engine's capacity split (K_L = K x U —
+  the mix's effect on population runs through carrying capacity, not
+  through suitability). Anchoring stays on hard/loose SHARES (already
+  patch-probabilities); water relations stay on the mix-mean (cell
+  hydrology, not a patch choice).
+- Growing-season dormancy: months below GROW_T_C (5 C, the K11
+  growing-season convention) are dormant — no T-distance cost for
+  surface plans (a taiga winter is not niche distance; frost kill
+  rides the bloom-frost and C4/CAM terms, which are likewise gated to
+  the growing band). Submerged plans read the annual bottom
+  temperature and carry no dormancy (the deep sea has no winter).
+- Wet-land habitat: land plans with waterlogging_tolerance >=
+  WLOG_INVERT_T (wet-obligate) read fresh_availability for BOTH the
+  water-availability term and the inverted waterlogging requirement —
+  B5 §7.2's unwritten-wetland field (a reed's water is the marsh, not
+  the worst-month soil moisture).
 """
 
 from __future__ import annotations
@@ -54,6 +78,7 @@ from exp.k13_treegen.interface import StressVerdict
 from exp.k14_worldprod import moisture as _moisture
 from exp.k14_worldprod import water as _water
 from exp.k14_worldprod.derived import (
+    GROW_T_C,
     PLUME_WEIGHT,
     _plume_source,
     _upsample,
@@ -61,7 +86,9 @@ from exp.k14_worldprod.derived import (
     marine_productivity,
 )
 from exp.k14_worldprod.ground import (
+    CLASS_PH,
     GROUND_ID,
+    PROP_TABLES,
     eff_props,
     mix_ph,
 )
@@ -128,11 +155,13 @@ WATER_REF = 0.35
 WLOG_DRY_LIMIT = 0.75
 WLOG_DRY_REF = 0.25
 # waterlogging for WET plans (tolerance at/above WLOG_INVERT_T): the
-# saturated end INVERTS to a requirement — the plan needs
-# water_potential above WLOG_WET_LIMIT (invert(excess_suit)).
+# saturated end INVERTS to a requirement — read against
+# fresh_availability (B5 §7.2's unwritten-wetland field), not soil
+# water_potential: a wet-obligate land plan needs the marsh itself.
+# The requirement ramps from WLOG_WET_LIMIT to 1.0 over WLOG_WET_REF.
 WLOG_INVERT_T = 0.7
-WLOG_WET_LIMIT = 0.55
-WLOG_WET_REF = 0.45
+WLOG_WET_LIMIT = 0.4
+WLOG_WET_REF = 0.6
 # fertility: shortfall of eff_nutrient below fertility_requirement.
 FERT_REF = 0.5
 # pH: optimum = PH_LO + PH_SPAN x ph_tolerance (position, not width);
@@ -250,6 +279,10 @@ class WorldContext:
                                 # (ocean; 0 on land) — submerged plans
                                 # read THIS for the climate T term (B4:
                                 # the deep bottom has no seasons)
+    mix_ids: np.ndarray         # (3,H,W) uint8 top-3 ground mix classes
+    mix_w: np.ndarray           # (3,H,W) float32 mix weights — the
+                                # best-of-class substrate semantics read
+                                # these directly (owner ruling 2026-08-01)
     def __init__(self) -> None:
         pass
 
@@ -325,6 +358,8 @@ def load_world(seed: int) -> WorldContext:
     # ── ground_eff_* rasters (B5 §3 shared precompute).
     g = _ground_anchor_mix(z, manifest, sea)
     mix_ids, mix_w = g["mix_ids"], g["mix_w"]
+    ctx.mix_ids = mix_ids.astype(np.uint8)
+    ctx.mix_w = mix_w.astype(np.float32)
     ctx.ground_ph = mix_ph(mix_ids, mix_w).astype(np.float32)
     eff = eff_props(mix_ids, mix_w)
     ctx.eff_retention = eff["retention"].astype(np.float32)
@@ -505,12 +540,18 @@ def _climate_suitability(view: dict, ctx: WorldContext) -> np.ndarray:
         # submerged (benthic water) plans read the ANNUAL bottom
         # temperature, not the surface monthly field — B4: the deep
         # bottom has no seasons, shelf bottoms are damped.
-        t_field = ctx.bottom_temp[None] if int(view.get("submerged")
-                                               or 0) else ctx.t_c
+        submerged = int(view.get("submerged") or 0)
+        t_field = ctx.bottom_temp[None] if submerged else ctx.t_c
         c = sat(np.abs(t_field - np.float32(opt_t)) / np.float32(b_t))
         if winter_dec and isinstance(leafout, (int, float)):
             leaf_on = (_MONTH1 >= int(leafout))[:, None, None]
             c = np.where(leaf_on, c, 0.0)      # dormant months: no cold
+        if not submerged:
+            # growing-season dormancy (owner ruling 2026-08-01): months
+            # below GROW_T_C are dormant — no T-distance cost (a taiga
+            # winter is not niche distance). Submerged plans read the
+            # annual bottom temperature: no winter, no dormancy.
+            c = np.where(t_field < np.float32(GROW_T_C), 0.0, c)
         cost += np.float32(w_t) * c
     # the moisture (P) half is meaningless for a plan that lives IN
     # water — its moisture niche is the water itself, carried by the
@@ -535,10 +576,13 @@ def _climate_suitability(view: dict, ctx: WorldContext) -> np.ndarray:
                               np.float32(GS_REF_MONTHS))
         f = f * f_gs[None]
 
-    # C4/CAM cold penalty (C3/none/chemosymbiosis carry none)
+    # C4/CAM cold penalty (C3/none/chemosymbiosis carry none); gated to
+    # the growing band — below GROW_T_C every plan is dormant, so C4's
+    # real disadvantage is the COOL growing season, not the winter.
     if photo in ("C4", "CAM"):
         cold = sat((np.float32(COLD_PEN_T_C) - ctx.t_c)
                    / np.float32(COLD_PEN_SPAN_C))
+        cold = np.where(ctx.t_c < np.float32(GROW_T_C), 0.0, cold)
         f = f * (1.0 - np.float32(COLD_PEN_W) * cold)
     return f.astype(np.float32)
 
@@ -571,10 +615,57 @@ def _ph_suit_split(env_ph, opt_ph: float):
             excess_suit(env_ph, opt, b).astype(np.float32))
 
 
-def _ground_terms(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
-    """B5 §4.2 for LAND (and dual) plans: water availability, water-
-    logging (with the inversion), fertility, pH, salinity — REQ_WATER
-    and REQ_WATERLOGGING monthly, the rest annual broadcast."""
+def _substrate_suits(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
+    """Per-CLASS substrate suitabilities (3,H,W) for the plans that read
+    the ground (land + dual): the top-3 mix classes are physically
+    present patches, not an average (owner ruling 2026-08-01). The cell
+    factor is the BEST patch (max over classes, taken by the callers);
+    the usable share U = sum w_i x prod f_i goes to the engine's
+    capacity split (evaluate attaches it as "substrate_share"). A
+    requirement the plan does not carry is absent (= 1 in the
+    product). Water-medium plans read no ground."""
+    if view.get("medium") == "water":
+        return {}
+    ids = ctx.mix_ids
+    out: dict[str, np.ndarray] = {}
+    root = _f(view.get("root_depth_m"))
+    if not np.isnan(root):
+        out[REQ_ROOTING] = excess_suit(
+            np.float32(root), PROP_TABLES["rooting_m"][ids],
+            np.float32(ROOT_REF_M)).astype(np.float32)
+    fert = _f(view.get("fertility_requirement"))
+    if not np.isnan(fert):
+        out[REQ_FERTILITY] = shortfall_suit(
+            PROP_TABLES["nutrient"][ids],
+            np.float32(min(max(fert, 0.0), 1.0)),
+            np.float32(FERT_REF)).astype(np.float32)
+    ph_tol = _f(view.get("ph_tolerance"))
+    if not np.isnan(ph_tol):
+        opt_ph = PH_LO + PH_SPAN * min(max(ph_tol, 0.0), 1.0)
+        lo, hi = _ph_suit_split(CLASS_PH[ids], opt_ph)
+        if view.get("medium") == "dual":
+            w_lo, w_hi = _ph_suit_split(ctx.water_ph, opt_ph)
+            lo = np.minimum(lo, w_lo[None])
+            hi = np.minimum(hi, w_hi[None])
+        out[REQ_PH_LOW] = lo.astype(np.float32)
+        out[REQ_PH_HIGH] = hi.astype(np.float32)
+    sal_tol = _f(view.get("salinity_tolerance"))
+    if not np.isnan(sal_tol):
+        sal_env = PROP_TABLES["sal_add"][ids]
+        if view.get("medium") == "dual":
+            sal_env = np.maximum(sal_env, ctx.sal_water[None])
+        out[REQ_SALINITY] = excess_suit(
+            sal_env, np.float32(min(max(sal_tol, 0.0), 1.0)),
+            np.float32(SAL_REF)).astype(np.float32)
+    return out
+
+
+def _ground_terms(view: dict, ctx: WorldContext,
+                  cs: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    """B5 §4.2 for LAND (and dual) plans: water availability and
+    waterlogging (wet-obligate plans read fresh_availability for both —
+    owner ruling 2026-08-01) monthly; fertility, pH, salinity annual
+    best-of-class (the mix's patches, not its mean)."""
     H, W = ctx.H, ctx.W
     opt_p = _f(view.get("moisture_opt"))
     drought = _f(view.get("drought_tolerance"))
@@ -582,59 +673,39 @@ def _ground_terms(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
         (0.0 if np.isnan(opt_p) else opt_p)
         * (1.0 if np.isnan(drought) else 1.0 - min(drought, 1.0)),
         0.0, 1.0))
-    f_water = shortfall_suit(ctx.water_potential, need,
-                             np.float32(WATER_REF))
 
     wlog = _f(view.get("waterlogging_tolerance"))
-    if np.isnan(wlog):
-        f_wlog = np.ones((12, H, W), dtype=np.float32)
-    elif wlog >= WLOG_INVERT_T:
-        f_wlog = invert(excess_suit(ctx.water_potential,
+    if not np.isnan(wlog) and wlog >= WLOG_INVERT_T:
+        # wet-obligate land plan: the marsh IS the habitat — read the
+        # unwritten-wetland field for water availability AND for the
+        # inverted waterlogging requirement (the saturated end becomes
+        # what the plan NEEDS, dry ground the cost).
+        f_water = shortfall_suit(ctx.fresh_availability, need,
+                                 np.float32(WATER_REF))
+        f_wlog = invert(excess_suit(ctx.fresh_availability,
                                     np.float32(WLOG_WET_LIMIT),
                                     np.float32(WLOG_WET_REF)))
     else:
-        f_wlog = excess_suit(ctx.water_potential,
-                             np.float32(WLOG_DRY_LIMIT),
-                             np.float32(WLOG_DRY_REF))
-
-    fert = _f(view.get("fertility_requirement"))
-    fert_req = np.float32(0.0 if np.isnan(fert) else min(max(fert, 0.0),
-                                                         1.0))
-    f_fert = shortfall_suit(ctx.eff_nutrient, fert_req,
-                            np.float32(FERT_REF))
-
-    ph_tol = _f(view.get("ph_tolerance"))
-    if np.isnan(ph_tol):
-        f_ph_lo = f_ph_hi = np.ones((H, W), dtype=np.float32)
-    else:
-        opt_ph = PH_LO + PH_SPAN * min(max(ph_tol, 0.0), 1.0)
-        f_ph_lo, f_ph_hi = _ph_suit_split(ctx.ground_ph, opt_ph)
-        if view.get("medium") == "dual":
-            w_lo, w_hi = _ph_suit_split(ctx.water_ph, opt_ph)
-            f_ph_lo = np.minimum(f_ph_lo, w_lo)
-            f_ph_hi = np.minimum(f_ph_hi, w_hi)
-
-    sal_tol = _f(view.get("salinity_tolerance"))
-    if np.isnan(sal_tol):
-        f_sal = np.ones((H, W), dtype=np.float32)
-    else:
-        if view.get("medium") == "dual":
-            sal_env = np.maximum(ctx.eff_sal_add, ctx.sal_water)
+        f_water = shortfall_suit(ctx.water_potential, need,
+                                 np.float32(WATER_REF))
+        if np.isnan(wlog):
+            f_wlog = np.ones((12, H, W), dtype=np.float32)
         else:
-            sal_env = ctx.eff_sal_add
-        f_sal = excess_suit(sal_env, np.float32(min(max(sal_tol, 0.0), 1.0)),
-                            np.float32(SAL_REF))
+            f_wlog = excess_suit(ctx.water_potential,
+                                 np.float32(WLOG_DRY_LIMIT),
+                                 np.float32(WLOG_DRY_REF))
 
     out = {
         REQ_WATER: f_water.astype(np.float32),
         REQ_WATERLOGGING: f_wlog.astype(np.float32),
-        REQ_FERTILITY: np.broadcast_to(f_fert.astype(np.float32),
-                                       (12, H, W)).copy(),
-        REQ_PH_LOW: np.broadcast_to(f_ph_lo, (12, H, W)).copy(),
-        REQ_PH_HIGH: np.broadcast_to(f_ph_hi, (12, H, W)).copy(),
-        REQ_SALINITY: np.broadcast_to(f_sal.astype(np.float32),
-                                      (12, H, W)).copy(),
     }
+    # substrate requirements: the BEST patch of the mix (per-class max);
+    # rooting is annual and rides the tail terms.
+    for req, suits in cs.items():
+        if req == REQ_ROOTING:
+            continue
+        out[req] = np.broadcast_to(
+            suits.max(axis=0).astype(np.float32), (12, H, W)).copy()
     return out
 
 
@@ -665,20 +736,18 @@ def _water_chemistry(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
 
 
 def _tail_terms(view: dict, ctx: WorldContext,
-                freshwater: bool) -> dict[str, np.ndarray]:
-    """B5 §4.3 tail terms: rooting, anchoring, the medium boundary
+                freshwater: bool,
+                cs: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    """B5 §4.3 tail terms: rooting (best-of-class), anchoring (hard/
+    loose SHARES — already patch-probabilities), the medium boundary
     (replaced by the habitat term for freshwater plans), and submerged
     light. Annual (H,W), broadcast to months."""
     H, W = ctx.H, ctx.W
     out: dict[str, np.ndarray] = {}
 
-    root = _f(view.get("root_depth_m"))
-    if np.isnan(root) or view.get("medium") == "water":
-        f_root = np.ones((H, W), dtype=np.float32)
-    else:
-        f_root = excess_suit(np.float32(root), ctx.eff_rooting_m,
-                             np.float32(ROOT_REF_M))
-    out[REQ_ROOTING] = np.broadcast_to(f_root, (12, H, W)).copy()
+    if REQ_ROOTING in cs:
+        out[REQ_ROOTING] = np.broadcast_to(
+            cs[REQ_ROOTING].max(axis=0), (12, H, W)).copy()
 
     holdfast = int(view.get("holdfast") or 0)
     wood = _f(view.get("woodiness"))
@@ -732,21 +801,28 @@ def evaluate(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
     req_flora names, plus "F" (the product) and "s_env" (1 - 2F).
     Terms that do not apply to a plan (missing/None view keys) are
     omitted entirely — an absent factor is 1 (B5: the empty product is
-    1, maximal vigor). Pure and deterministic: no draws, no state."""
+    1, maximal vigor). Pure and deterministic: no draws, no state.
+
+    Also "substrate_share" (H,W): the usable-substrate share U = sum
+    w_i x prod f_i over the mix classes (1.0 for water-medium plans).
+    CAPACITY metadata, not a stress factor — it never enters F or the
+    verdict provenance; the engine splits carrying capacity by it
+    (K_L = K x U, spec §6)."""
     medium = view.get("medium", "land")
     salinity = _f(view.get("salinity_tolerance"))
     freshwater = (medium == "water" and not np.isnan(salinity)
                   and salinity < FRESH_SAL_MAX)
 
+    cs = _substrate_suits(view, ctx)
     factors: dict[str, np.ndarray] = {}
     f = _climate_suitability(view, ctx)
     factors[REQ_CLIMATE] = f
     factors[REQ_BLOOM_FROST] = _bloom_frost(view, ctx)
     if medium != "water":
-        factors.update(_ground_terms(view, ctx))
+        factors.update(_ground_terms(view, ctx, cs))
     else:
         factors.update(_water_chemistry(view, ctx))
-    factors.update(_tail_terms(view, ctx, freshwater))
+    factors.update(_tail_terms(view, ctx, freshwater, cs))
 
     F = np.ones((12, ctx.H, ctx.W), dtype=np.float32)
     for a in factors.values():
@@ -755,6 +831,14 @@ def evaluate(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
     out = dict(factors)
     out["F"] = F
     out["s_env"] = s_env.astype(np.float32)
+    if cs:
+        per_class = np.ones_like(next(iter(cs.values())))
+        for suits in cs.values():
+            per_class *= suits
+        out["substrate_share"] = (ctx.mix_w * per_class).sum(
+            axis=0).astype(np.float32)
+    else:
+        out["substrate_share"] = np.ones((ctx.H, ctx.W), dtype=np.float32)
     return out
 
 
@@ -767,7 +851,7 @@ def verdict_at(factors: dict[str, np.ndarray], y: int, x: int,
     from kernel.stress import compose
     provenance = {}
     for name, arr in factors.items():
-        if name in ("F", "s_env"):
+        if name in ("F", "s_env", "substrate_share"):
             continue
         provenance[name] = float(arr[month, y, x])
     r = compose(provenance)
@@ -781,3 +865,11 @@ def annual_stress(factors: dict[str, np.ndarray]) -> np.ndarray:
     """Annual-mean signed stress (12 -> (H,W)) — what the rounds
     integrate over (B5 §1 rounds contract)."""
     return factors["s_env"].mean(axis=0)
+
+
+def worst_stress(factors: dict[str, np.ndarray]) -> np.ndarray:
+    """Worst-month signed stress (12 -> (H,W)): 1 - 2 x F_worst per
+    cell — the engine's §5.1 reduced form (ONE aggregation for
+    selection and demography). With the dormancy gate the worst month
+    is automatically a growing-season month."""
+    return (1.0 - 2.0 * factors["F"].min(axis=0)).astype(np.float32)
