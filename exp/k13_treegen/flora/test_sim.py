@@ -254,18 +254,21 @@ def test_select_climate_heat_pressure_drifts_envelope(sim, pack):
 
 def test_select_ph_split_direction(sim, pack):
     """The pH requirement is split one-sided env-side (req_flora ruling
-    2026-08-01): pressure:ph_low (cell too acidic for the position)
-    pushes ph_tolerance UP; pressure:ph_high (too alkaline) pushes it
-    DOWN — the factor carries the side, no hedge needed."""
+    2026-08-01): ph_tolerance is a POSITION (opt = 4 + 5 x value), so
+    pressure:ph_low (cell too acidic for the position) pushes the
+    position DOWN (toward acid); pressure:ph_high (too alkaline) pushes
+    it UP — the factor carries the side, no hedge needed. (Directions
+    corrected after the 2026-08-01 causal audit found them inverted
+    vs the adapter's position semantics.)"""
     traits = _traits(pack, "tree.oak")
     p = sim.select(StressVerdict(s=0.0,
                                  provenance={"pressure:ph_low": 0.2}),
                    traits, pack)
-    assert p["ph_tolerance"] > 0.0
+    assert p["ph_tolerance"] < 0.0
     p = sim.select(StressVerdict(s=0.0,
                                  provenance={"pressure:ph_high": 0.2}),
                    traits, pack)
-    assert p["ph_tolerance"] < 0.0
+    assert p["ph_tolerance"] > 0.0
 
 
 def test_select_rooting_pushes_shallower(sim, pack):

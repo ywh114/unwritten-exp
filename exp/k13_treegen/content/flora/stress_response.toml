@@ -125,21 +125,22 @@ responders = [
 [[responder]]
 name = "pressure:ph_low"
 responders = [
-    { trait = "ph_tolerance", dir = "up", weight = 1.0 }
+    { trait = "ph_tolerance", dir = "down", weight = 1.0 }
 ]
 # The pH requirement is SPLIT one-sided env-side (req_flora ruling
-# 2026-08-01): the low-side factor drops when the cell is too ACIDIC
-# for the lineage's position, so the drift pushes ph_tolerance UP
-# (toward alkaline). No direction-from-context hedge is needed — the
-# split factor carries the side.
+# 2026-08-01): ph_tolerance is a POSITION (opt = 4 + 5 x value), so the
+# low-side factor drops when the cell is too ACIDIC for the position —
+# relief is pushing the position DOWN (toward acid). (The original row
+# pushed UP "toward alkaline" — inverted vs the adapter's position
+# semantics; the runaway was measured in the 2026-08-01 causal audit.)
 
 [[responder]]
 name = "pressure:ph_high"
 responders = [
-    { trait = "ph_tolerance", dir = "down", weight = 1.0 }
+    { trait = "ph_tolerance", dir = "up", weight = 1.0 }
 ]
-# The mirror: too alkaline for the position — push ph_tolerance DOWN
-# (toward acidic).
+# The mirror: too alkaline for the position — push the position UP
+# (toward alkaline). Same inversion fix as ph_low (2026-08-01 audit).
 
 [[responder]]
 name = "pressure:salinity"
