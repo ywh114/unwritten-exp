@@ -47,6 +47,18 @@ SLOPE_REF_M = 800.0           # elevation change across ONE 4 km cell that
 COLD_REF_C = 2.0              # annual T at/below which "cold" saturates
 WARM_BASE_C = 5.0             # tropical-warmth ramp foot (0 below here)
 WARM_SPAN_C = 15.0            # ...span to full warmth (1 at 20 C)
+SHEET_GATE_MIN = 0.15         # sand-sheet cold-gate floor (owner ruling
+                              # 2026-08-01: real cold deserts are
+                              # reg/pavement, not sand seas): the sheet's
+                              # pure-precipitation arid rule read a
+                              # ~200 mm/yr / 5 C cold grassland as sand
+                              # sea. warm = 0 below 5 C annual (the
+                              # cold-desert band — the cold-desert biome
+                              # centroid sits at 4 C) docks the sheet to
+                              # this floor; warm = 1 at 20 C (hot
+                              # deserts) keeps the gate at 1.0, unchanged.
+                              # The (1-cold) factor zeroes the frozen
+                              # tail (no deflation under frost).
 GLAC_FLUX_REF = 2000.0        # glacier flux (~p99 of a seeded world) that
                               # saturates the flux half of the glacier term
 SALT_LAKE_REF = 50.0          # g/kg: a lake saltier than this is "salt lake"
@@ -120,7 +132,7 @@ GROUND_CLASSES: list[dict] = [
          genesis="most-arid deposition only", genesis_tag="physical"),
     dict(name="sand sheet", retention=0.10, rooting_m=2.5, sal_add=0.0,
          nutrient=0.20, ph=6.5, hard=False, loose=True, color=[210, 188, 128],
-         genesis="arid", genesis_tag="physical"),
+         genesis="arid, warm-gated (cold -> reg)", genesis_tag="physical"),
     dict(name="reg / desert pavement", retention=0.05, rooting_m=0.2,
          sal_add=0.0, nutrient=0.15, ph=7.8, hard=True, loose=False,
          color=[176, 150, 118], genesis="winnowing",
@@ -575,7 +587,20 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
         # keeps the humid loss (0.4 -> 0.25, below brown earth's
         # loamy-docked 0.3) while holding the semi-arid band
         # (0.6 -> 0.46, 0.8 -> 0.72).
-        return arid ** 1.5 * (1 - slope) * (1 - 0.6 * dune_dep) * land
+        # COLD GATE (owner ruling 2026-08-01): the rule was pure
+        # precipitation — no temperature term — so a cold grassland
+        # (~200 mm/yr, ~5 C) read arid 0.87 and sheet beat mollisol.
+        # Real cold deserts are reg/pavement, not sand seas: the warm
+        # ramp (0 below 5 C annual — the cold-desert band — 1 at 20 C,
+        # hot deserts) docks cold-arid cells to the SHEET_GATE_MIN floor
+        # and reg inherits them, while hot deserts read unchanged. The
+        # (1-cold) factor zeroes the sub-2 C frozen tail. The floor
+        # keeps cold sand sheets possible but rare, the same idiom as
+        # dune's hot-only bias comment.
+        sheet_temp = (1 - cold) * (SHEET_GATE_MIN
+                                   + (1 - SHEET_GATE_MIN) * warm)
+        return arid ** 1.5 * (1 - slope) * (1 - 0.6 * dune_dep) \
+            * sheet_temp * land
     if name == "reg / desert pavement":
         # arid²: true-desert default only — the semi-arid band belongs to
         # sand sheet and the (1-arid)-scaled soils (reg was cosmopolitan).

@@ -169,6 +169,62 @@ def test_most_arid_cell_dune_family():
     assert w[GROUND_ID["dune sand"], 3, 3] > w[GROUND_ID["sand sheet"], 3, 3]
 
 
+def test_sand_sheet_cold_gate_cold_cell_reads_reg():
+    """Cold gate (owner ruling 2026-08-01): real cold deserts are
+    reg/pavement, not sand seas — the sheet's pure-precipitation arid
+    rule read a ~200 mm/yr / 5 C cold cell as sand sea. Below ~5 C
+    annual (warm = 0, the cold-desert band) the sheet docks to its 0.15
+    floor, so the cold-arid cell falls through to reg (which keeps its
+    symmetric cold-desert bias); the identical cell at 20 C keeps its
+    sand sheet. Mirrors the bog (cold-gated) / fen (warm-gated) pair."""
+    from exp.k11_worldgen.biomes import BIOME_ID
+
+    def arid_cell(biome, temp_c):
+        z = _ground_z()
+        z["c_P_monthly"][:, 4, 4] = 200.0 / 400.0 / 12.0   # 200 mm/yr
+        z["c_T"][4, 4] = (temp_c + 30.0) / 65.0
+        # no dune supply (acc=0) and no deflation field (wet=1): dune_dep
+        # reads 0, so the sheet-vs-reg cold gate is isolated — the
+        # fixture's default accumulation saturates DUNE_ACC_REF=10
+        z["h_accumulation"][4, 4] = 0.0
+        z["h_hand"][4, 4] = 0.0
+        z["w_biome_map"][:] = biome
+        return _build(z)
+
+    sheet = GROUND_ID["sand sheet"]
+    reg = GROUND_ID["reg / desert pavement"]
+    cold = arid_cell(BIOME_ID["desert xeric (cold)"], 5.0)
+    w = _w(cold)
+    assert cold["class_id"][4, 4] == reg          # reg inherits cold-arid
+    assert w[sheet, 4, 4] < w[reg, 4, 4]
+    assert 0.05 < w[sheet, 4, 4] < 0.2            # strongly docked, not zero
+    hot = arid_cell(BIOME_ID["desert xeric (hot)"], 20.0)
+    assert hot["class_id"][4, 4] == sheet          # hot-arid unchanged
+
+
+def test_sand_sheet_cold_gate_cold_grassland_to_reg():
+    """The owner's exact case: a ~200 mm/yr / 5 C TEMPERATE GRASSLAND
+    (no desert biome anywhere) previously read sand sheet — arid^1.5 =
+    0.81 beat reg ~0.73 and mollisol ~0.63 on the flat cell. With the
+    gate the cold grassland reads reg, mollisol staying the soil
+    competitor."""
+    from exp.k11_worldgen.biomes import BIOME_ID
+    z = _ground_z()
+    z["c_P_monthly"][:, 4, 4] = 200.0 / 400.0 / 12.0
+    z["c_T"][4, 4] = (5.0 + 30.0) / 65.0
+    z["h_accumulation"][4, 4] = 0.0                 # no dune supply
+    z["h_hand"][4, 4] = 0.0                         # no deflation field
+    z["w_biome_map"][:] = BIOME_ID["temperate grassland"]
+    g = _build(z)
+    w = _w(g)
+    sheet = GROUND_ID["sand sheet"]
+    reg = GROUND_ID["reg / desert pavement"]
+    moll = GROUND_ID["mollisol"]
+    assert g["class_id"][4, 4] == reg
+    assert w[sheet, 4, 4] < w[reg, 4, 4]
+    assert w[sheet, 4, 4] < w[moll, 4, 4]
+
+
 def test_steep_forest_cell_scree_override():
     z = _ground_z()                                  # temperate broadleaf
     z["w_elev"][4, 4] = _above(SEA, 740.0)           # 640 m over one cell

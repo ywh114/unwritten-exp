@@ -46,6 +46,16 @@ constraint.
 mosaic is sand sheet / reg. Dune mobility is L1's job — dunes are
 inhospitable dunes, detail comes later.
 
+**Sand sheet rule**: sand sheet needs warmth. The cold gate docks the
+sheet to a 0.15 floor below ~5 °C annual (the cold-desert band — the
+cold-desert biome centroid sits at 4 °C, hot-desert at 24 °C) and zeroes
+it at freezing ((1-cold)); cold-arid cells fall through to reg, which
+keeps its symmetric cold-desert bias and arid² rule. Hot deserts
+(≥20 °C) read unchanged. Owner ruling 2026-08-01: real cold deserts are
+reg/pavement, not sand seas — the sheet's pure-precipitation rule read a
+~200 mm/yr / 5 °C cold grassland as sand sea (arid 0.87, sheet beat
+mollisol on arid seeds 2/3).
+
 **Underwater is the same table, same machinery** — retention reads 1.0
 (saturated); texture, rooting, salinity, nutrient do the work. River
 gravel vs sand keys off the river-speed field (flow-sorting is the
@@ -112,7 +122,7 @@ Terrestrial — physical:
 | class | retention | rooting m | sal+ | nutrient | pH | genesis |
 |---|---|---|---|---|---|---|
 | dune sand | 0.05 | 0.3 | 0 | 0.15 | 6.5 | most-arid deposition only |
-| sand sheet | 0.10 | 0.5 | 0 | 0.20 | 6.5 | arid |
+| sand sheet | 0.10 | 0.5 | 0 | 0.20 | 6.5 | arid, warm-gated (cold → reg) |
 | reg / desert pavement | 0.05 | 0.2 | 0 | 0.15 | 7.8 | winnowing |
 | scree | 0.05 | 0.10 | 0 | 0.05 | 6.8 | slope override |
 | bedrock outcrop | 0.02 | 0.05 | 0 | 0.02 | 7.0 | erosion |
@@ -204,6 +214,23 @@ class row alone. This supersedes the "pH smuggled as class identity"
 line above and feeds the planned P7 stress pass (`ph_tolerance`, the
 calcicole/calcifuge split) and pigment-chemistry flower color
 (anthocyanin expression is pH-dependent — hydrangea logic).
+
+## Revisions (2026-08-01)
+
+**Sand sheet gets a cold gate.** Its rule was pure-precipitation
+arid^1.5 — no temperature term — so a cold grassland (~200 mm/yr,
+~5 °C) read arid 0.87 and the sheet outvoted mollisol (owner report,
+arid seeds 2/3). Real cold deserts are reg/pavement, not sand seas
+(owner ruling 2026-08-01): the sheet's physical rule now multiplies by
+`(1-cold) · (0.15 + 0.85·warm)` — warm = 0 below 5 °C annual docks the
+sheet to the 0.15 floor (the cold-desert centroid sits at 4 °C; hot
+deserts at ≥20 °C read warm = 1 and are unchanged), and (1-cold) zeroes
+the frozen tail (no deflation under frost). Cold-arid cells fall
+through to reg. **Bias stays symmetric** (hot + cold desert ×1.5):
+measured on seeds 1-3, cold-desert/grassland sheet dominance was
+0-2.5% before and the physical gate alone flips it to ~0 — the floor
+keeps cold sand sheet possible but rare, the same idiom as dune's
+hot-only bias comment.
 
 ## Knobs
 
