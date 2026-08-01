@@ -301,12 +301,20 @@ _FOEHN_FLOOR = 0.2
 # side runs warmer at the same altitude)
 _FOEHN_WARM = 0.4
 
+# cloud-density threshold (RH0, the one cloud knob): fractional cover
+# where the parcel's moisture crosses RH0 of its thermodynamic
+# capacity, ramping to full cover at saturation. The in-loop
+# diagnostic is display+persist only (phase 1) — a pure read of the
+# moisture/capacity ratio, so P/T stay bit-identical. Tuned by
+# demo-render eyeball (ITCZ band vs subtropical clear zones).
+_RH0 = 0.8
+
 
 def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
             lake_src: np.ndarray, T: np.ndarray,
             green: np.ndarray | None = None,
             sub: np.ndarray | None = None, steps: int = 24,
-            soil: np.ndarray | None = None) -> np.ndarray:
+            soil: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Semi-Lagrangian moisture advection along a wind field.
 
     Parcels backtrace along the wind, inherit moisture, recharge over
@@ -322,8 +330,18 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
     evapotranspire (multiplying the recycling rate — moisture delivered
     into the airflow) but also INTERCEPT — canopy re-evaporation lowers
     the local rain-out rate, so forested cells rain a little less and
-    somewhere downwind rains a little more. Returns mean precipitation
-    rate per cell over the advection.
+    somewhere downwind rains a little more. Returns
+    (mean precipitation rate, mean cloud-density fraction) per cell
+    over the advection.
+
+    The cloud accumulator is a phase-1 display/persist diagnostic (no
+    consumer): RH = M / capacity (the same Clausius-Clapeyron curve the
+    wring-out used), fractional cover ramping over (RH0, 1] — wet
+    tropics sit near saturation, subtropical subsidence stays clear
+    (the showpiece signal). Pure read of M/evap, one separate
+    accumulator alongside the M/P lines: P (and T) stay bit-identical.
+    Known gap: no marine stratocumulus term — k11 lacks the
+    inversion/boundary-layer physics that makes them.
 
     float32 working precision (bandwidth-bound — see _poisson_sor).
     u/v may carry a leading batch axis (independent snapshots in one
@@ -381,6 +399,7 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
 
     M = np.full(u.shape, 0.85)
     P = np.zeros(u.shape)
+    C = np.zeros(u.shape)
     for _ in range(steps):
         M = _bilinear(M, gx - u, gy - v)
         M = M * conv
@@ -394,6 +413,15 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
         excess = np.maximum(M - evap, 0.0)
         P += excess
         M = M - excess
+        # cloud-density diagnostic (phase 1, display+persist only):
+        # fractional cover where the parcel approaches its
+        # thermodynamic capacity — RH = M / evap (the wring-out's own
+        # curve), ramping over (RH0, 1]. Non-raining cloud exists
+        # (subtropical clear skies are the signal); no marine
+        # stratocumulus term — k11 lacks the inversion/BL physics.
+        # Pure read of M/evap, never interleaved: P stays bit-identical
+        rh = M / np.maximum(evap, 0.05)
+        C += np.clip((rh - _RH0) / (1.0 - _RH0), 0.0, 1.0)
         # rain-out happens over water too (most real rain falls on the
         # ocean): a LOW baseline everywhere; ascent rain where the
         # flow CONVERGES (cyclonic lift — the gyre cells' wet/dry
@@ -421,7 +449,7 @@ def _advect(u: np.ndarray, v: np.ndarray, h: np.ndarray, water: np.ndarray,
         M = np.clip(M - 0.30 * p
                     + np.where(water | lake_src, 0.0, recycle * M * (1.0 - p)),
                     0.02, 1.0)
-    return P / steps
+    return P / steps, C / steps
 
 
 def _thermal_lag(T_m: np.ndarray, water_c: np.ndarray) -> np.ndarray:
@@ -514,9 +542,12 @@ def _precip_pass(ens: dict[str, np.ndarray], T_m: np.ndarray,
     vertical-motion field — where the middle layer converges, spent
     air descends into the surface column (emergent subtropical
     highs), then rides the high-layer highway downstream. Returns RAW
-    rates plus the monthly-mean subsidence fields."""
+    rates, the monthly-mean cloud-density fields (the _advect
+    diagnostic, phase-1 display+persist only), and the monthly-mean
+    subsidence fields."""
     ch, cw = h_c.shape
     P_m = np.zeros((12, ch, cw))
+    C_m = np.zeros((12, ch, cw))
     sub_m = np.zeros((12, ch, cw))
     # subsidence seeds from a TRAILING MEAN of the vertical-motion
     # field along the snapshot trajectory: subtropical highs are slow
@@ -543,15 +574,18 @@ def _precip_pass(ens: dict[str, np.ndarray], T_m: np.ndarray,
     for m in range(12):
         sub = _subsidence(ens["u_h"][m], ens["v_h"][m],
                           np.stack(seeds[m * n_samples:(m + 1) * n_samples]))
-        P_b = _advect(ens["u_s"][m], ens["v_s"][m], h_c, water_c,
-                      lake_c, T_m[m], green=green, sub=sub,
-                      soil=None if soil_m is None else soil_m[m])
+        P_b, C_b = _advect(ens["u_s"][m], ens["v_s"][m], h_c, water_c,
+                           lake_c, T_m[m], green=green, sub=sub,
+                           soil=None if soil_m is None else soil_m[m])
         P_m[m] = sum(P_b) / n_samples
+        # Python sum, same accumulation order as P (np.mean pairwise-
+        # sums differently and would drift the snapshots' float bits)
+        C_m[m] = sum(C_b) / n_samples
         # monthly-mean subsidence field is delivered too: the drying
         # pattern (where the spent air descends) is part of the
         # weather pattern the ecology layers read
         sub_m[m] = sub.mean(axis=0)
-    return P_m, sub_m
+    return P_m, C_m, sub_m
 
 
 def _coarse_grids(elev: np.ndarray, hydro: dict, sea_level: float,
@@ -676,7 +710,10 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     """Seasonal climate as 12 monthly (T, P) mean curves per cell, plus
     the per-month wind snapshots those means average over (`wind_u` /
     `wind_v`, (12, n_samples) coarse-grid fields — the delivered
-    weather pattern, persisted with the world).
+    weather pattern, persisted with the world) and a monthly mean
+    cloud-density field (the _advect RH diagnostic, phase-1
+    display+persist only — no marine stratocumulus term; k11 lacks
+    inversion/BL physics).
 
     Equilibrium temperature first (it is wind-independent), then ONE
     wind trajectory through the year (the two-layer fluid in
@@ -920,7 +957,7 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
         return (np.stack([upsample_bicubic(P[m], pf) for m in range(12)])
                 if pf > 1 else P)
 
-    P_raw, _ = _precip_pass(
+    P_raw, _, _ = _precip_pass(
         ens, T_p, land_p, water_p, lake_p, h_p, n_samples, green=green_w)
     P_raw = _hi(P_raw)
     # no static aridity belt: the dry structure comes entirely from the
@@ -954,10 +991,14 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     soil_m = _soil_schedule(P_m, T_m)
     soil_p = (np.stack([_pool(soil_m[m], pf) for m in range(12)])
               if pf > 1 else soil_m)
-    P_raw, sub_m = _precip_pass(
+    P_raw, C_m, sub_m = _precip_pass(
         ens, T_p, land_p, water_p, lake_p, h_p, n_samples,
         green=green_w, soil_m=soil_p)
     P_raw = _hi(P_raw)
+    # the cloud diagnostic rides the SAME path as precip (raw wind-grid
+    # rate -> bicubic to the products grid -> smudge to the world
+    # grid), so it shares the delivered resolution and smoothness
+    C_m = _hi(C_m)
     P_m = _scale_precip(P_raw, gain, belt)
     # conditioning round: T adjusted given P and vegetation
     T_m = refine_climate(T_m, P_m, green=green)
@@ -970,6 +1011,8 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     # upsample the monthly means to the world grid (smudge pass)
     T_monthly = np.stack([_upsample(np.clip(T_m[m], 0, 1), (H, W)) for m in range(12)])
     P_monthly = np.stack([_upsample(np.clip(P_m[m], 0, 1), (H, W)) for m in range(12)])
+    cloud_monthly = np.stack([_upsample(np.clip(C_m[m], 0, 1), (H, W))
+                              for m in range(12)])
     soil_monthly = np.stack([_upsample(soil_m[m], (H, W)) for m in range(12)])
 
     # metric wind: internal advection units -> m/s. Earth's mean
@@ -1026,6 +1069,13 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
     return {
         "T_monthly": T_monthly,
         "P_monthly": P_monthly,
+        # monthly mean cloud-density fraction (12, H, W), f32 [0,1] —
+        # the _advect RH/condensation diagnostic (phase 1: display +
+        # persist only, no downstream consumer yet). Same path as
+        # P_monthly (raw wind-grid rate -> bicubic -> smudge).
+        # Known gap: no marine stratocumulus (k11 lacks inversion/BL
+        # physics) — noted, not faked.
+        "cloud_monthly": cloud_monthly.astype(np.float32),
         "T": T_monthly.mean(axis=0),
         "P": P_monthly.mean(axis=0),
         "alt": alt,

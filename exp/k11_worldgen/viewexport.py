@@ -174,6 +174,12 @@ def export(seed_dir: Path, out_path: Path) -> None:
         a, m_ = _q8(z["c_snow_monthly"], 0, 500)
         monthly["snow_monthly"] = a
         monthly_meta["snow_monthly"] = m_
+    if "c_cloud_monthly" in z.files:
+        # cloud density is already a [0,1] fraction — q8 keeps the
+        # fractional cover exact to 1/255, same as the ice fields
+        a, m_ = _q8(z["c_cloud_monthly"], 0, 1)
+        monthly["cloud_monthly"] = a
+        monthly_meta["cloud_monthly"] = m_
     if "d_river_width_monthly" in z.files:
         # monthly river networks STAMPED at delivered res (the same
         # river_raster as the annual network — taper/meander baked in);

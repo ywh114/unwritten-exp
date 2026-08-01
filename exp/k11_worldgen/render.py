@@ -758,8 +758,9 @@ def render_monthly(out_dir: str, climate: dict,
                    currents: dict | None = None) -> list[str]:
     """Write the UNAVERAGED monthly curves — the canonical climate
     store — as grayscale PNGs into `<out_dir>/monthly/` (anchor grid):
-    T and P (normalized) plus the subsidence field (0..1, where the
-    subtropical highs park) and the monthly mean wind and current speeds
+    T and P (normalized), the subsidence field (0..1, where the
+    subtropical highs park), the cloud-density fraction (0..1) and the
+    monthly mean wind and current speeds
     in M/S on fixed physical gray scales (0..15 m/s wind, 0..2 m/s
     current) so months and worlds compare directly."""
     import os
@@ -771,6 +772,7 @@ def render_monthly(out_dir: str, climate: dict,
             ("T_monthly", "T"),
             ("P_monthly", "P"),
             ("sub_monthly", "sub"),
+            ("cloud_monthly", "cloud"),
         ):
             p = f"{out_dir}/monthly/m{m + 1:02d}_{tag}.png"
             write_png_gray(p, normalize_u8(climate[key][m], 0.0, 1.0))

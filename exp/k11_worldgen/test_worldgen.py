@@ -461,10 +461,35 @@ def test_foehn_suppresses_lee_rain():
     # eastward flow: h rising eastward = upslope (lift), falling =
     # downslope (descent, foehn)
     up = _advect(u, v, (0.5 - 0.3 * ramp)[None, :] * np.ones(shape),
-                 water, lake, T)
+                 water, lake, T)[0]
     down = _advect(u, v, (0.5 + 0.3 * ramp)[None, :] * np.ones(shape),
-                   water, lake, T)
+                   water, lake, T)[0]
     assert up.mean() > down.mean()
+
+
+def test_advect_cloud_bounded_and_subsidence_suppresses():
+    """The cloud accumulator is a [0,1] field, deterministic, and the
+    subsidence term suppresses it: the same warm sea under a
+    subtropical high (wet/dry suppression on recharge and rain-out)
+    equilibrates drier than full cover -> less cloud."""
+    from exp.k11_worldgen.climate import _advect
+    shape = (32, 64)
+    u = np.full(shape, 1.0)                     # uniform eastward flow
+    v = np.zeros(shape)
+    water = np.ones(shape, bool)
+    lake = np.zeros(shape, bool)
+    T = np.full(shape, 0.9)                     # warm: full capacity
+    h = np.full(shape, 0.5)
+    P1, C1 = _advect(u, v, h, water, lake, T)
+    P2, C2 = _advect(u, v, h, water, lake, T)
+    assert np.array_equal(C1, C2)               # deterministic
+    assert C1.shape == shape
+    assert C1.min() >= 0.0 and C1.max() <= 1.0
+    # the SAME warm sea under a full subtropical high: recharge and
+    # rain-out are suppressed, the parcel equilibrates drier -> clear
+    _P3, C3 = _advect(u, v, h, water, lake, T, sub=np.ones(shape))
+    assert C3.mean() < C1.mean()
+    assert C3.min() >= 0.0 and C3.max() <= 1.0
 
 
 def test_aquatic_classes():
@@ -603,6 +628,34 @@ def test_climate_and_biome_overrides():
     assert {names[i] for i in np.unique(bm[hy["river_mask"]])} - {"ocean", "lake"} != set()
     cover = forest_cover(bm, cl["P"])
     assert cover.min() >= 0.0 and cover.max() <= 1.0
+
+
+@pytest.mark.slow
+def test_cloud_monthly_field():
+    """cloud_monthly is (12, H, W) f32 [0,1], deterministic across
+    runs, and carries the expected pattern: the warm ocean (the
+    recharge source, where parcels sit at their thermodynamic
+    capacity) clouds more than the subtropical subsidence cores
+    (where the spent air descends), and the annual cloud field
+    anti-correlates with the monthly-mean subsidence field."""
+    elev, ocean = _tiny_world()
+    hy = build_hydrology(elev, ocean)
+    cl = build_climate(elev, hy, 0.35, seed=SEED)
+    cl2 = build_climate(elev, hy, 0.35, seed=SEED)
+    c = cl["cloud_monthly"]
+    assert c.shape == (12, *elev.shape)
+    assert c.dtype == np.float32
+    assert c.min() >= 0.0 and c.max() <= 1.0
+    # determinism: same seed -> byte-identical cloud field
+    assert np.array_equal(c, cl2["cloud_monthly"])
+    # sanity: ocean mean > subsidence-zone mean
+    sub = cl["sub_monthly"].mean(axis=0)
+    ocean_m = hy["ocean_mask"]
+    subs = sub > np.quantile(sub, 0.75)
+    assert c[:, ocean_m].mean() > c[:, subs].mean()
+    # anti-correlation with the subsidence field
+    corr = np.corrcoef(c.mean(axis=0).ravel(), sub.ravel())[0, 1]
+    assert corr < 0.0
 
 
 # ---- realistic (earth-patch) temperature mode ----------------------------

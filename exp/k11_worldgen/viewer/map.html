@@ -347,6 +347,7 @@ const S = {
   seaiceOverlay: false,
   insolOverlay: false,
   snowOverlay: false,
+  cloudOverlay: false,
   riversOverlay: false,
   overlayCanvas: {},   // key -> offscreen Canvas (cached by month-mask)
 
@@ -520,6 +521,14 @@ function insolRamp(v) {
 function snowRamp(v) {
   const t = Math.max(0, Math.min(1, v / 500));
   return [255, 255, 255, Math.round(t * 230)];
+}
+
+// Cloud ramp: 0→transparent; 1→solid white (alpha ∝ density — a
+// distinct ramp from precip's gray-to-black, so the clear-sky zones
+// stay visible as gaps instead of washing the map gray)
+function cloudRamp(v) {
+  const t = Math.max(0, Math.min(1, v));
+  return [255, 255, 255, Math.round(t * 200)];
 }
 
 // Get pixel-level value from monthly data (with upscale) for a given world coord
@@ -929,6 +938,14 @@ function buildColorWashCanvas(which) {
       if (!avg) return null;
       const [FH, FW] = S.monthly._shapes.snow_monthly;
       return _buildRampCanvas(avg, FW, FH, snowRamp, W, H);
+    }
+    return null;
+  } else if (which === "cloud") {
+    if (S.monthly && S.monthly.cloud_monthly) {
+      const avg = monthlyAverage("cloud_monthly");
+      if (!avg) return null;
+      const [FH, FW] = S.monthly._shapes.cloud_monthly;
+      return _buildRampCanvas(avg, FW, FH, cloudRamp, W, H);
     }
     return null;
   } else if (which === "rivers") {
@@ -1423,6 +1440,7 @@ const OVERLAY_DEFS = [
   { id: "seaice",  label: "Sea ice",    needs: "seaice_monthly", field: null },
   { id: "insol",   label: "Sunlight",   needs: "insol_monthly", field: null },
   { id: "snow",    label: "Snow",       needs: "snow_monthly",  field: null },
+  { id: "cloud",   label: "Cloud",      needs: "cloud_monthly",  field: null },
   { id: "rivers",  label: "Rivers",     needs: "river_width_monthly", field: null },
 ];
 
@@ -1478,6 +1496,7 @@ function overlayState(which) {
     case "seaice":   return S.seaiceOverlay;
     case "insol":    return S.insolOverlay;
     case "snow":     return S.snowOverlay;
+    case "cloud":    return S.cloudOverlay;
     case "rivers":   return S.riversOverlay;
   }
   return false;
@@ -1493,6 +1512,7 @@ function toggleOverlay(which) {
     case "seaice":   S.seaiceOverlay   = !S.seaiceOverlay; break;
     case "insol":    S.insolOverlay    = !S.insolOverlay; break;
     case "snow":     S.snowOverlay     = !S.snowOverlay; break;
+    case "cloud":    S.cloudOverlay    = !S.cloudOverlay; break;
     case "rivers":   S.riversOverlay   = !S.riversOverlay; break;
   }
   buildOverlayButtons();
@@ -1605,6 +1625,10 @@ function render() {
   if (S.snowOverlay) {
     const nc = ensureOverlay("snow");
     if (nc) ctx.drawImage(nc, 0, 0, W, H);
+  }
+  if (S.cloudOverlay) {
+    const cc = ensureOverlay("cloud");
+    if (cc) ctx.drawImage(cc, 0, 0, W, H);
   }
   if (S.riversOverlay) {
     const rc = ensureOverlay("rivers");
@@ -1861,6 +1885,7 @@ function pixelAt(wx, wy) {
   if (S.monthly && !allMonthsSelected()) {
     out.T_monthly = monthlyPixelValue("t_monthly", wx, wy);
     out.P_monthly = monthlyPixelValue("p_monthly", wx, wy);
+    out.cloud_monthly = monthlyPixelValue("cloud_monthly", wx, wy);
   }
   // Active datapack layers: continuous values + nearest point hit
   out._pack = [];
@@ -1977,6 +2002,9 @@ function showTooltip(data, ex, ey) {
   }
   if (data.snow != null && data.snow.max > 0) {
     html += `<div class="tt-field"><span class="tt-name">Snow ${mLabel}</span><span class="tt-val">${Math.round(data.snow.mean)} mm WE (max ${Math.round(data.snow.max)})</span></div>`;
+  }
+  if (data.cloud_monthly != null) {
+    html += `<div class="tt-field"><span class="tt-name">Cloud ${mLabel}</span><span class="tt-val">${Math.round(data.cloud_monthly * 100)}%</span></div>`;
   }
   if (data.glacier) {
     const gm = data.glacier_m != null ? `${Math.round(data.glacier_m)} m thick` : "yes";
