@@ -662,18 +662,44 @@ def test_drift_retained_across_commits():
 
 # ── §9 consolidation (v0.4.2) ─────────────────────────────────────────
 
+# v0.9 (2026-08-01): the dune + lake-fetch gates (0d432c5, 758ec17)
+# zeroed substrate_share on many dune/coastal/lake-shore cells — the
+# old argmin-s_env fixture cells now read U = 0 (K x U = 0 -> instant
+# density death at the planted n0: tussock (236,156/157) died at r0,
+# lichen (194,202) decayed 1.0 -> 0.0 by r2), so s_env < 0 alone is no
+# longer a sufficient viability test. The consolidation fixtures now
+# also require per-lineage capacity K x U > CELL_CAP_MIN (measured on
+# the final world: 0.5 lands the stacked fixture at (239,150/149) and
+# the consolidation pair at (73,120)/(230,93); 0.3 and 0.7 fail).
+CELL_CAP_MIN = 0.5
+
 
 def _two_good_cells(eng: Engine, preset: str,
                     far: bool) -> tuple[tuple[int, int], tuple[int, int]]:
-    """Two viable (s_env < 0) fixture cells for *preset*: the best cell
-    and, for *far*, the best cell at least a QUARTER world away (the
-    v0.5 fixture asked half a world — no lichen cell is that far on the
-    post-climate-dials landscape); else a neighbor of the first."""
+    """Two viable fixture cells for *preset* (s_env < 0 AND K x U >
+    CELL_CAP_MIN — see the constant's note): the best cell and, for
+    *far*, the best cell at least a QUARTER world away (the v0.5
+    fixture asked half a world — no lichen cell is that far on the
+    post-climate-dials landscape); else the best OTHER cell in the
+    8x8 box around the first (the old (y, x+1) neighbor could be a
+    U = 0 sink after the gates)."""
+    from exp.k15_simdiff.stress_adapter import evaluate as _ev
     s = _s_env(eng, preset)
-    ok = np.where(eng.ctx.land_cell & (s < 0.0), s, np.inf)
+    v = eng.sim.derive(eng.authority.mint(
+        eng._order_sid[preset],
+        eng._new_instance_id(eng._stream("test", f"peek:{preset}")),
+        eng._stream("test", f"peek:{preset}")).traits, eng.pack)
+    KUL = eng.K * _ev(v, eng.ctx)["substrate_share"]
+    ok = np.where(eng.ctx.land_cell & (s < 0.0) & (KUL > CELL_CAP_MIN),
+                  s, np.inf)
+    assert np.isfinite(ok).any(), f"no viable cell for {preset}"
     y1, x1 = np.unravel_index(int(np.argmin(ok)), ok.shape)
     if not far:
-        return (int(y1), int(x1)), (int(y1), int(x1) + 1)
+        y0, x0 = max(0, y1 - 4), max(0, x1 - 4)
+        box = ok[y0:y1 + 5, x0:x1 + 5].copy()
+        box[y1 - y0, x1 - x0] = np.inf
+        by, bx = np.unravel_index(int(np.argmin(box)), box.shape)
+        return (int(y1), int(x1)), (int(y0 + by), int(x0 + bx))
     far_ok = ok.copy()
     yy, xx = np.mgrid[0:ok.shape[0], 0:ok.shape[1]]
     far_ok[(np.abs(yy - y1) < ok.shape[0] // 4)
@@ -685,15 +711,28 @@ def _two_good_cells(eng: Engine, preset: str,
 
 def _matched_far_cells(eng: Engine, preset: str
                        ) -> tuple[tuple[int, int], tuple[int, int]]:
-    """Two viable (s_env < -0.15) cells at least a QUARTER world apart
-    with nearly IDENTICAL s_env (|Δ| < 0.01) — the v0.7 consolidation
-    fixture. Contrasting far cells now genuinely diverge under the
-    g-clock's mutation ramp (measured lichen scalar d ≈ 0.057, above
-    MERGE_D 0.045), so the two far blocks must face the SAME pressure
-    for the CONSOL sweep to see them as non-differentiated. Determin-
-    istic row-major sampling (every 40th viable cell)."""
+    """Two viable (s_env < -0.15, K x U > CELL_CAP_MIN) cells at least
+    a QUARTER world apart with nearly IDENTICAL s_env (|Δ| < 0.01) —
+    the v0.7 consolidation fixture. Contrasting far cells now genuinely
+    diverge under the g-clock's mutation ramp (measured lichen scalar
+    d ≈ 0.057, above MERGE_D 0.045), so the two far blocks must face
+    the SAME pressure for the CONSOL sweep to see them as
+    non-differentiated. Deterministic row-major sampling (every 40th
+    viable cell). v0.9 (2026-08-01, dune + lake-fetch gates 0d432c5,
+    758ec17): the old matched pair's second cell read U = 0 (K x U =
+    0 — instant density death; measured (194,202): lichen cell decays
+    1.0 -> 0.0 by r2, so the far block never survived to the round-9
+    consolidation). The K x U > CELL_CAP_MIN floor restores two
+    persisting blocks (measured: (73,120)/(230,93) — consolidated at
+    the round-9 commit, re-split by r12)."""
+    from exp.k15_simdiff.stress_adapter import evaluate as _ev
     s = _s_env(eng, preset)
-    ok = eng.ctx.land_cell & (s < -0.15)
+    v = eng.sim.derive(eng.authority.mint(
+        eng._order_sid[preset],
+        eng._new_instance_id(eng._stream("test", f"peek:{preset}")),
+        eng._stream("test", f"peek:{preset}")).traits, eng.pack)
+    KUL = eng.K * _ev(v, eng.ctx)["substrate_share"]
+    ok = eng.ctx.land_cell & (s < -0.15) & (KUL > CELL_CAP_MIN)
     ys, xs = np.nonzero(ok)
     cands = [(int(y), int(x)) for y, x in zip(ys[::40], xs[::40])]
     best = None
@@ -714,7 +753,13 @@ def test_stacked_siblings_merge():
     """Two instances of ONE lineage sharing a cell (the stacking the
     shift-grid gate was blind to) become merge candidates via the
     overlap pass and collapse once MERGE_GRACE has passed (eligible at
-    commit round 5, the sixth update)."""
+    commit round 5, the sixth update). v0.9 re-pin (2026-08-01, the
+    dune + lake-fetch gates 0d432c5/758ec17): the old argmin-s_env
+    tussock cells (236,156/157) read U = 0 on the gated world (K x U =
+    0 — instant density death at r0, both arms extinct), so the
+    fixture now also requires K x U > CELL_CAP_MIN (see its note);
+    measured on the final world the fixture lands at (239,150)/(239,149)
+    — both survive to the round-5 commit, merge, and retain c2."""
     eng = _engine()
     c1, c2 = _two_good_cells(eng, "grass_sward.tussock", far=False)
     a = _plant(eng, "grass_sward.tussock", [c1, c2])
@@ -742,7 +787,13 @@ def test_periodic_full_consolidation():
     genuinely diverge under the g-clock's mutation ramp (measured
     lichen scalar d ~0.057, above MERGE_D 0.045), so the two blocks
     must face the same pressure for the sweep to see them as
-    non-differentiated.)"""
+    non-differentiated.) v0.9 re-pin (2026-08-01, the dune + lake-fetch
+    gates 0d432c5/758ec17): the old matched pair's second cell read
+    U = 0 (lichen (194,202) decayed 1.0 -> 0.0 by r2 — the far block
+    died instead of consolidating), so _matched_far_cells now also
+    requires K x U > CELL_CAP_MIN; measured on the final world the
+    pair lands at (73,120)/(230,93) — consolidated at the round-9
+    commit, re-split within two dressings."""
     eng = _engine()
     c1, c2 = _matched_far_cells(eng, "lichen.crust")
     a = _plant(eng, "lichen.crust", [c1])

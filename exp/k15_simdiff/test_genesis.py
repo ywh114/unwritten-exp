@@ -156,10 +156,11 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
     every component is sub-floor yields () (never minted), and the
     partition's K targets the RETAINED range, so the clone union equals
     the retained mask (kept components only), not the full seeded
-    range. Pre-floor counts on seed 1 (measured 2026-08-01, after the
-    sand-sheet cold gate 2cc8e76 reclassified 4143 cells): 15232
-    components, 91% < 32 cells — the floor cuts genesis to the ~9% fat
-    blobs (15232 → 1333 instances engine-side)."""
+    range. Pre-floor counts on seed 1 (measured 2026-08-01, final
+    world after the sand-sheet cold gate 2cc8e76 and the dune +
+    lake-fetch gates 0d432c5/758ec17): 14800 components, 91% < 32
+    cells — the floor cuts genesis to the ~9% fat blobs (14800 → 1316
+    instances engine-side)."""
     pack, sim = pack_sim
     rain = genesis_rain(pack, sim, world, capacity, seed=1)
     assert set(rain) == set(pack.presets)
@@ -197,9 +198,10 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
             _check_clone_field(clone, seeded)
     # pinned empirically on seed 1 (2026-08-01; re-pinned for the v0.9
     # mint floor — the pins now assert the RETAINED range, which is what
-    # the partition actually sees; measured 3296 of 3820 yarrow cells and
-    # 1722 of 2150 seagrass cells survive the floor on the gated world
-    # (2cc8e76), so the K pins hold on both bases): two presets whose
+    # the partition actually sees; measured 3267 of 3808 yarrow cells and
+    # 1722 of 2150 seagrass cells survive the floor on the final world
+    # (cold gate 2cc8e76 + dune/lake-fetch gates 0d432c5/758ec17), so
+    # the K pins hold on both bases): two presets whose
     # retained range exceeds PART_AREA_REF by > 8×
     assert partition_k(retained["herb_forb.yarrow"]) == 5
     assert retained["herb_forb.yarrow"] >= 3200
