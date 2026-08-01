@@ -1,4 +1,4 @@
-# K15 sim-diff engine (flora rounds) — build spec v0.4
+# K15 sim-diff engine (flora rounds) — build spec v0.4.1
 
 2026-08-01. v0.3 folds the stat-settling pass (35 presets × seeds 1-3):
 substrate capacity split (§5.1, §6), dormancy-gated worst month (§5.1),
@@ -342,8 +342,26 @@ holds: computation is per-instance, never per-lineage):
    stays dressed to the parent — it may re-bridge next round, and if
    it diverges the div machinery handles it (measured 2026-08-01:
    unfloored dressing splits ran 228-600/round with median fragment
-   12-17 cells). Components of different instances that touch stay
-   separate.
+   12-17 cells). **Split hysteresis (v0.4.1):** a fragment at or
+   above the floor mints only after the bridge has stayed lost for
+   TWO consecutive dressings. Each instance carries an `orphan` cell
+   tag (windowed like div): the first dressing that finds a fragment
+   disconnected only tags its cells orphan; it mints at a later
+   dressing only if it is still disconnected AND at least half its
+   cells were already tagged. The tag clears when the cell
+   re-bridges into the main component and dies with the cell.
+   Slivers below the floor are pre-tagged (their disconnection is
+   chronic by construction — hysteresis targets oscillation, not
+   chronic disconnection). Orphan tags follow cells through crop,
+   rewindow and commit merges; a minted fragment carries its tags,
+   a div-split or foundling starts clean. Measured cause breakdown
+   (seed 1, r0-r5, cause-classified run): ~63% of bridge splits
+   were fragments founded THIS round by sustained-channel landings
+   that joined by rule and failed the bridge test in the same
+   dressing (join/split oscillation), ~15% transient mortality
+   carves, ~22% chronic disconnections — the first two classes are
+   absorbed by the grace round, the last mints one round later.
+   Components of different instances that touch stay separate.
 
 ## 9. Commit (TreeAuthority bridge)
 
@@ -505,6 +523,13 @@ counts are small).
 
 ## 15. Changelog
 
+- **v0.4.1** (2026-08-01): §8 split hysteresis (owner ruling: more
+  species and interleaved fauna rounds will multiply instance counts,
+  so the rain-bridge split requires persistence) — a fragment mints
+  only after two consecutive disconnected dressings (orphan cell tag;
+  slivers pre-tagged). Cause-classified diagnostic (seed 1, r0-r5):
+  63% of splits were same-round join/split oscillation, 15% transient
+  mortality carves, 22% chronic — hysteresis absorbs the first two.
 - **v0.4** (2026-08-01): rule B+ founding/differentiation (owner
   ruling after the seed-1 stat pass) — §7.3 founding keyed on gene
   flow instead of geometry: contiguous spill joins unconditionally,

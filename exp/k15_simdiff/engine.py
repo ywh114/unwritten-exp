@@ -103,7 +103,11 @@ class Dressed:
     despite failing the verdict gate — they count toward the parent's
     gene pool while incubating and split off only when a contiguous
     divergent region reaches DIFF_MIN_CELLS and is still divergent
-    (§8)."""
+    (§8). orphan tags cells that were DISCONNECTED from the main
+    component at the last dressing (§8 split hysteresis): a fragment
+    mints only when it stays disconnected across consecutive dressings,
+    so a one-round bridge loss (mortality hole, sparse rain) does not
+    oscillate join/split."""
 
     x: Instance
     N: np.ndarray
@@ -113,6 +117,7 @@ class Dressed:
     percap: float
     vital: VitalRates
     div: np.ndarray
+    orphan: np.ndarray
     box: tuple[int, int, int, int]
 
     @property
@@ -136,6 +141,7 @@ class Dressed:
         self.N = _embed(self.N, old, new_box, 0.0)
         self.rain = _embed(self.rain, old, new_box, 0.0)
         self.div = _embed(self.div, old, new_box, False)
+        self.orphan = _embed(self.orphan, old, new_box, False)
         self.box = new_box
 
 
@@ -174,16 +180,18 @@ def _dressed_box(d: Dressed) -> tuple[int, int, int, int]:
 
 
 def _crop(d: Dressed, mask: np.ndarray
-          ) -> tuple[np.ndarray, np.ndarray, np.ndarray,
+          ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray,
                      tuple[int, int, int, int]]:
     """Crop a Dressed's windowed arrays to *mask*'s world bbox (for
-    splits): (N, rain, div) masked then cropped, plus the world box."""
+    splits): (N, rain, div, orphan) masked then cropped, plus the world
+    box."""
     box = _mask_box(mask, d.box) or d.box
     y0, _, x0, _ = d.box
     sl = np.s_[box[0] - y0:box[1] - y0, box[2] - x0:box[3] - x0]
     return (np.where(mask, d.N, 0.0)[sl],
             np.where(mask, d.rain, 0.0)[sl],
-            np.where(mask, d.div, False)[sl], box)
+            np.where(mask, d.div, False)[sl],
+            np.where(mask, d.orphan, False)[sl], box)
 
 
 def _overlap_view(arr: np.ndarray, box, rect):
@@ -383,7 +391,8 @@ class Engine:
                 self.instances[iid] = Dressed(
                     x=x, N=N, rain=np.zeros_like(N), cache=cache,
                     view=view, percap=percap, vital=vital,
-                    div=np.zeros_like(N, dtype=bool), box=box)
+                    div=np.zeros_like(N, dtype=bool),
+                    orphan=np.zeros_like(N, dtype=bool), box=box)
 
     # ── §4 step 1: verdict feed ──────────────────────────────────────
 
@@ -675,7 +684,8 @@ class Engine:
                 x=fx, N=N0, rain=np.zeros_like(N0), cache=fcache,
                 view=view, percap=pop.percap_demand(view),
                 vital=self.sim.vital(fx.traits, self.pack),
-                div=np.zeros_like(N0, dtype=bool), box=fbox)
+                div=np.zeros_like(N0, dtype=bool),
+                orphan=np.zeros_like(N0, dtype=bool), box=fbox)
 
     # ── §4 step 4: dressing ──────────────────────────────────────────
 
@@ -696,8 +706,17 @@ class Engine:
            symmetric with founding): a fragment below DIFF_MIN_CELLS
            stays dressed to the parent even disconnected — it may
            re-bridge next round, and if it diverges the div machinery
-           handles it. Components of different instances that touch
-           stay separate.
+           handles it. HYSTERESIS (v0.4.1): a fragment at or above the
+           floor mints only after the bridge stays lost for two
+           CONSECUTIVE dressings — the first lost round only tags the
+           fragment's cells orphan (the tag clears if the bridge
+           re-establishes; slivers are pre-tagged, being chronically
+           disconnected). Measured cause breakdown (seed 1, r0–r5):
+           ~63% of bridge splits were same-round remote foundlings
+           oscillating join/split, ~15% transient mortality carves —
+           both absorbed by the grace round; ~22% chronic splits mint
+           one round later. Components of different instances that
+           touch stay separate.
         """
         splits: list[Dressed] = []
         for iid in sorted(self.instances):
@@ -729,42 +748,63 @@ class Engine:
                                       traits=dict(d.x.traits))
                         # the split-off instance is its own gene pool —
                         # it starts with a CLEAN div (its whole range
-                        # is "divergent" by definition)
-                        Nc, rainc, _divc, fbox = _crop(d, frag)
+                        # is "divergent" by definition) and a clean
+                        # orphan record (its connectivity is fresh)
+                        Nc, rainc, _divc, _orphc, fbox = _crop(d, frag)
                         splits.append(Dressed(
                             x=fx, N=Nc, rain=rainc,
                             cache=d.cache, view=d.view, percap=d.percap,
                             vital=d.vital,
-                            div=np.zeros_like(Nc, dtype=bool), box=fbox))
+                            div=np.zeros_like(Nc, dtype=bool),
+                            orphan=np.zeros_like(Nc, dtype=bool),
+                            box=fbox))
                         d.N = np.where(frag, 0.0, d.N)
                         d.rain = np.where(frag, 0.0, d.rain)
                         clear |= frag
                     d.div &= ~clear
             mask = d.cells | (d.rain > 0.0)
+            d.orphan &= mask      # tags live only on populated cells
             comps = gen.connected_components(mask)
             if len(comps) <= 1:
+                d.orphan[:] = False
                 continue
             comps.sort(key=lambda m: float(d.N[m].sum()), reverse=True)
             for frag in comps[1:]:
                 if float(d.N[frag].sum()) <= 0.0:
                     continue        # rain-only sink: never an instance
                 if int(frag.sum()) < DIFF_MIN_CELLS:
-                    continue        # sliver floor: stays with the parent
+                    # sliver floor: stays with the parent; slivers are
+                    # CHRONICALLY disconnected, so they are pre-tagged
+                    # orphan (they split promptly if they grow past the
+                    # floor — hysteresis targets oscillation, not
+                    # chronic disconnection)
+                    d.orphan |= frag
+                    continue
+                if int((d.orphan & frag).sum()) * 2 < int(frag.sum()):
+                    # HYSTERESIS (§8): the bridge was lost for the first
+                    # time — the fragment keeps one grace round inside
+                    # the parent. It mints only if the disconnection
+                    # persists to the next dressing (or clears if the
+                    # rain bridge re-establishes).
+                    d.orphan |= frag
+                    continue
                 nid = self._new_instance_id(
                     self._stream("split", f"{t}:{iid}"))
                 fx = Instance(species_id=d.x.species_id,
                               instance_id=nid,
                               traits=dict(d.x.traits))
-                Nc, rainc, divc, fbox = _crop(d, frag)
+                Nc, rainc, divc, orphc, fbox = _crop(d, frag)
                 splits.append(Dressed(x=fx, N=Nc, rain=rainc,
                                       cache=d.cache, view=d.view,
                                       percap=d.percap, vital=d.vital,
-                                      div=divc, box=fbox))
+                                      div=divc, orphan=orphc, box=fbox))
                 # only genuinely split-off fragments leave the parent;
                 # skipped slivers/sinks keep their N, rain and div
                 d.N = np.where(frag, 0.0, d.N)
                 d.rain = np.where(frag, 0.0, d.rain)
                 d.div = np.where(frag, False, d.div)
+                d.orphan = np.where(frag, False, d.orphan)
+            d.orphan[comps[0]] = False   # re-bridged: the keep region
             d.rewindow(_dressed_box(d))
         for d in splits:
             self.instances[d.x.instance_id] = d
@@ -828,6 +868,7 @@ class Engine:
                         dst.N, _embed(src.N, src.box, ub, 0.0))
                     dst.rain += _embed(src.rain, src.box, ub, 0.0)
                     dst.div |= _embed(src.div, src.box, ub, False)
+                    dst.orphan |= _embed(src.orphan, src.box, ub, False)
             elif delta.target:
                 # SUBSPECIES / SPLIT: the instance continues under the
                 # new lineage node
