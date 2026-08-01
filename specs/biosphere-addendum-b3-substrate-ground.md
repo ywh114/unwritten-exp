@@ -60,6 +60,18 @@ reg/pavement, not sand seas — the sheet's pure-precipitation rule read a
 ~200 mm/yr / 5 °C cold grassland as sand sea (arid 0.87, sheet beat
 mollisol on arid seeds 2/3).
 
+**Lake littoral rule**: a lake's shore is sandy only where wave energy
+and sand supply both exist — fetch × geology, not proximity alone. The
+littoral sand evidence is fetch-gated: the connected-component area of
+the lake mask gives an effective fetch F = 2√(A/π) (the circular-lake
+diameter), ramped to a per-lake wave gate, and the coastal-sand lake
+term carries `wave`. Small ponds are wave-starved and read lake mud;
+large lakes keep sandy gentle shores; steep beds read rocky bottom and
+deltas read mud regardless of fetch. Per-lake wave is a SCALAR — uniform
+around the lake (anchor cells can't resolve bays); mixed shorelines
+emerge from the per-cell `(1−dep) · (1−slope) · (0.6 + 0.4·glac)` terms.
+Constants and calibration: see the lake-fetch revision entry below.
+
 **Underwater is the same table, same machinery** — retention reads 1.0
 (saturated); texture, rooting, salinity, nutrient do the work. River
 gravel vs sand keys off the river-speed field (flow-sorting is the
@@ -236,6 +248,72 @@ measured on seeds 1-3, cold-desert/grassland sheet dominance was
 keeps cold sand sheet possible but rare, the same idiom as dune's
 hot-only bias comment.
 
+## Revisions (2026-08-01, lake fetch gate)
+
+**Coastal sand's lake term is fetch-gated (owner ruling 2026-08-01,
+"B + C-lite").** The old ring term `lake_shore · (1−dep) · (1−slope)`
+gave EVERY lake a sandy littoral: `lake_shore` is a 1-cell (4 km)
+underwater band, so small ponds are entirely "shore", and the sand term
+(1.0 on flat, no-dep cells) beats `lake mud` (0.5) unconditionally.
+Measured seed 1 (before): 1-cell lakes 67% sand-dominant, 2-cell lakes
+92%, 5-8-cell lakes 95%; 55% of lake cells overall read coastal-sand
+mix share > 0.2. Physics basis (brainstorm agent-68): sandy shore ≈
+wave energy (fetch × wind) × sand supply (geology); ≲1 km water bodies
+are wave-starved and read muck/peat; supply is independent (reworked
+glacial drift / bluffs / fluvial sand → sand, bedrock → rocky,
+fine-fluvial → mud deltas even under waves).
+
+- **New evidence field — lake fetch.** One deterministic label pass
+  (row-run + union-find over runs, the repo's connected-components
+  idiom — no new dependencies) on the anchor lake mask gives each
+  lake's cell count → area → effective fetch F = 2√(A/π) (the
+  circular-lake diameter) → a bounded per-lake wave gate
+  `wave = clip((F − F0)/(F1 − F0), 0, 1)`. The gate is a per-lake
+  SCALAR: uniform around the lake, no within-lake windward/leeward
+  asymmetry (owner acknowledged — anchor cells can't resolve bays).
+  Anchor cells are 4 km (16 km²; k11 hydrology CELL_M = 4000 m over
+  the 1024 km world), so a 1-cell pond is a 4 km body, F ≈ 4.5 km —
+  far below F0. (The area→fetch unit check is the crux: a 1-cell pond
+  reads F ≈ 4.5 km, not 18 km; the wrong 16 km-cell assumption would
+  have saturated every lake.)
+- **Constants** (knob set #2): `F0 = 12 km`, `F1 = 35 km` effective
+  fetch. F0: lakes ≲ 12 km fetch (≲ 113 km², ~7 anchor cells — a body
+  ~10 km across) are wave-starved — the 1 km literature threshold is
+  unresolvable at 4 km cells, and 12 km keeps seed-1's 1-2-cell ponds
+  (F ≤ 6.4 km) AND its small tarns (≤ ~8 cells) at wave ≈ 0 → lake mud
+  wins. F1: wave energy is fully developed for littoral sorting by
+  ~35 km fetch (≳ 960 km², ~60 cells) — Earth's beach-bearing lakes
+  (Erie, Tanganyika) saturate well before this. Calibrated against the
+  seed-1 lake-area distribution (101 lakes, 1045 cells; median fetch
+  7.8 km, p90 17.5 km, max 75 km): 1-8-cell lakes → wave ≈ 0 (mud),
+  33+ cell lakes (F ≥ 34 km) → wave 1 (sandy gentle shores), mid-size
+  lakes transition through the ramp with the per-cell docks deciding.
+- **New lake term**: `lake_shore · wave · (1−dep) · (1−slope)
+  · (0.6 + 0.4·glac)`. The `(0.6 + 0.4·glac)` gain is the drift-fed
+  supply half of "fetch × supply": glacial margins read up to 1.0, so
+  proglacial/drift-fed shores develop sandy arcs at lower fetch than
+  non-glaciated lakes; the 0.6 floor keeps the wave-only base below
+  lake mud's 0.5 until the gate is well open.
+- **`lake mud` and `rocky bottom` untouched** — they win once sand is
+  gated off: ponds (wave ≈ 0) read lake mud, steep beds read rocky
+  bottom, high-deposition inflow shores stay mud (deltas), deep centers
+  stay mud. The ocean `no` term of coastal sand is untouched (the dune
+  fix already docked it (1−slope)²).
+- **Delivery res**: the wave field is a relational quantity (label
+  pass on the anchor mask); it is bilinear-upsampled with the other
+  halo/littoral fields, never re-labeled at delivery res.
+- **Measured after, seed 1** (before → after, coastal-sand mix share
+  > 0.2 on lake cells, by lake size class; dominant class share):
+  1-2-cell ponds 93.5% → 0.0% (92% sand-dominant → 95% lake mud);
+  3-4-cell 94.9% → 0.0% (mud 92%); 5-8-cell 94.7% → 0.0% (mud 95%);
+  9-16-cell 77.8% → 29.6% (sand-dominant 77% → 0%, mud 89%); 17-32-cell
+  60.0% → 57.3% (mud 73%, no sand dominance — mid-transition band);
+  33-64-cell 53.7% → 52.9% (sand-dominant 49% → 36% — sandy gentle
+  shores kept); 65-128-cell 41.1% → 41.1% (sand-dominant 37% → 34%);
+  257+ 10.5% → 10.1% (a rocky-basin big lake: mud 39% / rocky 59% /
+  sand 1.4%). lake mud / rocky bottom / coastal sand all reachable
+  (w > 1e-5); the 42-class reachability test stays green.
+
 ## Revisions (2026-08-01, dune gate + littoral dock)
 
 **Dune gets the most-arid band, a terminus-gated supply, and cold/glacier
@@ -269,8 +347,10 @@ term's (1−slope) left cliff coasts (slope > 0.3, a 24% grade) docked to
 0.7 only; 629 seed-1 coastal cells read share > 0.2 at slope > 0.3 (422
 of them humid). The OCEAN term now docks (1−slope)², dropping cliff
 coasts toward scree/bedrock while gentle beaches keep their coastal
-sand. The LAKE-shore ring term is untouched — the lake littoral is an
-open owner decision.
+sand. The LAKE ring keeps its own slope dock but is now fetch-gated
+(the lake littoral, owner ruling 2026-08-01 — see the lake-fetch
+revision below; the (1-slope)² was not applied there, the lake littoral
+keeps (1-slope)).
 
 ## Knobs
 

@@ -92,6 +92,34 @@ DUNE_ACC_REF = 10.0           # TERMINAL (persisted K11 h_flow_dir into
                               # drainage termini; the flat/dry self-gate
                               # in _evidence covers the basin-interior
                               # deflation ergs
+# ── lake fetch gate (owner ruling 2026-08-01: sandy shore = fetch x ────
+# ── supply; small ponds are wave-starved and read lake mud) ─────────────
+LAKE_CELL_KM2 = 16.0          # ONE anchor cell = 4 km x 4 km (k11
+                              # hydrology CELL_M = 4000 m over the 1024 km
+                              # world; 256^2 anchor). THE unit trap: a
+                              # 1-cell pond is a 4 km body, F ≈ 4.5 km —
+                              # a 16 km cell would have made every lake
+                              # wave-saturated (F ≈ 18 km).
+FETCH_F0_KM = 12.0            # effective fetch F = 2*sqrt(A/pi) below
+                              # which a lake is wave-starved (wave = 0):
+                              # <~12 km fetch = <~113 km^2 = ~7 anchor
+                              # cells = a body ~10 km across. The 1 km
+                              # literature threshold is unresolvable at
+                              # 4 km cells; 12 km (mid ticket band
+                              # 10-15) keeps seed-1's 1-8 cell lakes at
+                              # wave ~0 -> lake mud wins the ponds.
+FETCH_F1_KM = 35.0            # fetch at which wave energy is fully
+                              # developed for littoral sorting (wave = 1):
+                              # ~35 km fetch = >~960 km^2 = ~60 cells.
+                              # Earth's beach-bearing lakes (Erie,
+                              # Tanganyika) saturate well before this.
+                              # Calibrated on the seed-1 lake-area
+                              # distribution (101 lakes, median fetch
+                              # 7.8 km, p90 17.5, max 75): 1-8 cell lakes
+                              # wave ~0 (mud), 33+ cell lakes (F >= 34 km)
+                              # wave 1 (sandy gentle shores), mid-size
+                              # lakes ramp through with the per-cell
+                              # docks deciding.
 W_FLOOR = 1e-6                # generator-weight floor feeding -log -> d2
 
 # ── volcanic (vent) evidence — built from the vent/spring POINTS, not ───
@@ -356,6 +384,75 @@ def _slope_field(elev: np.ndarray) -> np.ndarray:
                               np.abs(elev - left), np.abs(elev - right)])
 
 
+def _label_components(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """8-connectivity connected components of a bool (H,W) mask → a label
+    map (int32, -1 outside the mask) + per-label cell counts, labels
+    emitted in row-major first-cell order. Row-run extraction + union-find
+    over runs — the repo's connected-components idiom (k15 genesis,
+    replicated here because k14 must not import k15). Deterministic, pure
+    numpy, no scipy: one pass over a 256² mask is microseconds."""
+    mask = np.asarray(mask, dtype=bool)
+    H, W = mask.shape
+    runs: list[tuple[int, int, int]] = []      # (row, c0, c1) inclusive
+    by_row: list[list[int]] = []               # row -> run ids
+    for r in range(H):
+        row = mask[r]
+        if not row.any():
+            by_row.append([])
+            continue
+        d = np.diff(row.astype(np.int8))
+        starts = np.flatnonzero(d == 1) + 1
+        ends = np.flatnonzero(d == -1)
+        if row[0]:
+            starts = np.concatenate(([0], starts))
+        if row[-1]:
+            ends = np.concatenate((ends, [W - 1]))
+        ids = list(range(len(runs), len(runs) + len(starts)))
+        for s, e in zip(starts, ends):
+            runs.append((r, int(s), int(e)))
+        by_row.append(ids)
+
+    parent = list(range(len(runs)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[max(ra, rb)] = min(ra, rb)
+
+    # 8-connectivity across adjacent rows: a run in row r links to runs
+    # in row r+1 whose column interval intersects [c0-1, c1+1].
+    for r in range(H - 1):
+        if not by_row[r] or not by_row[r + 1]:
+            continue
+        next_runs = np.array([(runs[j][1], runs[j][2])
+                              for j in by_row[r + 1]])
+        starts_n = next_runs[:, 0]
+        for j in by_row[r]:
+            _r, c0, c1 = runs[j]
+            lo, hi = c0 - 1, c1 + 1
+            k = int(np.searchsorted(starts_n, lo, side="left"))
+            while k < len(starts_n) and starts_n[k] <= hi:
+                union(j, by_row[r + 1][k])
+                k += 1
+
+    comp_id: dict[int, int] = {}
+    label = np.full((H, W), -1, dtype=np.int32)   # -1 = not in any run
+    for i, (r, c0, c1) in enumerate(runs):
+        root = find(i)
+        if root not in comp_id:
+            comp_id[root] = len(comp_id)       # first occurrence order
+        label[r, c0:c1 + 1] = comp_id[root]
+    counts = np.bincount(label[label >= 0].astype(np.int64),
+                         minlength=len(comp_id))
+    return label, counts
+
+
 # ── vent fields (point-based volcanic influence) ────────────────────────
 
 
@@ -559,8 +656,26 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
     # lake littoral (UNDERWATER only — the ring of LAKE cells adjacent to
     # shore; shore land keeps its own soils, treeline-to-lake is common):
     # sandy where the bed is gentle and winnowed, rocky where steep, while
-    # lake mud holds the deep center and the high-deposition inflow deltas
+    # lake mud holds the deep center and the high-deposition inflow deltas.
+    # Sandy-ness is FETCH-GATED (owner ruling 2026-08-01): the lake's
+    # connected-component area -> effective fetch F = 2*sqrt(A/pi) -> a
+    # bounded per-lake wave gate. Small ponds (F < FETCH_F0_KM) are
+    # wave-starved and read lake mud; large lakes saturate at FETCH_F1_KM.
+    # The gate is a per-lake SCALAR (uniform around the lake — 4 km cells
+    # can't resolve bays); mixed shorelines emerge from the per-cell
+    # (1-dep)(1-slope)(0.6+0.4*glac) docks in the coastal-sand rule.
     lake_shore = (_dilate8(land, 1) & lake).astype(np.float64)
+    _labels, _counts = _label_components(lake)
+    _A_km2 = _counts.astype(np.float64) * LAKE_CELL_KM2
+    _fetch = 2.0 * np.sqrt(_A_km2 / np.pi)
+    _wave = np.clip((_fetch - FETCH_F0_KM)
+                    / (FETCH_F1_KM - FETCH_F0_KM), 0.0, 1.0)
+    if _wave.size:
+        lake_wave = np.where(_labels >= 0,
+                             _wave[np.clip(_labels, 0, _wave.size - 1)],
+                             0.0)
+    else:
+        lake_wave = np.zeros_like(lake, dtype=np.float64)
 
     # shared per-class sub-expressions. The remaining halo/dilation terms
     # are computed here at anchor res; the hi-res pass upsamples the
@@ -578,6 +693,7 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
         salsoil=salsoil, energy=energy, depthn=depthn, rs=rs, tidal=tidal,
         near_ocean1=near_ocean1.astype(np.float64),
         lake_shore=lake_shore,
+        lake_wave=lake_wave,
         dune_dep=dune_gate,
         seasw=seasw, pulse=pulse,
         loamy=0.5 + 0.5 * dep, reef=reef,
@@ -620,6 +736,7 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     seasw, pulse = e["seasw"], e["pulse"]
     no = e["near_ocean1"]
     lake_shore = e["lake_shore"]
+    lake_wave = e["lake_wave"]
 
     # terrestrial — physical
     if name == "dune sand":      # band/terminus/cold/glacier live in dune_dep's gate
@@ -704,10 +821,20 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
         # the old (1-slope) left slope>0.3 (24% grade) at 0.7, so 629
         # seed-1 coastal cells read share>0.2 on cliffs, 422 of them
         # humid; (1-slope)^2 drops cliff coasts toward scree/bedrock.
-        # The LAKE ring keeps the old (1-slope) — the lake littoral is
-        # an open owner decision, untouched.
+        # The LAKE ring is FETCH-GATED (second owner ruling 2026-08-01):
+        # the old term gave EVERY lake a sandy ring — lake_shore is a
+        # 1-cell (4 km) band, so small ponds were entirely "shore" and
+        # sand (1.0 flat, no-dep) beat lake mud (0.5) unconditionally
+        # (seed-1 2-cell lakes: 92% sand-dominant). Now the ring carries
+        # the per-lake wave gate (effective fetch from the lake's
+        # connected-component area; ponds wave≈0 -> mud wins) and the
+        # (0.6 + 0.4*glac) drift-fed supply gain — glacial-margin shores
+        # read up to 1.0, so proglacial/drift-fed arcs develop sand at
+        # lower fetch, while the 0.6 floor keeps the wave-only base below
+        # lake mud's 0.5 until the gate is well open.
         return (no * land * 0.8 * (1 - slope) ** 2
-                + lake_shore * (1 - dep) * (1 - slope))
+                + lake_shore * lake_wave * (1 - dep) * (1 - slope)
+                * (0.6 + 0.4 * glac))
     # terrestrial — biotic / mixed (biome bias applied by the caller)
     if name == "mollisol":
         # steppe-tolerant (chernozem): arid only docks 0.6, so semi-arid
@@ -888,8 +1015,8 @@ def eff_props(mix_ids: np.ndarray, mix_w: np.ndarray) -> dict:
 # evidence planes that get bilinear-upsampled anchor -> delivery
 _HI_FIELDS = ("dep", "wet", "slope", "arid", "cold", "warm", "glac",
               "salsoil", "energy", "depthn", "rs", "tidal",
-              "near_ocean1", "lake_shore", "dune_dep", "loamy",
-              "seasw", "pulse", "shelf_gate", "seep_passive")
+              "near_ocean1", "lake_shore", "lake_wave", "dune_dep",
+              "loamy", "seasw", "pulse", "shelf_gate", "seep_passive")
 
 
 def _upsample_evidence(e: dict, z, factor: int, seed: int) -> dict:

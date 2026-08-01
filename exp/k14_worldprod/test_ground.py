@@ -435,15 +435,17 @@ def test_flood_pulse_builds_alluvium():
     assert w[GROUND_ID["alluvium"], 0, 0] < 0.05
 
 
-def test_lake_littoral_bleed():
-    """Underwater littoral gradient: sandy on gentle winnowed shores,
-    rocky on steep beds, lake mud only in the deep center — and the
-    shore LAND keeps its own soil (treeline-to-lake)."""
+def test_lake_littoral_small_pond_mud_steep_rocky():
+    """Underwater littoral gradient on a SMALL lake (fetch-gated, owner
+    ruling 2026-08-01): a 3x3 pond (144 km², F ~= 13.5 km) is
+    wave-starved — its gentle shore reads lake mud, where the old
+    unconditional ring read coastal sand; steep beds still read rocky
+    bottom; the shore LAND keeps its own soil (treeline-to-lake)."""
     z = _ground_z()
     z["h_lake_mask"][3:6, 3:6] = True                # 3x3 lake, 8x8 world
     g = _build(z)
-    # gentle, low-deposition shore ring reads coastal sand, not uniform mud
-    assert g["class_id"][3, 3] == GROUND_ID["coastal sand"]
+    # wave-starved pond: the gentle shore reads lake mud, not coastal sand
+    assert g["class_id"][3, 3] == GROUND_ID["lake mud"]
     # the deep center (no land neighbor) stays lake mud
     assert g["class_id"][4, 4] == GROUND_ID["lake mud"]
     # the land next to the lake keeps its terrestrial soil
@@ -458,11 +460,103 @@ def test_lake_littoral_bleed():
     assert g2["class_id"][3, 3] == GROUND_ID["rocky bottom"]
 
 
+def test_lake_fetch_gate_small_ponds_are_mud():
+    """Fetch gate (owner ruling 2026-08-01): a 1-2 cell pond is
+    wave-starved (F <= 6.4 km < FETCH_F0_KM) and reads lake mud, not
+    coastal sand — the old unconditional ring made seed-1 2-cell ponds
+    92% sand-dominant."""
+    cs = GROUND_ID["coastal sand"]
+    mud = GROUND_ID["lake mud"]
+    z = _ground_z()
+    z["h_lake_mask"][4, 4] = True                    # 1-cell pond
+    g = _build(z)
+    w = _w(g)
+    assert g["class_id"][4, 4] == mud
+    assert w[cs, 4, 4] < w[mud, 4, 4]
+    z2 = _ground_z()
+    z2["h_lake_mask"][4, 4] = True
+    z2["h_lake_mask"][4, 5] = True                   # 2-cell pond
+    g2 = _build(z2)
+    w2 = _w(g2)
+    assert g2["class_id"][4, 4] == mud
+    assert w2[cs, 4, 4] < w2[mud, 4, 4]
+
+
+def test_arid_small_lake_basin_mud_not_sand():
+    """Arid small closed basins read playa mud, not sand: the fetch gate
+    zeroes a small lake's littoral sand regardless of aridity, and lake
+    mud is the only lake-domain soil — salinity lives in the water
+    column (sal_add None), not in the bed class."""
+    z = _ground_z()
+    z["c_P_monthly"][:, 4, 4] = 200.0 / 400.0 / 12.0   # 200 mm/yr arid
+    z["h_lake_mask"][4, 4] = True                      # 1-cell pond
+    z["h_accumulation"][4, 4] = 0.0                    # no inflow supply
+    z["h_hand"][4, 4] = 0.0
+    g = _build(z)
+    w = _w(g)
+    assert g["class_id"][4, 4] == GROUND_ID["lake mud"]
+    assert w[GROUND_ID["coastal sand"], 4, 4] < 1e-4   # wave 0 -> no sand
+
+
+def test_lake_wave_field_fetch_formula_scalar_per_lake():
+    """The fetch evidence field: F = 2*sqrt(A/pi) from each lake's
+    connected-component area (anchor cell = 4 km = 16 km²), ramped to a
+    bounded per-lake wave gate. A 1-cell pond (F ~= 4.5 km) reads wave 0;
+    a 6x6 lake (36 cells = 576 km², F ~= 27 km) reads the formula value;
+    the wave is a SCALAR, uniform around each lake."""
+    z = _ground_z(16, 16)
+    z["h_lake_mask"][4, 4] = True                     # 1-cell pond
+    z["h_lake_mask"][2:8, 10:16] = True               # 6x6 = 36 cells
+    e = ground._evidence(z, SEA, [], 0)
+    wave = e["lake_wave"]
+    assert wave[4, 4] == 0.0                          # below F0 -> wave 0
+    fetch = 2.0 * np.sqrt(36.0 * 16.0 / np.pi)        # km, 4 km cells
+    exp_w = np.clip((fetch - ground.FETCH_F0_KM)
+                    / (ground.FETCH_F1_KM - ground.FETCH_F0_KM), 0.0, 1.0)
+    assert exp_w > 0.0 and exp_w < 1.0                # mid-ramp on purpose
+    assert wave[2:8, 10:16].min() == pytest.approx(exp_w, abs=1e-9)
+    assert wave[2:8, 10:16].max() == pytest.approx(exp_w, abs=1e-9)
+    assert wave[0, 0] == 0.0                          # off-lake stays 0
+
+
+def test_large_lake_gentle_shore_sandy_fetch_open():
+    """A large lake (10x10 = 100 cells = 1600 km², F ~= 45 km) saturates
+    the fetch gate (wave = 1): its gentle low-deposition shores read
+    coastal sand, the deep center stays lake mud, steep beds read rocky
+    bottom, and high-deposition inflow shores (deltas) stay mud — the
+    per-cell docks decide within one lake."""
+    cs = GROUND_ID["coastal sand"]
+    mud = GROUND_ID["lake mud"]
+    z = _ground_z(16, 16)
+    z["h_lake_mask"][3:13, 3:13] = True               # 10x10 lake
+    g = _build(z)
+    w = _w(g)
+    # gentle flat no-dep shore (the lake's north-west corner cell)
+    assert g["class_id"][3, 3] == cs
+    assert w[cs, 3, 3] > w[mud, 3, 3]
+    # deep center: no land neighbor -> no littoral -> lake mud
+    assert g["class_id"][7, 7] == mud
+    # steep shore -> rocky littoral
+    z2 = _ground_z(16, 16)
+    z2["h_lake_mask"][3:13, 3:13] = True
+    z2["w_elev"][2, 3] = _above(SEA, 800.0)           # 700 m shore cliff
+    g2 = _build(z2)
+    assert g2["class_id"][3, 3] == GROUND_ID["rocky bottom"]
+    # delta: saturated inflow shore stays lake mud even under full fetch
+    z3 = _ground_z(16, 16)
+    z3["h_lake_mask"][3:13, 3:13] = True
+    z3["h_accumulation"][3, 4] = 2000.0               # saturated inflow
+    z3["h_hand"][3, 4] = 0.0                          # wet -> dep = 1
+    g3 = _build(z3)
+    assert g3["class_id"][3, 4] == mud
+
+
 def test_cliff_coast_coastal_sand_docked():
     """Littoral slope dock (owner ruling 2026-08-01): the OCEAN term now
     docks (1-slope)^2, so cliff coasts (slope > 0.3, a 24% grade) fall
-    toward scree while gentle beaches keep their coastal sand. The
-    LAKE-shore ring keeps the old (1-slope) — untouched owner decision."""
+    toward scree while gentle beaches keep their coastal sand. The LAKE
+    ring keeps its own (1-slope) dock and is separately fetch-gated
+    (owner ruling 2026-08-01 — see the lake fetch gate tests)."""
     from exp.k11_worldgen.biomes import BIOME_ID
     z = _ground_z()
     z["h_ocean_mask"][:, 7] = True                   # ocean on the east
