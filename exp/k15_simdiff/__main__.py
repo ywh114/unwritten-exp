@@ -1,10 +1,13 @@
-"""K15 — B5 §8 acceptance/demo driver for the flora stress adapter.
+"""K15 — B5 §8 acceptance/demo driver for the flora stress adapter,
+plus the sim-diff engine rounds demo.
 
     PYTHONPATH=. uv run python -m exp.k15_simdiff --seed 1
+    PYTHONPATH=. uv run python -m exp.k15_simdiff --seed 1 --rounds 8
 
-Loads the flora tree (exp/k13_treegen/out/k14_seedNNNNNNNN.json) and the
-anchor world context, evaluates all 150 radiated species (timed), and
-prints the B5 §8 acceptance table on seed 1:
+The default mode loads the flora tree
+(exp/k13_treegen/out/k14_seedNNNNNNNN.json) and the anchor world
+context, evaluates all 150 radiated species (timed), and prints the
+B5 §8 acceptance table on seed 1:
 
   (1) determinism — two full runs, byte-identical arrays;
   (2) mangrove-grade — the wet-adapted tree's lowest worst-month
@@ -36,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -335,10 +339,55 @@ def run(seed: int) -> int:
     return 0 if all_ok else 1
 
 
+def run_rounds(seed: int, rounds: int) -> int:
+    """The engine rounds demo (spec §4/§12 driver side): genesis plus
+    *rounds* full rounds on the world seed, with a per-round table
+    (instances, lineages, mass, occupied cells, commit outcomes, wall)
+    and a final digest. Determinism note: the same (seed, rounds) run
+    is byte-identical across processes — ``test_full_run_acceptance``
+    (slow) is the gate for that."""
+    from exp.k15_simdiff.engine import Engine
+
+    eng = Engine(seed)
+    t0 = time.perf_counter()
+    eng.genesis()
+    n0 = len(eng.instances)
+    print(f"K15 sim-diff engine — rounds demo (seed {seed})")
+    print(f"  genesis: {n0} instances "
+          f"({len({d.x.species_id for d in eng.instances.values()})} "
+          f"lineages) in {time.perf_counter() - t0:.1f}s")
+    print(f"  {'r':>3} {'inst':>6} {'lin':>5} {'mass':>10} {'cells':>7} "
+          f"{'keep':>5} {'merg':>5} {'sub':>4} {'splt':>4} {'ext':>4} "
+          f"{'wall':>6}")
+    t_start = time.perf_counter()
+    for t in range(rounds):
+        tr = time.perf_counter()
+        log = eng.round(t)
+        oc = Counter(int(d.outcome) for d in log.instances)
+        mass = sum(d.mass for d in eng.instances.values())
+        cells = sum(int(d.cells.sum()) for d in eng.instances.values())
+        lin = len({d.x.species_id for d in eng.instances.values()})
+        print(f"  {t:>3} {len(eng.instances):>6} {lin:>5} {mass:>10.0f} "
+              f"{cells:>7} {oc[0]:>5} {oc[1]:>5} {oc[2]:>4} {oc[3]:>4} "
+              f"{len(log.extinct_species):>4} "
+              f"{time.perf_counter() - tr:>5.1f}s", flush=True)
+    total = time.perf_counter() - t_start
+    print(f"  {rounds} rounds in {total:.1f}s "
+          f"(mean {total / max(rounds, 1):.1f}s/round); retired "
+          f"{len(eng.retired)}, reflog {len(eng.authority.reflog)} "
+          f"entries")
+    return 0
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--rounds", type=int, default=0,
+                    help="run the engine rounds demo instead of the "
+                         "adapter acceptance (N full rounds)")
     args = ap.parse_args()
+    if args.rounds > 0:
+        raise SystemExit(run_rounds(args.seed, args.rounds))
     raise SystemExit(run(args.seed))
 
 
