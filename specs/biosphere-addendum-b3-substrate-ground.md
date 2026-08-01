@@ -41,9 +41,13 @@ Two engines run everywhere; neither has veto:
 Genesis (physical / biotic / mixed) is per-class METADATA, never a
 constraint.
 
-**Dune rule**: dune sand only in the most-arid fraction of arid cells
-(lowest aridity-index band + depositional supply); the rest of the arid
-mosaic is sand sheet / reg. Dune mobility is L1's job — dunes are
+**Dune rule**: dune sand only in the most-arid fraction of arid cells —
+a hard aridity BAND (full weight only in the lowest aridity-index band,
+ramped to zero by the subhumid band) plus depositional supply at a TRUE
+drainage terminus (a flow direction ending in standing water or
+off-grid — the terminal wadi fan); the rest of the arid mosaic is sand
+sheet / reg. Cold and glacier tails close the frozen ends: no deflation
+under frost, no dunes on ice. Dune mobility is L1's job — dunes are
 inhospitable dunes, detail comes later.
 
 **Sand sheet rule**: sand sheet needs warmth. The cold gate docks the
@@ -121,7 +125,7 @@ Terrestrial — physical:
 
 | class | retention | rooting m | sal+ | nutrient | pH | genesis |
 |---|---|---|---|---|---|---|
-| dune sand | 0.05 | 0.3 | 0 | 0.15 | 6.5 | most-arid deposition only |
+| dune sand | 0.05 | 0.3 | 0 | 0.15 | 6.5 | most-arid, terminus-fed deposition only |
 | sand sheet | 0.10 | 0.5 | 0 | 0.20 | 6.5 | arid, warm-gated (cold → reg) |
 | reg / desert pavement | 0.05 | 0.2 | 0 | 0.15 | 7.8 | winnowing |
 | scree | 0.05 | 0.10 | 0 | 0.05 | 6.8 | slope override |
@@ -231,6 +235,42 @@ measured on seeds 1-3, cold-desert/grassland sheet dominance was
 0-2.5% before and the physical gate alone flips it to ~0 — the floor
 keeps cold sand sheet possible but rare, the same idiom as dune's
 hot-only bias comment.
+
+## Revisions (2026-08-01, dune gate + littoral dock)
+
+**Dune gets the most-arid band, a terminus-gated supply, and cold/glacier
+tails.** The old gate weighted by the smooth arid² — arid = 1 − p/1500
+leaves 0.32–0.54 at 400–650 mm/yr, so subhumid dune outvoted mollisol
+(172 seed-1 cells read dune at p > 400 mm, 91% of them on a saturated
+supply term). Three fixes (owner ruling 2026-08-01):
+- **Arid band** replaces arid²: full weight only at/above arid 0.83
+  (~255 mm/yr — the 150–250 mm arid band and everything drier), a hard
+  band ramping to zero by arid 0.75 (~375 mm/yr — the subhumid
+  400–650 mm band reads ~0). Same band idiom as the sheet's cold gate.
+- **Supply only at true drainage termini**: the supply term was
+  clip(acc/10) — acc is the plain upstream cell count (land max 56 on
+  seed 1), so ANY 10-cell catchment saturated it and 93% of implausible
+  dune cells carried it. Supply now requires the persisted K11 flow
+  direction to terminate in standing water or off-grid — the terminal
+  wadi fan. DUNE_ACC_REF stays 10: desert terminal catchments run acc
+  p95 ~10 and interiors max out near ~20 cells, so REF opens only true
+  drainage termini (the flat/dry self-gate still covers basin-interior
+  deflation ergs).
+- **Cold and glacier tails**: (1−cold) zeroes the frozen tail (no
+  deflation under frost) and (1−glac) clears glacier cells — 48 dune
+  cells sat ON the glacier mask at t −6…−9 °C / ~430–510 mm before the
+  ruling. The sheet's warm floor is NOT copied: dunes get the cold tail
+  only, no floor — the sheet's floor exists because cold-desert sand
+  seas are rare-but-real; mobile dune sand needs warmth, and cold
+  deserts fall through to reg.
+
+**Coastal sand gets a steeper littoral slope dock.** The ocean-littoral
+term's (1−slope) left cliff coasts (slope > 0.3, a 24% grade) docked to
+0.7 only; 629 seed-1 coastal cells read share > 0.2 at slope > 0.3 (422
+of them humid). The OCEAN term now docks (1−slope)², dropping cliff
+coasts toward scree/bedrock while gentle beaches keep their coastal
+sand. The LAKE-shore ring term is untouched — the lake littoral is an
+open owner decision.
 
 ## Knobs
 

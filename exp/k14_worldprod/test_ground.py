@@ -81,6 +81,10 @@ def _ground_z(H: int = 8, W: int = 8) -> dict:
         "c_T": np.full((H, W), (20.0 + 30.0) / 65.0),  # 20 C
         "h_glacier_mask": np.zeros((H, W), bool),
         "h_glacier_flux": np.zeros((H, W)),
+        "h_flow_dir": np.full((H, W), 6, np.int8),  # D8 6 = south (1,0):
+                                                    # bottom-row cells
+                                                    # route off-grid =
+                                                    # drainage termini
         "h_salinity": np.zeros((H, W)),
         "r_u": np.zeros((H, W)),
         "r_v": np.zeros((H, W)),
@@ -157,16 +161,55 @@ def test_glacier_cell_till_or_outwash():
 
 
 def test_most_arid_cell_dune_family():
+    """Hyperarid TERMINUS cell keeps dune (owner ruling 2026-08-01): the
+    supply term opens only at true drainage termini — the fixture's
+    flow_dir runs every cell south, so the bottom row routes off-grid.
+    With the band fully open (arid ~1) and a saturated terminus supply,
+    dune beats the sand sheet; a non-terminus cell with the same
+    accumulation would fall back to the deflation self-gate."""
     z = _ground_z()
-    z["c_P_monthly"][:, 3, 3] = 0.001                # ~arid = 1
-    z["h_accumulation"][3, 3] = 2000.0               # sand supply
+    z["c_P_monthly"][:, 7, 3] = 0.001                # ~arid = 1
+    z["h_accumulation"][7, 3] = 2000.0               # sand supply
     g = _build(z)
-    assert g["class_id"][3, 3] in (GROUND_ID["dune sand"],
+    assert g["class_id"][7, 3] in (GROUND_ID["dune sand"],
                                    GROUND_ID["sand sheet"],
                                    GROUND_ID["reg / desert pavement"])
     # the dune gate: with supply, dune sand beats the sand sheet
     w = _w(g)
-    assert w[GROUND_ID["dune sand"], 3, 3] > w[GROUND_ID["sand sheet"], 3, 3]
+    assert w[GROUND_ID["dune sand"], 7, 3] > w[GROUND_ID["sand sheet"], 7, 3]
+
+
+def test_subhumid_terminus_cell_not_dune():
+    """Dune is the MOST-ARID fraction of arid cells — a hard band, not
+    the smooth arid² (owner ruling 2026-08-01): at 600 mm/yr the old gate
+    read arid² = 0.36 and the supply term saturated on acc >= 10, so
+    subhumid dune outvoted mollisol. The band zeroes the same cell even
+    at a saturated terminus supply."""
+    z = _ground_z()
+    z["c_P_monthly"][:, 7, 4] = 600.0 / 12.0         # 600 mm/yr subhumid
+    z["h_accumulation"][7, 4] = 2000.0               # saturated supply
+    g = _build(z)
+    w = _w(g)
+    assert w[GROUND_ID["dune sand"], 7, 4] < 1e-4    # band zeroes it
+    assert g["class_id"][7, 4] != GROUND_ID["dune sand"]
+
+
+def test_glacier_cell_no_dune():
+    """Cold/glacier tails (owner ruling 2026-08-01): (1-cold) and (1-glac)
+    zero the dune gate on frozen ground — 48 seed-1 dune cells sat ON the
+    glacier mask at t -6..-9 C before the ruling. A frozen terminus cell
+    with a saturated supply reads ~0 dune; till wins the cell (the
+    test_glacier_cell_till_or_outwash family)."""
+    z = _ground_z()
+    z["c_P_monthly"][:, 7, 5] = 200.0 / 12.0         # cold desert ~arid 0.87
+    z["c_T"][7, 5] = (-8.0 + 30.0) / 65.0            # frozen
+    z["h_glacier_mask"][7, 5] = True
+    z["h_glacier_flux"][7, 5] = 5000.0
+    z["h_accumulation"][7, 5] = 2000.0               # saturated supply
+    g = _build(z)
+    w = _w(g)
+    assert w[GROUND_ID["dune sand"], 7, 5] < 1e-4
+    assert g["class_id"][7, 5] == GROUND_ID["till"]
 
 
 def test_sand_sheet_cold_gate_cold_cell_reads_reg():
@@ -184,8 +227,9 @@ def test_sand_sheet_cold_gate_cold_cell_reads_reg():
         z["c_P_monthly"][:, 4, 4] = 200.0 / 400.0 / 12.0   # 200 mm/yr
         z["c_T"][4, 4] = (temp_c + 30.0) / 65.0
         # no dune supply (acc=0) and no deflation field (wet=1): dune_dep
-        # reads 0, so the sheet-vs-reg cold gate is isolated — the
-        # fixture's default accumulation saturates DUNE_ACC_REF=10
+        # reads 0, so the sheet-vs-reg cold gate is isolated — interior
+        # fixture cells are not drainage termini either (flow_dir runs
+        # every cell south; only the bottom row routes off-grid)
         z["h_accumulation"][4, 4] = 0.0
         z["h_hand"][4, 4] = 0.0
         z["w_biome_map"][:] = biome
@@ -412,6 +456,30 @@ def test_lake_littoral_bleed():
     z2["w_elev"][2, 3] = _above(SEA, 800.0)          # 700 m shore cliff
     g2 = _build(z2)
     assert g2["class_id"][3, 3] == GROUND_ID["rocky bottom"]
+
+
+def test_cliff_coast_coastal_sand_docked():
+    """Littoral slope dock (owner ruling 2026-08-01): the OCEAN term now
+    docks (1-slope)^2, so cliff coasts (slope > 0.3, a 24% grade) fall
+    toward scree while gentle beaches keep their coastal sand. The
+    LAKE-shore ring keeps the old (1-slope) — untouched owner decision."""
+    from exp.k11_worldgen.biomes import BIOME_ID
+    z = _ground_z()
+    z["h_ocean_mask"][:, 7] = True                   # ocean on the east
+    z["w_biome_map"][:, :7] = BIOME_ID["tundra"]     # no x3 soil bias cap
+    z["w_elev"][5, 6] = _above(SEA, 180.0)           # 80 m over a cell ->
+                                                    # slope 0.1: a gentle
+                                                    # beach (above the
+                                                    # tidal-flat <0.05 band)
+    z["w_elev"][3, 6] = _above(SEA, 740.0)           # 640 m cliff -> slope .8
+    g = _build(z)
+    w = _w(g)
+    coast = GROUND_ID["coastal sand"]
+    # the beach cell keeps coastal sand; the cliff cell reads scree and
+    # its coastal-sand weight is docked hard below the beach's
+    assert g["class_id"][5, 6] == coast
+    assert g["class_id"][3, 6] == GROUND_ID["scree"]
+    assert w[coast, 3, 6] < 0.5 * w[coast, 5, 6]
 
 
 # ── biome bias: a bias, never a binding ─────────────────────────────────

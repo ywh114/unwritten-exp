@@ -69,13 +69,29 @@ DEPTH_ABYSS_M = 4000.0        # bathymetry saturating "abyssal" (abyssal
 RV_REF = 2.0                  # m/s river speed saturating flow-sorting
 DIS_REF = 50.0                # m³/s discharge fallback (~p99) if a dump
                               # lacks h_river_speed — noted, not preferred
-DUNE_ACC_REF = 10.0           # upstream (catchment) cells terminating in a
-                              # hyperarid cell that read as an aeolian sand
-                              # supply — a terminal wadi fan. Endorheic
-                              # desert interiors max out near ~20 cells, so
-                              # this opens only true drainage termini; the
-                              # flat/dry self-gate in _evidence covers the
-                              # basin-interior deflation ergs
+# ── dune gate (owner ruling 2026-08-01: B3's dune rule is "most-arid ──
+# ── fraction of arid cells + depositional supply"; three fixes) ────────
+DUNE_ARID_ZERO = 0.75         # band foot: arid at/below which dune reads
+                              # 0 (~375 mm/yr). The subhumid 400-650 mm
+                              # band goes to ~0 — the old smooth arid²
+                              # left 0.32-0.54 there and dune outvoted
+                              # mollisol (172 seed-1 subhumid dune cells)
+DUNE_ARID_FULL = 0.83         # band top: arid at/above which dune reads
+                              # full weight (~255 mm/yr) — the arid
+                              # 150-250 mm band and everything drier
+DUNE_ACC_REF = 10.0           # TERMINAL (persisted K11 h_flow_dir into
+                              # standing water or off-grid) catchment cells
+                              # that read as an aeolian sand supply — a
+                              # terminal wadi fan. The old un-gated
+                              # clip(acc/10) saturated on ANY 10-cell
+                              # catchment — acc is the plain upstream cell
+                              # count (land max 56 on seed 1) and 93% of
+                              # implausible dune cells carried it. Desert
+                              # terminal catchments max out near ~20 cells
+                              # (acc p95 ~10), so REF opens only true
+                              # drainage termini; the flat/dry self-gate
+                              # in _evidence covers the basin-interior
+                              # deflation ergs
 W_FLOOR = 1e-6                # generator-weight floor feeding -log -> d2
 
 # ── volcanic (vent) evidence — built from the vent/spring POINTS, not ───
@@ -314,6 +330,14 @@ _SUPPRESS_FACTOR = 0.2
 # ── small array helpers ─────────────────────────────────────────────────
 
 
+# D8 neighbor offsets, indexed by the persisted K11 h_flow_dir codes —
+# the SAME _D8 table hydrology.py routes on (0..7 point at one of these
+# neighbors; -1 is a pit). Used to build the dune supply's terminus
+# mask (a land cell whose downstream is standing water or off-grid).
+_DY8 = np.array([-1, -1, -1, 0, 0, 1, 1, 1])
+_DX8 = np.array([-1, 0, 1, -1, 1, -1, 0, 1])
+
+
 def _dilate8(mask: np.ndarray, n: int = 1) -> np.ndarray:
     """Grow a boolean mask by n 8-connected rings."""
     return _spread_max(np.asarray(mask, dtype=np.float64), n) > 0.5
@@ -497,17 +521,40 @@ def _evidence(z, sea: float, vent_pts: list[dict], seed: int) -> dict:
     shallow = depthn < 0.05
     tidal = (coast_band & flat & (~ocean | shallow)).astype(np.float64)
 
-    # dune gate: ergs need hyperaridity plus EITHER a sediment supply
-    # (terminal wadi fan — but endorheic desert interiors have tiny
-    # catchments, max ~20 cells) OR simply the flattest, driest ground
-    # (basin-interior deflation fields; the 0.8 keeps self-gated dunes
-    # just below fan-fed ones, playas/rough ground stay out via
-    # (1-wet)/(1-slope)). The arid² weighting is what confines the gate —
-    # and every (1-dune_dep) suppression keyed on it — to true desert;
-    # without it reg got suppressed on ALL flat dry land.
+    # dune gate (owner ruling 2026-08-01): the most-arid BAND — not the
+    # smooth arid² — full weight only in the most-arid fraction of arid
+    # cells (the rest of the arid mosaic is sand sheet / reg; subhumid
+    # 400-650 mm reads ~0) plus EITHER a sediment supply at a TRUE
+    # drainage terminus (a land cell whose persisted K11 flow direction
+    # runs into standing water or off-grid — the terminal wadi fan;
+    # endorheic desert interiors max out near ~20 cells of catchment) OR
+    # simply the flattest, driest ground (basin-interior deflation
+    # fields; the 0.8 keeps self-gated dunes just below fan-fed ones,
+    # playas/rough ground stay out via (1-wet)/(1-slope)). Cold and
+    # glacier tails mirror the sheet's (1-cold): no deflation under
+    # frost, no dunes on ice (48 dune cells sat on the glacier mask at
+    # t -6..-9 C before the ruling). Every (1-dune_dep) suppression
+    # keyed on this gate keeps working because the gate stays the same
+    # bounded [0,1] field.
+    H_, W_ = ocean.shape
+    fdir = z["h_flow_dir"].astype(np.int16)
+    f8 = np.clip(fdir, 0, 7)                     # pits (-1) -> 0, masked
+    yy = np.arange(H_)[:, None]                  # by the land AND below
+    xx = np.arange(W_)[None, :]
+    y8 = yy + _DY8[f8]                           # D8 downstream target
+    x8 = xx + _DX8[f8]
+    inb = (y8 >= 0) & (y8 < H_) & (x8 >= 0) & (x8 < W_)
+    yc = np.clip(y8, 0, H_ - 1)
+    xc = np.clip(x8, 0, W_ - 1)
+    term = (land & ((fdir < 0) | ~inb
+                    | (ocean[yc, xc] | lake[yc, xc] | river[yc, xc])))\
+        .astype(np.float64)
+    arid_band = np.clip((arid - DUNE_ARID_ZERO)
+                        / (DUNE_ARID_FULL - DUNE_ARID_ZERO), 0.0, 1.0)
     dune_gate = (np.maximum(
-        np.clip(z["h_accumulation"] / DUNE_ACC_REF, 0.0, 1.0),
-        0.8 * (1 - slope) * (1 - wet)) * arid ** 2)
+        term * np.clip(z["h_accumulation"] / DUNE_ACC_REF, 0.0, 1.0),
+        0.8 * (1 - slope) * (1 - wet))
+        * arid_band * (1 - cold) * (1 - glac))
 
     # lake littoral (UNDERWATER only — the ring of LAKE cells adjacent to
     # shore; shore land keeps its own soils, treeline-to-lake is common):
@@ -575,7 +622,7 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
     lake_shore = e["lake_shore"]
 
     # terrestrial — physical
-    if name == "dune sand":            # aridity already lives in dune_dep's gate
+    if name == "dune sand":      # band/terminus/cold/glacier live in dune_dep's gate
         return dune_dep * (1 - 0.5 * slope) * land
     if name == "sand sheet":
         # arid^1.5: the 1500 mm linear reference leaves arid=0.4 at 900
@@ -652,8 +699,15 @@ def _class_weight(name: str, e: dict) -> np.ndarray:
         return salsoil * (1 - salsoil) * 4.0 * (1 - slope) * 0.6 * land
     if name == "coastal sand":
         # ocean littoral + the lake-shore ring where the bed is gentle and
-        # winnowed (high-deposition inflow shores stay lake mud)
-        return (no * land * 0.8 + lake_shore * (1 - dep)) * (1 - slope)
+        # winnowed (high-deposition inflow shores stay lake mud). Owner
+        # ruling 2026-08-01: the OCEAN term docks cliff coasts harder —
+        # the old (1-slope) left slope>0.3 (24% grade) at 0.7, so 629
+        # seed-1 coastal cells read share>0.2 on cliffs, 422 of them
+        # humid; (1-slope)^2 drops cliff coasts toward scree/bedrock.
+        # The LAKE ring keeps the old (1-slope) — the lake littoral is
+        # an open owner decision, untouched.
+        return (no * land * 0.8 * (1 - slope) ** 2
+                + lake_shore * (1 - dep) * (1 - slope))
     # terrestrial — biotic / mixed (biome bias applied by the caller)
     if name == "mollisol":
         # steppe-tolerant (chernozem): arid only docks 0.6, so semi-arid
