@@ -1,4 +1,4 @@
-# K15 sim-diff engine (flora rounds) — build spec v0.3
+# K15 sim-diff engine (flora rounds) — build spec v0.4
 
 2026-08-01. v0.3 folds the stat-settling pass (35 presets × seeds 1-3):
 substrate capacity split (§5.1, §6), dormancy-gated worst month (§5.1),
@@ -285,19 +285,65 @@ Over T = 100 years a SUITABLE cell is colonized near-certainly — the
 vanguard model lives in the floor and the rain_frac slope, not in
 denying colonization (critic finding 13's semantics, resolved).
 
-**Founding = X-cloning** (owner ruling): establishment in a cell not
-belonging to the founder's component mints a NEW instance — a working
-copy carrying the founder's CURRENT WIP genes (not a re-draw from the
-record). Establishment inside the founder's component joins it.
+**Founding (rule B+, owner ruling 2026-08-01, supersedes the v0.3
+"mint on any non-component establishment"):** the old rule minted a
+new instance per non-contiguous fragment — measured on seed 1 round 0:
+1173 mints from 1122 genesis instances, median fragment 1 cell, p90 7
+cells (instance count doubled per round). Rule B+ instead keys the
+decision on GENE FLOW, not geometry:
+
+1. **Contiguous spill joins unconditionally.** Founded cells
+   8-connected to the founder through founded cells are physical
+   contact — env-gating them would block over half of normal range
+   expansion (measured: contiguous-join verdict gaps p50 0.26).
+2. **Jump landings mint** (episodic, no sustained flow). Same-round
+   kernel-connected landings mint as ONE (vicinity absorption: the
+   minted region is the closure from jump-seeded cells through the
+   remaining founded cells, one instance per fragment). X-clones
+   carrying the founder's CURRENT WIP genes.
+3. **Sustained-channel remote landings ALWAYS join** — local/wind/
+   water/animal rain is sustained gene flow, so ranges may be
+   non-contiguous, bridged by the round's rain. The VERDICT GATE
+   decides whether they join cleanly or incubate:
+   `gap = |mean s_env(frag) − density-weighted mean s_env(founder)|`
+   vs `TH = DIFF_D · (1 + MOB_K · mobility)`, where mobility =
+   sustained-channel pmf × kernel reach (jump excluded). The gate
+   compares VERDICTS, not environments: a generalist's flat stress
+   response passes over large env distances (lichen median gap 0.07 at
+   env_d 0.3–0.5), a specialist fails on small ones (seagrass 0.31,
+   barrel sponge 0.35) — stat pass of 2026-08-01, seed 1.
+4. **Failed-gate cells incubate as a tagged divergent sub-range
+   (div).** They count toward the parent's N and gene pool like any
+   other region; they are NOT minted as instances. See §8 for the
+   deferred split. Slivers therefore never mint (DIFF_MIN_CELLS floor).
 
 ## 8. Dressing (between rounds)
 
-Connected components (8-connectivity) are computed PER INSTANCE over
-that instance's own N > 0 cells (critic finding 16: per-lineage
-computation would fuse founder and foundling on contact, violating the
-no-merge ruling). Only disconnection of ONE instance's cells triggers
-a split: the smaller fragment gets a fresh instance_id and the same
-WIP genes. Components of different instances that touch stay separate.
+Per instance, two split triggers in order (critic finding 16 still
+holds: computation is per-instance, never per-lineage):
+
+1. **Divergent deferred split (rule B+):** a contiguous divergent
+   sub-range (div) of at least DIFF_MIN_CELLS cells that is STILL
+   verdict-divergent (same gap/TH as §7.3, reference = the instance's
+   non-divergent region) breaks off as its own instance with the
+   current WIP genes and a clean div. Below the floor, or back inside
+   the threshold, it keeps incubating. Dead div cells are cleared each
+   round. This is the blob-growth path: a divergent landing accumulates
+   cells and rain while kernel-connected, and speciates only once it
+   is a sizable population, never a sliver.
+2. **Rain-bridge connectivity:** components are computed over the
+   instance's N > 0 cells UNION this round's rain field — two
+   populated regions stay ONE instance while the instance's own rain
+   bridges them (sustained gene flow), and split (fresh instance_id,
+   same WIP genes, div share carried) when the bridge is lost. NOT
+   plain 8-connectivity of N. Rain-only fragments (sinks carrying no
+   N) never split off. **Sliver floor (rule B+, symmetric with the
+   founding rule):** a disconnected fragment below DIFF_MIN_CELLS
+   stays dressed to the parent — it may re-bridge next round, and if
+   it diverges the div machinery handles it (measured 2026-08-01:
+   unfloored dressing splits ran 228-600/round with median fragment
+   12-17 cells). Components of different instances that touch stay
+   separate.
 
 ## 9. Commit (TreeAuthority bridge)
 
@@ -425,6 +471,8 @@ counts are small).
 | GENESIS_F / GENESIS_N0 | 10 | **0.5 (settled)** / 0.2 | genesis threshold/density |
 | PART_AREA_REF / PART_K_MAX / PART_MIN_CELLS | 10 | 200 / 8 / 20 | partition knobs |
 | RE_EVAL_D | 5.1 | 0.15 | cache invalidation distance |
+| DIFF_D / MOB_K | 7.3 | **0.2 (cal)** / 1.0 | verdict-gate base / mobility gain |
+| DIFF_MIN_CELLS | 8 | **32 (cal)** | divergent sub-range split floor |
 | SUB_D / SPECIATION_D / MERGE_D / MERGE_GRACE | 9 | 0.1 / 0.35 / 0.05 / 5 | commit distances/grace |
 | TAKEOVER_RATIO | 12 | 0.8 | acceptance 5 |
 
@@ -457,6 +505,20 @@ counts are small).
 
 ## 15. Changelog
 
+- **v0.4** (2026-08-01): rule B+ founding/differentiation (owner
+  ruling after the seed-1 stat pass) — §7.3 founding keyed on gene
+  flow instead of geometry: contiguous spill joins unconditionally,
+  jump landings mint (vicinity absorption), sustained-channel remote
+  landings always join with a VERDICT gate (TH = DIFF_D·(1 +
+  MOB_K·mobility), verdict not environment — generalists pass,
+  specialists incubate); failed-gate cells incubate as a tagged
+  divergent sub-range (div) and split only at DIFF_MIN_CELLS (sliver
+  suppression); §8 rain-bridge connectivity (components over N ∪ rain,
+  loss of the bridge splits, rain-only sinks never mint). Knobs
+  calibrated on seed-1 round-0 founding data (old rule: 1173 mints,
+  median 1 cell; DIFF_D=0.2 leaves 6 gate-failing fragments, all < 32
+  cells). Fixes the unbounded instance growth (1122 → 2427 → 4950)
+  measured with the v0.3 rule.
 - **v0.3** (2026-08-01): stat-settling pass folded (35 presets × seeds
   1-3, `statpass.py`) — §5.1 cache gains the substrate_share U(c)
   capacity plane (REDUCED_CACHE_MB 3.7→3.9); §6 K(c) → K_L(c) = K·U_L
