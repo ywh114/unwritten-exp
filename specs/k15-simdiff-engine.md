@@ -1,12 +1,19 @@
-# K15 sim-diff engine (flora rounds) — build spec v0.7
+# K15 sim-diff engine (flora rounds) — build spec v0.8
 
-2026-08-01. v0.7 adopts K13's g currency for the divide side (ticket
-0008 — the owner caught that K15 rounds invented a parallel speciation
-currency, genes_distance vs absolute SUB_D/SPECIATION_D, instead of
-fauna RFC §1's g): instances accumulate g_since_split per round in
-generation time (Δg from the three forces' share table, forces.py
-idioms), divides rank by classify(g_since_split, g_star), and the
-merge gate moves to a scalar-only L1 metric calibrated on the
+2026-08-01. v0.8 (ticket 0004) seeds the radiated tree: §10 genesis
+rains every SPECIES node of the committed tree (~150 sids, each with
+its own range evaluation, partition and clones — the 35 ORDER nodes
+are ancestors, never seeded) instead of the 35 authored presets;
+zero-range species are never minted and go extinct at genesis via the
+authority's normal extinction pass (register_unseeded, §9). One
+adapter evaluation per species: the seeding and the §5.1 cache share
+the same factors. v0.7 adopts K13's g currency for the divide side
+(ticket 0008 — the owner caught that K15 rounds invented a parallel
+speciation currency, genes_distance vs absolute SUB_D/SPECIATION_D,
+instead of fauna RFC §1's g): instances accumulate g_since_split per
+round in generation time (Δg from the three forces' share table,
+forces.py idioms), divides rank by classify(g_since_split, g_star),
+and the merge gate moves to a scalar-only L1 metric calibrated on the
 measured same-blob noise floor (agent-58, 2026-08-01). v0.6 folds the
 packet-colonization redesign (owner ruling
 "tentacles, not dots"): §7 dispersal moves from per-source-cell deposit
@@ -487,7 +494,10 @@ instance id, generations) and `g_star` (per lineage sid).
   at SUB_D — g never converges, so it can gate RANKS and the
   promotion, not cluster edges.
 - **Extinct**: no living instances → record marked extinct (reflog
-  entry), branch terminated.
+  entry), branch terminated. Genesis zero-range species (ticket 0004):
+  never minted, but the engine registers them with the authority
+  (`register_unseeded`) so THIS pass marks them at the first commit —
+  same reflog entry, same ghost record.
 - **Merge**: scalar-only L1 distance < MERGE_D (v0.7 — the merge
   metric excludes enum and generic axes and weighted_set TV; enum
   flips are measured same-blob noise (15% mismatch at equal pressure,
@@ -543,22 +553,48 @@ the founder's g_since_split (same gene pool, shared clock).
 
 ## 10. Genesis rain (round 0)
 
-1. `preset_view` for each of the 35 authored presets → cached reduced
-   fields (§5.1; the adapter's existing acceptance path).
-2. Seed cells with F_worst ≥ GENESIS_F (settled: 0.5) at
-   N = GENESIS_N0 (cal, default 0.2). Every preset reads its full
-   factor product — for freshwater plans that INCLUDES the habitat
-   term (it replaces their medium boundary; B5 §4.5).
+Ticket 0004: genesis seeds the RADIATED TREE — every SPECIES node of
+the committed tree (~150 sids on seed 1), not the 35 authored presets.
+The 35 ORDER nodes are ancestors, not species: they are never seeded
+("for a world to have biodiversity, it must be completely written at
+L0" — owner ruling 2026-08-01). Each radiated species is its own
+world: own range evaluation, own partition, own clones.
+
+1. Per SPECIES node (processed in sorted sid order): evaluate the
+   species' OWN record view (`species_view` — radiated axes, not the
+   authored preset record) → the §5.1 reduced fields. ONE adapter
+   evaluation per species: the seeding and the engine's per-instance
+   cache are built from the SAME factors (`genesis.genesis_species`
+   returns them; the clones of one species share the cache by
+   reference — the bbox optimization).
+2. Seed cells with F_worst ≥ GENESIS_F at N = GENESIS_N0 (cal, default
+   0.2). Every species reads its full factor product — for freshwater
+   plans that INCLUDES the habitat term (it replaces their medium
+   boundary; B5 §4.5).
 3. **Initial partition** (owner ruling: headstart speciation): per
-   preset, K = clip(1 + floor(log2(range_cells / PART_AREA_REF)), 1,
+   species, K = clip(1 + floor(log2(range_cells / PART_AREA_REF)), 1,
    PART_K_MAX) clones TOTAL (cal: PART_AREA_REF, PART_K_MAX=8),
-   distributed across the preset's connected components: each
+   distributed across the species' connected components: each
    component ≥ PART_MIN_CELLS is split by recursive rng-chosen axis
-   cuts into contiguous chunks until the preset's K is reached
-   (components < PART_MIN_CELLS stay one clone each).
-   Draws from `Stream(seed, "k15.genesis", preset_id)`. Clones are
-   sibling lineages from round 0 — subspecies candidates, merge-exempt
-   for MERGE_GRACE rounds, free to diverge independently.
+   cuts into contiguous chunks until the species' K is reached
+   (components < PART_MIN_CELLS stay one clone each). Draws from
+   `Stream(seed, "k15.genesis", species_sid)` — content-addressed.
+   Clones are sibling lineages from round 0 — subspecies candidates,
+   merge-exempt for MERGE_GRACE rounds, free to diverge independently.
+4. **Zero-range species go extinct at genesis** (ticket 0004): a
+   species with no F_worst ≥ GENESIS_F cells is NEVER minted (no
+   instance exists); the engine registers it with the authority
+   (`TreeAuthority.register_unseeded`) so the §9 extinction pass marks
+   it extinct at the first commit — reflog entry, branch terminated,
+   the record stays as a ghost. Measured (seed 1, ticket 0004): 4/150
+   species zero-range → 4 genesis extinctions.
+
+Measured genesis state (seed 1, ticket 0004): 14751 instances across
+146 lineages (the one-clone-per-component floor dominates — radiated
+ranges are fragmented; the same floor drove 3584 clones under the
+pre-ticket order-level seeding). The instance-count governor (§9
+consolidation sawtooth) then bounds the steady state; see the v0.8
+changelog for the measured trajectory.
 
 ## 11. Module layout
 
@@ -579,9 +615,10 @@ counts are small).
 1. **Determinism**: two full runs (R = 20 rounds) byte-identical JSON.
 2. **Range tracking**: occupied cells' mean s_env < unoccupied cells'
    for every lineage alive at R (reported per lineage).
-3. **Genesis partition diverges**: ≥ 1 clone pair of one preset
+3. **Genesis partition diverges**: ≥ 1 clone pair of one species
    registers subspecies-or-split within R rounds (island vs mainland
-   isolation; MERGE_GRACE honored).
+   isolation; MERGE_GRACE honored; the clones are minted under the
+   radiated SPECIES sids — ticket 0004).
 4. **Extinction**: a fixture lineage boxed into a lethal refugium
    (planted at s_env ≈ 1 by the test, not genesis) is extinct within
    5 rounds — possible because bscale → 0 (critic finding 1).
@@ -592,8 +629,9 @@ counts are small).
    every round and never establishes (rain > 0, N = 0 throughout).
 7. **Wind dispersal is directional**: wind-channel deposits land
    downwind of source (signed projection test on seed 1's mean field).
-8. **Performance**: genesis (35 evals) + 20 rounds ≤ 60 s wall; cache
-   ≤ REDUCED_CACHE_MB (3.9 MB) per live instance.
+8. **Performance**: genesis (150 species evals, ticket 0004) + 20
+   rounds ≤ 60 s wall; cache ≤ REDUCED_CACHE_MB (3.9 MB) per live
+   instance.
 9. **Hard-rule audit**: no uuid/random/time; every stream traces to K1
    (grep + a runtime guard in test_engine).
 
@@ -666,6 +704,41 @@ counts are small).
 
 ## 15. Changelog
 
+- **v0.8** (2026-08-01, ticket 0004): genesis seeds the radiated tree
+  — §10 now rains every SPECIES node of the committed tree (~150 sids)
+  instead of the 35 authored presets: each species gets its own range
+  evaluation (its OWN radiated view, not the authored preset record),
+  partition and clones; the 35 ORDER nodes are ancestors, never seeded
+  ("completely written at L0"). One adapter evaluation per species —
+  `genesis.genesis_species` returns the full evaluated factors and the
+  engine builds its §5.1 cache from the SAME evaluation (the
+  pre-ticket 2-evaluations-per-preset pattern is gone). Zero-range
+  species are never minted: `TreeAuthority.register_unseeded` puts
+  them in the authority's alive set so the normal update() extinction
+  pass marks them extinct at the first commit (reflog entry, ghost
+  record) — measured 4/150 on seed 1. Measured genesis (seed 1):
+  14751 instances across 146 lineages in ~19 s (vs 3584 across 35
+  order lineages in ~7 s pre-ticket); instance count decays 14751 →
+  ~10k by r1 as the many small founders die or consolidate, and the
+  §9 CONSOL sawtooth bounds the steady state from round 9 on.
+  Determinism unchanged: species processed in sorted sid order, all
+  draws on pinned k15 streams (the mint/partition streams are now
+  keyed by species sid instead of preset id — byte-identical
+  re-runs); two full runs remain byte-identical (the §12.1 gate
+  re-pinned on the new digest). The §12.8 cache budget is unchanged
+  (per-species shared caches, same ~3.9 MB reduced form).
+  Companion fix (same ticket, same boundary): §9's merge-candidate
+  handling now BUCKETS the same-lineage candidate pairs per species
+  once in update() — the pre-bucket code re-sorted and scanned the
+  FULL candidate set inside every group's _process_group
+  (O(groups × pairs)), which blew up the CONSOL commit at the
+  radiated tree's lineage counts (measured ~394 s at commit round 4,
+  seed 1; ~30 s after — behavior identical, verified by the
+  authority unit tests and the byte-identical two-run gate).
+  Measured round times with the fix (seed 1, ticket 0004): ~40-45 s
+  steady (verdict feed dominates), CONSOL commits ~30 s; instance
+  count decays 14751 → ~7-9k through r8, with the first effective
+  consolidation (MERGE_GRACE clears at commit round 5) at r9.
 - **v0.7** (2026-08-01, ticket 0008): the g currency replaces the
   trait-distance speciation thresholds — fauna RFC §1's generation-
   time clock, three forces, and per-clade seeded g*, restated for

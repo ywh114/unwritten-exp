@@ -1,16 +1,27 @@
 """K15 engine — spec §10 genesis rain (round 0).
 
-Seeds every authored flora preset at N = GENESIS_N0 where the worst-
-month suitability F_worst ≥ GENESIS_F, then partitions each preset's
-seeded range into K = partition_k(range) contiguous clones by recursive
-rng-chosen axis cuts — the headstart speciation (clones are sibling
-lineages from round 0, merge-exempt for MERGE_GRACE rounds, free to
-diverge independently).
+Seeds at N = GENESIS_N0 where the worst-month suitability F_worst ≥
+GENESIS_F, then partitions each seeded range into K = partition_k(range)
+contiguous clones by recursive rng-chosen axis cuts — the headstart
+speciation (clones are sibling lineages from round 0, merge-exempt for
+MERGE_GRACE rounds, free to diverge independently).
+
+Two entry points share one seed+partition core (``_rain_for_view``):
+``genesis_preset`` (an AUTHORED preset's record view — the pre-ticket-
+0004 unit, still the tests' partition ground truth) and
+``genesis_species`` (a radiated SPECIES node's own record view — the
+engine's round-0 seeding since ticket 0004: the world is "completely
+written at L0", so the 35 ORDER nodes are ancestors, never seeded; each
+of the ~150 SPECIES sids gets its own range evaluation, partition and
+clones). ``genesis_species`` also returns the full evaluated factors so
+the engine builds its §5.1 cache from the SAME evaluation — one adapter
+evaluation per species at genesis, not two.
 
 Determinism (hard rule): every draw comes from kernel.hashrng —
-``Stream(seed, "k15.genesis", preset_id)`` (spec §10), with child
-streams per connected component in a pinned order (sorted by top-left
-cell, row-major). Same seed → byte-identical masks and N fields.
+``Stream(seed, "k15.genesis", key)`` where key is the preset id or the
+species sid (spec §10), with child streams per connected component in a
+pinned order (sorted by top-left cell, row-major). Same seed →
+byte-identical masks and N fields.
 
 Reduction and the medium mask are lifted from the stat-pass harness
 (formulas, not the module — statpass.py is a calibration harness and is
@@ -21,7 +32,9 @@ inside F_worst — no special casing (spec §10 step 2).
 
 Instance IDs are NOT minted here: a CloneSeed is plain spatial state
 (cells mask + N field); the engine/authority mints instance ids and
-dresses the clone when it becomes an Instance.
+dresses the clone when it becomes an Instance. A species (or preset)
+with no seeded cells gets () — the caller's extinction path (ticket
+0004: zero-range species are never minted and go extinct at genesis).
 """
 
 from __future__ import annotations
@@ -304,40 +317,79 @@ def _n_field(cells: np.ndarray) -> np.ndarray:
 # ── the genesis rain ───────────────────────────────────────────────────
 
 
+def _rain_for_view(view: dict, ctx: sa.WorldContext, seed: int,
+                   key: str, factors: dict
+                   ) -> tuple[tuple[CloneSeed, ...], int]:
+    """Spec §10 steps 2-3 for an ALREADY-EVALUATED DerivedView *view*
+    (factors = ``sa.evaluate`` output): seed the cells with F_worst ≥
+    GENESIS_F at N = GENESIS_N0 (the full factor product — for
+    freshwater plans that includes the habitat term, B5 §4.5), then
+    partition the seeded range into K = partition_k(range) clones.
+    Returns (clones, range_cells). No seeded cells -> ((), 0) — the
+    caller's extinction path (ticket 0004). Draws from
+    ``Stream(seed, "k15.genesis", key)`` (key = preset id or species
+    sid — content-addressed, so draw order never matters)."""
+    _names, _m_star, F_worst, _prov = reduced(factors)
+    valid = valid_mask(view, ctx)
+    seeded = (F_worst >= GENESIS_F) & valid
+    range_cells = int(seeded.sum())
+    K = partition_k(range_cells)
+    if K == 0:
+        return (), 0
+    rng = Stream(seed, "k15.genesis", key)
+    chunks = _partition(seeded, K, rng)
+    return tuple(CloneSeed(cells=ch, N=_n_field(ch)) for ch in chunks), \
+        range_cells
+
+
 def genesis_preset(pack, sim, ctx: sa.WorldContext, seed: int,
                    preset_id: str) -> tuple[CloneSeed, ...]:
     """Spec §10 for ONE authored preset: evaluate its DerivedView over
-    the world, seed cells with F_worst ≥ GENESIS_F at N = GENESIS_N0
-    (the full factor product — for freshwater plans that includes the
-    habitat term, B5 §4.5), then partition the seeded range into
-    K = partition_k(range) clones. A preset with no seeded cells → ().
+    the world, seed + partition (shared core ``_rain_for_view``). A
+    preset with no seeded cells → (). (Pre-ticket-0004 seeding unit;
+    the engine now seeds radiated SPECIES nodes via genesis_species —
+    the preset-level form remains the tests' partition ground truth.)
 
     *sim* is unused here (reserved: the engine dresses the clones with
     vital rates when minting instances). Draws from
     ``Stream(seed, "k15.genesis", preset_id)`` — deterministic."""
     view = sa.preset_view(preset_id, pack)
     factors = sa.evaluate(view, ctx)
-    _names, _m_star, F_worst, _prov = reduced(factors)
-    del factors
-    valid = valid_mask(view, ctx)
-    seeded = (F_worst >= GENESIS_F) & valid
-    K = partition_k(int(seeded.sum()))
-    if K == 0:
-        return ()
-    rng = Stream(seed, "k15.genesis", preset_id)
-    chunks = _partition(seeded, K, rng)
-    return tuple(CloneSeed(cells=ch, N=_n_field(ch)) for ch in chunks)
+    clones, _range = _rain_for_view(view, ctx, seed, preset_id, factors)
+    return clones
+
+
+def genesis_species(node, pack, ctx: sa.WorldContext, seed: int
+                    ) -> tuple[tuple[CloneSeed, ...], int, dict]:
+    """Spec §10 for ONE radiated SPECIES node (ticket 0004): evaluate
+    the species' OWN record view (radiated axes — ``sa.species_view``,
+    NOT the authored preset record), seed + partition exactly as
+    genesis_preset, and return (clones, range_cells, factors) — the
+    full evaluated factors ride along so the engine builds its §5.1
+    cache from the SAME evaluation (one adapter evaluation per species
+    at genesis, not two). Zero range -> ((), 0, factors): the species
+    is never minted and goes extinct at genesis (the authority's
+    normal extinction path — ticket 0004). Draws from
+    ``Stream(seed, "k15.genesis", node.sid)`` — content-addressed."""
+    view = sa.species_view(node, pack)
+    factors = sa.evaluate(view, ctx)
+    clones, range_cells = _rain_for_view(
+        view, ctx, seed, node.sid, factors)
+    return clones, range_cells, factors
 
 
 def genesis_rain(pack, sim, ctx: sa.WorldContext, K, seed: int,
                  ) -> dict[str, tuple[CloneSeed, ...]]:
-    """Spec §10 for every authored preset, processed in sorted id order
+    """Spec §10 for every authored PRESET, processed in sorted id order
     (determinism: presets, components, cuts all pinned). Returns
     {preset_id: clones}; a preset with no F_worst ≥ GENESIS_F range maps
     to (). Clones are (cells mask, N field) — see CloneSeed.
 
     *K* (the anchor capacity raster) and *sim* are reserved for the
     engine's dressing step and not read here. Same seed → byte-identical
-    masks and N fields."""
+    masks and N fields. (The preset-level aggregate: the engine's
+    round-0 seeding has been the radiated SPECIES nodes since ticket
+    0004 — see genesis_species; this form remains the tests' partition
+    ground truth.)"""
     return {pid: genesis_preset(pack, sim, ctx, seed, pid)
             for pid in sorted(pack.presets)}

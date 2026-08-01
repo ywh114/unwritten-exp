@@ -529,8 +529,8 @@ def test_canopy_shade_height_escape():
 
 def test_reduced_cache_budget():
     """The §5.1 reduced cache stays within REDUCED_CACHE_MB per live
-    instance (genesis clones share one cache per preset — measure the
-    shared one)."""
+    instance (ticket 0004: genesis clones share one cache per RADIATED
+    SPECIES — measure the shared one; 146 seeded species on seed 1)."""
     eng = _engine()
     eng.genesis()
     seen = {}
@@ -837,9 +837,10 @@ def test_full_run_acceptance():
 
 @pytest.mark.slow
 def test_genesis_partition_diverges():
-    """§12.3 divide half: genesis clone pairs of one preset (minted
-    under order sids) register subspecies-or-split divides within R
-    rounds — the v0.7 g currency makes this real: instances accumulate
+    """§12.3 divide half: genesis clone pairs of one lineage (minted
+    under the radiated SPECIES sids since ticket 0004 — the 35 ORDER
+    nodes are ancestors, never seeded) register subspecies-or-split
+    divides within R rounds — the v0.7 g currency makes this real: instances accumulate
     g_since_split per round (generation-time clock) and the commit
     promotes fragments whose g crossed the lineage's seeded g* to new
     SPECIES nodes (fauna RFC §1), so the fast lineages divide within a

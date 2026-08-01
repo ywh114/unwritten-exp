@@ -433,11 +433,11 @@ class Engine:
 
     # ── §5.1 cache ───────────────────────────────────────────────────
 
-    def _evaluate_cache(self, view: dict, traits: dict) -> CachedFields:
-        factors = sa.evaluate(view, self.ctx)
-        # the adapter's F is already the requirement product — reuse it
-        # (statpass.reduced convention); provenance excludes the
-        # F/s_env/substrate_share bookkeeping planes
+    def _cache_from_factors(self, view: dict, traits: dict,
+                            factors: dict) -> CachedFields:
+        """Build the §5.1 reduced cache from an ALREADY-EVALUATED factor
+        set (genesis reuses the seeding evaluation's factors — one
+        adapter evaluation per species at genesis, ticket 0004)."""
         F = factors["F"]
         m = F.argmin(axis=0)
         f_worst = np.take_along_axis(F, m[None], axis=0)[0]
@@ -455,6 +455,10 @@ class Engine:
             prov=prov.astype(np.float32), names=names,
             U=factors["substrate_share"].astype(np.float32))
 
+    def _evaluate_cache(self, view: dict, traits: dict) -> CachedFields:
+        factors = sa.evaluate(view, self.ctx)
+        return self._cache_from_factors(view, traits, factors)
+
     def _refresh(self, d: Dressed) -> None:
         """Re-derive the view from WIP genes; re-cache only when the
         genes drifted ≥ RE_EVAL_D from the cached ones (§5.1, §9
@@ -468,31 +472,48 @@ class Engine:
     # ── §10 genesis ──────────────────────────────────────────────────
 
     def genesis(self) -> None:
-        """Round 0 (spec §10): seed every preset, partition into clones,
-        mint one instance per clone (the clone carries the preset
-        record's genes verbatim — mint makes no draws). Clones of one
-        preset have IDENTICAL genes, so the view/vital/percap and the
-        §5.1 cache are evaluated ONCE per preset and shared by
-        reference (the bbox optimization, 2026-08-01: 1122 clones → 35
-        evaluations; _refresh replaces rather than mutates, so sharing
-        is copy-on-drift safe)."""
-        seeds = gen.genesis_rain(self.pack, self.sim, self.ctx, self.K,
-                                 self.seed)
+        """Round 0 (spec §10, ticket 0004): seed every radiated SPECIES
+        node of the committed tree directly — each species gets its own
+        range evaluation, partition and clones (the 35 ORDER nodes are
+        ancestors, not species: genesis no longer mints under them —
+        "for a world to have biodiversity, it must be completely
+        written at L0"). ONE adapter evaluation per species: the
+        seeding and the §5.1 cache share the same factors
+        (genesis.genesis_species returns them), and clones of one
+        species have IDENTICAL genes, so the view/vital/percap and the
+        cache are evaluated ONCE per species and shared by reference
+        (the bbox optimization; _refresh replaces rather than mutates,
+        so sharing is copy-on-drift safe). Species whose viable range
+        on seed 1 is zero are NEVER minted: registered with the
+        authority (register_unseeded) so the normal update() extinction
+        pass marks them extinct at the first commit — reflog entry,
+        branch terminated (ticket 0004). Deterministic: species
+        processed in sorted sid order, every draw from pinned k15
+        streams."""
         full = (0, self.ctx.H, 0, self.ctx.W)
-        for pid in sorted(seeds):
-            sid = self._order_sid[pid]
-            self._seed_lineage(sid)
-            rng = self._stream("genesis", f"mint:{pid}")
+        species = sorted(
+            (n for n in self.tree.nodes.values() if n.rank is Rank.SPECIES),
+            key=lambda n: n.sid)
+        unseeded: list[str] = []
+        for node in species:
+            clones, _range_cells, factors = gen.genesis_species(
+                node, self.pack, self.ctx, self.seed)
+            if not clones:
+                unseeded.append(node.sid)
+                continue
+            self._seed_lineage(node.sid)
+            rng = self._stream("genesis", f"mint:{node.sid}")
             shared = None
-            for i, clone in enumerate(seeds[pid]):
+            for i, clone in enumerate(clones):
                 iid = self._new_instance_id(rng)
                 self._g_since_split[iid] = 0.0
-                x = self.authority.mint(sid, iid, rng.child(str(i)))
+                x = self.authority.mint(node.sid, iid, rng.child(str(i)))
                 if shared is None:
                     view = self.sim.derive(x.traits, self.pack)
                     shared = (view, pop.percap_demand(view),
                               self.sim.vital(x.traits, self.pack),
-                              self._evaluate_cache(view, x.traits))
+                              self._cache_from_factors(
+                                  view, x.traits, factors))
                 view, percap, vital, cache = shared
                 box = _mask_box(clone.N > 0.0, full)
                 N = clone.N[np.s_[box[0]:box[1], box[2]:box[3]]] \
@@ -502,6 +523,8 @@ class Engine:
                     view=view, percap=percap, vital=vital,
                     div=np.zeros_like(N, dtype=bool),
                     orphan=np.zeros_like(N, dtype=bool), box=box)
+        if unseeded:
+            self.authority.register_unseeded(sorted(unseeded))
 
     # ── §4 step 1: verdict feed ──────────────────────────────────────
 

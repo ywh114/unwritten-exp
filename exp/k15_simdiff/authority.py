@@ -93,7 +93,10 @@ metric at SUB_D.
 6. Species that had living instances but have none now are marked
    extinct: the record stays in the tree as a ghost, the changelog
    lists the sid, the reflog gets the entry. Species never minted are
-   never marked (they never had living instances).
+   never marked (they never had living instances) — EXCEPT genesis
+   zero-range species, which the engine registers via
+   ``register_unseeded`` (ticket 0004) so this same pass marks them
+   extinct at the first commit.
 7. ``spawns`` is always empty in v1 (origin events are out of scope).
 
 ┌─ divergence-round tracking (MERGE_GRACE) ───────────────────────────
@@ -134,7 +137,7 @@ from __future__ import annotations
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Iterable, Mapping
 
 import numpy as np
 
@@ -449,6 +452,18 @@ class TreeAuthority:
         return Instance(species_id=sid, instance_id=instance_id,
                         traits=traits)
 
+    def register_unseeded(self, sids: Iterable[str]) -> None:
+        """Genesis bookkeeping (ticket 0004): species whose viable range
+        at genesis was zero are NEVER minted — no instance exists — but
+        they are registered in ``_alive`` so the NORMAL update()
+        extinction pass (``_alive - alive_now``) marks them extinct at
+        the first commit (reflog entry, branch terminated; the record
+        stays as a ghost). Call before the first update(). Without the
+        registration the authority's "never minted, never marked"
+        invariant would keep them alive-but-empty forever."""
+        for sid in sids:
+            self._alive.add(sid)
+
     # ── the commit ─────────────────────────────────────────────────
 
     def update(self, views: list[InstanceView], rng: Stream, *,
@@ -492,6 +507,28 @@ class TreeAuthority:
         for v in views_sorted:
             groups.setdefault(v.species_id, []).append(v)
 
+        # per-lineage candidate buckets (ticket 0004 companion fix):
+        # every candidate is a SAME-LINEAGE pair by construction (the
+        # engine's spatial gate and the CONSOL sweep build them per
+        # lineage), so the pairs are bucketed by species ONCE here and
+        # each group's _process_group scans only its own pairs. The
+        # pre-bucket code re-sorted and scanned the FULL candidate set
+        # inside every group — O(groups x pairs) — which blew up the
+        # CONSOL commit at the radiated tree's lineage counts (measured
+        # ~394 s at commit round 4, seed 1, ticket 0004). Identical
+        # semantics: a pair whose ids are unknown or straddle two
+        # species was ALWAYS skipped by the per-group filter, so
+        # dropping them up front changes nothing; within a group the
+        # surviving pairs iterate in the same sorted order as before.
+        view_sid = {v.instance_id: v.species_id for v in views_sorted}
+        cands_by_sid: dict[SpeciesId, list[frozenset[str]]] = {}
+        for pair in candidates:
+            a, b = tuple(pair)
+            pa, pb = view_sid.get(a), view_sid.get(b)
+            if pa is None or pb is None or pa != pb:
+                continue
+            cands_by_sid.setdefault(pa, []).append(pair)
+
         deltas: dict[InstanceId, InstanceDelta] = {}
         alive_now: set[SpeciesId] = set()
 
@@ -503,8 +540,8 @@ class TreeAuthority:
             group = sorted(groups[sid], key=lambda v: v.instance_id)
             alive_now.add(sid)
             self._process_group(node, group, commit_round, rng,
-                                candidates, deltas, alive_now,
-                                g_since_split, g_star)
+                                cands_by_sid.get(sid, ()), deltas,
+                                alive_now, g_since_split, g_star)
 
         extinct = sorted(self._alive - alive_now)
         for sid in extinct:
@@ -521,12 +558,17 @@ class TreeAuthority:
 
     def _process_group(self, node: Node, group: list[InstanceView],
                        commit_round: int, rng: Stream,
-                       candidates: set[frozenset[str]],
+                       candidates: Iterable[frozenset[str]],
                        deltas: dict[InstanceId, InstanceDelta],
                        alive_now: set[SpeciesId],
                        g_since_split: Mapping[str, float] | None = None,
                        g_star: Mapping[str, float] | None = None) -> None:
-        """One species group: orthodox, clusters, divides, merges."""
+        """One species group: orthodox, clusters, divides, merges.
+        *candidates* is the group's OWN merge-candidate pairs (the
+        update() caller buckets the same-lineage pairs per species —
+        see the seam note; the pre-bucket full-set scan was
+        O(groups × pairs) and dominated the CONSOL commit at high
+        lineage counts, ticket 0004)."""
         sid = node.sid
         m = self.metric
         n = len(group)
