@@ -37,7 +37,10 @@ Resolution rules followed here (B5 §3 + the K14 deliver convention):
   bog hydrology (B5 §8 check 5).
 - photic_depth_m (B4) at anchor from the anchor bathymetry + plume +
   provisional marine productivity (same inputs the delivery product
-  was upsampled from).
+  was upsampled from), with the fresh-water side (lakes/rivers)
+  re-derived from the bog-peat share + freshwater_productivity annual
+  mean — the marine field reads 0 on every lake/river (B4 fix
+  2026-08-01); the same split applies to the annual bottom temperature.
 
 Owner rulings 2026-08-01 (stat-pass settling):
 
@@ -68,7 +71,12 @@ Owner rulings 2026-08-01 (stat-pass settling):
   clade metadata; when stress pushes the traits the envelope moves.
   The T requirement is SPLIT one-sided (pressure:cold / pressure:heat,
   the pH-split convention); the moisture half lives in pressure:water/
-  waterlogging — nothing is double-counted.
+  waterlogging — nothing is double-counted. The B6 hand-wiring program
+  (biosphere-addendum-b6-flora-wiring.md, 2026-08-01) reads the
+  symbiosis/package/wetness/snow/layer traits as graded credits and
+  relievers in the strata below, and adds the snow-load + glacier
+  strata (K11 c_snow_monthly / h_glacier_mask) and the engine-side
+  canopy-light pass (canopy_density x height comparison).
 """
 
 from __future__ import annotations
@@ -81,7 +89,10 @@ import numpy as np
 from exp.artifacts import require as artifact_require
 from exp.k11_worldgen.units import hand_m, temp_c
 from exp.k13_treegen.flora.content import ContentPack
-from exp.k13_treegen.flora.derive import effective_climate
+from exp.k13_treegen.flora.derive import (
+    _derived_canopy_density,
+    effective_climate,
+)
 from exp.k13_treegen.interface import StressVerdict
 from exp.k13_treegen.model import Node, Rank
 from exp.k14_worldprod import moisture as _moisture
@@ -91,6 +102,7 @@ from exp.k14_worldprod.derived import (
     PLUME_WEIGHT,
     _plume_source,
     _upsample,
+    freshwater_productivity,
     growing_season,
     marine_productivity,
 )
@@ -107,6 +119,7 @@ from exp.k15_simdiff.req_flora import (
     REQ_COLD,
     REQ_FERTILITY,
     REQ_FRESH_HABITAT,
+    REQ_GLACIER,
     REQ_HEAT,
     REQ_MEDIUM,
     REQ_PH_HIGH,
@@ -222,6 +235,70 @@ MEDIUM_VIOLATION_F = 1e-3
 # obligate: strict water cells only, medium boundary stands.
 FRESH_SAL_MAX = 0.5
 
+# ── B6 §2 hand-wiring credits (biosphere-addendum-b6-flora-wiring.md) ─
+# mycorrhizal / n_fixation -> NUTRIENT CREDITS in the fertility factor:
+# an acquired symbiosis grade lifts the effective nutrient of every mix
+# class by its credit (each grade is a state on the axis; "none" is 0).
+MYC_CREDIT = {"arbuscular": 0.12, "ecto": 0.15, "ericoid": 0.10,
+              "orchid": 0.06, "none": 0.0}
+NFIX_CREDIT = {"rhizobium": 0.25, "frankia": 0.25,
+               "cyanobacterial": 0.15, "none": 0.0}
+# nutrient_package "halophyte" -> a salinity-tolerance grade credit in
+# the salinity factor (ionic side; the osmotic half still rides
+# water_potential).
+HALOPHYTE_CREDIT = 0.15
+# drip_tips (0..1) + leaf_margin ("serrate"/"toothed" — the wet-climate
+# teeth) -> wetness credits in the WATERLOGGING factor for DRY plans
+# (relief from a soggy leaf/root zone in very wet cells; spinose/entire
+# carry none). Documented choice in B6 §2: the bloom-frost term is a
+# frost signal, not a wetness one, so the wetness relief rides the
+# saturated-end term instead.
+DRIP_WET_W = 0.4           # x drip_tips (scalar 0..1)
+LEAF_WET_W = 0.25          # x 1 for serrate/toothed margins
+# moisture_breadth (derived envelope, consumed per B6 §2): a wide
+# moisture band is graded dry-side relief on the water factor and a
+# smaller wet-side relief on the waterlogging factor (asymmetric dry >
+# wet, mirroring the old climate P-half's two-sided distance).
+MB_DRY_W = 0.5             # x moisture_breadth (0.03..0.5)
+MB_WET_W = 0.25            # x moisture_breadth
+# waterlogging GRADED relief below the WLOG_INVERT_T cliff (B6 §2): a
+# dry plan's waterlogging_tolerance gives partial credit before the
+# inversion — relief ramps from 0 at tolerance 0 to WLOG_GRADED_W at
+# the inversion threshold.
+WLOG_GRADED_W = 0.5
+
+# ── B6 §3 snow-load + glacier strata (biosphere-addendum-b6) ───────────
+# Snow-load tolerance (mm water-equivalent) per snow_adaptation state
+# + a height term (a tree's crown rides ABOVE the pack; cushion plants
+# are buried): tol_mm = state_tol + height_m x SNOW_HEIGHT_MM_PER_M.
+# c_snow_monthly is the K11 snowpack in mm WE (solar.snow_pack) —
+# compare like with like. Calibration (2026-08-01, seed-1 landscape
+# pass): height 200 mm/m and SNOW_REF_MM 600 keep the temperate herb
+# ranges alive (a 1 m herb tolerates ~200 mm WE = ~2 m of snow, the
+# insulating-pack regime) while deep-snow cells (>= tol + 600) still
+# cost — the "buried cushion" case. Woody plans escape: a 25 m tree
+# tolerates 5000 mm + state. The term is a cold-side multiplier folded
+# into REQ_COLD (snow load is a winter phenomenon; the T distance is
+# dormant-gated, the snow cost is not).
+SNOW_TOL_MM = {"none": 0.0, "conical_shed": 1500.0, "flexible": 1000.0,
+               "cushion_mat": 800.0}
+SNOW_HEIGHT_MM_PER_M = 200.0
+SNOW_REF_MM = 600.0        # excess gradient width (sat at 600 mm past tol)
+# Glacier habitat term: a land plan on a year-round glacier cell is
+# ~1 always (never a verdict — the MEDIUM_VIOLATION_F precedent);
+# snow_adaptation != none exempts (the snow-adapted grade lives at the
+# ice margin).
+GLACIER_EXEMPT_STATES = ("conical_shed", "flexible", "cushion_mat")
+
+# ── B6 §3 canopy-light exposure coefficients (engine-side) ─────────────
+# The layer axis modulates how hard the canopy shade reads (understory
+# plans EXPECT shade: their coefficient scales the pressure down;
+# canopy plans sit at the top of the height comparison and rarely read
+# any shade at all). Missing/aquatic layers -> 0.5 / skipped (the
+# engine pass is land-only).
+LAYER_LIGHT_COEF = {"ground": 0.6, "sward": 0.6, "shrub": 0.8,
+                    "subcanopy": 0.9, "canopy": 1.0}
+
 # ── DerivedView keys the adapter reads (req_flora) ────────────────────
 # temp_opt_c, temp_breadth_c, moisture_opt, moisture_breadth  [DERIVED
 # envelope — pure function of the trait bundle, owner ruling 2026-08-01]
@@ -232,6 +309,13 @@ FRESH_SAL_MAX = 0.5
 # leafout_month, drought_deciduous (0/1),
 # bloom_start_month, bloom_length_months,
 # medium ("land"/"water"/"dual"), anchoring_need (0..1), holdfast (0/1)
+# PLUS the B6 hand-wiring keys (biosphere-addendum-b6-flora-wiring.md):
+# mycorrhizal / n_fixation / nutrient_package (fertility + salinity
+# credits), drip_tips / leaf_margin (wetness credits), moisture_breadth
+# (asymmetric dry/wet relief — the derived breadth is consumed),
+# snow_adaptation (snow-load tolerance + glacier exemption),
+# layer (canopy-light exposure coefficient; the engine reads it),
+# canopy_density (the derived the engine's shade pass reads)
 # PLUS the adapter's own derived flags (absent -> term does not apply):
 # submerged (0/1) — a benthic water plan that reads photic depth.
 # A key may be None/absent for a given plan — the stratum then does not
@@ -275,7 +359,9 @@ class WorldContext:
     depth_fresh: np.ndarray     # (H,W) m — lake/river column depth
     column_depth: np.ndarray    # (H,W) m — bathy on ocean, depth_fresh
                                 # on fresh water, 0 on dry land
-    photic: np.ndarray          # (H,W) m — ocean photic depth, 0 elsewhere
+    photic: np.ndarray          # (H,W) m — photic depth: marine on
+                                # ocean, fresh on lakes/rivers (B4 fix
+                                # 2026-08-01), 0 on dry land
     sal_water: np.ndarray       # (H,W) h_salinity / SAL_REF_GKG clipped
     water_cell: np.ndarray      # (H,W) bool ocean|sea|lake
     land_cell: np.ndarray       # (H,W) bool
@@ -285,9 +371,10 @@ class WorldContext:
     wind_ms: np.ndarray         # (H,W) m/s storm proxy: max over months
                                 # of the monthly-mean surface wind speed
     bottom_temp: np.ndarray     # (H,W) degC annual bottom temperature
-                                # (ocean; 0 on land) — submerged plans
-                                # read THIS for the climate T term (B4:
-                                # the deep bottom has no seasons)
+                                # (ocean AND fresh water; 0 on dry land)
+                                # — submerged plans read THIS for the
+                                # climate T term (B4: the deep bottom
+                                # has no seasons)
     mix_ids: np.ndarray         # (3,H,W) uint8 top-3 ground mix classes
     mix_w: np.ndarray           # (3,H,W) float32 mix weights — the
                                 # best-of-class substrate semantics read
@@ -344,11 +431,16 @@ def load_world(seed: int) -> WorldContext:
     river_any = (z["h_river_width_monthly"] > 0).any(axis=0) \
         if "h_river_width_monthly" in z else z["h_river_mask"]
     river_any = river_any.astype(bool)
+    # the fresh-water domain (lakes + any-month rivers) — the fresh
+    # water-column fields and fresh_ph read it; column_depth zeros on
+    # dry land and hands ocean cells to bathy.
+    fresh = lake | river_any
     ctx.sal_water = np.clip(z["h_salinity"].astype(np.float32)
                             / SAL_REF_GKG, 0.0, 1.0)
 
-    # ── wind exposure + bottom temperature at anchor (pure functions
-    # ── of the delivered dump — recompute, never downsample).
+    # ── wind exposure at anchor (pure function of the delivered dump —
+    # ── recompute, never downsample). The bottom temperature moved to
+    # the water-column block below (it is fresh-aware since 2026-08-01).
     wu, wv = z["c_wind_u"], z["c_wind_v"]
     monthly_speed = np.hypot(wu, wv).mean(axis=1)      # (12,h,w) m/s
     wind = monthly_speed.max(axis=0).astype(np.float32)  # storm proxy
@@ -360,8 +452,6 @@ def load_world(seed: int) -> WorldContext:
         wind = _upsample(wind, fy) if fx == fy else \
             np.repeat(np.repeat(wind, fy, axis=0), fx, axis=1)
     ctx.wind_ms = wind.astype(np.float32)
-    ctx.bottom_temp = _water.bottom_temp_c(
-        z, sea, _water.bathymetry_m(z, sea)).astype(np.float32)
 
     # ── ground properties: the anchor top-3 mix re-derived by re-running
     # ── the deterministic B3 pass, verified against the persisted
@@ -406,7 +496,7 @@ def load_world(seed: int) -> WorldContext:
         (ctx.ground_class == GROUND_ID["bog"]).astype(np.float64),
         _water.PH_WINDOW_C)
     wph = np.where(ocean, _water.ocean_ph(ctx.bathy),
-                   np.where(lake | river_any,
+                   np.where(fresh,
                             _water.fresh_ph(bed_ph, land_mean, bog_share),
                             np.where(ctx.fresh_availability.mean(axis=0) > 0,
                                      _water.fresh_ph(bed_ph, land_mean,
@@ -414,22 +504,52 @@ def load_world(seed: int) -> WorldContext:
                                      0.0)))
     ctx.water_ph = wph.astype(np.float32)
 
-    # ── water column at anchor: column depth + photic depth ──
-    # fresh column depth uses the lake/river h_depth decode of
+    # ── water column at anchor: column depth, photic depth, and the
+    # ── annual bottom temperature. Fresh water (lakes/rivers) gets its
+    # OWN photic and bottom-temp derivations — the marine fields are
+    # ocean-only, and reading them on fresh water used to zero every
+    # submerged freshwater plan (B4 fix 2026-08-01). The fresh column
+    # depth uses the lake/river h_depth decode of
     # freshwater_productivity (above-sea linear elevation segment).
     from exp.k11_worldgen.units import ELEV_MAX_M
     ctx.depth_fresh = (z["h_depth"].astype(np.float64) / (1.0 - sea)
                        * ELEV_MAX_M).astype(np.float32)
     ctx.column_depth = np.where(
         ocean, ctx.bathy,
-        np.where(lake | river_any, ctx.depth_fresh, 0.0)).astype(np.float32)
+        np.where(fresh, ctx.depth_fresh, 0.0)).astype(np.float32)
+    ctx.bottom_temp = np.where(
+        ocean,
+        _water.bottom_temp_c(z, sea, ctx.bathy),
+        _water.fresh_bottom_temp_c(z, sea, ctx.depth_fresh, fresh)
+    ).astype(np.float32)
     dis_ref = max(float(np.percentile(z["h_discharge"], 99.0)), 1e-12)
     plume = _plume_source(z, ocean, dis_ref)
     mprod_prov = marine_productivity(z, _currents_payload(k11_dir))
-    ctx.photic = _water.photic_depth_m(
-        ctx.bathy, plume, mprod_prov.mean(axis=0),
-        PLUME_WEIGHT).astype(np.float32)
+    fprod_ann = freshwater_productivity(z, sea).mean(axis=0)
+    ctx.photic = np.where(
+        ocean,
+        _water.photic_depth_m(ctx.bathy, plume, mprod_prov.mean(axis=0),
+                              PLUME_WEIGHT),
+        _water.fresh_photic_depth_m(bog_share, fprod_ann, fresh)
+    ).astype(np.float32)
     return ctx
+
+
+def _ensure_snow_glacier(ctx: WorldContext) -> None:
+    """Attach the B6 §3 snow-load / glacier fields to *ctx*, idempotent:
+    ``ctx.snow_mm`` (12,H,W) mm water-equivalent (K11 c_snow_monthly —
+    the snowpack bucket of solar.snow_pack) and ``ctx.glacier`` (H,W)
+    bool (h_glacier_mask). Loaded from the K11 dump on first use (the
+    ctx-builder is shared with another line of work, so the strata
+    self-provision rather than depend on load_world); a synthetic ctx
+    that explicitly sets either field skips the load entirely.
+    Deterministic: pure function of ctx.seed."""
+    if hasattr(ctx, "snow_mm") or hasattr(ctx, "glacier"):
+        return
+    k11_dir = artifact_require("k11", ctx.seed)
+    with np.load(k11_dir / "world.npz") as zf:
+        ctx.snow_mm = zf["c_snow_monthly"].astype(np.float32)
+        ctx.glacier = zf["h_glacier_mask"].astype(bool)
 
 
 def _currents_payload(seed_dir: Path):
@@ -483,6 +603,16 @@ def _view_from_record(axes: dict, preset_id: str | None,
         "holdfast": int(str(axes.get("root_type") or "") == "holdfast"),
         "submerged": int(str(axes.get("layer") or "")
                          == "aquatic_benthic"),
+        # ── B6 hand-wiring keys (biosphere-addendum-b6; the strata
+        # ── below read them) — mirrors FloraSim.derive exactly.
+        "mycorrhizal": str(axes.get("mycorrhizal") or "none"),
+        "n_fixation": str(axes.get("n_fixation") or "none"),
+        "nutrient_package": str(axes.get("nutrient_package") or "none"),
+        "drip_tips": axes.get("drip_tips"),
+        "leaf_margin": str(axes.get("leaf_margin") or "entire"),
+        "snow_adaptation": str(axes.get("snow_adaptation") or "none"),
+        "layer": str(axes.get("layer") or "ground"),
+        "canopy_density": _derived_canopy_density(node),
         # engine-side dispersal keys (K15 rounds; the stress strata
         # never read them) — mirrors FloraSim.derive.
         "dispersal_channels": axes.get("dispersal_channels"),
@@ -577,7 +707,32 @@ def _climate_factors(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
         pen = np.where(ctx.t_c < np.float32(GROW_T_C), 0.0, pen)
         cold = (cold * (1.0 - np.float32(COLD_PEN_W) * pen)).astype(
             np.float32)
-    return {REQ_COLD: cold, REQ_HEAT: heat}
+
+    # B6 §3 snow-load term (folded into REQ_COLD, land plans only): a
+    # winter month's snowpack above the plan's tolerance costs —
+    # tol_mm = state_tol(snow_adaptation) + height_m x SNOW_HEIGHT_MM.
+    # The T distance above is dormant-gated (a taiga winter is not
+    # niche distance); the snow LOAD is a real winter cost, so it is
+    # applied ungated. snow_adaptation is the GRADED reliever (it
+    # currently only shifts temp_opt in the derive envelope — here its
+    # state carries the tolerance). Tall plants ride above the pack
+    # (the height term); cushion mats are buried (no height credit).
+    if not submerged and view.get("medium") == "land" \
+            and hasattr(ctx, "snow_mm"):
+        snow_state = str(view.get("snow_adaptation") or "none")
+        tol_mm = SNOW_TOL_MM.get(snow_state, 0.0) \
+            + float(view.get("height_m") or 0.0) * SNOW_HEIGHT_MM_PER_M
+        f_snow = excess_suit(ctx.snow_mm, np.float32(tol_mm),
+                             np.float32(SNOW_REF_MM))
+        cold = (cold * f_snow).astype(np.float32)
+    # shape contract: every factor is (12,H,W). A submerged plan reads
+    # the ANNUAL bottom temperature, so its cold/heat planes are
+    # month-constant (1,H,W) — broadcast (the reduction indexes months).
+    if cold.shape[0] == 1:
+        cold = np.broadcast_to(cold, (12, H, W)).copy()
+    if heat.shape[0] == 1:
+        heat = np.broadcast_to(heat, (12, H, W)).copy()
+    return {REQ_COLD: cold.astype(np.float32), REQ_HEAT: heat.astype(np.float32)}
 
 
 def _bloom_frost(view: dict, ctx: WorldContext) -> np.ndarray:
@@ -608,6 +763,18 @@ def _ph_suit_split(env_ph, opt_ph: float):
             excess_suit(env_ph, opt, b).astype(np.float32))
 
 
+def _sal_tol_eff(view: dict, sal_tol: float) -> float:
+    """Effective salinity tolerance: the axis value plus the B6 §2
+    halophyte grade credit (nutrient_package == "halophyte" — the salt-
+    adapted package BUYS tolerance; a pressure:salinity responder with
+    no factor read until this wiring). Shared by the ground stratum
+    (land/dual) and the water-chemistry stratum (water plans — the
+    halophyte presets are kelp/seagrass/coral/sponge, all water)."""
+    if str(view.get("nutrient_package") or "none") == "halophyte":
+        return sal_tol + HALOPHYTE_CREDIT
+    return sal_tol
+
+
 def _substrate_suits(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
     """Per-CLASS substrate suitabilities (3,H,W) for the plans that read
     the ground (land + dual): the top-3 mix classes are physically
@@ -628,8 +795,18 @@ def _substrate_suits(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
             np.float32(ROOT_REF_M)).astype(np.float32)
     fert = _f(view.get("fertility_requirement"))
     if not np.isnan(fert):
+        # B6 §2 fertility CREDITS: an acquired symbiosis grade lifts the
+        # effective nutrient of every mix class (mycorrhizal /
+        # n_fixation are pressure:fertility responders but no factor
+        # read them — the credit is the read). The credit also raises
+        # the substrate_share on poor soil (the plant genuinely uses
+        # more of the cell), via the per-class suits below.
+        credit = (MYC_CREDIT.get(str(view.get("mycorrhizal") or "none"),
+                                 0.0)
+                  + NFIX_CREDIT.get(str(view.get("n_fixation") or "none"),
+                                    0.0))
         out[REQ_FERTILITY] = shortfall_suit(
-            PROP_TABLES["nutrient"][ids],
+            PROP_TABLES["nutrient"][ids] + np.float32(credit),
             np.float32(min(max(fert, 0.0), 1.0)),
             np.float32(FERT_REF)).astype(np.float32)
     ph_tol = _f(view.get("ph_tolerance"))
@@ -647,8 +824,12 @@ def _substrate_suits(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
         sal_env = PROP_TABLES["sal_add"][ids]
         if view.get("medium") == "dual":
             sal_env = np.maximum(sal_env, ctx.sal_water[None])
+        # B6 §2: nutrient_package "halophyte" is a salinity-tolerance
+        # GRADE credit (a pressure:salinity responder with no factor
+        # read — this is the read).
+        sal_tol_eff = _sal_tol_eff(view, sal_tol)
         out[REQ_SALINITY] = excess_suit(
-            sal_env, np.float32(min(max(sal_tol, 0.0), 1.0)),
+            sal_env, np.float32(min(max(sal_tol_eff, 0.0), 1.0)),
             np.float32(SAL_REF)).astype(np.float32)
     return out
 
@@ -689,6 +870,40 @@ def _ground_terms(view: dict, ctx: WorldContext,
                                  np.float32(WLOG_DRY_LIMIT),
                                  np.float32(WLOG_DRY_REF))
 
+    # B6 §2 graded reliefs, applied to the COST (1 - f) of the one-sided
+    # terms — a DRY plan's drought/moisture/wet traits buy partial
+    # relief before any inversion (never a cutoff, and the wet-obligate
+    # inversion above is untouched):
+    #   moisture_breadth: a wide derived moisture band is asymmetric
+    #       graded relief — dry side (water) x MB_DRY_W, wet side
+    #       (waterlogging) x MB_WET_W (consumed, per B6 §2).
+    #   waterlogging_tolerance below WLOG_INVERT_T: graded credit
+    #       ramping to WLOG_GRADED_W at the inversion cliff.
+    #   drip_tips (0..1) + serrate/toothed leaf_margin: wetness credits
+    #       on the saturated-end cost for very wet cells (B6 §2 choice:
+    #       wetness relief rides waterlogging, not bloom_frost — frost
+    #       is a cold signal, not a wetness one).
+    mb = _f(view.get("moisture_breadth"))
+    dry_relief = 0.0 if np.isnan(mb) else MB_DRY_W * min(max(mb, 0.0), 1.0)
+    wet_relief = 0.0
+    if not np.isnan(mb):
+        wet_relief += MB_WET_W * min(max(mb, 0.0), 1.0)
+    if not np.isnan(wlog) and wlog < WLOG_INVERT_T:
+        wet_relief += WLOG_GRADED_W * max(0.0, min(wlog, 1.0)) \
+            / WLOG_INVERT_T
+    drip = _f(view.get("drip_tips"))
+    if not np.isnan(drip):
+        wet_relief += DRIP_WET_W * min(max(drip, 0.0), 1.0)
+    if str(view.get("leaf_margin") or "entire") in ("serrate", "toothed"):
+        wet_relief += LEAF_WET_W
+    wet_relief = min(1.0, wet_relief)
+    f_water = np.where(dry_relief > 0.0,
+                       1.0 - (1.0 - f_water) * np.float32(1.0 - dry_relief),
+                       f_water).astype(np.float32)
+    f_wlog = np.where(wet_relief > 0.0,
+                      1.0 - (1.0 - f_wlog) * np.float32(1.0 - wet_relief),
+                      f_wlog).astype(np.float32)
+
     # growing-season dormancy (the climate ruling applied to uptake):
     # a dormant plant does not transpire and frozen ground does not
     # waterlog roots — no water/waterlogging cost below GROW_T_C.
@@ -726,8 +941,13 @@ def _water_chemistry(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
     if np.isnan(sal_tol):
         f_sal = np.ones((H, W), dtype=np.float32)
     else:
+        # B6 §2 halophyte grade credit (shared with the ground stratum
+        # — the halophyte presets are water plans: kelp/seagrass/coral/
+        # sponge, all salinity_tolerance ~0.9-0.95; the credit grades
+        # the ionic excess, the osmotic half rides water_potential).
+        sal_tol_eff = _sal_tol_eff(view, sal_tol)
         f_sal = excess_suit(ctx.sal_water,
-                            np.float32(min(max(sal_tol, 0.0), 1.0)),
+                            np.float32(min(max(sal_tol_eff, 0.0), 1.0)),
                             np.float32(SAL_REF))
     return {
         REQ_PH_LOW: np.broadcast_to(f_ph_lo, (12, H, W)).copy(),
@@ -795,6 +1015,22 @@ def _tail_terms(view: dict, ctx: WorldContext,
     return out
 
 
+def _glacier_factor(view: dict, ctx: WorldContext) -> np.ndarray:
+    """B6 §3 glacier habitat term (land plans only): a year-round
+    glacier cell is ~1 always (MEDIUM_VIOLATION_F, the medium-boundary
+    precedent — a very high cost, never a deletion); a snow-adapted
+    plan (snow_adaptation != none) is exempt — the snow-adapted grade
+    lives at the ice margin. Water/dual plans keep their own medium
+    boundary (glaciers sit on land cells)."""
+    H, W = ctx.H, ctx.W
+    f = np.ones((H, W), dtype=np.float32)
+    if view.get("medium") != "land" or not hasattr(ctx, "glacier"):
+        return f
+    if str(view.get("snow_adaptation") or "none") in GLACIER_EXEMPT_STATES:
+        return f
+    return np.where(ctx.glacier, np.float32(MEDIUM_VIOLATION_F), f)
+
+
 # ── evaluation ────────────────────────────────────────────────────────
 
 
@@ -810,6 +1046,7 @@ def evaluate(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
     CAPACITY metadata, not a stress factor — it never enters F or the
     verdict provenance; the engine splits carrying capacity by it
     (K_L = K x U, spec §6)."""
+    _ensure_snow_glacier(ctx)
     medium = view.get("medium", "land")
     salinity = _f(view.get("salinity_tolerance"))
     freshwater = (medium == "water" and not np.isnan(salinity)
@@ -824,6 +1061,8 @@ def evaluate(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
     else:
         factors.update(_water_chemistry(view, ctx))
     factors.update(_tail_terms(view, ctx, freshwater, cs))
+    factors[REQ_GLACIER] = np.broadcast_to(
+        _glacier_factor(view, ctx), (12, ctx.H, ctx.W)).copy()
 
     F = np.ones((12, ctx.H, ctx.W), dtype=np.float32)
     for a in factors.values():

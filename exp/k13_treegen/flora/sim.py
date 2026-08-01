@@ -74,7 +74,11 @@ from typing import Mapping
 from exp.k13_treegen.flora.backbone import GEN_TIME_COEFF, GEN_TIME_EXP
 from exp.k13_treegen.flora.constraints import enforce, triggered
 from exp.k13_treegen.flora.content import ContentPack
-from exp.k13_treegen.flora.derive import DERIVED_AXES, effective_climate
+from exp.k13_treegen.flora.derive import (
+    DERIVED_AXES,
+    _derived_canopy_density,
+    effective_climate,
+)
 from exp.k13_treegen.interface import Instance, VitalRates
 from exp.k13_treegen.model import Node, Rank
 from exp.k13_treegen.registry import AxisSpec, MutationKind, ValueType
@@ -119,12 +123,16 @@ ANCHOR_REF_M = 25.0
 #       classic mass/fecundity trade-off (small seeds -> many propagules),
 #   birth = fecundity x BIRTH_GEN_RATE / gen_time — annualized over the
 #       generation clock (gen_time = GEN_TIME_COEFF x height^GEN_TIME_EXP,
-#       the backbone's formula, rate multiplier assumed 1),
+#       the backbone's formula, rate multiplier assumed 1), x the
+#       GROWTH_RATE multiplier (B6 §2: growth_rate scales birth — a
+#       fast-growing plan packs more reproduction per year),
 #   establish = (ESTABLISH_REF_MG / propagule_mg)^ESTABLISH_EXP, x clonal
 #       multiplier (a runner/floater need not gamble on a seed), x seed-
 #       bank multiplier, capped at 1 (rain -> established conversion),
 #   death = 1 / longevity, discounted for woodiness (structural
-#       persistence), floored.
+#       persistence), x the WOOD_DENSITY multiplier (B6 §2: denser wood
+#       dies slower — the density axis is the physiology under the
+#       woodiness fraction), floored.
 FECUNDITY_REF_MG = 10.0
 FECUNDITY_EXP = 0.5
 FECUNDITY_CAP = 100.0     # cap on the per-generation fecundity proxy
@@ -139,6 +147,21 @@ SEED_BANK_MULT = 1.5      # persistent seed bank smooths establishment
 DEATH_LONGEVITY_EXP = 1.0 # death = 1 / longevity^exp
 DEATH_WOODY_DISCOUNT = 0.5  # x (1 - discount x woodiness): wood lasts
 DEATH_MIN = 1e-4          # floor so immortals still leak a little
+
+# ── B6 §2 vital wiring (growth_rate / wood_density) ────────────────────
+# growth_rate (m/yr, axis [0.005, 5.0]) scales BIRTH: a saturating
+# multiplier 1 + GROWTH_BIRTH_COEF x sat(growth_rate / GROWTH_REF_MY).
+# At the reference rate (1 m/yr) the multiplier is 1 + COEF — modest;
+# a 5 m/yr kelp saturates at 1 + COEF. Bounds [0.005, 5], reference 1.0.
+GROWTH_REF_MY = 1.0
+GROWTH_BIRTH_COEF = 0.5
+# wood_density (g/cm3, axis [0.1, 1.5]) scales DEATH inversely: x
+# (1 - WOOD_DENSITY_DEATH_COEF x sat(wood_density / WOOD_DENSITY_REF)).
+# Reference 1.0 g/cm3 (oak-grade); balsa (0.1) ~ no discount, lignum
+# vitae (1.5) saturates at the full discount. Plans without the axis
+# (plan_scope tree/shrub/succulent only) read 0 -> multiplier 1.
+WOOD_DENSITY_REF = 1.0
+WOOD_DENSITY_DEATH_COEF = 0.3
 
 
 def _plan_of(traits) -> str | None:
@@ -259,6 +282,17 @@ class FloraSim:
             "holdfast": int(str(axes.get("root_type") or "") == "holdfast"),
             "submerged": int(str(axes.get("layer") or "")
                              == "aquatic_benthic"),
+            # ── B6 hand-wiring keys (biosphere-addendum-b6; the k15
+            # ── stress strata read them — mirrors stress_adapter's
+            # ── _view_from_record exactly).
+            "mycorrhizal": str(axes.get("mycorrhizal") or "none"),
+            "n_fixation": str(axes.get("n_fixation") or "none"),
+            "nutrient_package": str(axes.get("nutrient_package") or "none"),
+            "drip_tips": axes.get("drip_tips"),
+            "leaf_margin": str(axes.get("leaf_margin") or "entire"),
+            "snow_adaptation": str(axes.get("snow_adaptation") or "none"),
+            "layer": str(axes.get("layer") or "ground"),
+            "canopy_density": _derived_canopy_density(node),
             # engine-side dispersal (K15 rounds, not the stress
             # adapter): channel weights drive per-vector radius, the
             # propagule mass the distance decay, the seed bank the
@@ -421,8 +455,13 @@ class FloraSim:
                         (FECUNDITY_REF_MG / prop) ** FECUNDITY_EXP)
         height = max(_num(traits, "height_m"), 1e-6)
         gen_time = GEN_TIME_COEFF * height ** GEN_TIME_EXP
+        # B6 §2: growth_rate scales birth (saturating at GROWTH_REF_MY).
+        growth = max(_num(traits, "growth_rate"), 0.0)
+        growth_mult = 1.0 + GROWTH_BIRTH_COEF * min(
+            1.0, growth / GROWTH_REF_MY)
         birth = min(BIRTH_MAX,
-                    fecundity * BIRTH_GEN_RATE / max(gen_time, 1e-6))
+                    fecundity * BIRTH_GEN_RATE * growth_mult
+                    / max(gen_time, 1e-6))
 
         est = min(1.0, (ESTABLISH_REF_MG / prop) ** ESTABLISH_EXP)
         if _num(traits, "clonal_spread_m") >= CLONAL_ESTABLISH_M:
@@ -433,7 +472,12 @@ class FloraSim:
 
         lon = max(_num(traits, "longevity_yr"), 1e-6)
         wood = min(max(_num(traits, "woodiness"), 0.0), 1.0)
+        # B6 §2: wood_density scales death inversely (saturating at
+        # WOOD_DENSITY_REF); absent axis -> 0 -> multiplier 1.
+        wd = max(_num(traits, "wood_density"), 0.0)
+        wd_mult = 1.0 - WOOD_DENSITY_DEATH_COEF * min(
+            1.0, wd / WOOD_DENSITY_REF)
         death = max(DEATH_MIN,
                     (1.0 / lon ** DEATH_LONGEVITY_EXP)
-                    * (1.0 - DEATH_WOODY_DISCOUNT * wood))
+                    * (1.0 - DEATH_WOODY_DISCOUNT * wood) * wd_mult)
         return VitalRates(birth=birth, death=death, establish=est)

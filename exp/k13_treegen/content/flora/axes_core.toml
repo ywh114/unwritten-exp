@@ -35,8 +35,11 @@ mutation = "log_gaussian"
 sigma = 0.2
 bounds = [0.1, 1.5]                # g/cm3: balsa .. lignum vitae
 plan_scope = ["tree", "shrub", "succulent"]
-consumers = ["stress", "pop"]
+consumers = ["pop"]
 salience = 0.1
+# B6 §2 (hand-wiring program): consumed by FloraSim.vital — denser wood
+# scales death inversely (the physiology under the woodiness fraction).
+# The old "stress" claim lied (no stress stratum read it).
 
 [axis.growth_rate]
 block = "life_history"
@@ -46,8 +49,10 @@ mutation = "log_gaussian"
 sigma = 0.4
 bounds = [0.005, 5.0]              # m/yr
 plan_scope = "all"
-consumers = ["stress", "pop"]
+consumers = ["pop"]
 salience = 0.2
+# B6 §2: consumed by FloraSim.vital — growth_rate scales birth. The old
+# "stress" claim lied (no stress stratum read it).
 
 [axis.longevity_yr]
 block = "life_history"
@@ -79,8 +84,11 @@ mutation = "ratio"
 sigma = 0.1
 bounds = [0.0, 1.0]                # 0 ruderal .. 1 climax (CSR position)
 plan_scope = "all"
-consumers = ["stress", "pop"]
+consumers = ["pop"]
 salience = 0.2
+# Successional dynamics — engine-pending (B6 table): no stratum or
+# vital proxy reads it yet. The "stress" claim lied; "pop" is the
+# future succession consumer, not a current read.
 
 [axis.layer]
 block = "morphometrics"
@@ -185,13 +193,13 @@ mutation = "log_gaussian"
 sigma = 0.4
 bounds = [0.02, 60.0]
 plan_scope = "all"
-consumers = ["id", "stress", "pop", "draw"]
+consumers = ["id", "pop", "draw"]
 salience = 0.3
 # canopy radius for woody plans; the vegetative spread (radius) of one
 # genetic individual for herbs/rosettes/tussocks/mats. The engine's
-# per-capita space demand, P9's canopy light field, and the draw
-# code all read this. Halle architecture constrains it qualitatively
-# but does not determine it — a STORED axis.
+# per-capita space demand reads this; the draw code too. The old
+# "stress" claim lied (no stress stratum read it). Halle architecture
+# constrains it qualitatively but does not determine it — a STORED axis.
 
 [axis.canopy_density]
 block = "morphometrics"
@@ -201,12 +209,13 @@ mutation = "ratio"
 sigma = 0.1
 bounds = [0.0, 1.0]
 plan_scope = "all"
-consumers = ["stress", "draw"]
+consumers = ["stress", "pop", "draw"]
 salience = 0.1
 # how much light the canopy blocks, 0..1. DERIVED at derive time from
 # the leaf economics traits (sla, size), woodiness, phenology and
-# succulence — never sampled (P9 provisional; the understory reads
-# the low-light FIELD this builds, never a "tree pressure" term).
+# succulence — never sampled (P9 provisional; B6 §3 wired: the engine's
+# per-round canopy shade pass reads the derived value — the understory
+# reads the low-light FIELD this builds, never a "tree pressure" term).
 
 # ── leaf (morphometrics / parts) ───────────────────────────────────────
 [axis.leaf_shape]
@@ -312,9 +321,12 @@ value_type = "enum"
 mutation = "enum_redraw"
 states = ["none", "pitcher", "snap", "flypaper", "bladder"]
 plan_scope = ["herb_forb", "rosette_mat"]
-consumers = ["stress", "id", "tell"]
+consumers = ["id", "tell"]
 salience = 0.4
 grammar_role = "part"
+# Carnivorous prey channel — fauna-pending (B6 table): the traps feed
+# on fauna, and no stress stratum reads them (the old "stress" claim
+# lied). A prey-nutrient credit is the designed future read.
 
 [axis.drip_tips]
 block = "morphometrics"
@@ -358,11 +370,12 @@ mutation = "log_gaussian"
 sigma = 0.4
 bounds = [0.02, 100.0]
 plan_scope = "all"
-consumers = ["id", "stress"]
+consumers = ["id"]
 salience = 0.1
 # typical lateral reach of the root system from the stem, meters
 # (radius). Trees: comparable to the crown radius, often ~0.5-1x
-# height; herbs: comparable to root_depth_m.
+# height; herbs: comparable to root_depth_m. No env consumer (B6
+# table) — the old "stress" claim lied.
 
 [axis.root_special]
 block = "morphometrics"
@@ -372,9 +385,13 @@ mutation = "enum_redraw"
 states = ["none", "pneumatophores", "stilt", "buttress", "knee",
           "haustoria"]
 plan_scope = "all"
-consumers = ["stress", "id", "tell"]
+consumers = ["id", "tell"]
 salience = 0.3
 grammar_role = "part"
+# Pneumatophores are a woody-plant part owned by the plan gate
+# (state_plans), deliberately NOT a pressure target (stress_response
+# comment); no stress stratum reads the axis (B6 table — the old
+# "stress" claim lied).
 
 [axis.mycorrhizal]
 block = "diet"
@@ -481,8 +498,11 @@ mutation = "enum_redraw"
 states = ["wind", "bee", "moth", "bird", "bat", "beetle", "fly",
           "self", "water", "none"]
 plan_scope = "all"
-consumers = ["stress", "id", "name", "tell"]
+consumers = ["id", "name", "tell"]
 salience = 0.5
+# Pollinator channel — fauna-pending (B6 table): reads the derived
+# provision_nectar at derive time (engine food web). The old "stress"
+# claim lied (no stress stratum reads it).
 
 [axis.sexuality]
 block = "sex_age_season"
@@ -492,8 +512,10 @@ mutation = "enum_redraw"
 states = ["perfect", "monoecious", "dioecious"]
 plan_scope = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat",
               "succulent", "runner_meadow", "floating_leaf", "floater"]
-consumers = ["pop", "id"]
+consumers = ["id"]
 salience = 0.2
+# Reproduction system — fauna-pending (B6 table): no env consumer; the
+# old "pop" claim lied (nothing reads it for demography).
 
 # ── fruit/seed (dispersal) ─────────────────────────────────────────────
 [axis.fruit_type]
@@ -505,9 +527,13 @@ states = ["berry", "drupe", "capsule", "legume", "achene", "caryopsis",
           "nut", "samara", "pome", "aggregate", "cone", "sorus",
           "sporangium", "none"]
 plan_scope = "all"
-consumers = ["id", "name", "pop"]
+consumers = ["id", "name"]
 salience = 0.4
 grammar_role = "part"
+# Seed-dispersal / food-web structure — engine/fauna-pending (B6
+# table): reads the derived provision_mast at derive time (animal-
+# dispersal reward). The old "pop" claim lied (the engine's dispersal
+# reads dispersal_channels, not fruit_type).
 
 [axis.fruit_size_mm]
 block = "life_history"
@@ -517,7 +543,7 @@ mutation = "log_gaussian"
 sigma = 0.5
 bounds = [1.0, 500.0]
 plan_scope = "all"
-consumers = ["id", "pop"]
+consumers = ["id"]
 salience = 0.3
 # diameter of the propagule-bearing structure, mm: the fruit for
 # fruiting plans, the fruiting body for fungi, the sporangium/sorus
@@ -525,6 +551,7 @@ salience = 0.3
 # structure is sized: a multi-seeded cone/pod/capsule/aggregate is
 # many propagule diameters across (a conifer cone is ~80 mm, not
 # 1-2x one seed); single-seeded dry fruits are ~1-2x.
+# Engine/fauna-pending (B6 table) — the old "pop" claim lied.
 
 [axis.fruit_color]
 block = "life_history"
@@ -534,13 +561,14 @@ mutation = "enum_redraw"
 states = ["none", "white", "cream", "yellow", "orange", "red", "pink",
           "purple", "blue", "green", "brown", "black"]
 plan_scope = "all"
-consumers = ["id", "pop", "tell", "draw"]
+consumers = ["id", "tell", "draw"]
 salience = 0.4
 grammar_role = "part"
 # NOT derived from the flower pigment machinery: fruit color is a
 # SEED-disperser signal (red berry -> bird), an independent axis.
 # "none" iff fruit_type is none; wind-dispersed plans trend dull
 # (green/brown), animal-dispersed bright (red/blue/black).
+# Engine/fauna-pending (B6 table) — the old "pop" claim lied.
 
 [axis.dispersal_channels]
 block = "life_history"
@@ -550,9 +578,11 @@ mutation = "weight_redraw"
 sigma = 0.1
 states = ["local", "wind", "water", "animal", "jump"]
 plan_scope = "all"
-consumers = ["stress", "id"]
+consumers = ["id", "pop"]
 salience = 0.3
-# kernel weights (flora RFC §3): local / wind / water / animal / jump
+# kernel weights (flora RFC §3): local / wind / water / animal / jump.
+# Engine-read (dispersal packets + mobility) — the old "stress" claim
+# lied (no stress stratum reads it).
 
 [axis.propagule_mass_mg]
 block = "morphometrics"
@@ -562,8 +592,10 @@ mutation = "log_gaussian"
 sigma = 0.6
 bounds = [0.0001, 100000.0]
 plan_scope = "all"
-consumers = ["stress", "pop"]
+consumers = ["pop"]
 salience = 0.2
+# Engine-read: the dispersal distance decay and the vital fecundity/
+# establish proxies (B6 table) — the old "stress" claim lied.
 
 [axis.propagule_count]
 block = "life_history"
@@ -587,8 +619,10 @@ value_type = "enum"
 mutation = "enum_redraw"
 states = ["transient", "persistent"]
 plan_scope = "all"
-consumers = ["stress", "pop"]
+consumers = ["pop"]
 salience = 0.1
+# Engine-read (vital establishment multiplier + rain decay) — the old
+# "stress" claim lied (B6 table: verified and marked engine).
 
 [axis.serotiny]
 block = "life_history"
@@ -597,8 +631,10 @@ value_type = "enum"
 mutation = "enum_redraw"
 states = ["no", "yes"]
 plan_scope = ["tree", "shrub"]
-consumers = ["stress", "tell"]
+consumers = ["tell"]
 salience = 0.3
+# FIRE axis (serotiny = fire-released seed) — fire-pending (B6 table,
+# owner-deferred); the old "stress" claim lied.
 
 [axis.masting_interval_yr]
 block = "life_history"
@@ -608,8 +644,10 @@ mutation = "log_gaussian"
 sigma = 0.4
 bounds = [0.5, 120.0]              # <1 ~ annual; bamboo-grade cycles
 plan_scope = "all"
-consumers = ["pop", "tell"]
+consumers = ["tell"]
 salience = 0.2
+# Mast cycle — engine-pending (B6 table): a future emission modulator;
+# the old "pop" claim lied (nothing reads it for demography yet).
 
 [axis.jump_rate]
 block = "life_history"
@@ -619,8 +657,10 @@ mutation = "ratio"
 sigma = 0.08
 bounds = [0.0, 1.0]                # long-distance dispersal (RFC §3)
 plan_scope = "all"
-consumers = ["stress"]
+consumers = ["pop"]
 salience = 0.1
+# Engine-read (jump-packet frequency) — the old "stress" claim lied
+# (B6 table).
 
 # ── defense ────────────────────────────────────────────────────────────
 [axis.mechanical_defense]
@@ -631,9 +671,12 @@ mutation = "enum_redraw"
 states = ["none", "thorn", "spine", "prickle", "trichomes", "silica",
           "sclerophylly"]
 plan_scope = "all"
-consumers = ["stress", "id", "tell"]
+consumers = ["id", "tell"]
 salience = 0.3
 grammar_role = "part"
+# Herbivory defense — fauna-pending (B6 table): reads the derived
+# palatability at derive time (provision_graze/browse). The old
+# "stress" claim lied (no stress stratum reads it).
 
 [axis.chemical_defense]
 block = "ecosystem"
@@ -643,8 +686,11 @@ mutation = "enum_redraw"
 states = ["none", "alkaloid", "cyanogenic", "cardiac_glycoside",
           "tannin", "latex", "essential_oil"]
 plan_scope = "all"
-consumers = ["stress", "id", "tell"]
+consumers = ["id", "tell"]
 salience = 0.2
+# Herbivory defense — fauna-pending (B6 table): reads the derived
+# palatability at derive time (provision_graze/browse). The old
+# "stress" claim lied (no stress stratum reads it).
 
 [axis.defense_potency]
 block = "ecosystem"
@@ -654,8 +700,11 @@ mutation = "ratio"
 sigma = 0.1
 bounds = [0.0, 1.0]
 plan_scope = "all"
-consumers = ["stress"]
+consumers = ["pop"]
 salience = 0.1
+# Herbivory defense — fauna-pending (B6 table): reads the derived
+# palatability at derive time (provision_graze/browse, the food-web
+# consumer). The old "stress" claim lied (no stress stratum reads it).
 
 # ── storage ────────────────────────────────────────────────────────────
 [axis.storage_organ]
@@ -666,9 +715,12 @@ mutation = "enum_redraw"
 states = ["none", "tuber", "bulb", "corm", "rhizome",
           "succulent_tissue", "lignotuber", "endosperm"]
 plan_scope = "all"
-consumers = ["stress", "id", "tell", "name"]
+consumers = ["id", "tell", "name"]
 salience = 0.3
 grammar_role = "part"
+# Storage resilience (bulb/tuber/lignotuber survival) — engine-pending
+# (B6 table): no stress stratum or vital proxy reads it yet; the old
+# "stress" claim lied.
 
 [axis.clonal_spread_m]
 block = "life_history"
@@ -678,8 +730,10 @@ mutation = "log_gaussian"
 sigma = 0.5
 bounds = [0.01, 100.0]             # authored 0.0 = non-clonal (trusted)
 plan_scope = "all"
-consumers = ["stress", "pop", "tell"]
+consumers = ["pop", "tell"]
 salience = 0.2
+# Engine-read (vital establishment multiplier + clonality_class
+# derived) — the old "stress" claim lied (B6 table).
 
 [axis.succulence]
 block = "morphometrics"
@@ -701,8 +755,11 @@ mutation = "log_gaussian"
 sigma = 0.4
 bounds = [0.05, 60.0]              # the fire axis (vocab §6)
 plan_scope = ["tree", "shrub"]
-consumers = ["stress", "tell"]
+consumers = ["tell"]
 salience = 0.2
+# The FIRE axis — fire-pending (B6 table, owner-deferred): no stress
+# stratum reads it (its pressure:cold responder row was REMOVED 2026-08-01
+# as a dead dial; cold keeps deciduousness/gs_req/leafout/pubescence).
 
 [axis.bark_texture]
 block = "morphometrics"
@@ -805,8 +862,10 @@ mutation = "gaussian"
 sigma = 0.7
 bounds = [1.0, 12.0]
 plan_scope = "all"
-consumers = ["stress", "tell", "pop"]
+consumers = ["tell"]
 salience = 0.1
+# Seed-release timing — engine-pending (B6 table); the old "stress"
+# and "pop" claims lied (nothing reads it yet).
 
 [axis.synchronous_flowering]
 block = "behavior"
@@ -836,8 +895,10 @@ value_type = "enum"
 mutation = "enum_redraw"
 states = ["none", "hemi", "holo"]
 plan_scope = "all"
-consumers = ["stress", "tell"]
+consumers = ["tell"]
 salience = 0.3
+# Parasitic establishment — engine-pending (B6 table); the old
+# "stress" claim lied (no stress stratum reads it).
 
 [axis.mycoheterotrophy]
 block = "diet"
@@ -846,8 +907,10 @@ value_type = "enum"
 mutation = "enum_redraw"
 states = ["no", "yes"]
 plan_scope = "all"
-consumers = ["stress", "tell"]
+consumers = ["tell"]
 salience = 0.3
+# Mycoheterotrophic nutrition — engine-pending (B6 table); the old
+# "stress" claim lied (no stress stratum reads it).
 
 [axis.saprotrophy]
 block = "diet"
@@ -856,8 +919,10 @@ value_type = "enum"
 mutation = "enum_redraw"
 states = ["white_rot", "brown_rot", "litter", "dung", "none"]
 plan_scope = ["fungus", "lichen"]
-consumers = ["stress", "pop", "id"]
+consumers = ["id"]
 salience = 0.3
+# Decomposition pathway — engine-pending (B6 table: a future
+# nutrient-cycling read); the old "stress"/"pop" claims lied.
 
 [axis.nutrient_package]
 block = "diet"
@@ -947,8 +1012,10 @@ value_type = "enum"
 mutation = "enum_redraw"
 states = ["avoider", "resprouter", "seeder"]
 plan_scope = ["tree", "shrub", "herb_forb", "grass_sward"]
-consumers = ["stress", "tell"]
+consumers = ["tell"]
 salience = 0.2
+# FIRE axis — fire-pending (B6 table, owner-deferred): no fire-regime
+# world field exists; the old "stress" claim lied.
 
 [axis.snow_adaptation]
 block = "niche"
@@ -956,13 +1023,17 @@ tier = "steady"
 value_type = "enum"
 mutation = "enum_redraw"
 states = ["none", "conical_shed", "flexible", "cushion_mat"]
-plan_scope = ["tree", "shrub"]
+plan_scope = ["tree", "shrub", "moss_grade"]
 consumers = ["stress", "id"]
 salience = 0.2
-# snow-load answer (the world has real snowfall; the env stratum is
-# future work): conical_shed = steep snow-shedding crown (conifer),
+# snow-load answer (B6 §3 wired: the stress adapter's snow-load term
+# reads the state as the GRADED reliever — tolerance per state + a
+# height term): conical_shed = steep snow-shedding crown (conifer),
 # flexible = bend-not-break (birch), cushion_mat = krummholz mat at
-# the treeline.
+# the treeline AND the moss-cushion under the winter pack (plan_scope
+# extended to moss_grade 2026-08-01 — sphagnum's bog niche is
+# snow-blocked without it; the state literally describes a moss
+# cushion).
 
 # ── ecosystem role ─────────────────────────────────────────────────────
 [axis.engineer_impact]
@@ -973,8 +1044,10 @@ mutation = "ratio"
 sigma = 0.06
 bounds = [0.0, 1.0]                # peat moss, kelp forest, reef builders
 plan_scope = "all"
-consumers = ["stress", "pop", "tell"]
+consumers = ["tell"]
 salience = 0.2
+# Ecosystem engineering (peat/kelp/reef) — engine-pending (B6 table);
+# the old "stress"/"pop" claims lied (nothing reads it yet).
 
 [axis.coloniality]
 block = "ecosystem"
@@ -984,5 +1057,7 @@ mutation = "ratio"
 sigma = 0.1
 bounds = [0.0, 1.0]                # solitary .. clonal colony (Pando tail)
 plan_scope = "all"
-consumers = ["pop", "tell"]
+consumers = ["tell"]
 salience = 0.2
+# Colony integration — engine-pending (B6 table); the old "pop" claim
+# lied (nothing reads it for demography yet).

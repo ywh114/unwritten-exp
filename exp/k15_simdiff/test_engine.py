@@ -46,7 +46,9 @@ from exp.k15_simdiff.engine import Dressed, Engine, _dilate
 SEED = 1
 R_SLOW = 20
 TAKEOVER_RATIO = 0.8            # spec §12 item 5 (§13)
-REDUCED_CACHE_MB = 3.9          # spec §12 item 8 (§13)
+REDUCED_CACHE_MB = 4.25         # spec §12 item 8 (§13): 3.9 + one plane —
+                                # B6 §3 added REQ_GLACIER to the reduced
+                                # provenance (a (H,W) f32 plane ≈ 0.25 MiB)
 HERE = Path(__file__).resolve().parent
 SCANNED = ["engine.py", "genesis.py", "dispersal.py", "population.py",
            "authority.py", "stress_adapter.py", "req_flora.py"]
@@ -69,10 +71,21 @@ def _plant(eng: Engine, preset: str, cells: list[tuple[int, int]],
            n0: float = 0.5) -> str:
     """Mint an instance of *preset* and dress it on *cells* with
     density *n0*. Returns the new instance id."""
+    return _plant_variant(eng, preset, cells, {}, n0)
+
+
+def _plant_variant(eng: Engine, preset: str,
+                   cells: list[tuple[int, int]], overrides: dict,
+                   n0: float = 0.5) -> str:
+    """Mint an instance of *preset*, OVERRIDE the given WIP genes (a
+    test device for controlled trait contrasts — e.g. two bodies of one
+    preset differing only in shade_tolerance), and dress it on *cells*
+    with density *n0*. Returns the new instance id."""
     sid = eng._order_sid[preset]
     rng = eng._stream("test", f"plant:{preset}:{len(eng.instances)}")
     iid = eng._new_instance_id(rng)
     x = eng.authority.mint(sid, iid, rng)
+    x.traits.update(overrides)
     view = eng.sim.derive(x.traits, eng.pack)
     cache = eng._evaluate_cache(view, x.traits)
     ys = [c[0] for c in cells]
@@ -403,6 +416,106 @@ def test_jump_foundling_size():
         f"expected one jump foundling, got {len(foundlings)}"
     n = int(eng.instances[foundlings[0]].cells.sum())
     assert n >= 20, f"jump foundling born with {n} cells"
+
+
+# ── B6 §3 canopy shade (engine-side light) ────────────────────────────
+
+
+def _shade_fixture_cell(eng: Engine, preset: str = "herb_forb.thistle"
+                        ) -> tuple[int, int]:
+    """A land cell healthy for *preset* (s_env < 0) with the LARGEST
+    per-lineage capacity for it (K x U — the shared-cell density term
+    must not decide the arms: the canopy is bamboo, percap 0.47, so a
+    high-K cell keeps s_dens well below the lethal end and the shade
+    factor becomes the differentiator)."""
+    from exp.k15_simdiff.stress_adapter import evaluate as _ev
+    s_u = _s_env(eng, preset)
+    v_t = eng.sim.derive(eng.authority.mint(
+        eng._order_sid[preset],
+        eng._new_instance_id(eng._stream("test", f"peek:{preset}")),
+        eng._stream("test", f"peek:{preset}")).traits, eng.pack)
+    U = _ev(v_t, eng.ctx)["substrate_share"]
+    KL = eng.K * U
+    ok = eng.ctx.land_cell & (s_u < 0.0) & (KL > 0.1)
+    assert ok.any(), f"no shade-fixture cell for {preset}"
+    score = np.where(ok, KL, -np.inf)
+    y, x = np.unravel_index(int(np.argmax(score)), score.shape)
+    return int(y), int(x)
+
+
+def test_canopy_shade_kills_intolerant_spares_tolerant():
+    """B6 §3: a tall dense canopy over a shade-intolerant herb kills
+    it; over a shade-tolerant one it does not; a tall-enough plan
+    escapes (height_m is the growth answer — it enters the STRICTLY
+    taller comparison, so a canopy under a taller reader casts no
+    shade). Controlled fixture: ONE cell, the SAME bamboo canopy
+    (15 m, cd 0.65, percap 0.47 — dense but low-demand, so the shared-
+    cell density term is identical and secondary across arms) at max
+    density:
+      arm A: thistle body, shade_tolerance 0.15 -> extinct (the F x
+             f_light fold pushes s_real past the breakeven)
+      arm B: thistle body, shade_tolerance 0.9  -> survives (the
+             graded reliever)
+      arm C: a REAL birch (20 m > 15 m, shade_tolerance 0.2 — as
+             intolerant as the herb) on its own high-capacity cell,
+             under the same bamboo -> survives (escapes the shade)
+    Survival is asserted at LINEAGE level (a fast herb's patch splits
+    and re-merges across the window, absorbing the original instance id
+    — the coexistence-test convention)."""
+    def run_body(shade_tol):
+        eng = _engine()
+        cell = _shade_fixture_cell(eng)
+        _plant(eng, "grass_sward.bamboo", [cell], n0=1.0)
+        iid = _plant_variant(eng, "herb_forb.thistle", [cell],
+                             {"shade_tolerance": shade_tol}, n0=0.3)
+        sid = eng.instances[iid].x.species_id
+        for t in range(20):
+            eng.round(t)
+        alive = [d for d in eng.instances.values()
+                 if d.x.species_id == sid]
+        return bool(alive), sum(d.mass for d in alive)
+    dead = run_body(0.15)
+    spared = run_body(0.9)
+    # arm C: real birch under the same bamboo
+    eng = _engine()
+    cell = _shade_fixture_cell(eng, "tree.birch")
+    _plant(eng, "grass_sward.bamboo", [cell], n0=1.0)
+    b = _plant(eng, "tree.birch", [cell], n0=0.5)
+    sidb = eng.instances[b].x.species_id
+    for t in range(20):
+        eng.round(t)
+    escaped = [d for d in eng.instances.values() if d.x.species_id == sidb]
+    assert not dead[0], f"shade-intolerant thistle survived ({dead[1]:.3f})"
+    assert spared[0], f"shade-tolerant thistle died ({spared[1]:.3f})"
+    assert escaped, "taller-than-canopy birch died"
+
+
+def test_canopy_shade_height_escape():
+    """B6 §3: height_m is the growth answer — the shade comparison is
+    STRICTLY taller, so a reader at the top of the height ordering
+    reads f_light = 1 (no canopy above it), while a shorter reader
+    under the same canopy reads f_light < 1. Same cell, same canopy:
+    only the reader's height differs."""
+    eng = _engine()
+    s_oak = _s_env(eng, "tree.oak")
+    s_br = _s_env(eng, "shrub.bramble")
+    ok = eng.ctx.land_cell & (s_oak < 0.2) & (s_br < 0.0)
+    y, x = np.unravel_index(int(np.argmax(np.where(ok, -s_br, -np.inf))),
+                            s_br.shape)
+    cell = (int(y), int(x))
+    # bramble is 2 m under a 25 m oak -> shaded; the oak itself (equal
+    # height, NOT strictly taller) is not shaded
+    oak_i = _plant(eng, "tree.oak", [cell], n0=0.9)
+    br_i = _plant(eng, "shrub.bramble", [cell], n0=0.3)
+    light = eng._canopy_light_factors()
+    assert float(light[br_i].min()) < 0.99
+    assert np.allclose(light[oak_i], 1.0)
+    # a bare (single-instance) oak reads f_light = 1 everywhere
+    eng2 = _engine()
+    _plant(eng2, "tree.oak", [cell], n0=0.9)
+    light2 = eng2._canopy_light_factors()
+    iid = next(iter(eng2.instances))
+    assert np.allclose(light2[iid], 1.0)
 
 
 # ── §12.8 cache budget ───────────────────────────────────────────────

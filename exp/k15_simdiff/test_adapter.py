@@ -20,6 +20,7 @@ from exp.k15_simdiff.req_flora import (
     REQ_COLD,
     REQ_FERTILITY,
     REQ_FRESH_HABITAT,
+    REQ_GLACIER,
     REQ_HEAT,
     REQ_MEDIUM,
     REQ_PH_HIGH,
@@ -31,10 +32,14 @@ from exp.k15_simdiff.req_flora import (
     REQ_WATERLOGGING,
 )
 from exp.k15_simdiff.stress_adapter import (
+    DRIP_WET_W,
     FRESH_SAL_MAX,
+    MB_DRY_W,
+    MB_WET_W,
     MEDIUM_VIOLATION_F,
     WIND_REF_MS,
     WLOG_DRY_LIMIT,
+    WLOG_GRADED_W,
     WLOG_INVERT_T,
     WorldContext,
     evaluate,
@@ -106,6 +111,12 @@ def make_ctx(**overrides) -> WorldContext:
     ctx.ground_class = np.zeros((H, W), dtype=np.uint8)
     ctx.wind_ms = np.full((H, W), WIND_REF_MS, dtype=np.float32)  # neutral
     ctx.bottom_temp = np.zeros((H, W), dtype=np.float32)
+    # B6 §3 snow-load / glacier strata: preset NEUTRAL synthetic fields
+    # (no snowpack, no glacier) so the strata read the synthetic world
+    # — _ensure_snow_glacier skips the real-world load when either is
+    # set (a 256² real field would not broadcast against this 4² grid).
+    ctx.snow_mm = np.zeros((N, H, W), dtype=np.float32)
+    ctx.glacier = np.zeros((H, W), dtype=bool)
     ctx.mix_ids, ctx.mix_w = mix if mix is not None else \
         mix_arrays((DEFAULT_MIX_CLASS, 1.0))
     for k, v in overrides.items():
@@ -272,7 +283,11 @@ def test_water_dry_end_shortfall():
                                                dtype=np.float32))
     dry = evaluate(base_view(moisture_opt=0.5, drought_tolerance=0.0),
                    ctxdry)[REQ_WATER][0]
-    assert np.allclose(dry, 0.0)                # bone dry, no tolerance
+    # B6 §2 graded relief (parallel B6 change landed 2026-08-01):
+    # moisture_breadth (0.3, the base_view default) buys dry-side
+    # relief — the bone-dry cell is lifted off 0 to
+    # 1 - (1 - 0) x (1 - MB_DRY_W x 0.3), never fully docked.
+    assert np.allclose(dry, MB_DRY_W * 0.3)
     # drought tolerance lowers the need: same dry cell, higher f
     tol = evaluate(base_view(moisture_opt=0.5, drought_tolerance=1.0),
                    ctxdry)[REQ_WATER][0]
@@ -291,7 +306,11 @@ def test_waterlogging_inversion():
     f_wet = evaluate(wet_plan, ctx_marsh)[REQ_WATERLOGGING][0]
     assert np.allclose(f_wet, 1.0)
     bad_wet = evaluate(wet_plan, ctx_dry)[REQ_WATERLOGGING][0]
-    assert np.allclose(bad_wet, 0.0)
+    # B6 §2 graded relief (parallel B6 change landed 2026-08-01): the
+    # wetness credits lift the fully-docked inverted term off 0 to
+    # 1 - (1 - 0) x (1 - MB_WET_W x 0.3) — dry ground is still nearly
+    # the whole cost, never exactly a cutoff.
+    assert np.allclose(bad_wet, MB_WET_W * 0.3)
     # the water-availability term reads the marsh too
     assert np.allclose(
         evaluate(wet_plan, ctx_marsh)[REQ_WATER][0], 1.0)
@@ -303,8 +322,9 @@ def test_waterlogging_inversion():
     dry_plan = base_view(waterlogging_tolerance=0.0)
     assert np.allclose(evaluate(dry_plan, wp_dry)[REQ_WATERLOGGING][0],
                        1.0)
+    # the saturated end keeps the same wetness-relief floor as above
     assert np.allclose(evaluate(dry_plan, wp_wet)[REQ_WATERLOGGING][0],
-                       0.0)
+                       MB_WET_W * 0.3)
 
 
 def test_fertility_shortfall():
@@ -413,6 +433,29 @@ def test_submerged_light():
     surface = evaluate(base_view(medium="water", submerged=0,
                                  salinity_tolerance=0.9), ctx)
     assert REQ_SUBMERGED_LIGHT not in surface
+
+
+def test_submerged_freshwater_plan_reads_fresh_photic():
+    """Regression (B4 fix 2026-08-01): ctx.photic used to be the
+    OCEAN-ONLY photic field — 0 on every lake/river cell — so a
+    submerged freshwater plan read REQ_SUBMERGED_LIGHT = 0, lethal by
+    construction. With the fresh photic derivation wired in, the same
+    20 m lake sits inside its photic zone and the light factor is 1."""
+    from exp.k14_worldprod import water as _water
+    lake = np.ones((H, W), dtype=bool)
+    photic = _water.fresh_photic_depth_m(
+        np.zeros((H, W)), np.zeros((H, W)), lake).astype(np.float32)
+    ctx = make_ctx(
+        water_cell=lake, land_cell=~lake,
+        column_depth=np.full((H, W), 20.0, dtype=np.float32),
+        photic=photic,
+        fresh_availability=np.ones((N, H, W), dtype=np.float32))
+    r = evaluate(base_view(medium="water", submerged=1,
+                           salinity_tolerance=0.1), ctx)
+    assert REQ_SUBMERGED_LIGHT in r
+    # 20 m column < 30 m fresh photic: no shortfall in the photic zone
+    assert (r[REQ_SUBMERGED_LIGHT] > 0.0).all()
+    assert np.allclose(r[REQ_SUBMERGED_LIGHT], 1.0)
 
 
 def test_rooting_excess_and_anchoring():
@@ -595,3 +638,188 @@ def test_substrate_share_capacity_split():
     # water-medium plans carry no ground: share is 1.0 everywhere
     rw = evaluate(base_view(medium="water", salinity_tolerance=0.9), ctx)
     assert np.allclose(rw["substrate_share"], 1.0)
+
+
+# ── B6 §2 hand-wiring credits (biosphere-addendum-b6) ──────────────────
+
+
+def test_fertility_symbiosis_credits():
+    """B6 §2: mycorrhizal / n_fixation are pressure:fertility responders
+    with no factor read — the NUTRIENT CREDIT is the read. Each acquired
+    symbiosis grade lifts the effective nutrient of every mix class, so
+    the same poor soil scores higher fertility for a symbiont-bearing
+    plan. The credit is graded by state (arbuscular < ecto), additive
+    across the two axes, and capped by the shortfall shape."""
+    ctxpoor = make_ctx(mix=mix_arrays(("scree", 1.0)))     # nutrient .05
+    bare = evaluate(base_view(fertility_requirement=0.5,
+                              mycorrhizal="none",
+                              n_fixation="none"), ctxpoor)[REQ_FERTILITY][0]
+    # no credit: the plain shortfall shape
+    assert np.allclose(bare, 1.0 - sat((0.5 - 0.05) / 0.5))
+    myc = evaluate(base_view(fertility_requirement=0.5,
+                             mycorrhizal="arbuscular",
+                             n_fixation="none"), ctxpoor)[REQ_FERTILITY][0]
+    ecto = evaluate(base_view(fertility_requirement=0.5,
+                              mycorrhizal="ecto",
+                              n_fixation="none"), ctxpoor)[REQ_FERTILITY][0]
+    both = evaluate(base_view(fertility_requirement=0.5,
+                              mycorrhizal="arbuscular",
+                              n_fixation="rhizobium"), ctxpoor)[REQ_FERTILITY][0]
+    assert (myc > bare).all()
+    assert (ecto > myc).all()                   # ecto credits more
+    assert (both > ecto).all()                  # additive across axes
+    # on rich soil the credit is invisible (shortfall already 0)
+    ctxrich = make_ctx(mix=mix_arrays(("mollisol", 1.0)))
+    assert np.allclose(
+        evaluate(base_view(fertility_requirement=0.3, mycorrhizal="none"),
+                 ctxrich)[REQ_FERTILITY], 1.0)
+
+
+def test_halophyte_salinity_grade_credit():
+    """B6 §2: nutrient_package "halophyte" is a salinity-tolerance GRADE
+    credit (a pressure:salinity responder with no factor read — this is
+    the read). Water plans (kelp/seagrass/coral/sponge are the halophyte
+    presets) and land plans both benefit; the credit raises the
+    effective tolerance, so the same salt water scores higher."""
+    salty = np.full((H, W), 0.9, dtype=np.float32)          # ocean-ish
+    plain = evaluate(base_view(medium="water", salinity_tolerance=0.8,
+                               nutrient_package="none"),
+                     make_ctx(sal_water=salty))[REQ_SALINITY][0]
+    halo = evaluate(base_view(medium="water", salinity_tolerance=0.8,
+                              nutrient_package="halophyte"),
+                    make_ctx(sal_water=salty))[REQ_SALINITY][0]
+    assert (halo > plain).all()
+    # exact shape: tolerance 0.8 + 0.15 credit vs sal 0.9, ref 1.0
+    assert np.allclose(plain, 1.0 - sat((0.9 - 0.8) / 1.0))
+    assert np.allclose(halo, 1.0 - sat((0.9 - 0.95) / 1.0))
+    # land plans read the same credit against the best mix class
+    ctxland = make_ctx(mix=mix_arrays(("solonchak", 1.0)))
+    l_plain = evaluate(base_view(salinity_tolerance=0.85,
+                                 nutrient_package="none"),
+                       ctxland)[REQ_SALINITY][0]
+    l_halo = evaluate(base_view(salinity_tolerance=0.85,
+                                nutrient_package="halophyte"),
+                      ctxland)[REQ_SALINITY][0]
+    assert (l_halo > l_plain).all()
+
+
+def test_wetness_credits_waterlogging():
+    """B6 §2: drip_tips (scalar 0..1) and serrate/toothed leaf_margin
+    are wetness credits on the waterlogging excess for DRY plans — a
+    plan with drip tips / wet-climate teeth is relieved in very wet
+    cells. spinose/entire carry none; the relief is capped at 1.
+    (moisture_breadth is zeroed so the mb wet-side relief does not
+    confound the exact values.)"""
+    ctxwet = make_ctx(water_potential=np.ones((N, H, W), dtype=np.float32))
+    bare = evaluate(base_view(waterlogging_tolerance=0.0, drip_tips=None,
+                              leaf_margin="entire", moisture_breadth=0.0),
+                    ctxwet)[REQ_WATERLOGGING][0]
+    assert np.allclose(bare, 0.0)               # fully saturated: no relief
+    drip = evaluate(base_view(waterlogging_tolerance=0.0, drip_tips=1.0,
+                              leaf_margin="entire", moisture_breadth=0.0),
+                    ctxwet)[REQ_WATERLOGGING][0]
+    assert (drip > bare).all()
+    serr = evaluate(base_view(waterlogging_tolerance=0.0, drip_tips=None,
+                              leaf_margin="serrate", moisture_breadth=0.0),
+                    ctxwet)[REQ_WATERLOGGING][0]
+    spin = evaluate(base_view(waterlogging_tolerance=0.0, drip_tips=None,
+                              leaf_margin="spinose", moisture_breadth=0.0),
+                    ctxwet)[REQ_WATERLOGGING][0]
+    assert (serr > spin).all()                  # teeth relieve, spines don't
+    # exact: drip 1.0 -> DRIP_WET_W relief on the fully-docked cost
+    assert np.allclose(drip, DRIP_WET_W)
+    # a dry cell is unaffected (the excess cost is already 1)
+    ctxdry = make_ctx(water_potential=np.zeros((N, H, W), dtype=np.float32))
+    assert np.allclose(
+        evaluate(base_view(waterlogging_tolerance=0.0, drip_tips=1.0),
+                 ctxdry)[REQ_WATERLOGGING][0], 1.0)
+
+
+def test_waterlogging_graded_relief_below_cliff():
+    """B6 §2: waterlogging_tolerance below the WLOG_INVERT_T inversion
+    cliff is no longer a dead dial — it gives graded partial relief on
+    the saturated-end cost, ramping to WLOG_GRADED_W at the cliff. The
+    wet-obligate inversion (tolerance >= cliff) is untouched."""
+    ctxwet = make_ctx(water_potential=np.ones((N, H, W), dtype=np.float32),
+                      moisture_breadth=0.0)
+    tol0 = evaluate(base_view(waterlogging_tolerance=0.0,
+                              moisture_breadth=0.0),
+                    ctxwet)[REQ_WATERLOGGING][0]
+    tolM = evaluate(base_view(waterlogging_tolerance=0.35,
+                              moisture_breadth=0.0),
+                    ctxwet)[REQ_WATERLOGGING][0]
+    assert np.allclose(tol0, 0.0)
+    # relief ramps with tolerance: 0.35/0.7 x WLOG_GRADED_W
+    assert np.allclose(tolM, WLOG_GRADED_W * 0.35 / WLOG_INVERT_T)
+    # at the cliff the DRY shape flips to the wet-obligate requirement
+    ctxmarsh = make_ctx(fresh_availability=np.ones((N, H, W),
+                                                   dtype=np.float32),
+                        moisture_breadth=0.0)
+    wet = evaluate(base_view(waterlogging_tolerance=WLOG_INVERT_T,
+                             moisture_breadth=0.0),
+                   ctxmarsh)[REQ_WATERLOGGING][0]
+    assert np.allclose(wet, 1.0)                # the marsh IS the habitat
+
+
+# ── B6 §3 snow-load + glacier strata ───────────────────────────────────
+
+
+def test_snow_load_graded_reliever():
+    """B6 §3: the snow-load term folds into REQ_COLD — a month whose
+    snowpack (mm WE) exceeds the plan's tolerance docks the cold factor.
+    Tolerance = state_tol(snow_adaptation) + height x SNOW_HEIGHT_MM;
+    snow_adaptation is the GRADED reliever (it previously only shifted
+    temp_opt in the derive envelope), and height rides the pack."""
+    snow = np.full((N, H, W), 800.0, dtype=np.float32)   # ~8 m of snow
+    ctx = make_ctx(t_c=np.full((N, H, W), 15.0, dtype=np.float32),
+                   snow_mm=snow)
+    none = evaluate(base_view(height_m=2.0, snow_adaptation="none"),
+                    ctx)[REQ_COLD][0]
+    # tol = 0 + 2 x 200 = 400; f = 1 - sat((800-400)/600) = 1 - 2/3
+    assert np.allclose(none, 1.0 / 3.0)
+    shed = evaluate(base_view(height_m=2.0,
+                              snow_adaptation="conical_shed"),
+                    ctx)[REQ_COLD][0]
+    assert (shed > none).all()                  # the graded reliever
+    # tall plants ride above the pack: 20 m -> tol 4000 > 800
+    tall = evaluate(base_view(height_m=20.0, snow_adaptation="none"),
+                    ctx)[REQ_COLD][0]
+    assert np.allclose(tall, 1.0)
+    # no snow -> no cost
+    ctxclear = make_ctx(t_c=np.full((N, H, W), 15.0, dtype=np.float32))
+    assert np.allclose(
+        evaluate(base_view(height_m=1.0, snow_adaptation="none"),
+                 ctxclear)[REQ_COLD], 1.0)
+    # water plans carry no snow term (the snow field is land-only and
+    # the submerged/water branches skip it)
+    wctx = make_ctx(t_c=np.full((N, H, W), 15.0, dtype=np.float32),
+                    snow_mm=snow, water_cell=np.ones((H, W), bool),
+                    land_cell=np.zeros((H, W), bool),
+                    sal_water=np.zeros((H, W), dtype=np.float32))
+    wv = evaluate(base_view(medium="water", salinity_tolerance=0.9,
+                            height_m=1.0, snow_adaptation="none"), wctx)
+    # REQ_COLD for a water plan at the 15 C optimum is 1 (the snow term
+    # is gated to medium == "land")
+    assert np.allclose(wv[REQ_COLD], 1.0)
+
+
+def test_glacier_habitat_exclusion():
+    """B6 §3: a land plan on a year-round glacier cell is ~1 always
+    (MEDIUM_VIOLATION_F, the medium-boundary precedent — costly, never
+    a deletion); a snow-adapted plan (any state) is exempt — the
+    snow-adapted grade lives at the ice margin."""
+    gmask = np.zeros((H, W), dtype=bool)
+    gmask[0, 0] = True
+    ctx = make_ctx(glacier=gmask)
+    plain = evaluate(base_view(), ctx)[REQ_GLACIER]
+    assert plain[0, 0, 0] == pytest.approx(MEDIUM_VIOLATION_F)
+    assert np.allclose(plain[:, 0, 1:], 1.0)    # non-glacier cells fine
+    exempt = evaluate(base_view(snow_adaptation="conical_shed"),
+                      ctx)[REQ_GLACIER]
+    assert np.allclose(exempt, 1.0)
+    # water plans keep the medium boundary (glaciers sit on land)
+    wctx = make_ctx(glacier=gmask, water_cell=np.ones((H, W), bool),
+                    land_cell=np.zeros((H, W), bool),
+                    sal_water=np.zeros((H, W), dtype=np.float32))
+    wv = evaluate(base_view(medium="water", salinity_tolerance=0.9), wctx)
+    assert np.allclose(wv[REQ_GLACIER], 1.0)

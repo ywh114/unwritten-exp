@@ -39,18 +39,20 @@ responders = [
     { trait = "deciduous_trigger", toward = ["winter"], weight = 1.0 },
     { trait = "growing_season_req", dir = "down", weight = 1.0 },
     { trait = "leafout_month", dir = "up", weight = 0.5 },
-    { trait = "bark_thickness_cm", dir = "up", weight = 0.4 },
     { trait = "pubescence", dir = "up", weight = 0.4 }
 ]
 # The T-requirement is SPLIT one-sided env-side (req_flora ruling
 # 2026-08-01): pressure:cold = saturating shortfall of T below the
-# derived envelope optimum (plus the growing-season and C4/CAM cold
-# terms, which are cold phenomena). Answering it MOVES the envelope:
-# winter deciduousness (leaf_persistence/deciduous_trigger) drops
-# temp_opt and widens temp_breadth (the derive table rewards it),
-# a shorter growing_season_req is cold adaptation, later leafout
-# skips the frost-risk band, bark and pubescence insulate. Leaf size
-# is NOT a cold responder: the derive table reads small leaves as
+# derived envelope optimum (plus the growing-season, C4/CAM cold, and
+# B6 snow-load terms, which are cold phenomena). Answering it MOVES the
+# envelope: winter deciduousness (leaf_persistence/deciduous_trigger)
+# drops temp_opt and widens temp_breadth (the derive table rewards it),
+# a shorter growing_season_req is cold adaptation, later leafout skips
+# the frost-risk band, and pubescence insulates. bark_thickness_cm was
+# REMOVED as a cold responder (B6 §2, 2026-08-01): it is the FIRE axis
+# (vocab §6) and fire is owner-deferred — a dead dial under cold
+# pressure (see biosphere-addendum-b6-flora-wiring.md). Leaf size is
+# NOT a cold responder: the derive table reads small leaves as
 # hot/arid (T_LEAF_C raises the optimum) — shrinking them under cold
 # pressure would contradict the direction of the pressure.
 
@@ -179,14 +181,28 @@ responders = []
 # emergent from pressure:salinity's drift, not a direct responder.
 
 [[responder]]
+name = "pressure:glacier"
+responders = []
+# Glacier habitat exclusion (B6 §3): a land plan on a year-round glacier
+# cell is ~1 always (MEDIUM_VIOLATION_F); snow_adaptation != none
+# exempts (the snow-adapted grade lives at the ice margin). Medium-level
+# exclusion, same ruling as pressure:medium — no driftable responder;
+# the lineage simply shrinks where the ice is.
+
+[[responder]]
 name = "pressure:light"
 responders = [
     { trait = "shade_tolerance", dir = "up", weight = 1.0 },
     { trait = "height_m", dir = "up", weight = 0.5 }
 ]
-# Submerged below the photic depth (B5 §4.3): shade_tolerance is the
-# light-strategy axis (one-axis ruling), and taller growth reaches the
-# photic zone (kelp stipes, seagrass blades).
+# The light requirement has TWO env sides sharing the name (B6 §3,
+# 2026-08-01): the adapter's photic term (REQ_SUBMERGED_LIGHT, B5 §4.3)
+# for benthic water plans, and the ENGINE's canopy shade term for land
+# plans (a dynamic round-time factor — shade_tolerance is the graded
+# reliever, and taller growth literally escapes the shade via the
+# height comparison in the engine's pass). The two never co-occur on
+# one instance. Both answer the same way: raise shade_tolerance and
+# grow taller.
 
 [[responder]]
 name = "pressure:habitat"

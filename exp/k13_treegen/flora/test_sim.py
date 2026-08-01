@@ -36,6 +36,10 @@ REQ_VIEW_KEYS = (
     "photosynthesis", "winter_deciduous", "leafout_month",
     "drought_deciduous", "bloom_start_month", "bloom_length_months",
     "medium", "anchoring_need", "holdfast", "submerged",
+    # B6 hand-wiring keys (biosphere-addendum-b6; the k15 strata read
+    # them — see req_flora's comment block)
+    "mycorrhizal", "n_fixation", "nutrient_package", "drip_tips",
+    "leaf_margin", "snow_adaptation", "layer", "canopy_density",
     # engine-side dispersal (K15 rounds; owner ruling 2026-08-01: every
     # trait the engine directly needs rides the view)
     "dispersal_channels", "propagule_mass_mg", "propagule_count",
@@ -406,3 +410,47 @@ def test_vital_tree_vs_duckweed(sim, pack):
     assert duck.birth > oak.birth
     assert 0.0 < oak.death < duck.death
     assert 0.0 < oak.birth
+
+
+def test_vital_growth_rate_scales_birth(sim, pack):
+    """B6 §2: growth_rate scales birth — a saturating multiplier
+    1 + GROWTH_BIRTH_COEF x sat(growth_rate / GROWTH_REF_MY). Two
+    otherwise-identical trees differing only in growth_rate: the faster
+    one has the larger birth rate; a zero-rate plan is unchanged vs the
+    baseline (multiplier 1)."""
+    from exp.k13_treegen.flora.sim import GROWTH_BIRTH_COEF, GROWTH_REF_MY
+    base = _traits(pack, "tree.oak")
+    slow = {**base, "growth_rate": 0.0}
+    fast = {**base, "growth_rate": GROWTH_REF_MY}
+    b_slow = sim.vital(slow, pack).birth
+    b_fast = sim.vital(fast, pack).birth
+    assert b_fast > b_slow
+    # exact multiplier at the reference rate
+    b_zero = sim.vital({k: v for k, v in base.items()}, pack).birth
+    # base oak authors growth_rate 0.35; force zero explicitly
+    b_zero = sim.vital({**base, "growth_rate": 0.0}, pack).birth
+    assert b_fast == pytest.approx(b_zero * (1.0 + GROWTH_BIRTH_COEF))
+
+
+def test_vital_wood_density_scales_death_inverse(sim, pack):
+    """B6 §2: wood_density scales death INVERSELY — x (1 - COEF x
+    sat(wd / REF)). Denser wood dies slower; plans without the axis
+    (plan_scope tree/shrub/succulent) read 0 -> multiplier 1."""
+    from exp.k13_treegen.flora.sim import (
+        WOOD_DENSITY_DEATH_COEF,
+        WOOD_DENSITY_REF,
+    )
+    base = _traits(pack, "tree.oak")           # authors wood_density 0.75
+    light = {**base, "wood_density": 0.0}
+    dense = {**base, "wood_density": WOOD_DENSITY_REF}
+    d_light = sim.vital(light, pack).death
+    d_dense = sim.vital(dense, pack).death
+    assert d_dense < d_light
+    assert d_dense == pytest.approx(
+        d_light * (1.0 - WOOD_DENSITY_DEATH_COEF))
+    # a plan that does not author the axis (absent/0 -> multiplier 1)
+    # is unaffected: forcing wd 0 changes nothing
+    duck = sim.vital(_traits(pack, "floater.duckweed"), pack)
+    duck2 = sim.vital({**_traits(pack, "floater.duckweed"),
+                       "wood_density": 0.0}, pack)
+    assert duck.death == pytest.approx(duck2.death)

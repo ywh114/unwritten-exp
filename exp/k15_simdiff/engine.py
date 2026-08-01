@@ -42,6 +42,7 @@ from exp.k15_simdiff import dispersal as dsp
 from exp.k15_simdiff import genesis as gen
 from exp.k15_simdiff import population as pop
 from exp.k15_simdiff import stress_adapter as sa
+from exp.k15_simdiff.req_flora import REQ_LIGHT
 from kernel.hashrng import Stream
 from kernel.stress.stress import compose
 
@@ -414,7 +415,74 @@ class Engine:
 
     # ── §4 step 1: verdict feed ──────────────────────────────────────
 
-    def _verdict_feed(self, t: int) -> None:
+    def _canopy_light_factors(self) -> dict[str, np.ndarray]:
+        """B6 §3 canopy-light pass (engine-side; the stress adapter is
+        per-lineage blind, so the shade field is a ROUND-TIME term the
+        engine computes). Per LAND instance, the (box-window) f_light
+        array over its cells:
+
+            shade(c)   = clip(Σ_i cd_i · N_i(c) over instances i with
+                             height_i > height_reader, 0, 1)
+            f_light(c) = clip(1 − LAYER_LIGHT_COEF[layer] · shade(c)
+                              · (1 − shade_tolerance), 0, 1)
+
+        canopy_density rides the derived view (flora.derive
+        _derived_canopy_density, exposed through FloraSim.derive);
+        height_m is the growth answer — it enters through the strict
+        ``>`` comparison, so a taller reader literally escapes the
+        shade of a shorter canopy. The layer axis modulates exposure
+        (understory plans EXPECT shade: coef understory < subcanopy <
+        canopy). Deterministic: instances processed in sorted id order,
+        the canopy planes accumulated in sorted-height order (float
+        accumulation pinned by the hard rule)."""
+        H, W = self.ctx.H, self.ctx.W
+        by_h: dict[float, list[Dressed]] = {}
+        for d in self.instances.values():
+            cd = float(d.view.get("canopy_density") or 0.0)
+            h = float(d.view.get("height_m") or 0.0)
+            if cd <= 0.0 or h <= 0.0:
+                continue
+            by_h.setdefault(h, []).append(d)
+        if not by_h:
+            return {}
+        hs = sorted(by_h, reverse=True)          # descending heights
+        planes = []
+        for h in hs:
+            plane = np.zeros((H, W), dtype=np.float64)
+            # sorted instance ids within a height: the float accumulation
+            # order is pinned by the hard rule, not by dict insertion
+            by_iid = {d.x.instance_id: d for d in by_h[h]}
+            for iid in sorted(by_iid):
+                d = by_iid[iid]
+                plane[d.world_slice()] += d.N * float(
+                    d.view.get("canopy_density") or 0.0)
+            planes.append(plane)
+        # cums[k] = sum of the k TALLEST planes (heights hs[:k]);
+        # reader shade = cums[count of heights > height_reader].
+        cums = [np.zeros((H, W), dtype=np.float64)]
+        for p in planes:
+            cums.append(cums[-1] + p)
+        out: dict[str, np.ndarray] = {}
+        for iid in sorted(self.instances):
+            d = self.instances[iid]
+            if d.view.get("medium") == "water":
+                continue
+            h_r = float(d.view.get("height_m") or 0.0)
+            cnt = 0
+            while cnt < len(hs) and hs[cnt] > h_r:
+                cnt += 1
+            shade = np.clip(cums[cnt][d.world_slice()], 0.0, 1.0)
+            layer = str(d.view.get("layer") or "ground")
+            coef = sa.LAYER_LIGHT_COEF.get(layer, 0.5)
+            tol = d.view.get("shade_tolerance")
+            tol = float(tol) if isinstance(tol, (int, float)) else 0.0
+            f = np.clip(1.0 - coef * shade
+                        * (1.0 - min(max(tol, 0.0), 1.0)), 0.0, 1.0)
+            out[iid] = f.astype(np.float32)
+        return out
+
+    def _verdict_feed(self, t: int,
+                      light: dict[str, np.ndarray]) -> None:
         for iid in sorted(self.instances):
             d = self.instances[iid]
             total = d.mass
@@ -425,6 +493,15 @@ class Engine:
                        (d.cache.prov[r][y0:y1, x0:x1] * d.N).sum()
                        / total)
                    for r in range(len(d.cache.names))}
+            # B6 §3 canopy light: the dynamic shade factor joins the
+            # cached provenance BEFORE compose (aggregated over the
+            # instance's own cells, N-weighted — same shape as the
+            # cache aggregation). The factor planes were computed ONCE
+            # for the round (the round's entry state — the feed and the
+            # population step read the SAME shade field).
+            f_light = light.get(iid)
+            if f_light is not None:
+                agg[REQ_LIGHT] = float((f_light * d.N).sum() / total)
             res = compose(agg)
             verdict = StressVerdict(s=res.s, provenance=res.factors)
             pressure = self.sim.select(verdict, d.x.traits, self.pack)
@@ -443,12 +520,22 @@ class Engine:
 
     # ── §4 step 2: population update ─────────────────────────────────
 
-    def _population(self) -> dict[str, np.ndarray]:
+    def _population(self, light: dict[str, np.ndarray]
+                    ) -> dict[str, np.ndarray]:
         """§6 per instance × cell. Returns the per-instance s_real
         WINDOW fields (the dispersal emission gate reads mean s_real).
         The shared cell demand D(c) is accumulated window-by-window
         (bbox optimization) — the same sum the (I,H,W) einsum computed,
-        in the same instance order."""
+        in the same instance order.
+
+        B6 §3 canopy light rides DEMOGRAPHY here, not just the verdict:
+        the shade factor is dynamic (the cache is static), so the
+        engine folds f_light into the demographic F before the vital
+        update — s_env_eff = 1 - 2 x (F_worst x f_light). A shaded
+        intolerant understory is pushed over the breakeven; the same
+        cell at the same density with shade_tolerance relief stays
+        under it (the verdict provenance carries the same factor, so
+        selection and demography agree)."""
         live = [d for d in self.instances.values() if d.mass > 0.0]
         if not live:
             return {}
@@ -459,19 +546,34 @@ class Engine:
         dead = []
         for d in live:
             ws = d.world_slice()
+            f_light = light.get(d.x.instance_id)
+            f_worst = d.cache.f_worst[ws]
+            if f_light is not None:
+                f_worst = f_worst * f_light
+            s_env_eff = (1.0 - 2.0 * f_worst).astype(np.float64)
             K_L = pop.lineage_capacity(self.K[ws], d.cache.U[ws])
             N1, _abandoned = pop.update_instance(
-                d.N, d.cache.s_env[ws], D[ws], K_L,
+                d.N, s_env_eff, D[ws], K_L,
                 d.vital.birth, d.vital.death)
             d.N = N1
             if d.mass <= 0.0:
                 dead.append(d.x.instance_id)
                 continue
             # trim first so the s_real window matches the instance box
-            # the dispersal step will see
+            # the dispersal step will see. The light fold is re-sliced
+            # at the NEW box — the factor window was computed at the
+            # pre-trim box, so it is EMBEDDED to the new box (fill 1.0:
+            # cells outside the old window had no N and thus no shade).
+            old_box = d.box
             d.rewindow(_dressed_box(d))
             ws = d.world_slice()
-            s_real[d.x.instance_id] = d.cache.s_env[ws] \
+            f_light = light.get(d.x.instance_id)
+            f_worst = d.cache.f_worst[ws]
+            if f_light is not None:
+                f_light_now = _embed(f_light, old_box, d.box, 1.0)
+                f_worst = f_worst * f_light_now
+            s_real[d.x.instance_id] = \
+                (1.0 - 2.0 * f_worst).astype(np.float64) \
                 + pop.density_stress(D[ws], pop.lineage_capacity(
                     self.K[ws], d.cache.U[ws]))
         for iid in dead:
@@ -1036,9 +1138,13 @@ class Engine:
     # ── the round ────────────────────────────────────────────────────
 
     def round(self, t: int) -> ChangeLog:
-        """One round (spec §4, steps in order)."""
-        self._verdict_feed(t)
-        s_real = self._population()
+        """One round (spec §4, steps in order). The canopy-light factor
+        planes are computed ONCE at the round's entry state and shared
+        by the verdict feed and the population update (both must read
+        the same shade field)."""
+        light = self._canopy_light_factors()
+        self._verdict_feed(t, light)
+        s_real = self._population(light)
         self._dispersal(t, s_real)
         self._dressing(t)
         return self._commit(t)
