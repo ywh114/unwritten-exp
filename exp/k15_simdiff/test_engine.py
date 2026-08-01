@@ -275,6 +275,82 @@ def test_reduced_cache_budget():
     assert mb <= REDUCED_CACHE_MB
 
 
+# ── §9 consolidation (v0.4.2) ─────────────────────────────────────────
+
+
+def _two_good_cells(eng: Engine, preset: str,
+                    far: bool) -> tuple[tuple[int, int], tuple[int, int]]:
+    """Two viable (s_env < 0) fixture cells for *preset*: the best cell
+    and, for *far*, the best cell at least half a world away; else a
+    neighbor of the first."""
+    s = _s_env(eng, preset)
+    ok = np.where(eng.ctx.land_cell & (s < 0.0), s, np.inf)
+    y1, x1 = np.unravel_index(int(np.argmin(ok)), ok.shape)
+    if not far:
+        return (int(y1), int(x1)), (int(y1), int(x1) + 1)
+    far_ok = ok.copy()
+    yy, xx = np.mgrid[0:ok.shape[0], 0:ok.shape[1]]
+    far_ok[(np.abs(yy - y1) < ok.shape[0] // 2)
+           & (np.abs(xx - x1) < ok.shape[1] // 2)] = np.inf
+    y2, x2 = np.unravel_index(int(np.argmin(far_ok)), far_ok.shape)
+    assert np.isfinite(far_ok).any()
+    return (int(y1), int(x1)), (int(y2), int(x2))
+
+
+def test_stacked_siblings_merge():
+    """Two instances of ONE lineage sharing a cell (the stacking the
+    shift-grid gate was blind to) become merge candidates via the
+    overlap pass and collapse once MERGE_GRACE has passed (eligible at
+    commit round 5, the sixth update)."""
+    eng = _engine()
+    c1, c2 = _two_good_cells(eng, "grass_sward.tussock", far=False)
+    a = _plant(eng, "grass_sward.tussock", [c1, c2])
+    b = _plant(eng, "grass_sward.tussock", [c1])     # shares c1 with a
+    for t in range(6):
+        eng.round(t)
+    survivors = [iid for iid in (a, b) if iid in eng.instances]
+    assert len(survivors) == 1
+    merged = eng.instances[survivors[0]]
+    got = _cell(merged, *c2)
+    assert got is not None and got[0] > 0.0, "merged range lost a cell"
+
+
+def test_periodic_full_consolidation():
+    """The CONSOL_EVERY commit joins NON-TOUCHING same-lineage
+    instances (zero drift => d < MERGE_D) once MERGE_GRACE has passed:
+    at the round-4 consolidation grace is 4 < 5, so the first
+    effective consolidation is round 9 — two blocks half a world
+    apart are one instance after the round-9 commit. The join is not
+    sticky across dressings: with no rain bridge the far fragment
+    re-splits within two dressings (split hysteresis) — the sawtooth
+    that caps instance growth."""
+    eng = _engine()
+    c1, c2 = _two_good_cells(eng, "tree.oak", far=True)
+    a = _plant(eng, "tree.oak", [c1])
+    b = _plant(eng, "tree.oak", [c2])
+    for t in range(5):                    # commits 0..4; grace still < 5
+        eng.round(t)
+    assert a in eng.instances and b in eng.instances, \
+        "merged inside MERGE_GRACE"
+    for t in range(5, 10):                # round-9 commit consolidates
+        eng.round(t)
+    survivors = [iid for iid in (a, b) if iid in eng.instances]
+    assert len(survivors) == 1, "far instances never consolidated"
+    m = survivors[0]
+    for cell in (c1, c2):
+        got = _cell(eng.instances[m], *cell)
+        assert got is not None and got[0] > 0.0, \
+            f"consolidated range lost {cell}"
+    for t in range(10, 12):               # two dressings: re-split
+        eng.round(t)
+    who1 = next((iid for iid, d in eng.instances.items()
+                 if (got := _cell(d, *c1)) and got[0] > 0.0), None)
+    who2 = next((iid for iid, d in eng.instances.items()
+                 if (got := _cell(d, *c2)) and got[0] > 0.0), None)
+    assert who1 is not None and who2 is not None and who1 != who2, \
+        "far fragment never re-split"
+
+
 # ── §12.9 hard-rule audit ────────────────────────────────────────────
 
 

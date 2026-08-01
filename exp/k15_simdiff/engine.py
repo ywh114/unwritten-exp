@@ -62,6 +62,14 @@ MOB_K = 1.0           # mobility gain: TH = DIFF_D · (1 + MOB_K · mob)
 DIFF_MIN_CELLS = 32   # divergent sub-range split size floor (sliver
                       # suppression: below it the blob incubates inside
                       # the parent, never mints)
+CONSOL_EVERY = 5      # full-lineage consolidation period (spec v0.4.2
+                      # §9): every CONSOL_EVERY-th commit the merge
+                      # candidates are ALL same-lineage pairs (not just
+                      # touching/overlapping), collapsing every
+                      # non-differentiated (d < MERGE_D, grace-honored)
+                      # instance cluster to one record. The §9 "final
+                      # pass" run periodically — the instance-count
+                      # governor (owner ruling 2026-08-01)
 
 _D8 = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0),
        (1, 1)]
@@ -813,12 +821,17 @@ class Engine:
 
     def _merge_candidates(self) -> set[frozenset[str]]:
         """The engine-side spatial-contact gate (§9): same-lineage
-        instance pairs whose N>0 cells 8-touch. Vectorized world-grid
-        shift method (the pair-by-pair rect test produced 100k+
-        candidates and dominated the commit at high instance counts):
-        per lineage, an int grid of instance index per occupied cell;
-        each of the 4 forward shift directions yields every touching
-        unordered pair exactly once."""
+        instance pairs whose N>0 cells 8-touch OR OVERLAP. Vectorized
+        world-grid shift method for touching (the pair-by-pair rect
+        test produced 100k+ candidates and dominated the commit at high
+        instance counts): per lineage, an int grid of instance index
+        per occupied cell; each of the 4 forward shift directions
+        yields every touching unordered pair exactly once. Overlap
+        needs a separate pass: the shift grid holds only ONE index per
+        cell (later paints overwrite), so stacked instances — several
+        instances of one lineage occupying the SAME cell — are
+        invisible to it. A per-cell layer-count grid finds the overlap
+        cells, then each instance reports which of them it covers."""
         by_lineage: dict[str, list[Dressed]] = {}
         for d in self.instances.values():
             by_lineage.setdefault(d.x.species_id, []).append(d)
@@ -828,9 +841,11 @@ class Engine:
             if len(ds) < 2:
                 continue
             who = np.full((H, W), -1, dtype=np.int32)
+            layers = np.zeros((H, W), dtype=np.int16)
             for k, d in enumerate(ds):
                 y0, y1, x0, x1 = d.box
                 who[y0:y1, x0:x1][d.cells] = k
+                layers[y0:y1, x0:x1] += d.cells
             for dy, dx in ((1, 0), (0, 1), (1, 1), (1, -1)):
                 a = who[max(0, -dy):H - max(0, dy),
                         max(0, -dx):W - max(0, dx)]
@@ -843,14 +858,59 @@ class Engine:
                     ka, kb = divmod(key, len(ds))
                     pairs.add(frozenset((ds[ka].x.instance_id,
                                          ds[kb].x.instance_id)))
+            # overlap pass: cells with >= 2 layers of THIS lineage.
+            # Star topology per cell (every coverer paired with the
+            # cell's first coverer): a complete graph would emit
+            # ~k^2/2 pairs for one k-layer cell (the measured 1132-
+            # layer hotspot = 640k frozensets from ONE cell). The
+            # authority merges a survivor's partners greedily and the
+            # star re-forms each round, so deep stacks collapse over a
+            # few rounds; CONSOL_EVERY's complete-pair sweep does the
+            # same-day full collapse.
+            oy, ox = np.nonzero(layers >= 2)
+            if not len(oy):
+                continue
+            covers: list[np.ndarray] = []
+            for d in ds:
+                y0, y1, x0, x1 = d.box
+                in_box = (oy >= y0) & (oy < y1) & (ox >= x0) & (ox < x1)
+                cov = np.zeros(len(oy), dtype=bool)
+                if in_box.any():
+                    cov[in_box] = d.cells[oy[in_box] - y0,
+                                          ox[in_box] - x0]
+                covers.append(cov)
+            cov_m = np.stack(covers)          # (n_instances, n_overlap)
+            for i in range(len(oy)):
+                ks = np.nonzero(cov_m[:, i])[0]
+                for k in ks[1:]:
+                    pairs.add(frozenset((ds[ks[0]].x.instance_id,
+                                         ds[k].x.instance_id)))
         return pairs
 
     def _commit(self, t: int) -> ChangeLog:
         views = [self.instances[iid].x.view(self.instances[iid].mass)
                  for iid in sorted(self.instances)]
         rng = self._stream("commit", str(t))
+        candidates = self._merge_candidates()
+        if (t + 1) % CONSOL_EVERY == 0:
+            # full-lineage consolidation (spec v0.4.2 §9, the "final
+            # pass" run periodically): every same-lineage pair is a
+            # candidate — the authority still re-checks d < MERGE_D and
+            # MERGE_GRACE, so only non-differentiated, grace-eligible
+            # clusters collapse. Complete pairs per lineage: the
+            # authority's greedy survivor absorbs each partner in turn,
+            # collapsing the clique in one update.
+            by_lineage: dict[str, list[str]] = {}
+            for d in self.instances.values():
+                by_lineage.setdefault(d.x.species_id, []).append(
+                    d.x.instance_id)
+            for ids in by_lineage.values():
+                ids.sort()
+                for i in range(len(ids)):
+                    for j in range(i + 1, len(ids)):
+                        candidates.add(frozenset((ids[i], ids[j])))
         log = self.authority.update(
-            views, rng, merge_candidates=self._merge_candidates())
+            views, rng, merge_candidates=candidates)
         for delta in log.instances:
             iid = delta.instance_id
             if iid not in self.instances:

@@ -1,4 +1,4 @@
-# K15 sim-diff engine (flora rounds) — build spec v0.4.1
+# K15 sim-diff engine (flora rounds) — build spec v0.4.2
 
 2026-08-01. v0.3 folds the stat-settling pass (35 presets × seeds 1-3):
 substrate capacity split (§5.1, §6), dormancy-gated worst month (§5.1),
@@ -401,6 +401,20 @@ instance_id, traits (WIP genes), mass = Σ_cells N(c).
   re-merge (critic finding 10). Re-merge only when REALLY similar
   (owner ruling); the FINAL pass (end of run) joins all
   non-differentiated instances of a lineage back into one record.
+  **Consolidation (v0.4.2, owner ruling 2026-08-01):** the final pass
+  also runs PERIODICALLY — every CONSOL_EVERY-th commit (default 5)
+  the engine presents ALL same-lineage pairs as candidates (the
+  authority still re-checks MERGE_D and MERGE_GRACE; its greedy
+  survivor absorbs each partner in turn, so a complete candidate
+  clique collapses in one update). This is the instance-count
+  governor: the join is deliberately not sticky — unbridged distant
+  fragments re-split within two dressings (§8 hysteresis), giving a
+  sawtooth that bounds instance count instead of unbounded growth.
+  The contact gate itself is overlap-aware since v0.4.2: the
+  shift-grid touch test holds only one instance index per cell, so
+  STACKED instances (same lineage, same cell — measured up to 1132
+  layers in one cell at r19) were invisible to it; a per-cell
+  layer-count pass adds star-topology candidates per overlapped cell.
 - **Names**: interim handles `sid.iNNN`; binomials pin only at final
   commit.
 
@@ -492,6 +506,7 @@ counts are small).
 | DIFF_D / MOB_K | 7.3 | **0.2 (cal)** / 1.0 | verdict-gate base / mobility gain |
 | DIFF_MIN_CELLS | 8 | **32 (cal)** | divergent sub-range split floor |
 | SUB_D / SPECIATION_D / MERGE_D / MERGE_GRACE | 9 | 0.1 / 0.35 / 0.05 / 5 | commit distances/grace |
+| CONSOL_EVERY | 9 | 5 | full-lineage consolidation period (rounds) |
 | TAKEOVER_RATIO | 12 | 0.8 | acceptance 5 |
 
 **Content authoring conventions** (stat-pass E, 2026-08-01):
@@ -523,6 +538,16 @@ counts are small).
 
 ## 15. Changelog
 
+- **v0.4.2** (2026-08-01): §9 consolidation (owner ruling) — the
+  "final pass" joins also run periodically (CONSOL_EVERY=5 commits,
+  complete same-lineage candidate pairs; authority still gates
+  MERGE_D/MERGE_GRACE) as the instance-count governor; contact gate
+  overlap-aware (star-topology candidates per overlapped cell — the
+  shift grid was blind to same-cell stacking, measured 1132 layers in
+  one cell at r19). Known unmet item carried from v0.4: §12.3's
+  divide half — commit re-mint wipes sub-SUB_D divergence (measured
+  max instance-vs-record drift 0.0000 at every round end over 20
+  rounds); pending the drift-retention design ruling.
 - **v0.4.1** (2026-08-01): §8 split hysteresis (owner ruling: more
   species and interleaved fauna rounds will multiply instance counts,
   so the rain-bridge split requires persistence) — a fragment mints
