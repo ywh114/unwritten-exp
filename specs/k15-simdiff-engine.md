@@ -1,7 +1,21 @@
-# K15 sim-diff engine (flora rounds) — build spec v0.9
+# K15 sim-diff engine (flora rounds) — build spec v1.1
 
-2026-08-01. v0.9 (ticket 0009) adds the genesis mint floor: §10 drops
-the seeded-range connected components below GENESIS_MIN_CELLS (32 cells
+2026-08-01. v1.1 (ticket 0020, DESIGN PIVOT) makes genesis seeding
+capacity-aware with SPARSE founders and PARTIAL range coverage: §10
+replaces the flat GENESIS_N0 = 0.2 founder density with the
+capacity-relative demand D = GENESIS_F0 · K_L(c, L) (settled 0.1) plus
+per-component coverage draws (GENESIS_COVER = 0.5) — NO cross-lineage
+density budget (the first implementation's budget gate claimed viable
+cells first-come-first-served in sorted sid order and budget-dropped
+51/150 species: occupancy by name hash instead of fitness; rejected by
+the owner). Measured seed-1 genesis: 102 lineages minted (48 unseeded:
+4 zero-range + 41 all-sub-floor + 3 all-below-K_EPS), 622 instances,
+stacking mean 5.31, realized coverage (minted/viable, per-species
+median) 0.29, u p50 1.22 / frac u>1 0.58 at genesis (density
+competition left to the rounds by design — see the v1.1 changelog for
+the done-means analysis). v0.9 (ticket 0009) added the genesis mint
+floor: §10 drops the seeded-range connected components below
+GENESIS_MIN_CELLS (32 cells
 = the DIFF_MIN_CELLS sliver scale) instead of minting one speckle
 instance per fragment — measured seed-1 genesis (final world: the
 sand-sheet cold gate 2cc8e76 plus the dune/lake-fetch gates
@@ -569,56 +583,95 @@ The 35 ORDER nodes are ancestors, not species: they are never seeded
 L0" — owner ruling 2026-08-01). Each radiated species is its own
 world: own range evaluation, own partition, own clones.
 
-1. Per SPECIES node (processed in sorted sid order): evaluate the
-   species' OWN record view (`species_view` — radiated axes, not the
-   authored preset record) → the §5.1 reduced fields. ONE adapter
-   evaluation per species: the seeding and the engine's per-instance
-   cache are built from the SAME factors (`genesis.genesis_species`
-   returns them; the clones of one species share the cache by
-   reference — the bbox optimization).
-2. Seed cells with F_worst ≥ GENESIS_F at N = GENESIS_N0 (cal, default
-   0.2). Every species reads its full factor product — for freshwater
-   plans that INCLUDES the habitat term (it replaces their medium
-   boundary; B5 §4.5).
-3. **Initial partition** (owner ruling: headstart speciation): per
+Ticket 0020 (DESIGN PIVOT, owner 2026-08-01): genesis seeds SPARSE
+founders with PARTIAL range coverage and NO cross-lineage density
+budget. The first implementation (a world-level cumulative density
+budget with streaming admission in sorted sid order, an erosion sweep
+and relocation) met its done-means but at an unrealistic cost: viable
+cells were claimed first-come-first-served, so ~2 lineages filled a
+cell and late-sid species found their niche "already occupied" — 51/150
+species budget-dropped at genesis, occupancy decided by name hash
+instead of fitness. Owner rulings: (1) genesis seeds sparse founders
+and lets competition happen inside the sim (where it can become
+niche/fitness-aware), not at mint; (2) there is NO need to seed full
+viable ranges — partial coverage leaves unseeded habitat for §7
+colonization.
+
+1. **One batch, one evaluation per species** (tickets 0004/0020): the
+   rain runs in a single call (`genesis.genesis_rain_species`)
+   processing species in sorted sid order. Evaluate each species' OWN
+   record view (`species_view` — radiated axes, not the authored
+   preset record) → the §5.1 reduced fields. ONE adapter evaluation
+   per species: the seeding and the engine's per-instance cache are
+   built from the SAME evaluation (`genesis_rain_species` returns the
+   compact reduced bundle names/F_worst/prov/U; the clones of one
+   species share the cache by reference — the bbox optimization).
+2. **Sparse capacity-relative founders** (ticket 0020): seed the
+   cells with F_worst ≥ GENESIS_F at D = GENESIS_F0 · K_L(c, L) — a
+   SMALL fraction (settled 0.1, allowed 0.05–0.15) of the lineage's
+   OWN carrying capacity K_L = PROD_CAP_SCALE · K(c) · U_L(c) (the §6
+   v0.3 capacity split, reused from population.lineage_capacity —
+   never duplicated). Founder abundance is N = D/percap (percap = the
+   §6 per-capita demand), floored at N_FLOOR: a high-percap organism
+   whose F0·K_L would seed below the §6 extinction floor is clamped to
+   it (nothing mints below the floor). With F0 small, utilization
+   u ≈ F0 · n_stack stays near (and the density term inside) the cap
+   even with heavy stacking — NO mint-time budget; density competition
+   is left to the rounds. The old flat GENESIS_N0 = 0.2 density
+   ignored per-cell capacity and measured u p50 ≈ 14 (9.13 stacked
+   lineages per populated cell). Every species reads its full factor
+   product — for freshwater plans that INCLUDES the habitat term (it
+   replaces their medium boundary; B5 §4.5).
+3. **Mint floor** (ticket 0009, option (a)): connected components of
+   the seeded range below GENESIS_MIN_CELLS are DROPPED — never minted
+   as established instances (§7 dispersal can re-find those cells in
+   later rounds).
+4. **Partial coverage** (ticket 0020): per retained (≥ floor)
+   component, in the pinned emission order (sorted top-left,
+   row-major), an independent keep/drop draw from
+   `Stream(seed, "k15.genesis", species_sid)` — component i draws
+   `rng.child("cover:{i}")` with keep probability GENESIS_COVER
+   (settled 0.5). WHOLE blobs are kept or dropped (never speckled
+   cells); unseeded viable cells stay empty for §7 colonization. A
+   species whose every drawn component is dropped keeps its single
+   largest component unconditionally (ties → first emission order), so
+   the coverage draw can NEVER cause extinction — only the
+   ticket-0004/0009 paths do (zero range, all-sub-floor). The
+   partition's K targets the COVERED range (the cells actually
+   minted).
+5. **Initial partition** (owner ruling: headstart speciation): per
    species, K = clip(1 + floor(log2(range_cells / PART_AREA_REF)), 1,
    PART_K_MAX) clones TOTAL (cal: PART_AREA_REF, PART_K_MAX=8),
-   distributed across the species' connected components: each
-   component ≥ PART_MIN_CELLS is split by recursive rng-chosen axis
-   cuts into contiguous chunks until the species' K is reached
-   (components < PART_MIN_CELLS stay one clone each). **Genesis mint
-   floor** (ticket 0009, option (a)): connected components of the
-   seeded range below GENESIS_MIN_CELLS are DROPPED first — never
-   minted as established instances (§7 dispersal can re-find those
-   cells in later rounds); K targets the RETAINED range, so the
-   partition's clone budget reflects the cells actually minted.
-   Draws from `Stream(seed, "k15.genesis", species_sid)` —
-   content-addressed. Clones are sibling lineages from round 0 —
-   subspecies candidates, merge-exempt for MERGE_GRACE rounds, free to
-   diverge independently.
-4. **Zero-range species go extinct at genesis** (ticket 0004): a
-   species with no F_worst ≥ GENESIS_F cells is NEVER minted (no
-   instance exists); the engine registers it with the authority
+   distributed across the covered components: each component ≥
+   PART_MIN_CELLS is split by recursive rng-chosen axis cuts into
+   contiguous chunks until the species' K is reached (components <
+   PART_MIN_CELLS stay one clone each). Draws from
+   `rng.child("comp:{i}")` — content-addressed, so the coverage
+   draws' order never matters for the partition draws. Clones are
+   sibling lineages from round 0 — subspecies candidates, merge-exempt
+   for MERGE_GRACE rounds, free to diverge independently.
+6. **Extinction paths** (ticket 0004): a species with no mintable
+   cells — zero range, or every component below GENESIS_MIN_CELLS — is
+   NEVER minted; the engine registers it with the authority
    (`TreeAuthority.register_unseeded`) so the §9 extinction pass marks
    it extinct at the first commit — reflog entry, branch terminated,
-   the record stays as a ghost. Measured (seed 1, ticket 0004): 4/150
-   species zero-range → 4 genesis extinctions. The v0.9 mint floor
-   widens this: a species whose EVERY seeded component is below
-   GENESIS_MIN_CELLS has no mintable clone and takes the same path
-   (measured: 41 such species on seed 1 — colonies too small to be an
-   established species; the fat-blobs ruling; 45 species are unseeded
-   in total, the 4 zero-range ones included).
+   the record stays as a ghost.
 
-Measured genesis state (seed 1, ticket 0009; measured on the final
-world — the cold gate 2cc8e76 moved genesis 1316 → 1333 instances,
-the dune/lake-fetch gates 0d432c5/758ec17 moved it back to 1316):
-1316 instances across 105 lineages (median 11 clones/lineage, p90 24,
-max 35) — the mint floor drops the 91% sub-floor speckle components
-(14800 components → 1316 mint candidates ≥ 32 cells; K ≤ 8 never
-exceeds the retained component count on seed 1, so the
-one-clone-per-component floor still governs the mint). The
-instance-count governor (§9 consolidation sawtooth) then bounds the
-steady state; see the v0.9 changelog for the measured trajectory.
+Measured genesis state (seed 1, ticket 0020, DESIGN PIVOT): 622
+instances across 102 lineages (of 150 species — 48 unseeded: 4
+zero-range + 41 all-sub-floor + 3 all-below-K_EPS), 80046 minted
+(cell, lineage) pairs over 15065 populated cells (stacking mean 5.31,
+max 30), clone blob sizes p50 59 / mean 129 / min 32 (no speckle),
+per-lineage partition disjoint, realized coverage (minted/viable
+cells, per-species median) 0.29 (0.55 by retained-blob cells — the
+sub-floor speckle dilutes the viable-cell metric). Utilization at
+genesis: u p50 1.22 / frac u>1 0.58 (max ~4e5 — the tiny-K_L pairs,
+clamped to the N_FLOOR floor) — the sparse founders are born under
+noticeable density competition BY DESIGN (the owner's "u ≈ F0 ·
+n_stack" model assumes equal substrate shares; on seed-1 data the
+median pair's U is ~1/12 of its cell's total ΣU, so u = F0·ΣU/U_j
+stays ~1.2 at F0=0.1 — see the v1.1 changelog; the pre-0020 done-means
+u targets are unreachable without a density gate).
 
 ## 11. Module layout
 
@@ -685,7 +738,7 @@ counts are small).
 | EST_BETA | 7.3 | 1.0 | packet habitat power (0 = stress-blind) |
 | MEM_ROUNDS / MEM_PENALTY | 7.3 | 3 / 0.25 | colonization memory retention / down-weight |
 | SEEDBANK_KEEP | 7.3 | 0.5 | persistent rain carryover |
-| GENESIS_F / GENESIS_N0 | 10 | **0.5 (settled)** / 0.2 | genesis threshold/density |
+| GENESIS_F / GENESIS_F0 / GENESIS_COVER | 10 | **0.5 (settled)** / **0.1 (ticket 0020)** / **0.5 (ticket 0020)** | genesis threshold / capacity-relative sparse founder demand fraction / per-component coverage keep probability (partial range coverage) |
 | GENESIS_MIN_CELLS | 10 | **32 (ticket 0009)** | genesis mint floor — components below this are dropped (DIFF_MIN_CELLS sliver scale) |
 | PART_AREA_REF / PART_K_MAX / PART_MIN_CELLS | 10 | 200 / 8 / 20 | partition knobs |
 | RE_EVAL_D | 5.1 | 0.15 | cache invalidation distance |
@@ -729,6 +782,54 @@ counts are small).
 
 ## 15. Changelog
 
+- **v1.1** (2026-08-01, ticket 0020, DESIGN PIVOT): sparse founders +
+  partial coverage, NO density budget. The v1.0 budget gate (batch
+  rain with a world-level cumulative density field, streaming
+  admission while cum + D ≤ GENESIS_BETA · K_L in pinned sid order,
+  one erosion sweep, relocation-or-drop) met its done-means (u p50
+  0.76, frac u>1 = 0, 54/150 lineages) but was rejected on realism:
+  viable cells were claimed first-come-first-served in sorted sid
+  order, so ~2 lineages filled a cell and late-sid species found their
+  niche "already occupied" — 51/150 species budget-dropped at genesis,
+  occupancy decided by name hash instead of fitness. Pivot: §10 seeds
+  every viable (cell, lineage) pair at the capacity-relative sparse
+  demand D = GENESIS_F0 · K_L (F0 settled 0.1 within 0.05–0.15; K_L
+  reused from population.lineage_capacity; N = D/percap floored at
+  N_FLOOR — the clamp stays) and applies PARTIAL coverage: per
+  retained (≥ GENESIS_MIN_CELLS) component, a keep/drop draw from
+  `Stream(seed, "k15.genesis", sid).child("cover:{i}")` with keep
+  probability GENESIS_COVER (settled 0.5) — whole blobs kept or
+  dropped, never speckled cells; a species whose every drawn component
+  is dropped keeps its single largest component unconditionally, so
+  the coverage draw never causes extinction (only the ticket-0004/
+  0009 paths drop species: zero range, all-sub-floor). The budget,
+  erosion sweep and relocation are REMOVED; competition is left to the
+  rounds. Measured genesis (seed 1): 102/150 lineages minted (48
+  unseeded: 4 zero-range + 41 all-sub-floor + 3 all-below-K_EPS — no
+  occupancy lockout), 622 instances, 80046 pairs over 15065 populated
+  cells (stacking mean 5.31 / max 30), clone blobs p50 59 / mean 129 /
+  min 32 (no speckle), per-lineage partition disjoint, realized
+  coverage (minted/viable, per-species median) 0.29 (0.55 by
+  retained-blob cells — the sub-floor speckle dilutes the viable-cell
+  metric). **Utilization at genesis: u p50 1.22 / frac u>1 0.58**
+  (max ~4e5: the tiny-K_L pairs clamped to the N_FLOOR floor) — the
+  done-means u targets (p50 < 1, frac < 0.1) are NOT reached. The
+  owner's "u ≈ F0 · n_stack" model assumes equal substrate shares; on
+  seed-1 data the median pair's U is ~1/12 of its cell's total ΣU
+  (U p50 0.33 over pairs, ΣU ≈ 4 per populated cell), so u = F0 ·
+  ΣU/U_j stays ~1.2 at F0 = 0.1 and frac u>1 ≈ 0.58 — and NO (F0,
+  COVER) in the allowed ranges reaches frac u>1 < 0.1 (measured
+  frontier: F0 0.05/COVER 0.3 → 0.31; F0 0.03/COVER 0.15 → 0.145;
+  the clamp alone forces 13% of pairs above F0·K_L). Reaching the u
+  done-means requires either a density gate (rejected) or an owner
+  ruling that density competition at birth is intended (the pivot's
+  stated rationale); the structural invariants — lineage survival,
+  blob floor, disjointness, no speckle, determinism — all hold.
+  Determinism: coverage draws are pinned child streams, byte-identical
+  double run (622 instances). Fast tier green in the clone;
+  test_genesis.py re-pinned for the covered ranges (the pre-coverage
+  retained pins yarrow 3267 / seagrass 1722 hold) + new slow
+  test_genesis_species_sparse_founders.
 - **v0.9** (2026-08-01, ticket 0009): the genesis mint floor — §10
   drops the seeded-range connected components below GENESIS_MIN_CELLS
   (32 cells, the DIFF_MIN_CELLS sliver scale) before the partition:

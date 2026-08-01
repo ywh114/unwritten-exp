@@ -462,6 +462,23 @@ class Engine:
             prov=prov.astype(np.float32), names=names,
             U=factors["substrate_share"].astype(np.float32))
 
+    def _cache_from_bundle(self, view: dict, traits: dict,
+                           bundle: dict) -> CachedFields:
+        """Build the §5.1 reduced cache from genesis' compact bundle —
+        the SAME reduced fields (names/F_worst/prov/U) the seeding
+        computed, so the engine builds its cache from the seeding
+        evaluation without re-reducing (one adapter evaluation per
+        species at genesis, tickets 0004/0020)."""
+        f_worst = bundle["F_worst"]
+        return CachedFields(
+            traits=dict(traits),
+            view=dict(view),
+            f_worst=f_worst.astype(np.float32),
+            s_env=(1.0 - 2.0 * f_worst).astype(np.float32),
+            prov=bundle["prov"].astype(np.float32),
+            names=bundle["names"],
+            U=bundle["U"].astype(np.float32))
+
     def _evaluate_cache(self, view: dict, traits: dict) -> CachedFields:
         factors = sa.evaluate(view, self.ctx)
         return self._cache_from_factors(view, traits, factors)
@@ -479,36 +496,45 @@ class Engine:
     # ── §10 genesis ──────────────────────────────────────────────────
 
     def genesis(self) -> None:
-        """Round 0 (spec §10, ticket 0004): seed every radiated SPECIES
-        node of the committed tree directly — each species gets its own
-        range evaluation, partition and clones (the 35 ORDER nodes are
-        ancestors, not species: genesis no longer mints under them —
-        "for a world to have biodiversity, it must be completely
-        written at L0"). ONE adapter evaluation per species: the
-        seeding and the §5.1 cache share the same factors
-        (genesis.genesis_species returns them), and clones of one
-        species have IDENTICAL genes, so the view/vital/percap and the
-        cache are evaluated ONCE per species and shared by reference
-        (the bbox optimization; _refresh replaces rather than mutates,
-        so sharing is copy-on-drift safe). Species whose viable range
-        on seed 1 is zero are NEVER minted: registered with the
+        """Round 0 (spec §10, tickets 0004/0020): seed every radiated
+        SPECIES node of the committed tree directly — each species gets
+        its own range evaluation, partition and clones (the 35 ORDER
+        nodes are ancestors, not species: genesis no longer mints under
+        them — "for a world to have biodiversity, it must be completely
+        written at L0"). Ticket 0020 (DESIGN PIVOT): SPARSE founders and
+        PARTIAL range coverage, no cross-lineage budget — each viable
+        cell is seeded at the capacity-relative demand D = GENESIS_F0 ·
+        K_L(c, L) (F0 small: u ≈ F0 · n_stack stays under the density
+        cap even with heavy stacking, so competition is left to the
+        rounds), and per-component keep/drop draws
+        (genesis.GENESIS_COVER) leave unseeded viable habitat for §7
+        colonization — the first implementation's density budget
+        claimed cells first-come-first-served in sid order and
+        budget-dropped 51/150 species (occupancy by name hash), which
+        the owner rejected. ONE adapter evaluation per species: the
+        seeding and the §5.1 cache share the same evaluation
+        (genesis_rain_species returns the compact reduced bundle), and
+        clones of one species have IDENTICAL genes, so the
+        view/vital/percap and the cache are evaluated ONCE per species
+        and shared by reference (the bbox optimization; _refresh
+        replaces rather than mutates, so sharing is copy-on-drift safe).
+        Species with no mintable cells (zero range or every component
+        below GENESIS_MIN_CELLS) are NEVER minted: registered with the
         authority (register_unseeded) so the normal update() extinction
         pass marks them extinct at the first commit — reflog entry,
-        branch terminated (ticket 0004). Ticket 0009's mint floor
-        (genesis.GENESIS_MIN_CELLS) widens that path: a species whose
-        every seeded component is below the floor has no mintable clone
-        and is registered the same way (measured: 41/146 on seed 1,
-        plus the 4 zero-range). Deterministic: species
-        processed in sorted sid order, every draw from pinned k15
-        streams."""
+        branch terminated (ticket 0004; measured 48/150 unseeded on
+        seed 1: 4 zero-range + 41 all-sub-floor + 3 all-below-K_EPS).
+        Deterministic: species processed in sorted sid order, every
+        draw from pinned k15 streams."""
         full = (0, self.ctx.H, 0, self.ctx.W)
         species = sorted(
             (n for n in self.tree.nodes.values() if n.rank is Rank.SPECIES),
             key=lambda n: n.sid)
+        rain = gen.genesis_rain_species(
+            self.pack, self.ctx, self.seed, self.K, species)
         unseeded: list[str] = []
         for node in species:
-            clones, _range_cells, factors = gen.genesis_species(
-                node, self.pack, self.ctx, self.seed)
+            clones, _range_cells, bundle = rain[node.sid]
             if not clones:
                 unseeded.append(node.sid)
                 continue
@@ -523,8 +549,8 @@ class Engine:
                     view = self.sim.derive(x.traits, self.pack)
                     shared = (view, pop.percap_demand(view),
                               self.sim.vital(x.traits, self.pack),
-                              self._cache_from_factors(
-                                  view, x.traits, factors))
+                              self._cache_from_bundle(
+                                  view, x.traits, bundle))
                 view, percap, vital, cache = shared
                 box = _mask_box(clone.N > 0.0, full)
                 N = clone.N[np.s_[box[0]:box[1], box[2]:box[3]]] \

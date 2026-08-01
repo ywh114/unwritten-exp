@@ -4,7 +4,11 @@ Fast pure-partition tests run by default. The world-dependent tests run
 on seed 1 (stress_adapter.load_world(1) + the stat-pass capacity anchor,
 lifted as genesis.load_capacity) — 35 adapter evaluations per genesis
 call, so they are marked ``slow`` per the repo convention (pyproject:
-``pytest -m slow``).
+``pytest -m slow``). Ticket 0020 (DESIGN PIVOT) adds the sparse
+founders + partial coverage seeding (GENESIS_F0 · K_L demand, per-
+component GENESIS_COVER keep/drop draws, NO density budget) — the
+species rain is exercised by test_genesis_species_sparse_founders via
+Engine(1).genesis().
 
 Run all: PYTHONPATH=. uv run pytest -q exp/k15_simdiff/test_genesis.py
 Run fast: PYTHONPATH=. uv run pytest -q -m "not slow" ...
@@ -18,13 +22,17 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from exp.k13_treegen.flora.backbone import build as build_backbone
 from exp.k13_treegen.flora.content import load_content
 from exp.k13_treegen.flora.sim import FloraSim
+from exp.k13_treegen.model import Rank
+from exp.k15_simdiff import population as pop
 from exp.k15_simdiff import stress_adapter as sa
 from exp.k15_simdiff.genesis import (
+    GENESIS_COVER,
     GENESIS_F,
+    GENESIS_F0,
     GENESIS_MIN_CELLS,
-    GENESIS_N0,
     CloneSeed,
     _partition,
     connected_components,
@@ -139,11 +147,51 @@ def _seeded_range(pack, ctx, pid: str) -> np.ndarray:
     return (F_worst >= GENESIS_F) & valid_mask(view, ctx)
 
 
-def _check_clone_field(clone: CloneSeed, seeded: np.ndarray) -> None:
-    """N = GENESIS_N0 exactly on the clone's cells, 0 elsewhere."""
+def _expected_demand(view: dict, ctx, K: np.ndarray
+                     ) -> tuple[np.ndarray, float]:
+    """The ticket 0020 founder demand, recomputed independently as
+    ground truth: D(c) = max(GENESIS_F0 · K_L(c), N_FLOOR · percap)
+    with K_L = pop.lineage_capacity(K, U) (spec §6 v0.3 capacity
+    split) — the same formula genesis uses, re-derived here."""
+    factors = sa.evaluate(view, ctx)
+    U = factors["substrate_share"]
+    K_L = pop.lineage_capacity(K, U)
+    percap = pop.percap_demand(view)
+    D = np.maximum(GENESIS_F0 * K_L, pop.N_FLOOR * percap)
+    del factors
+    return D, percap
+
+
+def _expected_retained(seeded: np.ndarray, key: str, seed: int = 1
+                       ) -> tuple[np.ndarray | None, int]:
+    """The ticket 0020 covered retained mask, recomputed independently:
+    pre-floor components → mint floor (ticket 0009) → per-component
+    keep/drop draws (``rng.child(f"cover:{i}")``, pinned emission
+    order, keep probability GENESIS_COVER) with the largest-component
+    retry (the coverage draw never causes extinction). Returns
+    (covered mask, pre-coverage retained cell count)."""
+    rng = Stream(seed, "k15.genesis", key)
+    big = [c for c in connected_components(seeded)
+           if int(c.sum()) >= GENESIS_MIN_CELLS]
+    if not big:
+        return None, 0
+    n_ret = int(sum(int(c.sum()) for c in big))
+    sel = [c for i, c in enumerate(big)
+           if rng.child(f"cover:{i}").bernoulli(GENESIS_COVER, 0)]
+    if not sel:
+        sel = [max(big, key=lambda c: int(c.sum()))]
+    return np.logical_or.reduce(sel), n_ret
+
+
+def _check_clone_field(clone: CloneSeed, seeded: np.ndarray,
+                       D: np.ndarray, percap: float) -> None:
+    """N = D/percap exactly on the clone's cells (D = max(F0·K_L,
+    N_FLOOR·percap) — ticket 0020's capacity-relative founder demand),
+    0 elsewhere."""
     assert clone.cells.dtype == bool
     assert clone.N.dtype == np.float32
-    assert (clone.N[clone.cells] == np.float32(GENESIS_N0)).all()
+    assert np.allclose(clone.N[clone.cells], D[clone.cells] / percap,
+                       rtol=1e-6, atol=1e-9)
     assert not clone.N[~clone.cells].any()
 
 
@@ -154,66 +202,71 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
     v0.9 re-pin (ticket 0009, the genesis mint floor): seeded
     components below GENESIS_MIN_CELLS are DROPPED — a preset whose
     every component is sub-floor yields () (never minted), and the
-    partition's K targets the RETAINED range, so the clone union equals
-    the retained mask (kept components only), not the full seeded
-    range. Pre-floor counts on seed 1 (measured 2026-08-01, final
-    world after the sand-sheet cold gate 2cc8e76 and the dune +
-    lake-fetch gates 0d432c5/758ec17): 14800 components, 91% < 32
-    cells — the floor cuts genesis to the ~9% fat blobs (14800 → 1316
-    instances engine-side)."""
+    partition's K targets the RETAINED range. v1.1 re-pin (ticket
+    0020, DESIGN PIVOT): per-component coverage draws
+    (``_expected_retained``) keep ~GENESIS_COVER of the retained blobs
+    (whole blobs, never speckle), and the partition's K targets the
+    COVERED range — the clone union equals the covered mask, not the
+    full retained range. Re-pinned on seed 1 (2026-08-01): yarrow
+    retained 3267 cells (partition_k 5) → covered 2736 (partition_k
+    4, 7 clones); seagrass retained 1722 (4) → covered 466 (2, 6
+    clones)."""
     pack, sim = pack_sim
     rain = genesis_rain(pack, sim, world, capacity, seed=1)
     assert set(rain) == set(pack.presets)
     retained: dict[str, int] = {}
+    minted: dict[str, int] = {}
     k_gt1: list[str] = []
     for pid in sorted(pack.presets):
         seeded = _seeded_range(pack, world, pid)
-        # the v0.9 mint floor: only components ≥ GENESIS_MIN_CELLS mint
-        kept = [c for c in connected_components(seeded)
-                if int(c.sum()) >= GENESIS_MIN_CELLS]
-        n_ret = int(sum(int(c.sum()) for c in kept))
+        D, percap = _expected_demand(sa.preset_view(pid, pack), world,
+                                     capacity)
+        covered, n_ret = _expected_retained(seeded, pid)
         retained[pid] = n_ret
         clones = rain[pid]
-        if not kept:
+        if covered is None:
             # every component below the floor — dropped entirely
             # (ticket 0009 option (a); §7 dispersal re-finds the cells)
             assert clones == ()
             continue
-        K = partition_k(n_ret)
+        minted[pid] = int(covered.sum())
+        K = partition_k(int(covered.sum()))
         if K > 1:
             k_gt1.append(pid)
-        # count: K clones TOTAL over the retained components, unless the
+        # count: K clones TOTAL over the covered components, unless the
         # one-clone-per-component floor wins — K ≤ component count keeps
-        # one clone per retained component (spec §10; every retained
+        # one clone per covered component (spec §10; every covered
         # component is ≥ GENESIS_MIN_CELLS ≥ PART_MIN_CELLS, so all may
         # split — the synthetic tests cover the count == K path).
-        assert len(clones) == max(K, len(kept))
+        assert len(clones) == max(K, len(connected_components(covered)))
         cells = [c.cells for c in clones]
-        retained_mask = np.logical_or.reduce(kept)
-        assert np.array_equal(np.logical_or.reduce(cells), retained_mask)
-        assert sum(int(c.sum()) for c in cells) == n_ret
+        assert np.array_equal(np.logical_or.reduce(cells), covered)
+        assert sum(int(c.sum()) for c in cells) == int(covered.sum())
         for clone in clones:
             assert clone.cells.shape == seeded.shape
             assert len(connected_components(clone.cells)) == 1
-            _check_clone_field(clone, seeded)
-    # pinned empirically on seed 1 (2026-08-01; re-pinned for the v0.9
-    # mint floor — the pins now assert the RETAINED range, which is what
-    # the partition actually sees; measured 3267 of 3808 yarrow cells and
-    # 1722 of 2150 seagrass cells survive the floor on the final world
-    # (cold gate 2cc8e76 + dune/lake-fetch gates 0d432c5/758ec17), so
-    # the K pins hold on both bases): two presets whose
-    # retained range exceeds PART_AREA_REF by > 8×
+            _check_clone_field(clone, seeded, D, percap)
+    # re-pinned empirically on seed 1 (2026-08-01): the PRE-coverage
+    # retained ranges (3267 yarrow / 1722 seagrass ≥ floor — unchanged
+    # by coverage, they were pinned in v0.9) and the COVERED ranges the
+    # partition actually targets (2736 / 466 cells — ticket 0020).
     assert partition_k(retained["herb_forb.yarrow"]) == 5
     assert retained["herb_forb.yarrow"] >= 3200
     assert partition_k(retained["runner_meadow.seagrass"]) == 4
     assert retained["runner_meadow.seagrass"] >= 1600
+    assert partition_k(minted["herb_forb.yarrow"]) == 4
+    assert minted["herb_forb.yarrow"] >= 2000
+    assert partition_k(minted["runner_meadow.seagrass"]) == 2
+    assert 100 <= minted["runner_meadow.seagrass"] <= 1000
     assert k_gt1, "expected at least one preset with partition_k > 1 on seed 1"
 
 
 @pytest.mark.slow
 def test_genesis_determinism(world, pack_sim, capacity):
     """Two full genesis runs on seed 1: byte-identical masks and N
-    fields (spec §2 determinism hard rule — hashrng streams only)."""
+    fields (spec §2 determinism hard rule — hashrng streams only;
+    the coverage draws are pinned child streams, so they are
+    byte-identical too)."""
     pack, sim = pack_sim
     a = genesis_rain(pack, sim, world, capacity, seed=1)
     b = genesis_rain(pack, sim, world, capacity, seed=1)
@@ -226,3 +279,78 @@ def test_genesis_determinism(world, pack_sim, capacity):
             assert ca.N.dtype == cb.N.dtype == np.float32
             assert ca.cells.tobytes() == cb.cells.tobytes()
             assert ca.N.tobytes() == cb.N.tobytes()
+
+
+@pytest.mark.slow
+def test_genesis_species_sparse_founders(pack_sim, world):
+    """Ticket 0020 (DESIGN PIVOT) done-means on seed 1 through the
+    ENGINE (the species rain — sparse founders + partial coverage, NO
+    density budget): every species with a mintable blob mints (the
+    coverage draw's largest-component retry means the draw never causes
+    extinction — no occupancy lockout), each minted clone stays ≥
+    GENESIS_MIN_CELLS (no speckle), the per-lineage partition is
+    disjoint, and the realized coverage (minted/viable cells per
+    species, median) is a proper fraction of the viable range —
+    unseeded habitat stays empty for §7 colonization. The utilization
+    u = D/K_L is REPORTED, not asserted: sparse founders deliberately
+    leave density competition to the rounds (measured u p50 1.22 /
+    frac u>1 0.58 at F0=0.1 — the old done-means u targets are
+    unreachable without a density gate; see the v1.1 changelog)."""
+    from exp.k15_simdiff.engine import Engine
+
+    eng = Engine(1, pack=pack_sim[0])
+    eng.genesis()
+    H, W = eng.ctx.H, eng.ctx.W
+    live = [d for d in eng.instances.values() if d.mass > 0.0]
+    assert live, "genesis minted nothing"
+    D = np.zeros((H, W), dtype=np.float64)
+    for d in live:
+        D[d.world_slice()] += d.N * d.percap
+    u_all: list[np.ndarray] = []
+    minted_cells: dict[str, int] = {}
+    by_lineage: dict[str, list[np.ndarray]] = {}
+    for d in live:
+        ws = d.world_slice()
+        occ = d.cells
+        assert int(occ.sum()) >= GENESIS_MIN_CELLS, \
+            f"speckle clone of {d.x.species_id}: {int(occ.sum())} cells"
+        minted_cells[d.x.species_id] = \
+            minted_cells.get(d.x.species_id, 0) + int(occ.sum())
+        K_L = pop.lineage_capacity(eng.K[ws], d.cache.U[ws])
+        with np.errstate(divide="ignore", invalid="ignore"):
+            u = np.where(K_L > pop.K_EPS,
+                         D[ws] / np.maximum(K_L, pop.K_EPS), np.inf)
+        u_all.append(u[occ])
+        y0, y1, x0, x1 = d.box
+        full = np.zeros((H, W), dtype=bool)
+        full[y0:y1, x0:x1] = occ
+        by_lineage.setdefault(d.x.species_id, []).append(full)
+    u_all = np.concatenate(u_all)
+    assert len(by_lineage) >= 100, \
+        f"lineage survival {len(by_lineage)} < 100 (occupancy lockout?)"
+    # per-lineage partition disjoint: union of a lineage's clones == sum
+    for sid, masks in by_lineage.items():
+        union = np.logical_or.reduce(masks)
+        assert int(union.sum()) == sum(int(m.sum()) for m in masks), \
+            f"overlapping clones within lineage {sid}"
+    # realized coverage: minted/viable per species, median (report —
+    # partial coverage is by design; the median is a proper fraction)
+    tree = build_backbone(1, pack_sim[0])
+    cov: list[float] = []
+    for node in sorted((n for n in tree.nodes.values()
+                        if n.rank is Rank.SPECIES), key=lambda n: n.sid):
+        view = sa.species_view(node, pack_sim[0])
+        factors = sa.evaluate(view, world)
+        _n, _m, Fw, _p = reduced(factors)
+        viable = int(((Fw >= GENESIS_F) & valid_mask(view, world)).sum())
+        if viable > 0 and node.sid in minted_cells:
+            cov.append(minted_cells[node.sid] / viable)
+    cov = np.asarray(cov)
+    assert 0.05 <= np.quantile(cov, 0.5) <= 0.95, \
+        f"median coverage {np.quantile(cov, 0.5):.3f} outside (0.05, 0.95)"
+    print(f"\nticket 0020 pivot anatomy: {len(live)} instances, "
+          f"{len(by_lineage)} lineages, {u_all.size} pairs, "
+          f"u p50={np.quantile(u_all, 0.5):.3f}, "
+          f"frac u>1={(u_all > 1.0).mean():.3f}, "
+          f"max u={u_all.max():.1f}, "
+          f"median coverage={np.quantile(cov, 0.5):.3f}")

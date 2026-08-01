@@ -1,29 +1,64 @@
 """K15 engine — spec §10 genesis rain (round 0).
 
-Seeds at N = GENESIS_N0 where the worst-month suitability F_worst ≥
-GENESIS_F, drops the connected components below GENESIS_MIN_CELLS
-(ticket 0009: the genesis mint floor — no speckle instances), then
-partitions each retained range into K = partition_k(range) contiguous
-clones by recursive rng-chosen axis cuts — the headstart speciation
-(clones are sibling lineages from round 0, merge-exempt for
-MERGE_GRACE rounds, free to diverge independently).
+Seeds SPARSE founders at a capacity-relative demand D = GENESIS_F0 ·
+K_L(c, L) wherever the worst-month suitability F_worst ≥ GENESIS_F
+(the full factor product — for freshwater plans that includes the
+habitat term, B5 §4.5). K_L is the §6 v0.3 capacity split (K_L = K x
+U, reused from population.lineage_capacity — never duplicated), so a
+lineage alone on a cell is born at utilization u = D/K_L = GENESIS_F0.
+Founder abundance is N = D/percap, floored at N_FLOOR (a species
+whose per-capita demand is so large that F0·K_L would seed below the
+extinction floor is clamped to it — nothing mints below the §6 floor).
+The old flat GENESIS_N0 = 0.2 founder density ignored per-cell
+capacity and measured u p50 ≈ 14 (9.13 stacked lineages per populated
+cell).
+
+Ticket 0020 (DESIGN PIVOT, owner 2026-08-01): SPARSE founders,
+PARTIAL range coverage, NO cross-lineage budget. The first
+implementation (a world-level density budget with streaming admission,
+an erosion sweep and relocation) met its done-means but at an
+unrealistic cost: viable cells were claimed first-come-first-served in
+sorted sid order, so ~2 lineages filled a cell and late-sid species
+found their niche "already occupied" — occupancy decided by name hash,
+not fitness. Owner rulings: (1) genesis seeds sparse founders and lets
+competition happen inside the sim (where it can become niche/fitness-
+aware), not at mint; (2) there is NO need to seed full viable ranges —
+partial coverage leaves unseeded habitat for §7 colonization. So the
+rain now seeds the whole viable range at the SMALL F0 (utilization
+u ≈ F0 · n_stack stays under the density cap even with heavy
+stacking) and then draws a per-component KEEP/DROP from the pinned
+genesis stream (whole blobs — never speckled cells) with keep
+probability GENESIS_COVER; a species whose every drawn component is
+dropped keeps its single largest component unconditionally, so the
+coverage draw can never cause extinction (only the ticket-0004/0009
+paths do: zero range and all-sub-floor ranges).
+
+Blobs below GENESIS_MIN_CELLS are dropped (ticket 0009: the genesis
+mint floor — no speckle instances). Each retained range is partitioned
+into K = partition_k(range) contiguous clones by recursive rng-chosen
+axis cuts — the headstart speciation (clones are sibling lineages from
+round 0, merge-exempt for MERGE_GRACE rounds, free to diverge
+independently).
 
 Two entry points share one seed+partition core (``_rain_for_view``):
 ``genesis_preset`` (an AUTHORED preset's record view — the pre-ticket-
-0004 unit, still the tests' partition ground truth) and
-``genesis_species`` (a radiated SPECIES node's own record view — the
-engine's round-0 seeding since ticket 0004: the world is "completely
-written at L0", so the 35 ORDER nodes are ancestors, never seeded; each
-of the ~150 SPECIES sids gets its own range evaluation, partition and
-clones). ``genesis_species`` also returns the full evaluated factors so
-the engine builds its §5.1 cache from the SAME evaluation — one adapter
-evaluation per species at genesis, not two.
+0004 unit, still the tests' partition ground truth; single-lineage)
+and ``genesis_rain_species`` (the radiated SPECIES nodes in ONE batch,
+engine's pinned sorted sid order — the engine's round-0 seeding since
+ticket 0004: the world is "completely written at L0", so the 35 ORDER
+nodes are ancestors, never seeded). ``genesis_rain_species`` also
+returns the compact §5.1 reduced bundle (names, F_worst, prov, U) per
+species so the engine builds its cache from the SAME evaluation — one
+adapter evaluation per species at genesis, not two.
 
 Determinism (hard rule): every draw comes from kernel.hashrng —
 ``Stream(seed, "k15.genesis", key)`` where key is the preset id or the
 species sid (spec §10), with child streams per connected component in a
-pinned order (sorted by top-left cell, row-major). Same seed →
-byte-identical masks and N fields.
+pinned order (sorted by top-left cell, row-major): component i draws
+``rng.child("cover:{i}")`` for the coverage keep/drop and the
+partition's ``rng.child("comp:{i}")`` — both content-addressed, so the
+draw order never matters. Same seed → byte-identical masks and N
+fields.
 
 Reduction and the medium mask are lifted from the stat-pass harness
 (formulas, not the module — statpass.py is a calibration harness and is
@@ -47,6 +82,7 @@ from pathlib import Path
 
 import numpy as np
 
+from exp.k15_simdiff import population as pop
 from exp.k15_simdiff import stress_adapter as sa
 from kernel.hashrng import Stream
 
@@ -54,7 +90,25 @@ K14_OUT = Path(__file__).resolve().parent.parent / "k14_worldprod" / "out"
 
 # ── spec §13 knobs (v0.3, settled values) ──────────────────────────────
 GENESIS_F = 0.5         # settled 2026-08-01 (stat pass seeds 1-3)
-GENESIS_N0 = 0.2        # founder density at seeded cells
+# ticket 0020 (DESIGN PIVOT): the per-(cell,lineage) founder demand as
+# a fraction of the lineage's own carrying capacity K_L = K x U. SMALL
+# by design — sparse founders: u = F0 · n_stack stays under the density
+# cap even with heavy stacking, so competition happens inside the sim,
+# not at mint. Settled 0.1 on seed 1 (allowed 0.05-0.15; measured
+# anatomy: u p50 1.22 / frac u>1 0.58 at 0.1 — the done-means u target
+# is NOT reachable at any setting in the allowed range without a
+# density gate, see the v1.1 changelog).
+GENESIS_F0 = 0.1
+# ticket 0020 (DESIGN PIVOT): partial range coverage — per connected
+# component (post-mint-floor), an independent keep/drop draw from the
+# pinned genesis stream (rng.child(f"cover:{i}")) with this keep
+# probability. Whole blobs kept or dropped (never speckled cells);
+# a species whose every drawn component is dropped keeps its single
+# largest component unconditionally (the coverage draw never causes
+# extinction). Settled 0.5 on seed 1 (realized coverage ~55% of the
+# viable range by cells); unseeded viable cells stay empty for §7
+# colonization.
+GENESIS_COVER = 0.5
 PART_AREA_REF = 200     # partition: reference range area (cells)
 PART_K_MAX = 8          # partition: clone-count cap per preset
 PART_MIN_CELLS = 20     # partition: components below this stay single
@@ -79,7 +133,10 @@ class CloneSeed:
     """One genesis clone: the contiguous range and its density field.
 
     ``cells``: (H,W) bool — the clone's 8-connected seeded range.
-    ``N``:     (H,W) float32 — GENESIS_N0 on the cells, 0 elsewhere.
+    ``N``:     (H,W) float32 — the founder abundance field: N = D/percap
+    with D = max(GENESIS_F0 · K_L(c), N_FLOOR · percap) on the cells,
+    0 elsewhere (ticket 0020: capacity-relative sparse founders, never
+    below the §6 extinction floor).
 
     Instance IDs are NOT minted here — the engine/authority mints them
     and dresses the clone (vital rates, cached stress fields) when it
@@ -317,31 +374,83 @@ def _partition(seeded: np.ndarray, K: int, rng: Stream) -> list[np.ndarray]:
     return [chunk for chunk, _cid, _can in pieces]
 
 
-def _n_field(cells: np.ndarray) -> np.ndarray:
-    """The clone's density field: GENESIS_N0 on the cells, 0 elsewhere."""
+# ── ticket 0020: capacity-relative founder demand + partial coverage ──
+
+
+def lineage_capacity(K: np.ndarray, U: np.ndarray) -> np.ndarray:
+    """K_L(c) = PROD_CAP_SCALE · K(c) · U(c) — the per-lineage carrying
+    capacity at every cell (spec §6 v0.3 capacity split). REUSED from
+    population.lineage_capacity (never duplicated) — the genesis demand
+    and the engine's density term must read the SAME capacity."""
+    return pop.lineage_capacity(K, U)
+
+
+def demand_field(K_L: np.ndarray, percap: float, f0: float = GENESIS_F0,
+                 ) -> np.ndarray:
+    """The per-(cell,lineage) founder demand D(c) = max(F0 · K_L(c),
+    N_FLOOR · percap) — capacity-relative sparse founders, floored so
+    no cell mints below the §6 extinction floor (a high-percap organism
+    would otherwise seed at N < N_FLOOR and be abandoned at the first
+    round). N = D / percap; D is the demand the engine's
+    D(c) = Σ N·percap accumulates, so u = D/K_L is exact."""
+    return np.maximum(f0 * np.asarray(K_L, dtype=np.float64),
+                      pop.N_FLOOR * percap)
+
+
+def _n_field(cells: np.ndarray, K_L: np.ndarray, percap: float,
+             f0: float = GENESIS_F0) -> np.ndarray:
+    """The clone's abundance field: N = D/percap with D = max(F0·K_L,
+    N_FLOOR·percap) on the cells, 0 elsewhere (float32 — ticket 0020
+    replaces the flat GENESIS_N0 founder density)."""
+    D = demand_field(K_L, percap, f0)
     N = np.zeros(cells.shape, dtype=np.float32)
-    N[cells] = np.float32(GENESIS_N0)
+    N[cells] = np.float32(D[cells] / percap)
     return N
 
 
-# ── the genesis rain ───────────────────────────────────────────────────
+def _covered_components(comps: list[np.ndarray], rng: Stream,
+                        cover: float = GENESIS_COVER) -> list[np.ndarray]:
+    """Ticket 0020 partial coverage: per connected component (in the
+    pinned emission order — connected_components' sorted top-left), an
+    independent keep/drop draw from ``rng.child("cover:{i}")`` with keep
+    probability *cover*. WHOLE blobs are kept or dropped (never
+    speckled cells); a run where every draw drops is RETRIED by keeping
+    the single largest component unconditionally (ties → first emission
+    order), so the coverage draw can never wipe out a lineage that has
+    a mintable blob. Deterministic: child streams are content-addressed
+    by the component index."""
+    if not comps:
+        return []
+    sel = [c for i, c in enumerate(comps)
+           if rng.child(f"cover:{i}").bernoulli(cover, 0)]
+    if not sel:
+        sel = [max(comps, key=lambda c: int(c.sum()))]
+    return sel
+
+
+# ── the genesis rain (single-lineage core: preset/tests) ───────────────
 
 
 def _rain_for_view(view: dict, ctx: sa.WorldContext, seed: int,
-                   key: str, factors: dict
+                   key: str, factors: dict, K: np.ndarray
                    ) -> tuple[tuple[CloneSeed, ...], int]:
     """Spec §10 steps 2-3 for an ALREADY-EVALUATED DerivedView *view*
     (factors = ``sa.evaluate`` output): seed the cells with F_worst ≥
-    GENESIS_F at N = GENESIS_N0 (the full factor product — for
-    freshwater plans that includes the habitat term, B5 §4.5), then
-    partition the seeded range into K = partition_k(range) clones.
-    Returns (clones, range_cells). No mintable cells -> ((), 0) — the
-    caller's extinction path (ticket 0004). Ticket 0009: connected
-    components of the seeded range below GENESIS_MIN_CELLS are DROPPED
-    (never minted; §7 dispersal can re-find those cells), and the
-    partition's K (spec §10 step 3) targets the RETAINED range — the
-    range_cells returned is the minted extent, so after the floor the
-    partition is the dominant mint source again. Draws from
+    GENESIS_F at the capacity-relative founder demand D = GENESIS_F0 ·
+    K_L(c, L) (ticket 0020; the full factor product — for freshwater
+    plans that includes the habitat term, B5 §4.5), then partition the
+    seeded range into K = partition_k(range) clones. Returns
+    (clones, range_cells). No mintable cells -> ((), 0) — the caller's
+    extinction path (ticket 0004). Ticket 0009: connected components of
+    the seeded range below GENESIS_MIN_CELLS are DROPPED (never
+    minted; §7 dispersal can re-find those cells), and the partition's
+    K (spec §10 step 3) targets the RETAINED range — the range_cells
+    returned is the minted extent. Ticket 0020: partial coverage — a
+    per-component keep/drop draw (``_covered_components``) then keeps
+    ~GENESIS_COVER of the retained blobs (whole blobs, never speckle),
+    leaving the drawn-away viable cells unseeded for §7 colonization;
+    a lineage whose every component is drawn away keeps its largest
+    blob, so the draw never causes extinction. Draws from
     ``Stream(seed, "k15.genesis", key)`` (key = preset id or species
     sid — content-addressed, so draw order never matters)."""
     _names, _m_star, F_worst, _prov = reduced(factors)
@@ -351,65 +460,162 @@ def _rain_for_view(view: dict, ctx: sa.WorldContext, seed: int,
             if int(c.sum()) >= GENESIS_MIN_CELLS]
     if not kept:
         return (), 0
+    rng = Stream(seed, "k15.genesis", key)
+    kept = _covered_components(kept, rng)
     retained = np.logical_or.reduce(kept)
     range_cells = int(retained.sum())
-    K = partition_k(range_cells)
-    if K == 0:
+    K_n = partition_k(range_cells)
+    if K_n == 0:
         return (), 0
-    rng = Stream(seed, "k15.genesis", key)
-    chunks = _partition(retained, K, rng)
-    return tuple(CloneSeed(cells=ch, N=_n_field(ch)) for ch in chunks), \
-        range_cells
+    U = factors["substrate_share"]
+    K_L = lineage_capacity(K, U)
+    percap = pop.percap_demand(view)
+    chunks = _partition(retained, K_n, rng)
+    return tuple(CloneSeed(cells=ch, N=_n_field(ch, K_L, percap))
+                 for ch in chunks), range_cells
 
 
 def genesis_preset(pack, sim, ctx: sa.WorldContext, seed: int,
-                   preset_id: str) -> tuple[CloneSeed, ...]:
+                   preset_id: str, K: np.ndarray) -> tuple[CloneSeed, ...]:
     """Spec §10 for ONE authored preset: evaluate its DerivedView over
     the world, seed + partition (shared core ``_rain_for_view``). A
     preset with no seeded cells → (). (Pre-ticket-0004 seeding unit;
-    the engine now seeds radiated SPECIES nodes via genesis_species —
-    the preset-level form remains the tests' partition ground truth.)
+    the engine now seeds radiated SPECIES nodes via genesis_rain_species
+    — the preset-level form remains the tests' partition ground truth.)
 
     *sim* is unused here (reserved: the engine dresses the clones with
     vital rates when minting instances). Draws from
     ``Stream(seed, "k15.genesis", preset_id)`` — deterministic."""
     view = sa.preset_view(preset_id, pack)
     factors = sa.evaluate(view, ctx)
-    clones, _range = _rain_for_view(view, ctx, seed, preset_id, factors)
+    clones, _range = _rain_for_view(view, ctx, seed, preset_id, factors, K)
     return clones
-
-
-def genesis_species(node, pack, ctx: sa.WorldContext, seed: int
-                    ) -> tuple[tuple[CloneSeed, ...], int, dict]:
-    """Spec §10 for ONE radiated SPECIES node (ticket 0004): evaluate
-    the species' OWN record view (radiated axes — ``sa.species_view``,
-    NOT the authored preset record), seed + partition exactly as
-    genesis_preset, and return (clones, range_cells, factors) — the
-    full evaluated factors ride along so the engine builds its §5.1
-    cache from the SAME evaluation (one adapter evaluation per species
-    at genesis, not two). Zero range -> ((), 0, factors): the species
-    is never minted and goes extinct at genesis (the authority's
-    normal extinction path — ticket 0004). Draws from
-    ``Stream(seed, "k15.genesis", node.sid)`` — content-addressed."""
-    view = sa.species_view(node, pack)
-    factors = sa.evaluate(view, ctx)
-    clones, range_cells = _rain_for_view(
-        view, ctx, seed, node.sid, factors)
-    return clones, range_cells, factors
 
 
 def genesis_rain(pack, sim, ctx: sa.WorldContext, K, seed: int,
                  ) -> dict[str, tuple[CloneSeed, ...]]:
     """Spec §10 for every authored PRESET, processed in sorted id order
-    (determinism: presets, components, cuts all pinned). Returns
-    {preset_id: clones}; a preset with no F_worst ≥ GENESIS_F range maps
-    to (). Clones are (cells mask, N field) — see CloneSeed.
+    (determinism: presets, components, coverage draws, cuts all pinned).
+    Returns {preset_id: clones}; a preset with no F_worst ≥ GENESIS_F
+    range maps to (). Clones are (cells mask, N field) — see CloneSeed.
+    (The preset-level aggregate is single-lineage; the engine's round-0
+    seeding has been the radiated SPECIES nodes since ticket 0004 — see
+    genesis_rain_species.)
 
-    *K* (the anchor capacity raster) and *sim* are reserved for the
-    engine's dressing step and not read here. Same seed → byte-identical
-    masks and N fields. (The preset-level aggregate: the engine's
-    round-0 seeding has been the radiated SPECIES nodes since ticket
-    0004 — see genesis_species; this form remains the tests' partition
-    ground truth.)"""
-    return {pid: genesis_preset(pack, sim, ctx, seed, pid)
+    *sim* is reserved for the engine's dressing step and not read here.
+    Same seed → byte-identical masks and N fields."""
+    return {pid: genesis_preset(pack, sim, ctx, seed, pid, K)
             for pid in sorted(pack.presets)}
+
+
+# ── the species rain: sparse founders + partial coverage (ticket 0020) ─
+
+
+def _reduced_bundle(factors: dict) -> dict:
+    """The compact §5.1 reduced set (names, F_worst, prov, U) — what
+    the engine's per-instance cache is built from. genesis_rain_species
+    returns it per species so the engine builds its cache from the SAME
+    evaluation (one adapter evaluation per species at genesis)."""
+    names, _m_star, F_worst, prov = reduced(factors)
+    return {
+        "names": names,
+        "F_worst": F_worst.astype(np.float32),
+        "prov": prov.astype(np.float32),
+        "U": factors["substrate_share"].astype(np.float32),
+    }
+
+
+def genesis_rain_species(pack, ctx: sa.WorldContext, seed: int,
+                         K: np.ndarray, nodes
+                         ) -> dict[str, tuple[tuple[CloneSeed, ...], int,
+                                              dict]]:
+    """Spec §10 for every radiated SPECIES node in ONE batch (ticket
+    0020, DESIGN PIVOT): the radiated species share nothing at mint —
+    each is seeded independently at the capacity-relative sparse
+    founder demand (D = GENESIS_F0 · K_L, F0 small) with PARTIAL
+    coverage of its viable range; there is NO cross-lineage density
+    budget, NO erosion sweep, NO relocation (the first implementation's
+    budget gate claimed viable cells first-come-first-served in sorted
+    sid order and budget-dropped 51/150 species — occupancy decided by
+    name hash instead of fitness; rejected by the owner). Pipeline:
+
+    1. Evaluate each species' OWN record view (``sa.species_view`` —
+       radiated axes, not the authored preset record) → the §5.1
+       reduced fields; ONE evaluation per species (the engine builds
+       its cache from the returned bundle).
+    2. **Seed the viable range** (F_worst ≥ GENESIS_F ∩ medium-valid ∩
+       K_L > K_EPS) at D = max(GENESIS_F0·K_L, N_FLOOR·percap) — sparse
+       founders: a lineage alone on a cell is born at u = GENESIS_F0
+       and the whole stacked population at u ≈ F0 · n_stack, so even
+       heavy stacking stays near (and the density term stays inside)
+       the cap WITHOUT any mint-time budget — competition is left to
+       the rounds.
+    3. **Mint floor** (ticket 0009): connected components below
+       GENESIS_MIN_CELLS are dropped (never minted; §7 dispersal can
+       re-find those cells).
+    4. **Partial coverage** (ticket 0020): per retained component, a
+       keep/drop draw from ``Stream(seed, "k15.genesis", sid)``
+       (``rng.child("cover:{i}")``, pinned emission order) with keep
+       probability GENESIS_COVER — whole blobs kept or dropped, never
+       speckled cells; a species whose every drawn component is dropped
+       keeps its single largest component unconditionally (the draw
+       never causes extinction). Unseeded viable cells stay empty for
+       §7 colonization.
+    5. **Partition** (spec §10 step 3): per species, K =
+       partition_k(range_cells) clones TOTAL over the retained
+       components by recursive rng-chosen axis cuts — the headstart
+       speciation. Draws from ``rng.child("comp:{i}")`` — content-
+       addressed, so the coverage draws' order never matters for the
+       partition draws.
+
+    Returns {sid: (clones, range_cells, bundle)} — *bundle* is the
+    compact §5.1 reduced set (``_reduced_bundle``) the engine's
+    per-instance cache is built from. A species with no mintable cells
+    (zero range, or every component below the floor) maps to ((), 0,
+    bundle): it is never minted and goes extinct at genesis (the
+    authority's normal extinction path — ticket 0004; measured on seed
+    1: 4 zero-range + 41 all-sub-floor + 3 all-below-K_EPS = 48
+    unseeded, 102 minted). Same seed → byte-identical masks and N
+    fields."""
+    order = sorted(nodes, key=lambda n: n.sid)
+    evals: dict[str, dict] = {}
+    for node in order:
+        view = sa.species_view(node, pack)
+        factors = sa.evaluate(view, ctx)
+        U = factors["substrate_share"].astype(np.float64)
+        names, _m_star, F_worst, prov = reduced(factors)
+        percap = pop.percap_demand(view)
+        K_L = lineage_capacity(K, U)
+        ok = ((F_worst >= GENESIS_F) & valid_mask(view, ctx)
+              & (K_L > pop.K_EPS))
+        evals[node.sid] = {
+            "U": U, "K_L": K_L, "ok": ok, "percap": percap,
+            "D": demand_field(K_L, percap),
+            "bundle": {"names": names,
+                       "F_worst": F_worst.astype(np.float32),
+                       "prov": prov.astype(np.float32),
+                       "U": U.astype(np.float32)},
+        }
+
+    # ── 2-5: seed, floor, coverage, partition — per species ─────────
+    out: dict[str, tuple[tuple[CloneSeed, ...], int, dict]] = {}
+    for sid, ev in evals.items():
+        big = [c for c in connected_components(ev["ok"])
+               if int(c.sum()) >= GENESIS_MIN_CELLS]
+        if not big:
+            out[sid] = ((), 0, ev["bundle"])
+            continue
+        rng = Stream(seed, "k15.genesis", sid)
+        big = _covered_components(big, rng)
+        retained = np.logical_or.reduce(big)
+        range_cells = int(retained.sum())
+        K_n = partition_k(range_cells)
+        if K_n == 0:
+            out[sid] = ((), 0, ev["bundle"])
+            continue
+        chunks = _partition(retained, K_n, rng)
+        clones = tuple(CloneSeed(cells=ch,
+                                 N=_n_field(ch, ev["K_L"], ev["percap"]))
+                       for ch in chunks)
+        out[sid] = (clones, range_cells, ev["bundle"])
+    return out
