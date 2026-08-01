@@ -438,11 +438,25 @@ def test_jump_foundling_size():
 
 def _shade_fixture_cell(eng: Engine, preset: str = "herb_forb.thistle"
                         ) -> tuple[int, int]:
-    """A land cell healthy for *preset* (s_env < 0) with the LARGEST
-    per-lineage capacity for it (K x U — the shared-cell density term
-    must not decide the arms: the canopy is bamboo, percap 0.47, so a
-    high-K cell keeps s_dens well below the lethal end and the shade
-    factor becomes the differentiator)."""
+    """A land cell MARGINAL for *preset* (s_env just below 0) with the
+    LARGEST per-lineage capacity for it (K x U — the shared-cell density
+    term must not decide the arms: the canopy is bamboo, percap 0.47, so
+    a high-K cell keeps s_dens well below the lethal end and the shade
+    factor becomes the differentiator).
+
+    v0.9 re-pin (2026-08-01, the sand-sheet cold gate 2cc8e76 — ticket
+    0009 world fallout): the plain ``s_env < 0`` argmax used to land on
+    the marginal pre-gate cell (90,149) at s_env = -0.03 — marginal
+    enough that the shade fold flips the intolerant thistle's s_env_eff
+    positive (0.16 -> 0 over r0..r5) while the tolerant one holds. The
+    cold gate reclassified 4143 seed-1 cells (cold-arid sand sheet ->
+    reg), and the old argmax's U dropped 0.88 -> 0.75: the unconstrained
+    argmax now lands on (64,105) at s_env = -0.35, healthy enough that
+    BOTH arms hold the cell (measured: intolerant 1.0 through r5). The
+    selection is now the argmax of K x U over a NARROW MARGINAL BAND
+    -0.05 < s_env < 0, restoring the pre-gate character (measured on
+    the gated world: the band's argmax is the pre-gate cell (90,149)
+    itself — dead=0.000, spared=1.000)."""
     from exp.k15_simdiff.stress_adapter import evaluate as _ev
     s_u = _s_env(eng, preset)
     v_t = eng.sim.derive(eng.authority.mint(
@@ -451,7 +465,7 @@ def _shade_fixture_cell(eng: Engine, preset: str = "herb_forb.thistle"
         eng._stream("test", f"peek:{preset}")).traits, eng.pack)
     U = _ev(v_t, eng.ctx)["substrate_share"]
     KL = eng.K * U
-    ok = eng.ctx.land_cell & (s_u < 0.0) & (KL > 0.1)
+    ok = eng.ctx.land_cell & (s_u > -0.05) & (s_u < 0.0) & (KL > 0.1)
     assert ok.any(), f"no shade-fixture cell for {preset}"
     score = np.where(ok, KL, -np.inf)
     y, x = np.unravel_index(int(np.argmax(score)), score.shape)
@@ -466,8 +480,16 @@ def test_canopy_shade_kills_intolerant_spares_tolerant():
     the lineage — the g-clock's f(g) ramp keeps an intolerant
     thistle's authored viability intact, so it now ESCAPES the shade by
     range expansion; the shade mechanism itself is the cell-level fold.
-    The height-escape mechanism — a taller reader reads f_light = 1 —
-    lives in test_canopy_shade_height_escape.)"""
+    v0.9 re-pin (2026-08-01, the sand-sheet cold gate 2cc8e76): the
+    gate reclassified 4143 seed-1 cells, dropping the old fixture
+    cell's substrate_share (90,149: U 0.88 -> 0.75, cold-arid sand
+    sheet -> reg) so the plain s_env<0 argmax now lands on a healthy
+    cell where BOTH arms hold — _shade_fixture_cell now selects a
+    marginal-band cell (-0.05 < s_env < 0), restoring the pre-gate
+    character; measured on the gated world: the band's argmax is the
+    pre-gate cell itself (90,149), intolerant 0.3 -> 0.000 over r0..r5,
+    tolerant 1.000. The height-escape mechanism — a taller reader reads
+    f_light = 1 — lives in test_canopy_shade_height_escape.)"""
     def cell_mass(eng, cell, sid):
         tot = 0.0
         for d in eng.instances.values():
@@ -530,7 +552,9 @@ def test_canopy_shade_height_escape():
 def test_reduced_cache_budget():
     """The §5.1 reduced cache stays within REDUCED_CACHE_MB per live
     instance (ticket 0004: genesis clones share one cache per RADIATED
-    SPECIES — measure the shared one; 146 seeded species on seed 1)."""
+    SPECIES — measure the shared one; 105 minted species on seed 1, the
+    v0.9 mint floor dropped the 41 all-sub-floor species — ticket
+    0009)."""
     eng = _engine()
     eng.genesis()
     seen = {}

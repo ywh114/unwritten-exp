@@ -487,7 +487,11 @@ class Engine:
         on seed 1 is zero are NEVER minted: registered with the
         authority (register_unseeded) so the normal update() extinction
         pass marks them extinct at the first commit — reflog entry,
-        branch terminated (ticket 0004). Deterministic: species
+        branch terminated (ticket 0004). Ticket 0009's mint floor
+        (genesis.GENESIS_MIN_CELLS) widens that path: a species whose
+        every seeded component is below the floor has no mintable clone
+        and is registered the same way (measured: 41/146 on seed 1,
+        plus the 4 zero-range). Deterministic: species
         processed in sorted sid order, every draw from pinned k15
         streams."""
         full = (0, self.ctx.H, 0, self.ctx.W)

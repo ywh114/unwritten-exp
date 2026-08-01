@@ -1,6 +1,14 @@
-# K15 sim-diff engine (flora rounds) — build spec v0.8
+# K15 sim-diff engine (flora rounds) — build spec v0.9
 
-2026-08-01. v0.8 (ticket 0004) seeds the radiated tree: §10 genesis
+2026-08-01. v0.9 (ticket 0009) adds the genesis mint floor: §10 drops
+the seeded-range connected components below GENESIS_MIN_CELLS (32 cells
+= the DIFF_MIN_CELLS sliver scale) instead of minting one speckle
+instance per fragment — measured seed-1 genesis (re-measured after the
+sand-sheet cold gate 2cc8e76 reclassified 4143 cells) drops 15232
+pre-floor components → 1333 instances (105 lineages; 41 all-sub-floor
+species go extinct at genesis, plus the 4 zero-range ones — 45
+unseeded in total). v0.8 (ticket 0004) seeds the radiated tree: §10
+genesis
 rains every SPECIES node of the committed tree (~150 sids, each with
 its own range evaluation, partition and clones — the 35 ORDER nodes
 are ancestors, never seeded) instead of the 35 authored presets;
@@ -577,24 +585,39 @@ world: own range evaluation, own partition, own clones.
    distributed across the species' connected components: each
    component ≥ PART_MIN_CELLS is split by recursive rng-chosen axis
    cuts into contiguous chunks until the species' K is reached
-   (components < PART_MIN_CELLS stay one clone each). Draws from
-   `Stream(seed, "k15.genesis", species_sid)` — content-addressed.
-   Clones are sibling lineages from round 0 — subspecies candidates,
-   merge-exempt for MERGE_GRACE rounds, free to diverge independently.
+   (components < PART_MIN_CELLS stay one clone each). **Genesis mint
+   floor** (ticket 0009, option (a)): connected components of the
+   seeded range below GENESIS_MIN_CELLS are DROPPED first — never
+   minted as established instances (§7 dispersal can re-find those
+   cells in later rounds); K targets the RETAINED range, so the
+   partition's clone budget reflects the cells actually minted.
+   Draws from `Stream(seed, "k15.genesis", species_sid)` —
+   content-addressed. Clones are sibling lineages from round 0 —
+   subspecies candidates, merge-exempt for MERGE_GRACE rounds, free to
+   diverge independently.
 4. **Zero-range species go extinct at genesis** (ticket 0004): a
    species with no F_worst ≥ GENESIS_F cells is NEVER minted (no
    instance exists); the engine registers it with the authority
    (`TreeAuthority.register_unseeded`) so the §9 extinction pass marks
    it extinct at the first commit — reflog entry, branch terminated,
    the record stays as a ghost. Measured (seed 1, ticket 0004): 4/150
-   species zero-range → 4 genesis extinctions.
+   species zero-range → 4 genesis extinctions. The v0.9 mint floor
+   widens this: a species whose EVERY seeded component is below
+   GENESIS_MIN_CELLS has no mintable clone and takes the same path
+   (measured: 41 such species on seed 1 — colonies too small to be an
+   established species; the fat-blobs ruling; 45 species are unseeded
+   in total, the 4 zero-range ones included).
 
-Measured genesis state (seed 1, ticket 0004): 14751 instances across
-146 lineages (the one-clone-per-component floor dominates — radiated
-ranges are fragmented; the same floor drove 3584 clones under the
-pre-ticket order-level seeding). The instance-count governor (§9
-consolidation sawtooth) then bounds the steady state; see the v0.8
-changelog for the measured trajectory.
+Measured genesis state (seed 1, ticket 0009; re-measured after the
+sand-sheet cold gate 2cc8e76 — the gate reclassified 4143 cells,
+shifting genesis 1316 → 1333 instances): 1333 instances across 105
+lineages (median 12 clones/lineage, p90 23, max 37) — the mint floor
+drops the 91% sub-floor speckle components (15232 components → 1333
+mint candidates ≥ 32 cells; K ≤ 8 never exceeds the retained
+component count on seed 1, so the one-clone-per-component floor still
+governs the mint). The instance-count governor (§9 consolidation
+sawtooth) then bounds the steady state; see the v0.9 changelog for the
+measured trajectory.
 
 ## 11. Module layout
 
@@ -662,6 +685,7 @@ counts are small).
 | MEM_ROUNDS / MEM_PENALTY | 7.3 | 3 / 0.25 | colonization memory retention / down-weight |
 | SEEDBANK_KEEP | 7.3 | 0.5 | persistent rain carryover |
 | GENESIS_F / GENESIS_N0 | 10 | **0.5 (settled)** / 0.2 | genesis threshold/density |
+| GENESIS_MIN_CELLS | 10 | **32 (ticket 0009)** | genesis mint floor — components below this are dropped (DIFF_MIN_CELLS sliver scale) |
 | PART_AREA_REF / PART_K_MAX / PART_MIN_CELLS | 10 | 200 / 8 / 20 | partition knobs |
 | RE_EVAL_D | 5.1 | 0.15 | cache invalidation distance |
 | DIFF_D / MOB_K | 7.3 | **0.2 (cal)** / 1.0 | verdict-gate base / mobility gain |
@@ -704,6 +728,29 @@ counts are small).
 
 ## 15. Changelog
 
+- **v0.9** (2026-08-01, ticket 0009): the genesis mint floor — §10
+  drops the seeded-range connected components below GENESIS_MIN_CELLS
+  (32 cells, the DIFF_MIN_CELLS sliver scale) before the partition:
+  speckle colonies are never minted as established instances (option
+  (a); §7 dispersal can re-find those cells), and K targets the
+  RETAINED range (the cells actually minted). Measured genesis (seed
+  1, re-measured after the sand-sheet cold gate 2cc8e76 reclassified
+  4143 cells): 15232 pre-floor components → 1333 instances across 105
+  lineages (vs 146 pre-floor — 41 species whose every component is
+  sub-floor are never minted and take the ticket-0004 zero-range
+  extinction path, 45 unseeded in total including the 4 zero-range),
+  clones/lineage median 12 / p90 23 / max 37; K ≤ 8 never exceeds the
+  retained component count on seed 1, so the one-clone-per-component
+  floor still governs (the partition dominates only for species with
+  fewer than K fat blobs). Round times: genesis ~7 s (vs ~19 s v0.8),
+  r0 ~9–11 s (vs ~45 s) rising to ~15–27 s as dispersal grows the
+  instance count (r19: 3556 instances, 91 lineages) — the §9 CONSOL
+  sawtooth bounds the steady state in the same band as v0.8 (r4 max
+  4606 → r29 2142). Determinism unchanged: the floor adds no draws (the
+  component scan is deterministic; the drop happens before any rng
+  consumption), so same-seed runs remain byte-identical — the mint
+  stream addressing is unchanged except that dropped components never
+  reach the partition (re-pinned fixtures in test_genesis.py).
 - **v0.8** (2026-08-01, ticket 0004): genesis seeds the radiated tree
   — §10 now rains every SPECIES node of the committed tree (~150 sids)
   instead of the 35 authored presets: each species gets its own range

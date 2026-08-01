@@ -23,6 +23,7 @@ from exp.k13_treegen.flora.sim import FloraSim
 from exp.k15_simdiff import stress_adapter as sa
 from exp.k15_simdiff.genesis import (
     GENESIS_F,
+    GENESIS_MIN_CELLS,
     GENESIS_N0,
     CloneSeed,
     _partition,
@@ -149,48 +150,61 @@ def _check_clone_field(clone: CloneSeed, seeded: np.ndarray) -> None:
 @pytest.mark.slow
 def test_genesis_partition_structure(world, pack_sim, capacity):
     """Every preset: clone count, contiguity, disjointness, union and N
-    fields against an independent recomputation of the seeded range."""
+    fields against an independent recomputation of the seeded range.
+    v0.9 re-pin (ticket 0009, the genesis mint floor): seeded
+    components below GENESIS_MIN_CELLS are DROPPED — a preset whose
+    every component is sub-floor yields () (never minted), and the
+    partition's K targets the RETAINED range, so the clone union equals
+    the retained mask (kept components only), not the full seeded
+    range. Pre-floor counts on seed 1 (measured 2026-08-01, after the
+    sand-sheet cold gate 2cc8e76 reclassified 4143 cells): 15232
+    components, 91% < 32 cells — the floor cuts genesis to the ~9% fat
+    blobs (15232 → 1333 instances engine-side)."""
     pack, sim = pack_sim
     rain = genesis_rain(pack, sim, world, capacity, seed=1)
     assert set(rain) == set(pack.presets)
-    ranges: dict[str, int] = {}
+    retained: dict[str, int] = {}
     k_gt1: list[str] = []
     for pid in sorted(pack.presets):
         seeded = _seeded_range(pack, world, pid)
-        n_range = int(seeded.sum())
-        ranges[pid] = n_range
-        K = partition_k(n_range)
-        if K > 1:
-            k_gt1.append(pid)
+        # the v0.9 mint floor: only components ≥ GENESIS_MIN_CELLS mint
+        kept = [c for c in connected_components(seeded)
+                if int(c.sum()) >= GENESIS_MIN_CELLS]
+        n_ret = int(sum(int(c.sum()) for c in kept))
+        retained[pid] = n_ret
         clones = rain[pid]
-        if K == 0:
+        if not kept:
+            # every component below the floor — dropped entirely
+            # (ticket 0009 option (a); §7 dispersal re-finds the cells)
             assert clones == ()
             continue
-        # count: K clones TOTAL, unless the one-clone-per-component
-        # floor wins — components below PART_MIN_CELLS never split, so
-        # when the component count already meets/exceeds K every
-        # component stays one clone (spec §10; seed 1's ranges are
-        # fragmented enough that the floor dominates — the synthetic
-        # tests above cover the count == K path).
-        n_comps = len(connected_components(seeded))
-        assert len(clones) == max(K, n_comps)
+        K = partition_k(n_ret)
+        if K > 1:
+            k_gt1.append(pid)
+        # count: K clones TOTAL over the retained components, unless the
+        # one-clone-per-component floor wins — K ≤ component count keeps
+        # one clone per retained component (spec §10; every retained
+        # component is ≥ GENESIS_MIN_CELLS ≥ PART_MIN_CELLS, so all may
+        # split — the synthetic tests cover the count == K path).
+        assert len(clones) == max(K, len(kept))
         cells = [c.cells for c in clones]
-        assert np.array_equal(np.logical_or.reduce(cells), seeded)
-        assert sum(int(c.sum()) for c in cells) == n_range
+        retained_mask = np.logical_or.reduce(kept)
+        assert np.array_equal(np.logical_or.reduce(cells), retained_mask)
+        assert sum(int(c.sum()) for c in cells) == n_ret
         for clone in clones:
             assert clone.cells.shape == seeded.shape
             assert len(connected_components(clone.cells)) == 1
             _check_clone_field(clone, seeded)
-    # pinned empirically on seed 1 (2026-08-01, re-pinned after the
-    # derived-climate breadth widening + B6 re-authors moved the
-    # landscape — T0001, biosphere-addendum-b6-flora-wiring.md §4:
-    # every preset now seeds >= 50 cells; yarrow and seagrass carry the
-    # large ranges): two presets whose range exceeds PART_AREA_REF, per
-    # the task's suggestion
-    assert partition_k(ranges["herb_forb.yarrow"]) == 5
-    assert ranges["herb_forb.yarrow"] >= 3000
-    assert partition_k(ranges["runner_meadow.seagrass"]) == 4
-    assert ranges["runner_meadow.seagrass"] >= 2000
+    # pinned empirically on seed 1 (2026-08-01; re-pinned for the v0.9
+    # mint floor — the pins now assert the RETAINED range, which is what
+    # the partition actually sees; measured 3296 of 3820 yarrow cells and
+    # 1722 of 2150 seagrass cells survive the floor on the gated world
+    # (2cc8e76), so the K pins hold on both bases): two presets whose
+    # retained range exceeds PART_AREA_REF by > 8×
+    assert partition_k(retained["herb_forb.yarrow"]) == 5
+    assert retained["herb_forb.yarrow"] >= 3200
+    assert partition_k(retained["runner_meadow.seagrass"]) == 4
+    assert retained["runner_meadow.seagrass"] >= 1600
     assert k_gt1, "expected at least one preset with partition_k > 1 on seed 1"
 
 

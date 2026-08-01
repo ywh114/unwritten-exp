@@ -1,9 +1,11 @@
 """K15 engine — spec §10 genesis rain (round 0).
 
 Seeds at N = GENESIS_N0 where the worst-month suitability F_worst ≥
-GENESIS_F, then partitions each seeded range into K = partition_k(range)
-contiguous clones by recursive rng-chosen axis cuts — the headstart
-speciation (clones are sibling lineages from round 0, merge-exempt for
+GENESIS_F, drops the connected components below GENESIS_MIN_CELLS
+(ticket 0009: the genesis mint floor — no speckle instances), then
+partitions each retained range into K = partition_k(range) contiguous
+clones by recursive rng-chosen axis cuts — the headstart speciation
+(clones are sibling lineages from round 0, merge-exempt for
 MERGE_GRACE rounds, free to diverge independently).
 
 Two entry points share one seed+partition core (``_rain_for_view``):
@@ -56,6 +58,14 @@ GENESIS_N0 = 0.2        # founder density at seeded cells
 PART_AREA_REF = 200     # partition: reference range area (cells)
 PART_K_MAX = 8          # partition: clone-count cap per preset
 PART_MIN_CELLS = 20     # partition: components below this stay single
+# genesis mint floor (ticket 0009): connected components of a seeded
+# range below this are DROPPED at genesis — never minted as established
+# instances (option (a): §7 dispersal can re-find those cells later).
+# 32 = the existing DIFF_MIN_CELLS sliver-suppression scale; measured
+# seed-1 anatomy (ticket 0009): 91% of 14,751 components are < 32 cells
+# (median 3), so the floor cuts genesis to the ~9% fat blobs the owner's
+# fat-blobs ruling wants (1-10 instances per lineage).
+GENESIS_MIN_CELLS = 32
 # freshwater habitat mask floor for the medium mask (stat-pass value)
 FRESH_MASK_MIN = 0.01
 
@@ -325,19 +335,29 @@ def _rain_for_view(view: dict, ctx: sa.WorldContext, seed: int,
     GENESIS_F at N = GENESIS_N0 (the full factor product — for
     freshwater plans that includes the habitat term, B5 §4.5), then
     partition the seeded range into K = partition_k(range) clones.
-    Returns (clones, range_cells). No seeded cells -> ((), 0) — the
-    caller's extinction path (ticket 0004). Draws from
+    Returns (clones, range_cells). No mintable cells -> ((), 0) — the
+    caller's extinction path (ticket 0004). Ticket 0009: connected
+    components of the seeded range below GENESIS_MIN_CELLS are DROPPED
+    (never minted; §7 dispersal can re-find those cells), and the
+    partition's K (spec §10 step 3) targets the RETAINED range — the
+    range_cells returned is the minted extent, so after the floor the
+    partition is the dominant mint source again. Draws from
     ``Stream(seed, "k15.genesis", key)`` (key = preset id or species
     sid — content-addressed, so draw order never matters)."""
     _names, _m_star, F_worst, _prov = reduced(factors)
     valid = valid_mask(view, ctx)
     seeded = (F_worst >= GENESIS_F) & valid
-    range_cells = int(seeded.sum())
+    kept = [c for c in connected_components(seeded)
+            if int(c.sum()) >= GENESIS_MIN_CELLS]
+    if not kept:
+        return (), 0
+    retained = np.logical_or.reduce(kept)
+    range_cells = int(retained.sum())
     K = partition_k(range_cells)
     if K == 0:
         return (), 0
     rng = Stream(seed, "k15.genesis", key)
-    chunks = _partition(seeded, K, rng)
+    chunks = _partition(retained, K, rng)
     return tuple(CloneSeed(cells=ch, N=_n_field(ch)) for ch in chunks), \
         range_cells
 
