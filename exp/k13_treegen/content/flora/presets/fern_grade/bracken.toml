@@ -69,12 +69,6 @@ growing_season_req = 5.0
 engineer_impact = 0.5
 coloniality = 0.8
 
-[niche]
-temp_opt_c = 14
-temp_breadth_c = 10.0
-moisture_opt = 0.19
-moisture_breadth = 0.13
-
 [generics]
 support = "herbaceous_frond"
 feeding_organ = "C3_foliage"

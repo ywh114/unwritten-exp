@@ -10,8 +10,19 @@ One name per B5 §4 stratum/term — the granularity select() needs to
 route pressure to different driftable responders.
 """
 
-# ── climate stratum (B5 §4.1; monthly, compensable, phenology-gated) ──
-REQ_CLIMATE = "pressure:climate"            # T/P distance from [niche]
+# ── climate stratum (B5 §4.1; monthly, compensable) ──────────────────
+# The climate envelope (temp_opt_c/temp_breadth_c) is a pure DERIVED of
+# the trait bundle (owner ruling 2026-08-01) — when stress pushes the
+# traits, the envelope moves. The T requirement is SPLIT one-sided like
+# pH: a symmetric distance factor is space-blind — select() cannot tell
+# which side of the optimum the cell sits on. Two one-sided factors
+# (cold = shortfall toward the optimum, heat = excess past it; their
+# product is the symmetric distance) let the responders push toward the
+# right side directly. The moisture (P) half lives in pressure:water /
+# pressure:waterlogging (the derived moisture envelope feeds those).
+REQ_COLD = "pressure:cold"              # T below optimum (growing-season
+                                        # + C4/CAM cold terms folded in)
+REQ_HEAT = "pressure:heat"              # T above optimum
 REQ_BLOOM_FROST = "pressure:bloom_frost"    # extra cost term, never lethal
 
 # ── ground stratum (B5 §4.2, rewired 2026-07-31) ──────────────────────
@@ -45,7 +56,7 @@ REQ_SUBMERGED_LIGHT = "pressure:light"      # below photic depth
 REQ_FRESH_HABITAT = "pressure:habitat"      # fresh_availability
 
 V1_FLORA = (
-    REQ_CLIMATE, REQ_BLOOM_FROST, REQ_WATER, REQ_WATERLOGGING,
+    REQ_COLD, REQ_HEAT, REQ_BLOOM_FROST, REQ_WATER, REQ_WATERLOGGING,
     REQ_FERTILITY, REQ_PH_LOW, REQ_PH_HIGH, REQ_SALINITY, REQ_ROOTING,
     REQ_ANCHORING, REQ_MEDIUM, REQ_SUBMERGED_LIGHT, REQ_FRESH_HABITAT,
 )
@@ -53,7 +64,8 @@ V1_FLORA = (
 # ── the view the adapter expects from flora expose() ──────────────────
 # Keys of the DerivedView the adapter reads (flora-side expose wraps
 # derive.effective_climate plus plan/medium descriptors):
-#   temp_opt_c, temp_breadth_c, moisture_opt, moisture_breadth   [niche]
+#   temp_opt_c, temp_breadth_c, moisture_opt, moisture_breadth   [derived
+#       envelope — pure function of the trait bundle, never metadata]
 #   drought_tolerance, waterlogging_tolerance, salinity_tolerance,
 #   ph_tolerance, fertility_requirement, growing_season_req,
 #   root_depth_m, height_m, woodiness,

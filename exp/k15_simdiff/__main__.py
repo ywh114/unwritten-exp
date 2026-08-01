@@ -107,11 +107,13 @@ _RESOLUTIONS = (
     "- no mangrove flora plan/preset exists in the content pack; "
     "tree.willow (the\n    closest authored wetland tree, waterlogging "
     "tolerance 0.8) is the\n    mangrove-grade proxy for B5 §8.2",
-    "- the [niche] moisture_opt/moisture_breadth are positions on the\n"
-    "    normalized 0..1 P scale (c_P_monthly raw), so the climate P\n"
-    "    term reads that scale; water-medium plans do not pay a\n"
-    "    precipitation cost (their moisture niche is the water itself,\n"
-    "    carried by the habitat/medium terms)",
+    "- the derived moisture envelope (moisture_opt/moisture_breadth) is\n"
+    "    a position on the normalized 0..1 P scale (c_P_monthly raw),\n"
+    "    so the water-availability term reads that scale; the climate\n"
+    "    moisture (P) half lives there, not in a separate climate\n"
+    "    stratum (owner ruling 2026-08-01: envelope = pure derived of\n"
+    "    the trait bundle; water-medium plans read their water from the\n"
+    "    habitat/medium terms)",
     "- acceptance presets evaluate AUTHORED traits: radiated species\n"
     "    drift far from their preset (a willow species with root_depth\n"
     "    16.8 m is not a willow); the budget/determinism checks run the\n"

@@ -71,12 +71,6 @@ growing_season_req = 6.0
 engineer_impact = 0.4
 coloniality = 0.8
 
-[niche]
-temp_opt_c = 22
-temp_breadth_c = 8.0
-moisture_opt = 0.9
-moisture_breadth = 0.1
-
 [generics]
 support = "stolon_floating"
 feeding_organ = "C3_foliage"

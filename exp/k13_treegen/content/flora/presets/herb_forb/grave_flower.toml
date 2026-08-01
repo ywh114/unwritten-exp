@@ -74,12 +74,6 @@ fire_strategy = "avoider"
 engineer_impact = 0.1
 coloniality = 0.3
 
-[niche]
-temp_opt_c = 14
-temp_breadth_c = 6.0
-moisture_opt = 0.19
-moisture_breadth = 0.13
-
 [generics]
 support = "herbaceous_stem"
 feeding_organ = "mycoheterotroph"

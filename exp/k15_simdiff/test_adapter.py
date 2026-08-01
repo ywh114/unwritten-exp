@@ -17,9 +17,10 @@ from exp.k14_worldprod.ground import GROUND_ID, PROP_TABLES
 from exp.k15_simdiff.req_flora import (
     REQ_ANCHORING,
     REQ_BLOOM_FROST,
-    REQ_CLIMATE,
+    REQ_COLD,
     REQ_FERTILITY,
     REQ_FRESH_HABITAT,
+    REQ_HEAT,
     REQ_MEDIUM,
     REQ_PH_HIGH,
     REQ_PH_LOW,
@@ -40,7 +41,6 @@ from exp.k15_simdiff.stress_adapter import (
     verdict_at,
 )
 from kernel.stress import (
-    climate_suit,
     compose,
     dist_suit,
     excess_suit,
@@ -118,7 +118,6 @@ def base_view(**kw) -> dict:
     view = {
         "temp_opt_c": 15.0, "temp_breadth_c": 10.0,
         "moisture_opt": 0.5, "moisture_breadth": 0.3,
-        "w_T": None, "w_P": None,
         "drought_tolerance": 0.2, "waterlogging_tolerance": 0.1,
         "salinity_tolerance": 0.1, "ph_tolerance": 0.5,
         "fertility_requirement": 0.4, "growing_season_req": 3.0,
@@ -137,91 +136,110 @@ def base_view(**kw) -> dict:
 # ── climate stratum (B5 §4.1) ─────────────────────────────────────────
 
 
-def test_climate_distance_matches_kernel():
-    """REQ_CLIMATE equals the kernel climate_suit composition at the
-    niche baseline (T/P at optimum -> 1; at breadth -> 1 - w)."""
+def test_climate_split_matches_kernel_distance():
+    """The T requirement is SPLIT one-sided like pH (req_flora ruling
+    2026-08-01): cold = shortfall of T below the optimum, heat = excess
+    past it — cold x heat is exactly the symmetric dist_suit at unit
+    weight, so the composed F is unchanged by the split. The moisture
+    (P) half is gone from climate (the derived envelope feeds
+    pressure:water/waterlogging instead)."""
     ctx = make_ctx()
     view = base_view()
     r = evaluate(view, ctx)
-    f = r[REQ_CLIMATE][0]
-    expect = climate_suit(ctx.t_c[0], ctx.p_norm[0], 15.0, 10.0,
-                          0.5, 0.3)
-    assert np.allclose(f, expect)
-    # at optimum everything is 1
-    assert np.allclose(f, 1.0)
-    # T at breadth with w_T=0.5: f = 1 - 0.5
-    ctx2 = make_ctx(t_c=np.full((N, H, W), 25.0, dtype=np.float32))
-    f2 = evaluate(base_view(), ctx2)[REQ_CLIMATE][0]
-    assert np.allclose(f2, 0.5)
-    # both saturated -> clipped 0
-    ctx3 = make_ctx(t_c=np.full((N, H, W), 55.0, dtype=np.float32),
-                    p_norm=np.full((N, H, W), 1.0, dtype=np.float32))
-    assert np.allclose(evaluate(base_view(), ctx3)[REQ_CLIMATE], 0.0)
+    cold, heat = r[REQ_COLD][0], r[REQ_HEAT][0]
+    expect = dist_suit(ctx.t_c[0], 15.0, 10.0)
+    assert np.allclose(cold * heat, expect)
+    # at the optimum everything is 1
+    assert np.allclose(cold, 1.0) and np.allclose(heat, 1.0)
+    # cold side: T below opt docks cold, heat stays 1
+    ctxc = make_ctx(t_c=np.full((N, H, W), 5.0, dtype=np.float32))
+    rc = evaluate(base_view(), ctxc)
+    assert np.allclose(rc[REQ_COLD][0], 0.0)        # |5-15|/10 saturated
+    assert np.allclose(rc[REQ_HEAT][0], 1.0)
+    # heat side: T above opt docks heat, cold stays 1
+    ctxh = make_ctx(t_c=np.full((N, H, W), 25.0, dtype=np.float32))
+    rh = evaluate(base_view(), ctxh)
+    assert np.allclose(rh[REQ_COLD][0], 1.0)
+    assert np.allclose(rh[REQ_HEAT][0], 0.0)
+    # both sides saturated -> product clipped to 0
+    ctx3 = make_ctx(t_c=np.full((N, H, W), 55.0, dtype=np.float32))
+    r3 = evaluate(base_view(), ctx3)
+    assert np.allclose(r3[REQ_COLD], 1.0)
+    assert np.allclose(r3[REQ_HEAT], 0.0)
+    assert np.allclose(r3[REQ_COLD] * r3[REQ_HEAT], 0.0)
 
 
-def test_drought_widens_dry_side_asymmetric():
-    """drought_tolerance widens the moisture breadth on the DRY side
-    only: a dry cell costs less for a drought-tolerant plan, a wet cell
-    costs the same."""
-    ctx = make_ctx(p_norm=np.full((N, H, W), 0.1, dtype=np.float32))
-    dry_low = evaluate(base_view(drought_tolerance=0.1), ctx)[REQ_CLIMATE][0]
-    dry_high = evaluate(base_view(drought_tolerance=0.9), ctx)[REQ_CLIMATE][0]
-    assert (dry_high > dry_low).all()          # dry side slackened
-    ctxw = make_ctx(p_norm=np.full((N, H, W), 0.9, dtype=np.float32))
-    wet_low = evaluate(base_view(drought_tolerance=0.1), ctxw)[REQ_CLIMATE][0]
-    wet_high = evaluate(base_view(drought_tolerance=0.9), ctxw)[REQ_CLIMATE][0]
-    assert np.allclose(wet_low, wet_high)      # wet side untouched
+def test_climate_t_factors_ignore_drought_tolerance():
+    """The moisture (P) half is REMOVED from climate (owner ruling
+    2026-08-01): drought_tolerance no longer widens a P-breadth inside
+    the climate term — it acts through the derived moisture envelope
+    into pressure:water (test_water_dry_end_shortfall) — so the T
+    factors are identical for a dry-adapted and a wet-adapted plan."""
+    ctx = make_ctx()
+    a = evaluate(base_view(drought_tolerance=0.1), ctx)
+    b = evaluate(base_view(drought_tolerance=0.9), ctx)
+    assert np.allclose(a[REQ_COLD], b[REQ_COLD])
+    assert np.allclose(a[REQ_HEAT], b[REQ_HEAT])
+    # the derived moisture envelope does feed pressure:water: a drier
+    # optimum raises the need on the same water field -> lower f_water
+    ctxdry = make_ctx(water_potential=np.full((N, H, W), 0.3,
+                                              dtype=np.float32))
+    wet_opt = evaluate(base_view(moisture_opt=0.5), ctxdry)[REQ_WATER]
+    dry_opt = evaluate(base_view(moisture_opt=0.2), ctxdry)[REQ_WATER]
+    assert (wet_opt < dry_opt).all()
 
 
 def test_phenology_gates_cold_months():
-    """winter_deciduous: the T cost is dropped in dormant months
+    """winter_deciduous: the COLD cost is dropped in dormant months
     (m < leafout_month); an evergreen pays it year-round — but only in
     the GROWING season: months below GROW_T_C are dormant for every
-    surface plan (owner ruling 2026-08-01)."""
+    surface plan (owner ruling 2026-08-01). The HEAT side is ungated."""
     # 7 C: inside the growing band — evergreen pays, deciduous gated
     ctx = make_ctx(t_c=np.full((N, H, W), 7.0, dtype=np.float32),
                    p_norm=np.full((N, H, W), 0.5, dtype=np.float32))
     dec = evaluate(base_view(winter_deciduous=1, leafout_month=4),
-                   ctx)[REQ_CLIMATE]
-    evg = evaluate(base_view(winter_deciduous=0), ctx)[REQ_CLIMATE]
+                   ctx)[REQ_COLD]
+    evg = evaluate(base_view(winter_deciduous=0), ctx)[REQ_COLD]
     assert np.allclose(dec[:3], 1.0)            # pre-leafout: no cost
     assert np.allclose(dec[3:], evg[3:])        # leaf-on: same as evergreen
-    assert np.allclose(evg, 0.6)                # |7-15|/10 x w_T=0.5 -> 0.4
+    assert np.allclose(evg, 0.2)                # |7-15|/10 -> sat 0.8 cost
     # -10 C: dormant for everyone, deciduous or not
     cold = make_ctx(t_c=np.full((N, H, W), -10.0, dtype=np.float32),
                     p_norm=np.full((N, H, W), 0.5, dtype=np.float32))
     assert np.allclose(evaluate(base_view(winter_deciduous=0),
-                                cold)[REQ_CLIMATE], 1.0)
+                                cold)[REQ_COLD], 1.0)
     assert np.allclose(evaluate(base_view(winter_deciduous=1),
-                                cold)[REQ_CLIMATE], 1.0)
-
-
-def test_drought_deciduous_relaxes_dry_season():
-    """drought_deciduous discounts the dry-side P cost."""
-    ctx = make_ctx(p_norm=np.full((N, H, W), 0.05, dtype=np.float32))
-    base = evaluate(base_view(drought_deciduous=0), ctx)[REQ_CLIMATE]
-    rel = evaluate(base_view(drought_deciduous=1), ctx)[REQ_CLIMATE]
-    assert (rel > base).all()
+                                cold)[REQ_COLD], 1.0)
+    # heat is ungated: a warm month costs the same for deciduous plans
+    ctxw = make_ctx(t_c=np.full((N, H, W), 25.0, dtype=np.float32))
+    assert np.allclose(
+        evaluate(base_view(winter_deciduous=1, leafout_month=4),
+                 ctxw)[REQ_HEAT], 0.0)          # |25-15|/10 saturated
 
 
 def test_c4_cam_cold_penalty():
     """C4/CAM carry a cold penalty term (C3 none) in the COOL GROWING
-    band; below GROW_T_C every plan is dormant and the penalty lifts."""
+    band, folded into the COLD side; below GROW_T_C every plan is
+    dormant and the penalty lifts. The HEAT side carries no penalty."""
     ctx = make_ctx(t_c=np.full((N, H, W), 7.0, dtype=np.float32),
                    p_norm=np.full((N, H, W), 0.5, dtype=np.float32))
-    c3 = evaluate(base_view(photosynthesis="C3"), ctx)[REQ_CLIMATE][0]
-    c4 = evaluate(base_view(photosynthesis="C4"), ctx)[REQ_CLIMATE][0]
-    cam = evaluate(base_view(photosynthesis="CAM"), ctx)[REQ_CLIMATE][0]
+    c3 = evaluate(base_view(photosynthesis="C3"), ctx)[REQ_COLD][0]
+    c4 = evaluate(base_view(photosynthesis="C4"), ctx)[REQ_COLD][0]
+    cam = evaluate(base_view(photosynthesis="CAM"), ctx)[REQ_COLD][0]
     assert (c4 < c3).all() and (cam < c3).all()
-    # at 7 C: plain distance |7-15|/10 x w_T=0.5 -> 0.6; the cold
-    # penalty sat((10-7)/5)=0.6 docks 40% x 0.6 of that -> x 0.76
-    assert np.allclose(c3, 0.6)
-    assert np.allclose(c4, 0.6 * 0.76) and np.allclose(cam, 0.6 * 0.76)
+    # at 7 C: plain distance |7-15|/10 -> 0.2; the cold penalty
+    # sat((10-7)/5)=0.6 docks 40% x 0.6 of that -> x 0.76
+    assert np.allclose(c3, 0.2)
+    assert np.allclose(c4, 0.2 * 0.76) and np.allclose(cam, 0.2 * 0.76)
     # dormant months (below GROW_T_C): no distance cost, no penalty
     cold = make_ctx(t_c=np.full((N, H, W), 0.0, dtype=np.float32),
                     p_norm=np.full((N, H, W), 0.5, dtype=np.float32))
     assert np.allclose(evaluate(base_view(photosynthesis="C4"),
-                                cold)[REQ_CLIMATE], 1.0)
+                                cold)[REQ_COLD], 1.0)
+    # the penalty never touches the heat side
+    warm = make_ctx(t_c=np.full((N, H, W), 25.0, dtype=np.float32))
+    c4w = evaluate(base_view(photosynthesis="C4"), warm)[REQ_HEAT]
+    assert np.allclose(c4w, 0.0)                # pure T-distance sat
 
 
 def test_bloom_frost_only_in_bloom_window():
@@ -451,22 +469,23 @@ def test_climate_submerged_reads_bottom_temp():
     """A submerged benthic plan reads the ANNUAL bottom temperature for
     the climate T term, not the surface monthly field — and carries NO
     dormancy gate (the deep sea has no winter): a -20 C bottom costs
-    the full distance. A surface plan at -20 C is simply dormant."""
+    the full cold distance. A surface plan at -20 C is simply dormant."""
     ctx = make_ctx(t_c=np.full((N, H, W), -20.0, dtype=np.float32),
                    bottom_temp=np.full((H, W), -20.0, dtype=np.float32))
     surf = evaluate(base_view(medium="water", submerged=0,
-                              salinity_tolerance=0.9),
-                    ctx)[REQ_CLIMATE]
-    assert np.allclose(surf, 1.0)         # dormant: no T-distance cost
+                              salinity_tolerance=0.9), ctx)
+    assert np.allclose(surf[REQ_COLD], 1.0)     # dormant: no T-distance
+    assert np.allclose(surf[REQ_HEAT], 1.0)
     sub = evaluate(base_view(medium="water", submerged=1,
-                             salinity_tolerance=0.9),
-                   ctx)[REQ_CLIMATE]
-    assert np.allclose(sub, 0.5)          # sat cost w_T x 1, no dormancy
+                             salinity_tolerance=0.9), ctx)
+    assert np.allclose(sub[REQ_COLD], 0.0)      # |−20−15|/10 saturated
+    assert np.allclose(sub[REQ_HEAT], 1.0)
+    assert np.allclose(sub[REQ_COLD] * sub[REQ_HEAT], 0.0)
     warm = make_ctx(bottom_temp=np.full((H, W), 15.0, dtype=np.float32))
     sub_warm = evaluate(base_view(medium="water", submerged=1,
-                                  salinity_tolerance=0.9),
-                        warm)[REQ_CLIMATE]
-    assert np.allclose(sub_warm, 1.0)     # bottom 15 == opt 15
+                                  salinity_tolerance=0.9), warm)
+    assert np.allclose(sub_warm[REQ_COLD], 1.0)  # bottom 15 == opt 15
+    assert np.allclose(sub_warm[REQ_HEAT], 1.0)
 
 
 # ── freshwater habitat stratum (B5 §4.5) ──────────────────────────────

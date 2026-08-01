@@ -5,9 +5,10 @@ space-blind behaviors the K15 sim drives (checkout/commit model,
 interface.py): derive, select, mutate, vital.
 
 ┌─ derive ────────────────────────────────────────────────────────────
-Wraps ``flora.derive.effective_climate`` (niche-METADATA baseline from
-the preset's [niche] table + stored tolerance traits) and adds the
-plan/phenology keys ``req_flora.py`` documents: root_depth_m, height_m,
+Wraps ``flora.derive.effective_climate`` (the climate ENVELOPE as a
+pure DERIVED of the trait bundle — owner ruling 2026-08-01, no [niche]
+metadata — plus the stored tolerance traits) and adds the plan/
+phenology keys ``req_flora.py`` documents: root_depth_m, height_m,
 woodiness, photosynthesis, winter_deciduous/leafout_month,
 drought_deciduous, the bloom window, medium (from the plan registry),
 anchoring_need = clip(height x woodiness / ANCHOR_REF_M), holdfast, and
@@ -22,13 +23,15 @@ Routes each verdict provenance factor (the ENV-defined req_flora names)
 through content/flora/stress_response.toml (loaded into the ContentPack)
 to the driftable traits that answer it. Magnitude = (1 - suitability) x
 row weight: the worse the factor, the harder the push. Responders are
-only ever driftable TRAITS (axes + generics); [niche] metadata and
-plan-level medium never receive pressure. One documented rule:
+only ever driftable TRAITS (axes + generics); the climate ENVELOPE is a
+derived (never pressured directly) and plan-level medium never receives
+pressure. One documented rule:
 
-* No-responder requirements (pressure:climate — its terms are the
-  [niche] metadata that never drifts; pressure:medium — medium is
-  plan-level) emit NO pressure: the lineage accumulates nowhere and
+* No-responder requirements (pressure:medium — medium is plan-level
+  registry data) emit NO pressure: the lineage accumulates nowhere and
   simply shrinks where it is unsuitable. Intended (interface ruling).
+  pressure:cold / pressure:heat DO route (owner ruling 2026-08-01:
+  the envelope is a pure derived, so the backward pass moves it).
 
 (Symmetric requirements are SPLIT one-sided env-side — pressure:ph_low /
 pressure:ph_high, req_flora ruling 2026-08-01 — so every verdict factor
@@ -215,13 +218,12 @@ class FloraSim:
 
     def derive(self, traits: Mapping, pack: ContentPack) -> dict:
         """Project WIP genes to the derived vocabulary the env reads
-        (req_flora): effective_climate's niche baseline + tolerance
+        (req_flora): effective_climate's DERIVED envelope + tolerance
         traits, plus the plan/phenology descriptors. Drop-in for the
         env-side species_view."""
         node = _node(traits, _plan_of(traits), traits.get("preset"))
         view = dict(effective_climate(node, pack))
         axes = node.axes
-        meta = pack.presets.get(node.preset or "", {}).get("niche", {})
         plan = pack.registry.plans.get(node.plan or "")
         medium = plan.medium if plan is not None else "land"
         lp = str(axes.get("leaf_persistence") or "evergreen")
@@ -229,8 +231,6 @@ class FloraSim:
         height = float(axes.get("height_m") or 0.0)
         wood = float(axes.get("woodiness") or 0.0)
         view.update({
-            "w_T": meta.get("w_T"),
-            "w_P": meta.get("w_P"),
             "root_depth_m": axes.get("root_depth_m"),
             "height_m": height,
             "woodiness": wood,

@@ -69,12 +69,6 @@ growing_season_req = 2.0
 engineer_impact = 0.3
 coloniality = 0.6
 
-[niche]
-temp_opt_c = 10
-temp_breadth_c = 12.0
-moisture_opt = 0.15
-moisture_breadth = 0.15
-
 [generics]
 support = "crustose"
 feeding_organ = "C3_foliage"

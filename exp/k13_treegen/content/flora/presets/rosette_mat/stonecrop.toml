@@ -73,12 +73,6 @@ growing_season_req = 3.0
 engineer_impact = 0.2
 coloniality = 0.6
 
-[niche]
-temp_opt_c = 16
-temp_breadth_c = 10.0
-moisture_opt = 0.06
-moisture_breadth = 0.08
-
 [generics]
 support = "cushion_mat"
 feeding_organ = "CAM_foliage"

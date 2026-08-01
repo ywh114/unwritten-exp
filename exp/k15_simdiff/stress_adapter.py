@@ -62,6 +62,13 @@ Owner rulings 2026-08-01 (stat-pass settling):
   water-availability term and the inverted waterlogging requirement —
   B5 §7.2's unwritten-wetland field (a reed's water is the marsh, not
   the worst-month soil moisture).
+- Climate envelope as a PURE DERIVED: temp_opt_c/temp_breadth_c/
+  moisture_opt/moisture_breadth are computed from the trait bundle
+  (flora.derive.effective_climate — owner ruling 2026-08-01), never
+  clade metadata; when stress pushes the traits the envelope moves.
+  The T requirement is SPLIT one-sided (pressure:cold / pressure:heat,
+  the pH-split convention); the moisture half lives in pressure:water/
+  waterlogging — nothing is double-counted.
 """
 
 from __future__ import annotations
@@ -74,7 +81,9 @@ import numpy as np
 from exp.artifacts import require as artifact_require
 from exp.k11_worldgen.units import hand_m, temp_c
 from exp.k13_treegen.flora.content import ContentPack
+from exp.k13_treegen.flora.derive import effective_climate
 from exp.k13_treegen.interface import StressVerdict
+from exp.k13_treegen.model import Node, Rank
 from exp.k14_worldprod import moisture as _moisture
 from exp.k14_worldprod import water as _water
 from exp.k14_worldprod.derived import (
@@ -95,9 +104,10 @@ from exp.k14_worldprod.ground import (
 from exp.k15_simdiff.req_flora import (
     REQ_ANCHORING,
     REQ_BLOOM_FROST,
-    REQ_CLIMATE,
+    REQ_COLD,
     REQ_FERTILITY,
     REQ_FRESH_HABITAT,
+    REQ_HEAT,
     REQ_MEDIUM,
     REQ_PH_HIGH,
     REQ_PH_LOW,
@@ -109,8 +119,6 @@ from exp.k15_simdiff.req_flora import (
     V1_FLORA,
 )
 from kernel.stress.stress import (
-    W_P_DEFAULT,
-    W_T_DEFAULT,
     excess_suit,
     invert,
     sat,
@@ -122,15 +130,15 @@ K14_OUT = Path(__file__).resolve().parent.parent / "k14_worldprod" / "out"
 FLORA_TREE_REL = Path("exp") / "k13_treegen" / "out"
 
 # ── climate stratum (B5 §4.1) ─────────────────────────────────────────
-# drought_tolerance widens the moisture breadth on the DRY side by this
-# many breadth units per unit tolerance (asymmetric: wet-side breadth is
-# untouched — a drought-adapted plant is not more wet-tolerant).
-DROUGHT_DRY_WIDEN = 0.5
-# drought_deciduous drops leaves in the dry season: its dry-side P cost
-# is relaxed by this fraction (1.0 = the dry season never costs).
-DROUGHT_DECID_RELAX = 0.75
-# growing_season_req -> saturating term against the D0 growing-season
-# length (months); the reference is how short a season docks fully.
+# The T requirement is SPLIT one-sided like pH (req_flora ruling
+# 2026-08-01): REQ_COLD = shortfall of T below the envelope optimum,
+# REQ_HEAT = excess past it; cold x heat is exactly the symmetric
+# distance, and the one-sided factors let select() push the right way.
+# The cold side carries the growing-season term and the C4/CAM cold
+# penalty; the moisture (P) half is gone — the DERIVED moisture
+# envelope (moisture_opt/moisture_breadth, pure function of the trait
+# bundle — owner ruling 2026-08-01) feeds pressure:water/waterlogging,
+# so nothing is lost and nothing is double-counted.
 GS_REF_MONTHS = 3.0
 # C4/CAM cold penalty: photosynthesis shuts down below COLD_PEN_T_C;
 # the penalty saturates over COLD_PEN_SPAN_C and weighs COLD_PEN_W, so
@@ -215,8 +223,8 @@ MEDIUM_VIOLATION_F = 1e-3
 FRESH_SAL_MAX = 0.5
 
 # ── DerivedView keys the adapter reads (req_flora) ────────────────────
-# temp_opt_c, temp_breadth_c, moisture_opt, moisture_breadth  [niche]
-# w_T/w_P (per-plan [niche] override, optional)
+# temp_opt_c, temp_breadth_c, moisture_opt, moisture_breadth  [DERIVED
+# envelope — pure function of the trait bundle, owner ruling 2026-08-01]
 # drought_tolerance, waterlogging_tolerance, salinity_tolerance,
 # ph_tolerance, fertility_requirement, growing_season_req
 # root_depth_m, height_m, woodiness
@@ -250,8 +258,9 @@ class WorldContext:
     sea_level: float
     t_c: np.ndarray            # (12,H,W) degC
     p_norm: np.ndarray         # (12,H,W) monthly P on the normalized
-                               # 0..1 scale (niche moisture_opt is a
-                               # position on THAT scale, not mm)
+                               # 0..1 scale (the derived moisture
+                               # envelope is a position on THAT scale;
+                               # consumed by the arid-band stats)
     water_potential: np.ndarray  # (12,H,W) soil water status [0,1], land
     fresh_availability: np.ndarray  # (12,H,W) unwritten-fresh habitat [0,1]
     growing_season: np.ndarray  # (H,W) months above GROW_T_C
@@ -321,9 +330,10 @@ def load_world(seed: int) -> WorldContext:
 
     # ── climate / masks / hydrology ──
     ctx.t_c = temp_c(z["c_T_monthly"]).astype(np.float32)
-    # the [niche] moisture_opt/moisture_breadth are positions on the
-    # normalized 0..1 P scale (c_P_monthly raw; precip_mm is p*400) —
-    # the climate term compares like with like.
+    # the derived moisture envelope (moisture_opt/moisture_breadth) is a
+    # position on the normalized 0..1 P scale (c_P_monthly raw;
+    # precip_mm is p*400) — the water-availability term compares like
+    # with like (water_potential is on the same 0..1 scale).
     ctx.p_norm = z["c_P_monthly"].astype(np.float32)
     ctx.growing_season = growing_season(z).astype(np.float32)
     ocean = (z["h_ocean_mask"] | z["h_sea_mask"]).astype(bool)
@@ -438,33 +448,24 @@ def _currents_payload(seed_dir: Path):
 
 def _view_from_record(axes: dict, preset_id: str | None,
                       pack: ContentPack) -> dict:
-    """The DerivedView the adapter reads from a record's axes + the
-    preset's [niche] metadata: flora derive's effective_climate logic
-    (niche METADATA never drifts; tolerance traits come from the axes)
-    plus the plan descriptors (medium from the plan registry,
-    anchoring_need = clip(height x woodiness / ANCHOR_REF_M), holdfast,
-    submerged, phenology flags). Pure function of record + content."""
-    meta = pack.presets.get(preset_id or "", {}).get("niche", {})
+    """The DerivedView the adapter reads from a record's axes: flora
+    derive's effective_climate — the climate ENVELOPE as a pure derived
+    of the trait bundle (owner ruling 2026-08-01; tolerance traits come
+    from the axes) — plus the plan descriptors (medium from the plan
+    registry, anchoring_need = clip(height x woodiness / ANCHOR_REF_M),
+    holdfast, submerged, phenology flags). Pure function of record +
+    content."""
     node_plan = str(axes.get("_plan") or "")
     plan = pack.registry.plans.get(node_plan)
     medium = plan.medium if plan is not None else "land"
+    node = Node(path="", rank=Rank.SPECIES, parent=None, sid="0" * 16,
+                plan=node_plan, preset=preset_id, axes=dict(axes))
+    view = dict(effective_climate(node, pack))
     lp = str(axes.get("leaf_persistence") or "evergreen")
     dt = str(axes.get("deciduous_trigger") or "none")
     height = float(axes.get("height_m") or 0.0)
     wood = float(axes.get("woodiness") or 0.0)
-    return {
-        "temp_opt_c": meta.get("temp_opt_c"),
-        "temp_breadth_c": meta.get("temp_breadth_c"),
-        "moisture_opt": meta.get("moisture_opt"),
-        "moisture_breadth": meta.get("moisture_breadth"),
-        "w_T": meta.get("w_T"),
-        "w_P": meta.get("w_P"),
-        "drought_tolerance": axes.get("drought_tolerance"),
-        "waterlogging_tolerance": axes.get("waterlogging_tolerance"),
-        "salinity_tolerance": axes.get("salinity_tolerance"),
-        "ph_tolerance": axes.get("ph_tolerance"),
-        "fertility_requirement": axes.get("fertility_requirement"),
-        "growing_season_req": axes.get("growing_season_req"),
+    view.update({
         "root_depth_m": axes.get("root_depth_m"),
         "height_m": height,
         "woodiness": wood,
@@ -492,7 +493,8 @@ def _view_from_record(axes: dict, preset_id: str | None,
         "crown_spread_m": axes.get("crown_spread_m"),
         # jump-dispersal frequency (long-range hops/yr) for the engine
         "jump_rate": axes.get("jump_rate"),
-    }
+    })
+    return view
 
 
 def species_view(node, pack: ContentPack) -> dict:
@@ -514,77 +516,68 @@ def preset_view(preset_id: str, pack: ContentPack) -> dict:
 # ── strata (each returns a (12,H,W) float32 suitability in [0,1]) ─────
 
 
-def _climate_suitability(view: dict, ctx: WorldContext) -> np.ndarray:
-    """B5 §4.1: weighted saturating (T, P) distance from the [niche]
-    baseline, phenology-gated, plus the growing-season and C4/CAM cold
-    terms. Returns REQ_CLIMATE (12,H,W)."""
+def _climate_factors(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
+    """B5 §4.1 as a SPLIT one-sided pair (req_flora ruling 2026-08-01):
+    REQ_COLD = saturating shortfall of T below the envelope optimum —
+    phenology/dormancy gated, multiplied by the growing-season term and
+    the C4/CAM cold penalty; REQ_HEAT = saturating excess of T above
+    the optimum. cold x heat is exactly the symmetric distance, so F is
+    unchanged by the split. The moisture (P) half is gone — the derived
+    moisture envelope feeds pressure:water/waterlogging instead. The
+    envelope values (temp_opt_c/temp_breadth_c) are a pure DERIVED of
+    the trait bundle, so they move as stress pushes the traits."""
     H, W = ctx.H, ctx.W
     opt_t = _f(view.get("temp_opt_c"))
     b_t = _f(view.get("temp_breadth_c"))
-    opt_p = _f(view.get("moisture_opt"))
-    b_p = _f(view.get("moisture_breadth"))
-    w_t = _f(view.get("w_T")) if view.get("w_T") is not None \
-        else W_T_DEFAULT
-    w_p = _f(view.get("w_P")) if view.get("w_P") is not None \
-        else W_P_DEFAULT
-    drought = _f(view.get("drought_tolerance"))
-    if np.isnan(drought):
-        drought = 0.0
     winter_dec = int(view.get("winter_deciduous") or 0)
     leafout = view.get("leafout_month")
-    drought_dec = int(view.get("drought_deciduous") or 0)
     photo = str(view.get("photosynthesis") or "C3")
 
-    cost = np.zeros((12, H, W), dtype=np.float32)
-    if not np.isnan(opt_t) and b_t > 0:
-        # submerged (benthic water) plans read the ANNUAL bottom
-        # temperature, not the surface monthly field — B4: the deep
-        # bottom has no seasons, shelf bottoms are damped.
-        submerged = int(view.get("submerged") or 0)
-        t_field = ctx.bottom_temp[None] if submerged else ctx.t_c
-        c = sat(np.abs(t_field - np.float32(opt_t)) / np.float32(b_t))
-        if winter_dec and isinstance(leafout, (int, float)):
-            leaf_on = (_MONTH1 >= int(leafout))[:, None, None]
-            c = np.where(leaf_on, c, 0.0)      # dormant months: no cold
-        if not submerged:
-            # growing-season dormancy (owner ruling 2026-08-01): months
-            # below GROW_T_C are dormant — no T-distance cost (a taiga
-            # winter is not niche distance). Submerged plans read the
-            # annual bottom temperature: no winter, no dormancy.
-            c = np.where(t_field < np.float32(GROW_T_C), 0.0, c)
-        cost += np.float32(w_t) * c
-    # the moisture (P) half is meaningless for a plan that lives IN
-    # water — its moisture niche is the water itself, carried by the
-    # habitat/medium terms (an aquatic plant is not niche-limited by
-    # precipitation over the ocean). Land and dual plans pay it.
-    if view.get("medium") != "water" and not np.isnan(opt_p) and b_p > 0:
-        b_dry = np.float32(max(b_p + DROUGHT_DRY_WIDEN * drought, 1e-6))
-        b_wet = np.float32(max(b_p, 1e-6))
-        dP = np.abs(ctx.p_norm - np.float32(opt_p))
-        dry_side = ctx.p_norm < np.float32(opt_p)
-        c = np.where(dry_side, sat(dP / b_dry), sat(dP / b_wet))
-        if drought_dec:
-            c = np.where(dry_side, c * np.float32(1.0 - DROUGHT_DECID_RELAX),
-                         c)
-        cost += np.float32(w_p) * c
-    f = sat(1.0 - cost)
+    cold = np.ones((12, H, W), dtype=np.float32)
+    heat = np.ones((12, H, W), dtype=np.float32)
+    if np.isnan(opt_t) or b_t <= 0:
+        return {REQ_COLD: cold, REQ_HEAT: heat}
+    opt = np.float32(opt_t)
+    b = np.float32(b_t)
+    # submerged (benthic water) plans read the ANNUAL bottom temperature,
+    # not the surface monthly field — B4: the deep bottom has no
+    # seasons, shelf bottoms are damped.
+    submerged = int(view.get("submerged") or 0)
+    t_field = ctx.bottom_temp[None] if submerged else ctx.t_c
 
-    # growing season (annual, saturating shortfall)
+    cold_cost = sat((opt - t_field) / b)      # T below opt
+    heat_cost = sat((t_field - opt) / b)      # T above opt
+    if winter_dec and isinstance(leafout, (int, float)):
+        leaf_on = (_MONTH1 >= int(leafout))[:, None, None]
+        cold_cost = np.where(leaf_on, cold_cost, 0.0)  # dormant: no cold
+    if not submerged:
+        # growing-season dormancy (owner ruling 2026-08-01): months
+        # below GROW_T_C are dormant — no T-distance cost (a taiga
+        # winter is not niche distance). Submerged plans read the
+        # annual bottom temperature: no winter, no dormancy.
+        cold_cost = np.where(t_field < np.float32(GROW_T_C), 0.0,
+                             cold_cost)
+    cold = sat(1.0 - cold_cost).astype(np.float32)
+    heat = sat(1.0 - heat_cost).astype(np.float32)
+
+    # growing season (annual, saturating shortfall) — a cold-side term:
+    # a short season IS cold climate. Folded into REQ_COLD.
     gs_req = _f(view.get("growing_season_req"))
     if not np.isnan(gs_req):
         f_gs = shortfall_suit(ctx.growing_season, np.float32(gs_req),
                               np.float32(GS_REF_MONTHS))
-        f = f * f_gs[None]
+        cold = (cold * f_gs[None]).astype(np.float32)
 
     # C4/CAM cold penalty (C3/none/chemosymbiosis carry none); gated to
     # the growing band — below GROW_T_C every plan is dormant, so C4's
     # real disadvantage is the COOL growing season, not the winter.
     if photo in ("C4", "CAM"):
-        cold = sat((np.float32(COLD_PEN_T_C) - ctx.t_c)
-                   / np.float32(COLD_PEN_SPAN_C))
-        cold = np.where(ctx.t_c < np.float32(GROW_T_C), 0.0, cold)
-        f = f * (1.0 - np.float32(COLD_PEN_W) * cold)
-    return f.astype(np.float32)
+        pen = sat((np.float32(COLD_PEN_T_C) - ctx.t_c)
+                  / np.float32(COLD_PEN_SPAN_C))
+        pen = np.where(ctx.t_c < np.float32(GROW_T_C), 0.0, pen)
+        cold = (cold * (1.0 - np.float32(COLD_PEN_W) * pen)).astype(
+            np.float32)
+    return {REQ_COLD: cold, REQ_HEAT: heat}
 
 
 def _bloom_frost(view: dict, ctx: WorldContext) -> np.ndarray:
@@ -824,8 +817,7 @@ def evaluate(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
 
     cs = _substrate_suits(view, ctx)
     factors: dict[str, np.ndarray] = {}
-    f = _climate_suitability(view, ctx)
-    factors[REQ_CLIMATE] = f
+    factors.update(_climate_factors(view, ctx))
     factors[REQ_BLOOM_FROST] = _bloom_frost(view, ctx)
     if medium != "water":
         factors.update(_ground_terms(view, ctx, cs))

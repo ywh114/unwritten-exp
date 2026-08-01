@@ -27,19 +27,45 @@
 # PRINCIPLE (interface ruling): a requirement with NO driftable responder
 # maps to an EMPTY responders list. select() then emits no pressure — the
 # lineage accumulates nowhere and simply shrinks where it is unsuitable
-# (that is intended). pressure:climate is that case (its terms are the
-# [niche] metadata baseline, which never drifts — see the row comment);
-# pressure:medium too (medium is plan-level registry data).
+# (that is intended). pressure:medium is that case (medium is plan-level
+# registry data). pressure:cold/pressure:heat DO route — owner ruling
+# 2026-08-01: the climate envelope is a pure DERIVED of the trait bundle
+# (the [niche] metadata baseline is GONE), so the backward pass moves it.
 
 [[responder]]
-name = "pressure:climate"
-responders = []
-# The climate factor (B5 §4.1) is dominated by (T, P) distance from the
-# [niche] baseline — clade METADATA, never a stored trait, so nothing
-# driftable answers it. The growing-season and drought-widening sub-terms
-# are folded into pressure:water's drought_tolerance route; routing them
-# here too would double-count the same dial, so climate is left with no
-# target and unsuitable lineages shrink there.
+name = "pressure:cold"
+responders = [
+    { trait = "leaf_persistence", toward = ["winter_deciduous"], weight = 1.0 },
+    { trait = "deciduous_trigger", toward = ["winter"], weight = 1.0 },
+    { trait = "growing_season_req", dir = "down", weight = 1.0 },
+    { trait = "leafout_month", dir = "up", weight = 0.5 },
+    { trait = "bark_thickness_cm", dir = "up", weight = 0.4 },
+    { trait = "pubescence", dir = "up", weight = 0.4 },
+    { trait = "leaf_size_cm", dir = "down", weight = 0.3 }
+]
+# The T-requirement is SPLIT one-sided env-side (req_flora ruling
+# 2026-08-01): pressure:cold = saturating shortfall of T below the
+# derived envelope optimum (plus the growing-season and C4/CAM cold
+# terms, which are cold phenomena). Answering it MOVES the envelope:
+# winter deciduousness (leaf_persistence/deciduous_trigger) drops
+# temp_opt and widens temp_breadth (the derive table rewards it),
+# a shorter growing_season_req is cold adaptation, later leafout
+# skips the frost-risk band, bark and pubescence insulate, small
+# leaves shed heat.
+
+[[responder]]
+name = "pressure:heat"
+responders = [
+    { trait = "photosynthesis", toward = ["C4"], weight = 0.8 },
+    { trait = "leaf_size_cm", dir = "down", weight = 0.4 },
+    { trait = "cuticle_thickness", dir = "up", weight = 0.4 },
+    { trait = "pubescence", dir = "up", weight = 0.3 }
+]
+# The mirror: pressure:heat = saturating excess of T above the derived
+# envelope optimum. The hot-side answer is the C4 switch (the derive
+# table raises temp_opt by 6 C for C4), smaller leaves, a thicker
+# cuticle and reflective pubescence (which the derive table turns into
+# a hotter optimum via T_PUB_C / moisture_opt via P_CUTICLE).
 
 [[responder]]
 name = "pressure:bloom_frost"

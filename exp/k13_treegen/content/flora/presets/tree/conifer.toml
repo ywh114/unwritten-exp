@@ -87,12 +87,6 @@ snow_adaptation = "conical_shed"
 engineer_impact = 0.5
 coloniality = 0.1
 
-[niche]
-temp_opt_c = 8
-temp_breadth_c = 8.0
-moisture_opt = 0.25
-moisture_breadth = 0.13
-
 [generics]
 support = "trunk_single"
 feeding_organ = "C3_foliage"

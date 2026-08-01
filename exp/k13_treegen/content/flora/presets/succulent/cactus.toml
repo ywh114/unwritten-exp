@@ -74,12 +74,6 @@ growing_season_req = 3.0
 engineer_impact = 0.3
 coloniality = 0.2
 
-[niche]
-temp_opt_c = 21
-temp_breadth_c = 8.0
-moisture_opt = 0.04
-moisture_breadth = 0.05
-
 [generics]
 support = "succulent_stem"
 feeding_organ = "CAM_foliage"

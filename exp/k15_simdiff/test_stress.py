@@ -76,6 +76,25 @@ def test_climate_weights_override():
     assert np.allclose(f, 0.8)                          # per-plan pair
 
 
+def test_temperature_split_one_sided():
+    """The flora climate T requirement is SPLIT one-sided (req_flora
+    ruling 2026-08-01, same convention as pH): shortfall toward the
+    optimum = the cold side, excess past it = the heat side — their
+    product is exactly the symmetric dist_suit at unit weight, so the
+    composed F is unchanged by the split and each side carries its own
+    sign for select()."""
+    t = np.linspace(-20.0, 50.0, 15)                    # overkill sweep
+    for opt in (5.0, 15.0, 25.0):
+        for b in (2.0, 8.0, 15.0):
+            cold = shortfall_suit(t, opt, b)            # t below opt
+            heat = excess_suit(t, opt, b)               # t above opt
+            assert np.allclose(cold * heat, dist_suit(t, opt, b))
+            # one-sided: on the cold side heat == 1 and vice versa
+            below = t < opt
+            assert np.allclose(heat[below], 1.0)
+            assert np.allclose(cold[~below], 1.0)
+
+
 # ──  composition  ─────────────────────────────────────────────────────
 
 

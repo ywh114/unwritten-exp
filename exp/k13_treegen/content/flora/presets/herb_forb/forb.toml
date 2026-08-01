@@ -74,12 +74,6 @@ fire_strategy = "resprouter"
 engineer_impact = 0.2
 coloniality = 0.4
 
-[niche]
-temp_opt_c = 15
-temp_breadth_c = 8.0
-moisture_opt = 0.19
-moisture_breadth = 0.13
-
 [generics]
 support = "herbaceous_stem"
 feeding_organ = "C3_foliage"

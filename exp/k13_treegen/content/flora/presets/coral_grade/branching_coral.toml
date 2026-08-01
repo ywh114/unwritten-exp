@@ -68,12 +68,6 @@ growing_season_req = 12.0
 engineer_impact = 0.95
 coloniality = 1.0
 
-[niche]
-temp_opt_c = 24
-temp_breadth_c = 4.0
-moisture_opt = 0.95
-moisture_breadth = 0.05
-
 [generics]
 support = "skeleton_branching"
 feeding_organ = "carnivore_trap"

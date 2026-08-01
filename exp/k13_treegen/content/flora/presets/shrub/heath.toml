@@ -87,12 +87,6 @@ snow_adaptation = "none"
 engineer_impact = 0.4
 coloniality = 0.6
 
-[niche]
-temp_opt_c = 12
-temp_breadth_c = 8.0
-moisture_opt = 0.25
-moisture_breadth = 0.13
-
 [generics]
 support = "multi_stem_woody"
 feeding_organ = "C3_foliage"

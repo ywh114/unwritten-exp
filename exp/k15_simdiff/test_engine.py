@@ -17,10 +17,13 @@ Slow tier (`-m slow`, one 20-round run pair):
 
 Fixtures plant instances directly (``_plant``): no genesis rain, so
 each fast test exercises exactly the lineages it planted. Fixture
-cells/presets were picked from a seed-1 stat probe (2026-08-01):
-extinction uses a grass (high baseline death) on deep ocean; the
-close pair is bramble/oak (240 overlapping s_env < 0 cells, min gap
-0.000); the takeover pair is palm/conifer at a cell with gap 1.63.
+cells/presets were picked from a seed-1 stat probe (2026-08-01, retuned
+after the 2026-08-01 climate-envelope ruling moved the suitability
+landscape): the close pair is forb/yarrow (501 overlapping s_env < 0
+cells, min gap 0.000); the takeover pair is palm/conifer at a cell with
+large s_env margin; the drift-retention pair is a reed lineage on a
+cold-stressed marginal cell vs a healthy contrast cell; consolidation
+uses lichen (viable in every world quadrant).
 """
 
 from __future__ import annotations
@@ -131,20 +134,24 @@ def test_extinction_lethal_refugium():
 
 
 def test_coexistence_close_suitability():
-    """Two fixtures with close suitability in one cell (tussock/
-    yarrow, min s_env gap 0.003 over 56 candidate cells) coexist:
-    both keep N > N_FLOOR after 8 rounds. Fast-turnover plans: slow
-    trees need far more than 8 rounds to reach an equilibrium readable
-    as coexistence (both merely decay together under the density cap
-    on any shared-cell planting)."""
+    """Two fixtures with close suitability in one cell (reed/yarrow,
+    min gap 0.001 over 30 healthy-shared cells) coexist: both keep
+    N > N_FLOOR after 8 rounds. Fast-turnover plans: slow trees need
+    far more than 8 rounds to reach an equilibrium readable as
+    coexistence (both merely decay together under the density cap on
+    any shared-cell planting). The shared cell must be HEALTHY for both
+    (s_env < -0.1): a near-breakeven shared cell decays both lineages
+    under their baseline death."""
     eng = _engine()
-    s_a = _s_env(eng, "grass_sward.tussock")
+    s_a = _s_env(eng, "grass_sward.reed")
     s_b = _s_env(eng, "herb_forb.yarrow")
     ok = eng.ctx.land_cell & (s_a < 0.0) & (s_b < 0.0)
     assert ok.any(), "no overlapping viable cell on this world"
-    score = np.where(ok, -np.abs(s_a - s_b), -np.inf)
+    healthy = ok & (s_a < -0.1) & (s_b < -0.1)
+    assert healthy.any(), "no healthy-shared cell on this world"
+    score = np.where(healthy, -np.abs(s_a - s_b), -np.inf)
     y, x = np.unravel_index(int(np.argmax(score)), score.shape)
-    a = _plant(eng, "grass_sward.tussock", [(int(y), int(x))])
+    a = _plant(eng, "grass_sward.reed", [(int(y), int(x))])
     b = _plant(eng, "herb_forb.yarrow", [(int(y), int(x))])
     for t in range(8):
         eng.round(t)
@@ -280,19 +287,21 @@ def test_reduced_cache_budget():
 
 def _marginal_cell(eng: Engine, preset: str) -> tuple[int, int]:
     """A viable but stressed fixture cell whose shortfall is in a
-    DRIFTABLE factor: pressure:climate routes to no responder by design
-    (stress_response.toml — niche baseline never drifts), so a cell
-    whose only gap is climate accumulates zero pressure. Picks the
-    viable land cell with the worst driftable suitability factor."""
+    DRIFTABLE factor: pressure:cold/pressure:heat route (owner ruling
+    2026-08-01 — the climate envelope is a pure derived, so the
+    backward pass moves it), alongside the other drifted requirements.
+    Picks the viable land cell with the worst driftable suitability
+    factor."""
     sid = eng._order_sid[preset]
     rng = eng._stream("test", f"peek:{preset}")
     x = eng.authority.mint(sid, eng._new_instance_id(rng), rng)
     view = eng.sim.derive(x.traits, eng.pack)
     cache = eng._evaluate_cache(view, x.traits)
-    driftable = {"pressure:bloom_frost", "pressure:water",
-                 "pressure:waterlogging", "pressure:fertility",
-                 "pressure:ph_low", "pressure:ph_high",
-                 "pressure:salinity", "pressure:rooting"}
+    driftable = {"pressure:cold", "pressure:heat", "pressure:bloom_frost",
+                 "pressure:water", "pressure:waterlogging",
+                 "pressure:fertility", "pressure:ph_low",
+                 "pressure:ph_high", "pressure:salinity",
+                 "pressure:rooting"}
     s = cache.s_env
     viable = eng.ctx.land_cell & (s < 0.0)
     worst = np.ones_like(s)
@@ -312,18 +321,22 @@ def test_drift_retained_across_commits():
     pairwise d at the one-round nudge forever — the speciation
     blocker). Note distance-to-record is 0 by construction for the
     orthodox instance (the commit amends the record to it, gerrit-style)
-    — retention is only observable pairwise."""
+    — retention is only observable pairwise. The lineage is a REED (the
+    derived-envelope landscape gives it a real habitat — tussock's 16
+    near-breakeven cells do not survive 4 rounds), the marginal cell is
+    cold-stressed, the contrast cell is required to be genuinely viable
+    (s_env < -0.1) so the second instance does not die mid-test."""
     from exp.k15_simdiff import authority as auth
     eng = _engine()
-    c1 = _marginal_cell(eng, "grass_sward.tussock")
-    a = _plant(eng, "grass_sward.tussock", [c1])
+    c1 = _marginal_cell(eng, "grass_sward.reed")
+    a = _plant(eng, "grass_sward.reed", [c1])
     sid = eng.instances[a].x.species_id
     # second member: the viable cell whose worst factor is as different
     # as possible from c1's (so the two drift in different directions)
     d0 = eng.instances[a]
     cache = d0.cache
     s = cache.s_env
-    viable = eng.ctx.land_cell & (s < 0.0)
+    viable = eng.ctx.land_cell & (s < -0.1)
     r1 = next(r for r, n in enumerate(cache.names)
               if cache.prov[r][c1] == min(
                   cache.prov[q][c1] for q in range(len(cache.names))))
@@ -333,7 +346,8 @@ def test_drift_retained_across_commits():
              & (np.abs(xx - c1[1]) < s.shape[1] // 4)] = np.inf
     c2 = tuple(int(v) for v in np.unravel_index(
         int(np.argmin(contrast)), s.shape))
-    b = _plant(eng, "grass_sward.tussock", [c2])
+    assert np.isfinite(contrast[c2]), "no healthy contrast cell"
+    b = _plant(eng, "grass_sward.reed", [c2])
     ds = []
     for t in range(4):
         eng.round(t)
@@ -393,11 +407,13 @@ def test_periodic_full_consolidation():
     apart are one instance after the round-9 commit. The join is not
     sticky across dressings: with no rain bridge the far fragment
     re-splits within two dressings (split hysteresis) — the sawtooth
-    that caps instance growth."""
+    that caps instance growth. The lineage is lichen.crust (viable in
+    every quadrant under the post-ruling landscape; a herb's high
+    turnover cannot hold the far block alive for 12 rounds)."""
     eng = _engine()
-    c1, c2 = _two_good_cells(eng, "tree.oak", far=True)
-    a = _plant(eng, "tree.oak", [c1])
-    b = _plant(eng, "tree.oak", [c2])
+    c1, c2 = _two_good_cells(eng, "lichen.crust", far=True)
+    a = _plant(eng, "lichen.crust", [c1])
+    b = _plant(eng, "lichen.crust", [c2])
     for t in range(5):                    # commits 0..4; grace still < 5
         eng.round(t)
     assert a in eng.instances and b in eng.instances, \

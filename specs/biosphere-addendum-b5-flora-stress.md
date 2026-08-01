@@ -143,18 +143,20 @@ the one-sided ground/tail terms read `f = 1 − sat(term)`.
 
 ### 4.1 Climate stratum (monthly, compensable — fauna §3 shape)
 
-Weighted saturating distance of the month's (T, P) from the `[niche]`
-metadata baseline (`temp_opt_c`/`temp_breadth_c`,
-`moisture_opt`/`moisture_breadth` — content-only, never drifted):
+The envelope (`temp_opt_c`/`temp_breadth_c`) is a **pure derived** of
+the trait bundle (owner ruling 2026-08-01): computed from the driftable
+axes by `flora.derive.effective_climate`, never clade metadata — when
+stress pushes the traits, the envelope moves. The T requirement is
+SPLIT one-sided like pH: `pressure:cold` (saturating shortfall of T
+below the optimum, phenology-gated, carrying the growing-season term
+and the C4/CAM cold penalty) and `pressure:heat` (saturating excess
+past it); their product is the symmetric distance, so F is unchanged
+by the split.
 
-```
-s_clim(m) = Σ_i w_i · sat(|env_i(m) − opt_i| / breadth_i)   i ∈ {T, P}
-```
-
-- Tolerance TRAITS widen breadths: `drought_tolerance` widens the
-  moisture breadth (asymmetric: more slack on the dry side);
-  `growing_season_req` adds a saturating term against the D0 growing
-  season length.
+- The moisture (P) half is NOT a climate term: the derived
+  `moisture_opt`/`moisture_breadth` feed `pressure:water` /
+  `pressure:waterlogging` (B5 §4.2), so the envelope still shapes
+  drought response and nothing is double-counted.
 - **Phenology gates which months count**: `winter_deciduous` → cold
   stress only in leaf-on months (from `leafout_month`);
   `drought_deciduous` → drought stress relaxed in the dry season;
@@ -309,10 +311,11 @@ record property.
    unauthorable generalist, the escape is a separate `ph_breadth`
    axis — never a generalist-flag coupling (it would force a fake
    correlation between independent niche dimensions).
-2. Climate weights: per-plan `[niche]` metadata override
-   (`w_T`/`w_P`), default = the global pair. Metadata, never drifts.
-   Breadths encode sensitivity; the weights only shape T↔P
-   compensability.
+2. Climate weights: DROPPED (owner ruling 2026-08-01). The old
+   per-plan `[niche]` metadata override (`w_T`/`w_P`) and the
+   `[niche]` baseline are gone; the envelope is a pure derived of the
+   trait bundle and the T requirement is split one-sided
+   (`pressure:cold`/`pressure:heat`). Breadths encode sensitivity.
 3. NO drought inversion — waterlogging is special. Hydrophytes are
    physiologically committed to anaerobic substrate; xerophytes are
    avoidance-adapted and grow fine when wet — their rarity outside

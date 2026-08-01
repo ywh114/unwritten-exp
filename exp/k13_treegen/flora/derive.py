@@ -1,9 +1,7 @@
 """Flora derived axes & effective climate preference — same ruling as K13
 (2026-07-29): axes that can be calculated ARE calculated. TRAITS are
 stored and drift-and-commit; DERIVED parameters are pure functions of
-the record, recomputed at consumption; climate preference is clade
-METADATA (the preset's [niche] table) bundled with the stored tolerance
-traits for the rounds' stress model (P7).
+the record, recomputed at consumption.
 
 - derive_derived(): the mechanical axes — raunkiaer life form, the
   provision map (what this plant OFFERS the food web: mast / graze /
@@ -13,9 +11,14 @@ traits for the rounds' stress model (P7).
   Recomputed from the record at the end of every build / round;
   evolve() never drifts them.
 
-- effective_climate(): niche-metadata baseline + stored tolerance
-  traits (drought / salinity / waterlogging / growing-season /
-  shade). Pure function of record + content, computed at consumption.
+- effective_climate(): the climate ENVELOPE (temp_opt_c / temp_breadth_c
+  / moisture_opt / moisture_breadth) as a pure DERIVED of the trait
+  bundle — owner ruling 2026-08-01: the envelope is like every other
+  derived, NOT clade metadata, so when stress pushes the traits (the
+  backward pass) the envelope MOVES. The tolerance passthrough traits
+  (drought / salinity / waterlogging / growing-season / ph / shade /
+  fertility) ride the same view. Pure function of record, computed at
+  consumption.
 """
 
 from __future__ import annotations
@@ -86,6 +89,48 @@ SHELTER_HEIGHT_REF_M = 10.0
 CLONAL_NONE_M = 0.02
 CLONAL_LOCAL_M = 0.5
 CLONAL_PATCH_M = 5.0
+
+# ── the climate envelope (pure derived, owner ruling 2026-08-01) ──────
+# The four envelope values are computed from the DRIFTABLE trait bundle
+# — no [niche] metadata anywhere (the preset tables no longer carry it).
+# When stress pushes the traits (select -> mutate, the backward pass),
+# the envelope moves with them: a lineage pushed toward winter
+# deciduousness / lower growing-season need / C4 runs a colder optimum;
+# drought tolerance, succulence, cuticle and waterlogging tolerance
+# slide the moisture envelope. Numeric axes that a plan does not author
+# read 0 (or the neutral value noted) — a missing axis is a neutral
+# trait, not an error. All axis scales per axes_core.toml: succulence,
+# pubescence, cuticle_thickness, drought_tolerance and
+# waterlogging_tolerance are 0..1 normalized; snow_adaptation and
+# photosynthesis are enums.
+T_BASE_C = 18.0          # neutral woody/C3 optimum
+T_DECID_C = 8.0          # winter-deciduous optimum drop (leafless winter)
+T_GS_C = 1.5             # per month of growing-season shortfall vs GS_REF
+GS_REF_C = 6.0           # months; low requirement = cold-adapted
+T_PUB_C = 3.0            # pubescence (0..1) -> silvery reflectance drop
+T_SNOW_C = 4.0           # any snow_adaptation state -> cold-tolerant
+T_C4_C = 6.0             # C4 runs hotter
+T_CAM_C = 10.0           # CAM hotter still
+T_SUCC_C = 4.0           # succulent tissue stores against heat
+TEMP_OPT_LO, TEMP_OPT_HI = -30.0, 45.0
+
+B_T_BASE = 6.0
+B_T_DECID = 4.0          # deciduous = a wider seasonal band
+B_T_TOL = 3.0            # drought tolerance widens the thermal band
+TEMP_BREADTH_LO, TEMP_BREADTH_HI = 2.0, 20.0
+
+P_BASE = 0.55            # neutral moisture optimum on the normalized scale
+P_DROUGHT = 0.35         # drought tolerance buys a drier optimum
+P_SUCC = 0.12            # succulence stores water: drier optimum
+P_C4 = 0.08              # C4 water-efficiency: drier optimum
+P_CAM = 0.15             # CAM most water-efficient
+P_CUTICLE = 0.08         # cuticle trims transpiration: drier optimum
+MOISTURE_OPT_LO, MOISTURE_OPT_HI = 0.02, 0.98
+
+P_B_BASE = 0.08
+P_B_DROUGHT = 0.10       # drought tolerance widens the moisture band
+P_B_WLOG = 0.06          # waterlogging tolerance too
+MOISTURE_BREADTH_LO, MOISTURE_BREADTH_HI = 0.03, 0.5
 
 
 def _clip01(x: float) -> float:
@@ -359,18 +404,58 @@ def derive_tree(nodes, pack: ContentPack) -> None:
 
 
 def effective_climate(node: Node, pack: ContentPack) -> dict:
-    """Niche-metadata baseline + stored tolerance traits, for the
-    rounds' stress model (P7). The baseline is clade METADATA (the
-    preset's [niche] table — not a stored trait); the tolerances ARE
-    traits and drift. Pure function of record + content, computed at
-    consumption."""
+    """The climate envelope as a pure DERIVED of the trait bundle (owner
+    ruling 2026-08-01): no [niche] metadata anywhere — when stress moves
+    the traits, the envelope moves with them. Returns the four envelope
+    values plus the tolerance passthrough traits the rounds' stress
+    model (stress_adapter) reads. Pure function of record + content,
+    computed at consumption."""
     axes = node.axes
-    meta = pack.presets.get(node.preset or "", {}).get("niche", {})
+
+    def _num(key: str, default: float = 0.0) -> float:
+        v = axes.get(key)
+        return float(v) if isinstance(v, (int, float)) else default
+
+    lp = str(axes.get("leaf_persistence") or "evergreen")
+    dt = str(axes.get("deciduous_trigger") or "none")
+    winter_dec = int(lp == "winter_deciduous" or dt == "winter")
+    photo = str(axes.get("photosynthesis") or "C3")
+    drought = _num("drought_tolerance")
+    succ = _num("succulence")
+    pub = _num("pubescence")
+    cuticle = _num("cuticle_thickness")
+    wlog = _num("waterlogging_tolerance")
+    snow = int(str(axes.get("snow_adaptation") or "none") != "none")
+    gs_req = _num("growing_season_req", GS_REF_C)   # months; missing -> ref
+
+    temp_opt = (T_BASE_C
+                - T_DECID_C * winter_dec
+                - T_GS_C * max(0.0, GS_REF_C - gs_req)
+                - T_PUB_C * pub
+                - T_SNOW_C * snow
+                + T_C4_C * int(photo == "C4")
+                + T_CAM_C * int(photo == "CAM")
+                + T_SUCC_C * succ)
+    temp_opt = min(TEMP_OPT_HI, max(TEMP_OPT_LO, temp_opt))
+    temp_breadth = min(TEMP_BREADTH_HI,
+                       max(TEMP_BREADTH_LO,
+                           B_T_BASE + B_T_DECID * winter_dec
+                           + B_T_TOL * drought))
+    moisture_opt = min(MOISTURE_OPT_HI,
+                       max(MOISTURE_OPT_LO,
+                           P_BASE - P_DROUGHT * drought - P_SUCC * succ
+                           - P_C4 * int(photo == "C4")
+                           - P_CAM * int(photo == "CAM")
+                           - P_CUTICLE * cuticle))
+    moisture_breadth = min(MOISTURE_BREADTH_HI,
+                           max(MOISTURE_BREADTH_LO,
+                               P_B_BASE + P_B_DROUGHT * drought
+                               + P_B_WLOG * wlog))
     return {
-        "temp_opt_c": meta.get("temp_opt_c"),
-        "temp_breadth_c": meta.get("temp_breadth_c"),
-        "moisture_opt": meta.get("moisture_opt"),
-        "moisture_breadth": meta.get("moisture_breadth"),
+        "temp_opt_c": temp_opt,
+        "temp_breadth_c": temp_breadth,
+        "moisture_opt": moisture_opt,
+        "moisture_breadth": moisture_breadth,
         "drought_tolerance": axes.get("drought_tolerance"),
         "salinity_tolerance": axes.get("salinity_tolerance"),
         "waterlogging_tolerance": axes.get("waterlogging_tolerance"),

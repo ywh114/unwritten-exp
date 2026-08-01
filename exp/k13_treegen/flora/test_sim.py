@@ -2,8 +2,9 @@
 
 Covers: protocol conformance (duck-typed against interface.KingdomSim),
 the req_flora DerivedView from derive(), select() routing (shortfall
-weighting, no-responder and unknown names, [niche] metadata never
-pressured, the split one-sided pH direction), mutate() (determinism,
+weighting, no-responder and unknown names, pressure:cold/heat routing
+to driftable traits — the derived envelope moves, never pressured
+directly, the split one-sided pH direction), mutate() (determinism,
 bounds, discrete threshold + pinned switch, anthocyanin ⊥ betalain,
 generic switches), and provisional vital rates (tree vs duckweed).
 
@@ -40,7 +41,9 @@ REQ_VIEW_KEYS = (
     "dispersal_channels", "propagule_mass_mg", "propagule_count",
     "seed_bank", "crown_spread_m", "jump_rate",
 )
-# [niche] metadata keys — clade metadata, never a driftable trait.
+# The climate ENVELOPE keys — DERIVED from the trait bundle (owner
+# ruling 2026-08-01), never directly pressured (they are recomputed at
+# derive time, not responders).
 NICHE_KEYS = ("temp_opt_c", "temp_breadth_c", "moisture_opt",
               "moisture_breadth")
 
@@ -147,17 +150,17 @@ def test_select_water_shortfall_weights(sim, pack):
 
 
 def test_select_no_responder_yields_empty(sim, pack):
-    """pressure:climate has no driftable responder (its terms are the
-    never-drifting [niche] metadata) — the pressure plane stays empty."""
+    """pressure:medium has no driftable responder (medium is plan-level
+    registry data) — the pressure plane stays empty. pressure:cold/heat
+    DO route (owner ruling 2026-08-01: the envelope is a pure derived)."""
     traits = _traits(pack, "tree.oak")
-    p = sim.select(StressVerdict(s=0.0,
-                                 provenance={"pressure:climate": 0.1}),
-                   traits, pack)
-    assert p == {}
     p = sim.select(StressVerdict(s=0.0,
                                  provenance={"pressure:medium": 0.1}),
                    traits, pack)
     assert p == {}
+    for prov in ({"pressure:cold": 0.1}, {"pressure:heat": 0.1}):
+        p = sim.select(StressVerdict(s=0.0, provenance=prov), traits, pack)
+        assert p, prov
 
 
 def test_select_unknown_names_do_not_crash(sim, pack):
@@ -173,12 +176,51 @@ def test_select_unknown_names_do_not_crash(sim, pack):
     assert p["drought_tolerance"] > 0.0
 
 
-def test_select_never_pressures_niche_metadata(sim, pack):
+def test_select_climate_routes_never_pressures_envelope(sim, pack):
+    """pressure:cold/heat route to driftable TRAITS (owner ruling
+    2026-08-01 — the envelope is a pure derived, so the backward pass
+    moves it), but never to the derived envelope keys themselves: the
+    envelope values are not responders, they are recomputed from the
+    traits at derive time."""
     traits = _traits(pack, "tree.oak")
-    for prov in ({"pressure:climate": 0.1}, {"pressure:ph_low": 0.2},
-                 {"pressure:water": 0.2}):
-        p = sim.select(StressVerdict(s=0.0, provenance=prov), traits, pack)
-        assert not (set(p) & set(NICHE_KEYS)), (prov, p)
+    cold = sim.select(StressVerdict(s=0.0,
+                                    provenance={"pressure:cold": 0.1}),
+                      traits, pack)
+    heat = sim.select(StressVerdict(s=0.0,
+                                    provenance={"pressure:heat": 0.1}),
+                      traits, pack)
+    assert cold and heat
+    assert not (set(cold) | set(heat)) & set(NICHE_KEYS)
+    # cold: toward winter deciduousness / lower growing-season need
+    assert cold["leaf_persistence"] > 0.0       # toward winter_deciduous
+    assert cold["deciduous_trigger"] > 0.0      # toward winter
+    assert cold["growing_season_req"] < 0.0     # shorter season = adapted
+    assert cold["leafout_month"] > 0.0          # later leafout
+    # heat: toward C4, away from big leaves
+    assert heat["photosynthesis"] > 0.0         # toward C4
+    assert heat["leaf_size_cm"] < 0.0
+    assert heat["cuticle_thickness"] > 0.0
+    assert heat["pubescence"] > 0.0
+
+
+def test_select_climate_pressure_drifts_envelope(sim, pack):
+    """The cold responder MOVES the derived envelope (owner ruling
+    2026-08-01): sustained pressure:cold drifts growing_season_req down
+    and pubescence up (deterministic scalar nudges — no draw), and
+    derive recomputes a colder optimum from the pushed traits. The
+    pressure plane never names the envelope keys — they are derived."""
+    traits = _traits(pack, "tree.oak")
+    verdict = StressVerdict(s=0.0, provenance={"pressure:cold": 0.1})
+    x = Instance("s", "i", traits=dict(traits), pressure={})
+    v0 = sim.derive(x.traits, pack)
+    for _ in range(10):
+        x.pressure.update(sim.select(verdict, x.traits, pack))
+        FloraSim(pack).mutate(x, Stream(7, "mut", "env-drift"))
+    v1 = sim.derive(x.traits, pack)
+    assert x.traits["growing_season_req"] < v0["growing_season_req"]
+    assert x.traits["pubescence"] > traits["pubescence"]
+    assert v1["temp_opt_c"] < v0["temp_opt_c"]
+    assert "temp_opt_c" not in x.pressure
 
 
 def test_select_ph_split_direction(sim, pack):

@@ -46,8 +46,9 @@ class ContentPack:
 def merged_preset(pack: ContentPack, preset: dict) -> tuple[dict, dict]:
     """(axes, generics) for a preset. Flora presets author every axis —
     no organ defaults layer (interface parity with K13's merged_preset).
-    The [niche] table is clade METADATA (consumed by
-    derive.effective_climate), never a stored trait."""
+    The climate envelope is a PURE DERIVED of these axes (owner ruling
+    2026-08-01: derive.effective_climate — the presets carry no [niche]
+    table anymore)."""
     axes = {**preset.get("knobs", {}), **preset.get("axes", {})}
     generics = dict(preset.get("generics", {}))
     return axes, generics
