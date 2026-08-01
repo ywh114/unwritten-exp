@@ -1839,6 +1839,24 @@ function pixelAt(wx, wy) {
       if (cnt) out.ice_cover = sum / cnt;
     }
   }
+  // Monthly snow depth (mm water equivalent — the snow overlay ramp's
+  // unit) at this pixel: mean and max over the selected months. Works
+  // in both month modes (all-months = annual mean), like ice cover.
+  if (S.monthly && S.monthly.snow_monthly) {
+    const arr = S.monthly.snow_monthly;
+    const [FH, FW] = S.monthly._shapes.snow_monthly;
+    const scale = W / FW;
+    const sx = Math.min(FW - 1, Math.floor(wx / scale));
+    const sy = Math.min(FH - 1, Math.floor(wy / scale));
+    const plane = FW * FH, ii = sy * FW + sx;
+    let sum = 0, cnt = 0, mx = 0;
+    for (let m = 0; m < 12; m++) {
+      if (S.selMonths && !S.selMonths.has(m)) continue;
+      const v = arr[m * plane + ii];
+      sum += v; cnt++; if (v > mx) mx = v;
+    }
+    if (cnt) out.snow = { mean: sum / cnt, max: mx };
+  }
   // Monthly values if filtered
   if (S.monthly && !allMonthsSelected()) {
     out.T_monthly = monthlyPixelValue("t_monthly", wx, wy);
@@ -1956,6 +1974,9 @@ function showTooltip(data, ex, ey) {
   }
   if (data.ice_cover != null) {
     html += `<div class="tt-field"><span class="tt-name">Ice cover ${mLabel}</span><span class="tt-val">${Math.round(data.ice_cover * 100)}%</span></div>`;
+  }
+  if (data.snow != null && data.snow.max > 0) {
+    html += `<div class="tt-field"><span class="tt-name">Snow ${mLabel}</span><span class="tt-val">${Math.round(data.snow.mean)} mm WE (max ${Math.round(data.snow.max)})</span></div>`;
   }
   if (data.glacier) {
     const gm = data.glacier_m != null ? `${Math.round(data.glacier_m)} m thick` : "yes";
