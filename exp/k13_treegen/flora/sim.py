@@ -173,18 +173,44 @@ def _num(traits: Mapping, key: str, default: float = 0.0) -> float:
     return float(v) if isinstance(v, (int, float)) else default
 
 
-def _clip(x: float, spec: AxisSpec) -> float:
-    if spec.bounds is not None:
-        lo, hi = spec.bounds
-        return min(hi, max(lo, x))
-    return x
+class _AxisPlan:
+    """One axis's per-mutate plan (ticket 0023): the registry fields
+    the per-axis hot path reads, resolved ONCE at FloraSim init instead
+    of per `_mutate_axis` call (3.67M calls / 6 rounds in the phase
+    profile). plan_scope is split into an "all" flag + the scoped set
+    so the scope test in `_mutate_axis` is two attribute reads + one
+    set membership. Only mutable, non-derived axes are planned (the
+    gate prefix of the pre-0023 `_mutate_axis`); the registry's own
+    validate() rejects a string plan_scope other than "all", so the
+    frozenset conversion matches its interpretation."""
+
+    __slots__ = ("value_type", "mutation_kind", "sigma", "bounds",
+                 "scope_all", "scope", "is_cont", "is_int", "is_enum")
+
+    def __init__(self, spec: AxisSpec) -> None:
+        self.value_type = spec.value_type
+        self.mutation_kind = spec.mutation_kind
+        self.sigma = spec.sigma
+        self.bounds = spec.bounds
+        scope = spec.plan_scope
+        self.scope_all = scope == "all"
+        self.scope = frozenset() if self.scope_all else frozenset(scope)
+        # value-type dispatch flags, resolved once (the per-call tuple
+        # memberships were part of the _mutate_axis churn)
+        self.is_cont = spec.value_type in (ValueType.SCALAR, ValueType.INT)
+        self.is_int = spec.value_type is ValueType.INT
+        self.is_enum = spec.value_type is ValueType.ENUM
 
 
-def _node(axes: Mapping, plan, preset) -> Node:
+def _node(axes: Mapping, plan, preset, copy: bool = True) -> Node:
     """Throwaway Node for the trait->derived projection / gate. Keep it
-    cheap: no path/sid/naming machinery is touched."""
+    cheap: no path/sid/naming machinery is touched. ``copy`` is False in
+    mutate's gate call: enforce() snaps child.axes IN PLACE, so the
+    child may share the instance's traits dict (the update-back is then
+    a no-op and is dropped)."""
     return Node(path="", rank=Rank.SPECIES, parent=None, sid="0" * 16,
-                plan=plan, preset=preset, axes=dict(axes))
+                plan=plan, preset=preset,
+                axes=dict(axes) if copy else axes)
 
 
 def _generic_permissions(pack: ContentPack, plan) -> dict[str, list]:
@@ -216,17 +242,18 @@ def _toward_map(table: Mapping[str, list]) -> dict[str, frozenset]:
     return out
 
 
-def _switch_targets(name: str, cur: str, traits: Mapping, pack: ContentPack,
+def _switch_targets(name: str, cur: str, traits: Mapping,
+                    plan: str | None, pack: ContentPack,
                     toward: frozenset | None) -> list[str]:
     """Legal switch targets for one enum axis: registry states ∩ the
     row's toward set ∩ the constraint gate (forbid/require rules that
     fire on the CURRENT record). Mirrors the snap-candidate logic in
-    flora.constraints."""
+    flora.constraints. plan arrives pre-resolved from mutate (ticket
+    0023 — no per-call _plan_of)."""
     spec = pack.registry.axes.get(name)
     states = list(spec.states) if spec is not None else []
     if toward:
         states = [s for s in states if s in toward]
-    plan = _plan_of(traits)
     for rule in pack.constraints:
         if not triggered(rule, traits, plan):
             continue
@@ -252,6 +279,19 @@ class FloraSim:
         # computed once at construction (mutate ran a full table walk
         # per call; ticket 0022). The ambiguity ValueError fires here.
         self._toward = _toward_map(pack.stress_response)
+        # per-axis mutation plans (ticket 0023): the mutable non-derived
+        # registry axes resolved once — value_type/mutation_kind/sigma/
+        # bounds + the plan-scope gate — instead of the per-`_mutate_axis`
+        # registry walk + isinstance/typing churn (3.67M calls / 6 rounds
+        # in the phase profile). An axis absent from the plan either does
+        # not exist in the registry or never moves (gate-0 semantics).
+        self._mut_plan = {n: _AxisPlan(s)
+                          for n, s in pack.registry.axes.items()
+                          if s.mutable and n not in DERIVED_AXES}
+        # plan -> generic permission table (model.rebind legality),
+        # resolved once instead of per _mutate_generic call.
+        self._plan_generics = {pid: ps.generics
+                               for pid, ps in pack.registry.plans.items()}
 
     # ── derive ──────────────────────────────────────────────────────
 
@@ -366,53 +406,70 @@ class FloraSim:
         pressured trait — the forces.py idiom)."""
         pack = self.pack
         toward = self._toward
-        plan = _plan_of(x.traits)
+        # plan / generic permissions are pure functions of the pack +
+        # the instance's plan, resolved once per call (ticket 0023) —
+        # _plan_of's isinstance/typing churn was 4.4M calls / 15.5 s in
+        # the phase profile; x.traits is always a dict (Instance).
+        plan = x.traits.get("plan")
+        generics = self._plan_generics.get(plan)
         before = dict(x.traits)
         changed = False
         for name in sorted(x.pressure):
-            p = x.pressure.get(name)
+            p = x.pressure[name]
             if not isinstance(p, (int, float)) or isinstance(p, bool) \
                     or p == 0.0:
                 continue
-            if name in pack.registry.axes:
-                changed = self._mutate_axis(name, p, x, rng, pack, toward) \
-                    or changed
-            elif name in _generic_permissions(pack, plan):
-                changed = self._mutate_generic(name, p, x, rng, pack, toward) \
-                    or changed
+            pl = self._mut_plan.get(name)
+            if pl is not None:
+                changed = self._mutate_axis(pl, name, p, x, rng, plan,
+                                            toward) or changed
+            elif name in pack.registry.axes:
+                continue           # registry axis, never moves (gate 0)
+            elif generics is not None and name in generics:
+                changed = self._mutate_generic(name, p, x, rng, plan,
+                                               generics, toward) or changed
         if changed:
-            parent = _node(before, plan, x.traits.get("preset"))
-            child = _node(x.traits, plan, x.traits.get("preset"))
+            # parent shares the private `before` snapshot (copy=False —
+            # it is already a fresh dict and enforce never writes it);
+            # child shares x.traits (copy=False): enforce snaps in place,
+            # so no update-back pass over the ~90-key dict is needed
+            # (ticket 0023 — 357K changed records / 6 rounds).
+            parent = _node(before, plan, x.traits.get("preset"),
+                           copy=False)
+            child = _node(x.traits, plan, x.traits.get("preset"),
+                          copy=False)
             enforce(parent, child, pack)
-            x.traits.update(child.axes)
         x.pressure.clear()
 
-    def _mutate_axis(self, name, p, x, rng, pack, toward) -> bool:
-        spec = pack.registry.axes.get(name)
-        if spec is None or not spec.mutable or name in DERIVED_AXES \
-                or not spec.applies_to(_plan_of(x.traits)):
+    def _mutate_axis(self, pl, name, p, x, rng, plan, toward) -> bool:
+        """One pressured axis. *pl* is the precomputed _AxisPlan (the
+        registry gate — mutable, non-derived — was applied at plan
+        build; only the plan-scope test remains per call). Same draws,
+        same order, same float ops as the pre-0023 spec-walk version."""
+        if not (pl.scope_all or plan in pl.scope):
             return False
         cur = x.traits.get(name)
         if cur is None:
             return False
-        if spec.value_type in (ValueType.SCALAR, ValueType.INT) \
-                and isinstance(cur, (int, float)):
+        if pl.is_cont and isinstance(cur, (int, float)):
             z = p * NUDGE_RATE
-            if spec.mutation_kind is MutationKind.GAUSSIAN \
+            if pl.mutation_kind is MutationKind.GAUSSIAN \
                     or float(cur) <= 0.0:
                 # additive; zero is absorbing under multiplication and
                 # would freeze the dial (the forces.py freeze fix)
-                new = float(cur) + z * spec.sigma
+                new = float(cur) + z * pl.sigma
             else:  # log_gaussian / ratio: multiplicative in log space
                 ex = max(-MUTATE_EXP_CLAMP,
-                         min(MUTATE_EXP_CLAMP, z * spec.sigma))
+                         min(MUTATE_EXP_CLAMP, z * pl.sigma))
                 new = float(cur) * math.exp(ex)
-            new = _clip(new, spec)
-            if spec.value_type is ValueType.INT:
+            b = pl.bounds
+            if b is not None:
+                new = min(b[1], max(b[0], new))
+            if pl.is_int:
                 new = int(round(new))
             x.traits[name] = new
             return True
-        if spec.value_type is ValueType.ENUM and isinstance(cur, str):
+        if pl.is_enum and isinstance(cur, str):
             if abs(p) < DISCRETE_THRESHOLD:
                 return False
             prop = min(1.0, (abs(p) - DISCRETE_THRESHOLD) * DISCRETE_RATE)
@@ -420,7 +477,8 @@ class FloraSim:
             if not s.bernoulli(prop, 0):
                 return False
             targets = [t for t in _switch_targets(name, cur, x.traits,
-                                                  pack, toward.get(name))
+                                                  plan, self.pack,
+                                                  toward.get(name))
                        if t != cur]
             if not targets:
                 return False
@@ -428,13 +486,13 @@ class FloraSim:
             return True
         return False
 
-    def _mutate_generic(self, name, p, x, rng, pack, toward) -> bool:
+    def _mutate_generic(self, name, p, x, rng, plan, generics, toward) -> bool:
         if abs(p) < DISCRETE_THRESHOLD:
             return False
-        legal = list(_generic_permissions(pack, _plan_of(x.traits))
-                     .get(name, []))
-        if toward.get(name):
-            legal = [r for r in legal if r in toward.get(name)]
+        legal = list(generics.get(name, []))
+        tw = toward.get(name)
+        if tw:
+            legal = [r for r in legal if r in tw]
         cur = x.traits.get(name)
         if cur is None:
             return False

@@ -42,6 +42,28 @@ from dataclasses import dataclass, field
 PALETTE_AXES = ("flower_color",)
 
 
+def _parse_when(when: dict) -> tuple[str | None, frozenset | None,
+                                     float | None, frozenset | None]:
+    """Resolve the trigger fields of a `when` table ONCE at pack load
+    (ticket 0023): (axis, states, above, scope). The hot gate reads
+    these instead of re-parsing `when` per call — the phase profile
+    measured 9.3M `triggered` + 8.3M `_trigger_states` calls per 6
+    rounds, each re-`.get`-ing the when dict and re-stringifying the
+    state list. Membership semantics are unchanged: `str(v) in states`
+    (list) and `plan not in scope` (list) are identical on the
+    frozensets."""
+    states = when.get("state")
+    if states is None:
+        ts: frozenset | None = None
+    elif isinstance(states, list):
+        ts = frozenset(str(x) for x in states)
+    else:
+        ts = frozenset({str(states)})
+    scope = when.get("plans")
+    return (when.get("axis"), ts, when.get("above"),
+            frozenset(scope) if scope else None)
+
+
 @dataclass(frozen=True)
 class Rule:
     id: str
@@ -51,39 +73,46 @@ class Rule:
     require_max: dict = field(default_factory=dict)
     require_enum: dict = field(default_factory=dict)
     forbid_enum: dict = field(default_factory=dict)
+    # precomputed trigger (ticket 0023): pure functions of `when`,
+    # resolved at pack load — the hot gate runs these instead of
+    # re-parsing `when` per call.
+    trigger_axis: str | None = None
+    trigger_states: frozenset | None = None
+    trigger_above: float | None = None
+    scope_plans: frozenset | None = None
 
     @classmethod
     def from_toml(cls, t: dict) -> "Rule":
-        return cls(id=t["id"], when=dict(t.get("when", {})),
+        when = dict(t.get("when", {}))
+        axis, states, above, scope = _parse_when(when)
+        return cls(id=t["id"], when=when,
                    state_plans=tuple(t.get("state_plans", [])),
                    require_min=dict(t.get("require_min", {})),
                    require_max=dict(t.get("require_max", {})),
                    require_enum=dict(t.get("require_enum", {})),
-                   forbid_enum=dict(t.get("forbid_enum", {})))
-
-
-def _trigger_states(rule: Rule) -> list[str] | None:
-    s = rule.when.get("state")
-    if s is None:
-        return None
-    return [str(x) for x in s] if isinstance(s, list) else [str(s)]
+                   forbid_enum=dict(t.get("forbid_enum", {})),
+                   trigger_axis=axis, trigger_states=states,
+                   trigger_above=above, scope_plans=scope)
 
 
 def triggered(rule: Rule, axes: dict, plan: str | None = None) -> bool:
-    scope = rule.when.get("plans")
-    if scope and plan is not None and plan not in scope:
+    """The when-table trigger gate, read from the precomputed fields
+    (ticket 0023). Decisions identical to the per-call parse."""
+    scope = rule.scope_plans
+    if scope is not None and plan is not None and plan not in scope:
         return False
-    ax = rule.when.get("axis")
+    ax = rule.trigger_axis
     if ax is None:
         return False
     v = axes.get(ax)
     if v is None:
         return False
-    states = _trigger_states(rule)
+    states = rule.trigger_states
     if states is not None:
         return str(v) in states
-    if "above" in rule.when:
-        return isinstance(v, (int, float)) and v > rule.when["above"]
+    above = rule.trigger_above
+    if above is not None:
+        return isinstance(v, (int, float)) and v > above
     return False
 
 
@@ -103,7 +132,7 @@ def _snap_back(rule: Rule, parent, child, pack, snaps: dict) -> None:
     ax = rule.when["axis"]
     cur = child.axes.get(ax)
     prior = parent.axes.get(ax) if parent is not None else None
-    bad = _trigger_states(rule) or []
+    bad = rule.trigger_states or ()
     if prior is not None and str(prior) not in bad:
         child.axes[ax] = prior
         snaps[ax] = [cur, prior]
