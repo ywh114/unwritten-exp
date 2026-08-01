@@ -114,6 +114,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
+import numpy as np
+
 from exp.k13_treegen.interface import (
     ChangeLog,
     Instance,
@@ -231,6 +233,90 @@ def genes_distance(a: Mapping, b: Mapping,
         num += w * _term(entry, k, a, b)
         den += w
     return num / den if den else 0.0
+
+
+def _group_distances(traits_list: list[Mapping], record: Mapping,
+                     metric: Mapping[str, AxisMetric]
+                     ) -> tuple[np.ndarray, np.ndarray]:
+    """Vectorized exact equivalent of pairwise genes_distance over a
+    group (the commit's O(n²) hot loop): returns (dist (n,n), rec (n,))
+    float64 where dist[i][j] = genes_distance(traits_list[i],
+    traits_list[j], metric) and rec[i] = genes_distance(
+    traits_list[i], record, metric).
+
+    Semantics preserved exactly: per pair the key set is the UNION of
+    the pair's keys (a key absent from both contributes nothing, its
+    salience excluded from the denominator); keys accumulate in sorted
+    order, matching genes_distance's summation order. One deliberate
+    repair: genes_distance's weighted_set TV sums over a Python set
+    (hash-randomized iteration order across processes — a latent
+    cross-run nondeterminism in float accumulation); here categories
+    are sorted, which is deterministic."""
+    n = len(traits_list)
+    keys = sorted((set().union(*(set(t) for t in traits_list))
+                   | set(record)) - _NON_GENE_KEYS)
+    num = np.zeros((n, n))
+    den = np.zeros((n, n))
+    rnum = np.zeros(n)
+    rden = np.zeros(n)
+    for k in keys:
+        entry = metric.get(k)
+        w = entry.salience if entry is not None else GENERIC_SALIENCE
+        p = np.array([t.get(k) is not None for t in traits_list])
+        rp = record.get(k) is not None
+        u = p[:, None] | p[None, :]
+        den += w * u
+        rden += w * (p | rp)
+        if entry is not None and entry.span is not None \
+                and entry.value_type in ("scalar", "int"):
+            col = np.array([float(t[k]) if t.get(k) is not None
+                            else np.nan for t in traits_list])
+            T = np.minimum(
+                np.abs(col[:, None] - col[None, :]) / entry.span, 1.0)
+            T = np.where(np.isnan(T), 1.0, T)
+            rv = float(record[k]) if rp else np.nan
+            rt = np.minimum(np.abs(col - rv) / entry.span, 1.0)
+            rt = np.where(np.isnan(rt), 1.0, rt)
+        elif entry is not None and entry.value_type == "set":
+            vals = [t.get(k) for t in traits_list]
+            valid = np.array([isinstance(v, Mapping) for v in vals])
+            rmap = record.get(k)
+            rvalid = isinstance(rmap, Mapping)
+            cats = sorted(set().union(
+                *(set(v) for v in vals if isinstance(v, Mapping)),
+                set(rmap) if rvalid else set()))
+            if cats:
+                M = np.array([[float(v.get(c, 0.0)) for c in cats]
+                              if isinstance(v, Mapping)
+                              else [np.nan] * len(cats)
+                              for v in vals], dtype=np.float64)
+                T = np.minimum(
+                    0.5 * np.abs(M[:, None, :] - M[None, :, :]).sum(-1),
+                    1.0)
+                rc = np.array([float(rmap.get(c, 0.0)) for c in cats]) \
+                    if rvalid else np.full(len(cats), np.nan)
+                rt = np.minimum(0.5 * np.abs(M - rc).sum(-1), 1.0)
+            else:
+                T = np.zeros((n, n))
+                rt = np.zeros(n)
+            T = np.where(valid[:, None] & valid[None, :], T, 1.0)
+            T = np.where(np.isnan(T), 1.0, T)
+            rt = np.where(valid & rvalid, rt, 1.0)
+            rt = np.where(np.isnan(rt), 1.0, rt)
+        else:
+            col = np.array([t.get(k) for t in traits_list],
+                           dtype=object)
+            both = p[:, None] & p[None, :]
+            T = np.where(both & (col[:, None] == col[None, :]),
+                         0.0, 1.0)
+            rv = record.get(k)
+            rt = np.where(p & rp & (col == rv), 0.0, 1.0)
+        num += w * np.where(u, T, 0.0)
+        rnum += w * np.where(p | rp, rt, 0.0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        dist = np.where(den > 0.0, num / den, 0.0)
+        rec = np.where(rden > 0.0, rnum / rden, 0.0)
+    return dist, rec
 
 
 # ── the authority ─────────────────────────────────────────────────────
@@ -373,18 +459,16 @@ class TreeAuthority:
             self._divergence_round.setdefault(v.instance_id, commit_round)
             self._instance_lineage.setdefault(v.instance_id, sid)
 
-        # pairwise distances over the instance gene views
-        dist = [[0.0] * n for _ in range(n)]
-        for i in range(n):
-            for j in range(i + 1, n):
-                d = genes_distance(group[i].traits, group[j].traits, m)
-                dist[i][j] = dist[j][i] = d
+        # pairwise distances over the instance gene views (vectorized —
+        # the O(n²) dict loop was the commit wall-clock bottleneck at
+        # lineage sizes >100; identical semantics)
+        traits_list = [v.traits for v in group]
+        dist, rec = _group_distances(traits_list, record_genes, m)
 
         # orthodox: closest to the record; ties mass desc, then id asc
         orthodox_i = min(
             range(n),
-            key=lambda i: (genes_distance(group[i].traits, record_genes, m),
-                           -group[i].mass, group[i].instance_id))
+            key=lambda i: (rec[i], -group[i].mass, group[i].instance_id))
         orthodox_id = group[orthodox_i].instance_id
 
         # clusters = connected components of the graph at d < SUB_D
@@ -449,22 +533,34 @@ class TreeAuthority:
                 self._instance_lineage[iid] = new_sid
                 self._divergence_round[iid] = commit_round
 
-        # merges, engine-gated (candidates; orthodox cluster only)
-        absorbed: set[str] = set()
+        # merges, engine-gated (candidates; orthodox cluster only).
+        # Vectorized prefilter (the candidate set reaches 1e5 at high
+        # occupancy — the per-pair Python checks dominated the commit):
+        # only survivors get the sequential survivor/absorbed pass.
+        cand: list[tuple[str, str]] = []
         for pair in sorted(candidates, key=lambda p: tuple(sorted(p))):
             a_id, b_id = sorted(pair)
             if {a_id, b_id} - set(idx):            # unknown / other species
                 continue
+            cand.append((a_id, b_id))
+        if cand:
+            in_orth = np.zeros(n, dtype=bool)
+            in_orth[orthodox_cluster] = True
+            ia_v = np.array([idx[a] for a, _ in cand])
+            ib_v = np.array([idx[b] for _, b in cand])
+            grace_v = np.array([
+                commit_round - max(
+                    self._divergence_round.get(a, commit_round),
+                    self._divergence_round.get(b, commit_round))
+                for a, b in cand])
+            ok = (dist[ia_v, ib_v] < MERGE_D) \
+                & (grace_v >= MERGE_GRACE) \
+                & in_orth[ia_v] & in_orth[ib_v]
+            cand = [c for c, keep in zip(cand, ok) if keep]
+        absorbed: set[str] = set()
+        for a_id, b_id in cand:
             ia, ib = idx[a_id], idx[b_id]
-            if ia not in orthodox_cluster or ib not in orthodox_cluster:
-                continue
             if a_id in absorbed or b_id in absorbed:
-                continue
-            if dist[ia][ib] >= MERGE_D:
-                continue
-            da = self._divergence_round.get(a_id, commit_round)
-            db = self._divergence_round.get(b_id, commit_round)
-            if commit_round - max(da, db) < MERGE_GRACE:
                 continue
             if orthodox_id in (a_id, b_id):
                 survivor_id = orthodox_id          # orthodox never absorbed

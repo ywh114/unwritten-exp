@@ -412,3 +412,44 @@ def test_plan_preset_bookkeeping_keys_ignored_in_distance():
     a = {**RECORD, "plan": "tree", "preset": "tree.oak"}
     b = {**RECORD, "plan": "shrub", "preset": "tree.pine"}
     assert genes_distance(a, b, _METRIC) == 0.0
+
+
+# ── _group_distances equivalence (the vectorized commit path) ────────
+
+from exp.k15_simdiff.authority import _group_distances
+
+_GMETRIC = dict(_METRIC)
+_GMETRIC["chans"] = AxisMetric(salience=2.0, value_type="set")
+
+_GROUP = [
+    {"temp": 10.0, "moisture": 0.5, "leaf": "entire",
+     "chans": {"wind": 0.5, "local": 0.5}},
+    {"temp": 14.0, "moisture": 0.5, "leaf": "entire",
+     "chans": {"wind": 0.7, "animal": 0.3}},
+    {"temp": 2.0, "leaf": "lobed", "chans": {"local": 1.0}},
+    {"moisture": 0.9, "leaf": "entire"},
+    {"temp": 10.0, "moisture": 0.5, "leaf": "entire",
+     "chans": {"wind": 0.5, "local": 0.5}, "novel_generic": 3},
+    {},
+]
+_GRECORD = {"temp": 10.0, "moisture": 0.5, "leaf": "entire",
+            "chans": {"wind": 0.5, "local": 0.5}}
+
+
+def test_group_distances_matches_genes_distance():
+    dist, rec = _group_distances(_GROUP, _GRECORD, _GMETRIC)
+    n = len(_GROUP)
+    assert dist.shape == (n, n) and rec.shape == (n,)
+    for i, a in enumerate(_GROUP):
+        assert rec[i] == pytest.approx(
+            genes_distance(a, _GRECORD, _GMETRIC), abs=1e-12)
+        for j, b in enumerate(_GROUP):
+            assert dist[i][j] == pytest.approx(
+                genes_distance(a, b, _GMETRIC), abs=1e-12)
+            assert dist[i][j] == pytest.approx(dist[j][i], abs=1e-15)
+
+
+def test_group_distances_empty_keys_match():
+    dist, rec = _group_distances([{}, {}], {}, _GMETRIC)
+    assert dist.tolist() == [[0.0, 0.0], [0.0, 0.0]]
+    assert rec.tolist() == [0.0, 0.0]

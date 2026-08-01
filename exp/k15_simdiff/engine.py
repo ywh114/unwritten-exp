@@ -91,13 +91,19 @@ class CachedFields:
 @dataclass
 class Dressed:
     """Y: one instance's spatial dressing (sim-side; the tree never
-    sees it). N and rain are (H,W) float64; rain is the transient
-    propagule deposit (spec §3 two-density accounting). div is a bool
-    mask tagging the instance's DIVERGENT sub-range (rule B+, spec
-    v0.4 §7.3): cells that joined despite failing the verdict gate —
-    they count toward the parent's gene pool while incubating and
-    split off only when a contiguous divergent region reaches
-    DIFF_MIN_CELLS and is still divergent (§8)."""
+    sees it). N, rain and div are WINDOWED (bbox) arrays — the
+    bounding-box optimization (2026-08-01): most instances occupy a
+    tiny fraction of the 256² world, so every per-instance field is
+    stored as its bounding window and world fields (cache planes, K,
+    wind) are sliced on read. ``box`` = (y0, y1, x0, x1) world coords
+    of the window; all three arrays share it and it always covers
+    every nonzero cell of N, rain and div. rain is the transient
+    propagule deposit (spec §3 two-density accounting); div tags the
+    DIVERGENT sub-range (rule B+, spec v0.4 §7.3): cells that joined
+    despite failing the verdict gate — they count toward the parent's
+    gene pool while incubating and split off only when a contiguous
+    divergent region reaches DIFF_MIN_CELLS and is still divergent
+    (§8)."""
 
     x: Instance
     N: np.ndarray
@@ -107,6 +113,7 @@ class Dressed:
     percap: float
     vital: VitalRates
     div: np.ndarray
+    box: tuple[int, int, int, int]
 
     @property
     def cells(self) -> np.ndarray:
@@ -115,6 +122,81 @@ class Dressed:
     @property
     def mass(self) -> float:
         return float(self.N.sum())
+
+    def world_slice(self) -> tuple[slice, slice]:
+        y0, y1, x0, x1 = self.box
+        return np.s_[y0:y1, x0:x1]
+
+    def rewindow(self, new_box: tuple[int, int, int, int]) -> None:
+        """Re-embed the three windowed arrays at *new_box* (which must
+        cover every nonzero cell)."""
+        if new_box == self.box:
+            return
+        old = self.box
+        self.N = _embed(self.N, old, new_box, 0.0)
+        self.rain = _embed(self.rain, old, new_box, 0.0)
+        self.div = _embed(self.div, old, new_box, False)
+        self.box = new_box
+
+
+def _embed(src: np.ndarray, src_box, dst_box, fill) -> np.ndarray:
+    """Re-embed window *src* (world box *src_box*) into a fresh array
+    at *dst_box*, copying the overlap (handles both grow and shrink)."""
+    y0, y1, x0, x1 = dst_box
+    out = np.full((y1 - y0, x1 - x0), fill, dtype=src.dtype)
+    ov = _overlap_view(src, src_box, dst_box)
+    if ov is not None:
+        out[ov[1]] = ov[0]
+    return out
+
+
+def _mask_box(mask: np.ndarray, box) -> tuple[int, int, int, int] | None:
+    """World bbox of the True cells of window *mask* at world *box*;
+    None when empty."""
+    ys, xs = np.nonzero(mask)
+    if not len(ys):
+        return None
+    y0, _, x0, _ = box
+    return (y0 + int(ys.min()), y0 + int(ys.max()) + 1,
+            x0 + int(xs.min()), x0 + int(xs.max()) + 1)
+
+
+def _union_box(a, b) -> tuple[int, int, int, int]:
+    return (min(a[0], b[0]), max(a[1], b[1]),
+            min(a[2], b[2]), max(a[3], b[3]))
+
+
+def _dressed_box(d: Dressed) -> tuple[int, int, int, int]:
+    """The tight box covering every nonzero cell of N, rain, div
+    (falls back to the current box when all empty)."""
+    return _mask_box((d.N > 0.0) | (d.rain > 0.0) | d.div, d.box) \
+        or d.box
+
+
+def _crop(d: Dressed, mask: np.ndarray
+          ) -> tuple[np.ndarray, np.ndarray, np.ndarray,
+                     tuple[int, int, int, int]]:
+    """Crop a Dressed's windowed arrays to *mask*'s world bbox (for
+    splits): (N, rain, div) masked then cropped, plus the world box."""
+    box = _mask_box(mask, d.box) or d.box
+    y0, _, x0, _ = d.box
+    sl = np.s_[box[0] - y0:box[1] - y0, box[2] - x0:box[3] - x0]
+    return (np.where(mask, d.N, 0.0)[sl],
+            np.where(mask, d.rain, 0.0)[sl],
+            np.where(mask, d.div, False)[sl], box)
+
+
+def _overlap_view(arr: np.ndarray, box, rect):
+    """The portion of window *arr* (world *box*) inside world *rect*:
+    (sub-array, slice-in-rect), or None when there is no overlap."""
+    y0, y1, x0, x1 = box
+    oy0, oy1 = max(y0, rect[0]), min(y1, rect[1])
+    ox0, ox1 = max(x0, rect[2]), min(x1, rect[3])
+    if oy0 >= oy1 or ox0 >= ox1:
+        return None
+    return (arr[oy0 - y0:oy1 - y0, ox0 - x0:ox1 - x0],
+            np.s_[oy0 - rect[0]:oy1 - rect[0],
+                  ox0 - rect[2]:ox1 - rect[2]])
 
 
 # ── §5.0 engine world fields ──────────────────────────────────────────
@@ -273,23 +355,35 @@ class Engine:
     def genesis(self) -> None:
         """Round 0 (spec §10): seed every preset, partition into clones,
         mint one instance per clone (the clone carries the preset
-        record's genes verbatim — mint makes no draws)."""
+        record's genes verbatim — mint makes no draws). Clones of one
+        preset have IDENTICAL genes, so the view/vital/percap and the
+        §5.1 cache are evaluated ONCE per preset and shared by
+        reference (the bbox optimization, 2026-08-01: 1122 clones → 35
+        evaluations; _refresh replaces rather than mutates, so sharing
+        is copy-on-drift safe)."""
         seeds = gen.genesis_rain(self.pack, self.sim, self.ctx, self.K,
                                  self.seed)
+        full = (0, self.ctx.H, 0, self.ctx.W)
         for pid in sorted(seeds):
             sid = self._order_sid[pid]
             rng = self._stream("genesis", f"mint:{pid}")
+            shared = None
             for i, clone in enumerate(seeds[pid]):
                 iid = self._new_instance_id(rng)
                 x = self.authority.mint(sid, iid, rng.child(str(i)))
-                view = self.sim.derive(x.traits, self.pack)
+                if shared is None:
+                    view = self.sim.derive(x.traits, self.pack)
+                    shared = (view, pop.percap_demand(view),
+                              self.sim.vital(x.traits, self.pack),
+                              self._evaluate_cache(view, x.traits))
+                view, percap, vital, cache = shared
+                box = _mask_box(clone.N > 0.0, full)
+                N = clone.N[np.s_[box[0]:box[1], box[2]:box[3]]] \
+                    .astype(np.float64)
                 self.instances[iid] = Dressed(
-                    x=x, N=clone.N.astype(np.float64),
-                    rain=np.zeros_like(clone.N, dtype=np.float64),
-                    cache=self._evaluate_cache(view, x.traits), view=view,
-                    percap=pop.percap_demand(view),
-                    vital=self.sim.vital(x.traits, self.pack),
-                    div=np.zeros(clone.N.shape, dtype=bool))
+                    x=x, N=N, rain=np.zeros_like(N), cache=cache,
+                    view=view, percap=percap, vital=vital,
+                    div=np.zeros_like(N, dtype=bool), box=box)
 
     # ── §4 step 1: verdict feed ──────────────────────────────────────
 
@@ -299,8 +393,10 @@ class Engine:
             total = d.mass
             if total <= 0.0:
                 continue
+            y0, y1, x0, x1 = d.box
             agg = {d.cache.names[r]: float(
-                       (d.cache.prov[r] * d.N).sum() / total)
+                       (d.cache.prov[r][y0:y1, x0:x1] * d.N).sum()
+                       / total)
                    for r in range(len(d.cache.names))}
             res = compose(agg)
             verdict = StressVerdict(s=res.s, provenance=res.factors)
@@ -322,25 +418,35 @@ class Engine:
 
     def _population(self) -> dict[str, np.ndarray]:
         """§6 per instance × cell. Returns the per-instance s_real
-        fields (the dispersal emission gate reads mean s_real)."""
+        WINDOW fields (the dispersal emission gate reads mean s_real).
+        The shared cell demand D(c) is accumulated window-by-window
+        (bbox optimization) — the same sum the (I,H,W) einsum computed,
+        in the same instance order."""
         live = [d for d in self.instances.values() if d.mass > 0.0]
         if not live:
             return {}
-        N_stack = np.stack([d.N for d in live])
-        percap = np.array([d.percap for d in live])
-        D = pop.cell_demand(N_stack, percap)
+        D = np.zeros((self.ctx.H, self.ctx.W), dtype=np.float64)
+        for d in live:
+            D[d.world_slice()] += d.N * d.percap
         s_real: dict[str, np.ndarray] = {}
         dead = []
         for d in live:
-            K_L = pop.lineage_capacity(self.K, d.cache.U)
+            ws = d.world_slice()
+            K_L = pop.lineage_capacity(self.K[ws], d.cache.U[ws])
             N1, _abandoned = pop.update_instance(
-                d.N, d.cache.s_env, D, K_L,
+                d.N, d.cache.s_env[ws], D[ws], K_L,
                 d.vital.birth, d.vital.death)
             d.N = N1
-            s_real[d.x.instance_id] = d.cache.s_env \
-                + pop.density_stress(D, K_L)
             if d.mass <= 0.0:
                 dead.append(d.x.instance_id)
+                continue
+            # trim first so the s_real window matches the instance box
+            # the dispersal step will see
+            d.rewindow(_dressed_box(d))
+            ws = d.world_slice()
+            s_real[d.x.instance_id] = d.cache.s_env[ws] \
+                + pop.density_stress(D[ws], pop.lineage_capacity(
+                    self.K[ws], d.cache.U[ws]))
         for iid in dead:
             self.retired.append(iid)
             del self.instances[iid]
@@ -352,14 +458,20 @@ class Engine:
         # transient rain expires; persistent (seed bank) decays (§7.3)
         for d in self.instances.values():
             d.rain = dsp.decay_rain(d.rain, d.view)
-        # occupancy per lineage: cell -> owning instance (§3 invariant)
+        # occupancy per lineage: cell -> owning instance (§3 invariant);
+        # world-grid object arrays, filled window-by-window
         owner: dict[str, np.ndarray] = {}
         for d in self.instances.values():
-            o = owner.setdefault(d.x.species_id,
-                                 np.full(d.N.shape, "", dtype=object))
-            o[d.cells] = d.x.instance_id
-        deposits: dict[str, np.ndarray] = {
-            iid: np.zeros_like(d.N) for iid, d in self.instances.items()}
+            o = owner.setdefault(
+                d.x.species_id,
+                np.full((self.ctx.H, self.ctx.W), "", dtype=object))
+            y0, y1, x0, x1 = d.box
+            o[y0:y1, x0:x1][d.cells] = d.x.instance_id
+        # arrival rain per instance as SPARSE dicts (world (y,x) keys —
+        # the deposit kernels' native form; the bbox optimization keeps
+        # per-instance grids windowed, never world-sized)
+        deposits: dict[str, dict[tuple[int, int], float]] = {
+            iid: {} for iid in self.instances}
         # jump-channel deposit cells per absorbing instance (rule B+:
         # jump landings mint; sustained-channel landings join)
         jump_cells: dict[str, set[tuple[int, int]]] = {}
@@ -370,13 +482,17 @@ class Engine:
             n_occ = int(occ.sum())
             if n_occ == 0:
                 continue
-            mean_s = float(s_real.get(iid, d.cache.s_env)[occ].mean())
+            y0, y1, x0, x1 = d.box
+            mean_s = float(s_real.get(iid, d.cache.s_env[y0:y1, x0:x1])
+                           [occ].mean())
             E = dsp.emission(n_occ, d.view, mean_s)
             if E <= 0.0:
                 continue
             pmf = dict(d.view.get("dispersal_channels") or {})
             rng = self._stream("disperse", f"{t}:{iid}")
             shares = {ch: E * w for ch, w in pmf.items() if w > 0.0}
+            # world-coord source list (the kernels index world fields)
+            srcs_w = np.argwhere(occ) + (y0, x0)
             # jump is episodic: the share is the packet size, the rate
             # the frequency; failure redistributes to local (§7.2).
             # maybe_jump returns the (dy,dx) offset; the source cell is
@@ -388,10 +504,9 @@ class Engine:
                     shares["local"] = shares.get("local", 0.0) \
                         + shares.pop("jump")
                 else:
-                    srcs = np.argwhere(occ)
-                    k = rng.child("jump_source").randrange(len(srcs),
+                    k = rng.child("jump_source").randrange(len(srcs_w),
                                                            0, 0)
-                    sy, sx = srcs[k]
+                    sy, sx = srcs_w[k]
                     ty, tx = int(sy + off[0]), int(sx + off[1])
                     if 0 <= ty < self.ctx.H and 0 <= tx < self.ctx.W:
                         shares["jump"] = (shares.pop("jump"), (ty, tx))
@@ -404,16 +519,19 @@ class Engine:
             # deterministic) and conserves the channel budget: each
             # selected source carries share_E / n_sel (spec §7.2's
             # deposit pattern with a bounded per-instance cost).
-            srcs = np.argwhere(occ)
-            n_src = len(srcs)
+            n_src = len(srcs_w)
             n_sel = min(n_src, SRC_CAP)
-            sel = srcs[np.linspace(0, n_src - 1, n_sel).astype(int)] \
-                if n_sel < n_src else srcs
+            sel = srcs_w[np.linspace(0, n_src - 1, n_sel).astype(int)] \
+                if n_sel < n_src else srcs_w
             for ch in sorted(shares):
                 share = shares[ch]
                 if ch == "local":
-                    dep = dsp.deposit_local(occ, share,
+                    # padded window so the spill is not clipped at the
+                    # window edge; keys shifted back to world coords
+                    dep = dsp.deposit_local(np.pad(occ, 2), share,
                                             pmf.get("local", 0.0))
+                    dep = {(y + y0 - 2, x + x0 - 2): v
+                           for (y, x), v in dep.items()}
                 elif ch == "wind":
                     dep = dsp.deposit_wind(sel, share / n_sel,
                                            self.wind_u,
@@ -440,26 +558,39 @@ class Engine:
                         continue
                     who = own[y, x]
                     key = iid if who in ("", iid) else who
-                    deposits[key][y, x] += val
+                    deposits[key][(y, x)] = \
+                        deposits[key].get((y, x), 0.0) + val
                     if ch == "jump":
                         jump_cells.setdefault(key, set()).add((y, x))
-        # arrival + establishment (§7.3): one vectorized gate call per
-        # instance over full grids; occupancy is the same-lineage mask
+        # arrival + establishment (§7.3): the window is grown to cover
+        # the new deposits, then one vectorized gate call per instance
+        # over the window; occupancy is the same-lineage mask
         for iid in sorted(deposits):
             if iid not in self.instances:
                 continue
             d = self.instances[iid]
-            arr = deposits[iid]
+            dep = deposits[iid]
+            if dep:
+                ys = [k[0] for k in dep]
+                xs = [k[1] for k in dep]
+                d.rewindow(_union_box(
+                    d.box, (min(ys), max(ys) + 1, min(xs), max(xs) + 1)))
+            y0, y1, x0, x1 = d.box
+            arr = np.zeros_like(d.rain)
+            for (y, x), val in dep.items():
+                arr[y - y0, x - x0] += val
             d.rain += arr
             if not (arr > 0.0).any():
                 continue
-            occupied = owner[d.x.species_id] != ""
+            occupied = owner[d.x.species_id][y0:y1, x0:x1] != ""
             N_new, founded = dsp.establish(
-                arr, d.cache.f_worst, occupied, d.vital.establish,
-                ROUND_YEARS, self._stream("establish", f"{t}:{iid}"))
+                arr, d.cache.f_worst[y0:y1, x0:x1], occupied,
+                d.vital.establish, ROUND_YEARS,
+                self._stream("establish", f"{t}:{iid}"))
             if not founded.any():
                 continue
-            # founding (rule B+, spec v0.4 §7.3)
+            # founding (rule B+, spec v0.4 §7.3) — all masks below are
+            # in WINDOW coords
             # 1. contiguous spill: founded cells 8-connected to the
             #    founder THROUGH founded cells join unconditionally
             #    (physical contact = gene flow; the seed-1 stat pass
@@ -487,8 +618,8 @@ class Engine:
             jc = jump_cells.get(iid)
             if jc:
                 for (y, x) in jc:
-                    if rest[y, x]:
-                        mint_region[y, x] = True
+                    if rest[y - y0, x - x0]:
+                        mint_region[y - y0, x - x0] = True
             if mint_region.any():
                 grow = mint_region.copy()
                 while True:
@@ -505,9 +636,12 @@ class Engine:
                     fx = Instance(species_id=d.x.species_id,
                                   instance_id=nid,
                                   traits=dict(d.x.traits))
-                    foundlings.append((nid, d.x.species_id,
-                                       np.where(frag, N_new, 0.0), fx,
-                                       d.cache))
+                    fbox = _mask_box(frag, d.box)
+                    N0 = np.where(frag, N_new, 0.0)[
+                        np.s_[fbox[0] - y0:fbox[1] - y0,
+                              fbox[2] - x0:fbox[3] - x0]]
+                    foundlings.append((nid, d.x.species_id, N0, fx,
+                                       d.cache, fbox))
             # 3. sustained-channel remote landings (rain-bridged gene
             #    flow) ALWAYS join — ranges may be non-contiguous,
             #    bridged by this round's rain. The verdict gate decides
@@ -521,26 +655,27 @@ class Engine:
             rem = rest & ~mint_region
             if not rem.any():
                 continue
+            s_env_w = d.cache.s_env[y0:y1, x0:x1]
             total = d.mass
-            w_mean = float((d.cache.s_env * d.N).sum() / total) \
+            w_mean = float((s_env_w * d.N).sum() / total) \
                 if total > 0.0 else 0.0
             th = DIFF_D * (1.0 + MOB_K
-                           * mobility(d.view, self.wspd, d.cells))
+                           * mobility(d.view, self.wspd[y0:y1, x0:x1],
+                                      d.cells))
             for frag in gen.connected_components(rem):
                 d.N = np.where(frag, np.maximum(d.N, N_new), d.N)
-                gap = abs(float(d.cache.s_env[frag].mean()) - w_mean)
+                gap = abs(float(s_env_w[frag].mean()) - w_mean)
                 if gap > th:
                     d.div |= frag
-        for nid, sid, N0, fx, fcache in foundlings:
+        for nid, sid, N0, fx, fcache, fbox in foundlings:
             view = self.sim.derive(fx.traits, self.pack)
             # new instances INHERIT the founder's cache — their traits
             # start equal (§5.1); no re-evaluation
             self.instances[nid] = Dressed(
-                x=fx, N=N0, rain=np.zeros_like(N0),
-                cache=fcache, view=view,
-                percap=pop.percap_demand(view),
+                x=fx, N=N0, rain=np.zeros_like(N0), cache=fcache,
+                view=view, percap=pop.percap_demand(view),
                 vital=self.sim.vital(fx.traits, self.pack),
-                div=np.zeros_like(N0, dtype=bool))
+                div=np.zeros_like(N0, dtype=bool), box=fbox)
 
     # ── §4 step 4: dressing ──────────────────────────────────────────
 
@@ -567,6 +702,8 @@ class Engine:
         splits: list[Dressed] = []
         for iid in sorted(self.instances):
             d = self.instances[iid]
+            ws = d.world_slice()
+            s_env_w = d.cache.s_env[ws]
             d.div &= d.cells
             if d.div.any():
                 base = d.cells & ~d.div
@@ -574,14 +711,15 @@ class Engine:
                 ref_total = float((d.N * ref_mask).sum())
                 if ref_total > 0.0:
                     ref = float(
-                        (d.cache.s_env * d.N * ref_mask).sum() / ref_total)
+                        (s_env_w * d.N * ref_mask).sum() / ref_total)
                     th = DIFF_D * (1.0 + MOB_K
-                                   * mobility(d.view, self.wspd, d.cells))
+                                   * mobility(d.view, self.wspd[ws],
+                                              d.cells))
                     clear = np.zeros_like(d.div)
                     for frag in gen.connected_components(d.div):
                         if int(frag.sum()) < DIFF_MIN_CELLS:
                             continue
-                        gap = abs(float(d.cache.s_env[frag].mean()) - ref)
+                        gap = abs(float(s_env_w[frag].mean()) - ref)
                         if gap <= th:
                             continue
                         nid = self._new_instance_id(
@@ -592,12 +730,12 @@ class Engine:
                         # the split-off instance is its own gene pool —
                         # it starts with a CLEAN div (its whole range
                         # is "divergent" by definition)
+                        Nc, rainc, _divc, fbox = _crop(d, frag)
                         splits.append(Dressed(
-                            x=fx, N=np.where(frag, d.N, 0.0),
-                            rain=np.where(frag, d.rain, 0.0),
+                            x=fx, N=Nc, rain=rainc,
                             cache=d.cache, view=d.view, percap=d.percap,
                             vital=d.vital,
-                            div=np.zeros_like(d.div)))
+                            div=np.zeros_like(Nc, dtype=bool), box=fbox))
                         d.N = np.where(frag, 0.0, d.N)
                         d.rain = np.where(frag, 0.0, d.rain)
                         clear |= frag
@@ -607,7 +745,6 @@ class Engine:
             if len(comps) <= 1:
                 continue
             comps.sort(key=lambda m: float(d.N[m].sum()), reverse=True)
-            keep = comps[0]
             for frag in comps[1:]:
                 if float(d.N[frag].sum()) <= 0.0:
                     continue        # rain-only sink: never an instance
@@ -618,15 +755,17 @@ class Engine:
                 fx = Instance(species_id=d.x.species_id,
                               instance_id=nid,
                               traits=dict(d.x.traits))
-                Nf = np.where(frag, d.N, 0.0)
-                rainf = np.where(frag, d.rain, 0.0)
-                splits.append(Dressed(x=fx, N=Nf, rain=rainf,
+                Nc, rainc, divc, fbox = _crop(d, frag)
+                splits.append(Dressed(x=fx, N=Nc, rain=rainc,
                                       cache=d.cache, view=d.view,
                                       percap=d.percap, vital=d.vital,
-                                      div=np.where(frag, d.div, False)))
-                d.N = np.where(keep, d.N, 0.0)
-                d.rain = np.where(keep, d.rain, 0.0)
-                d.div = np.where(keep, d.div, False)
+                                      div=divc, box=fbox))
+                # only genuinely split-off fragments leave the parent;
+                # skipped slivers/sinks keep their N, rain and div
+                d.N = np.where(frag, 0.0, d.N)
+                d.rain = np.where(frag, 0.0, d.rain)
+                d.div = np.where(frag, False, d.div)
+            d.rewindow(_dressed_box(d))
         for d in splits:
             self.instances[d.x.instance_id] = d
 
@@ -634,20 +773,36 @@ class Engine:
 
     def _merge_candidates(self) -> set[frozenset[str]]:
         """The engine-side spatial-contact gate (§9): same-lineage
-        instance pairs whose N>0 cells 8-touch."""
+        instance pairs whose N>0 cells 8-touch. Vectorized world-grid
+        shift method (the pair-by-pair rect test produced 100k+
+        candidates and dominated the commit at high instance counts):
+        per lineage, an int grid of instance index per occupied cell;
+        each of the 4 forward shift directions yields every touching
+        unordered pair exactly once."""
         by_lineage: dict[str, list[Dressed]] = {}
         for d in self.instances.values():
             by_lineage.setdefault(d.x.species_id, []).append(d)
         pairs: set[frozenset[str]] = set()
+        H, W = self.ctx.H, self.ctx.W
         for sid, ds in by_lineage.items():
             if len(ds) < 2:
                 continue
-            for i in range(len(ds)):
-                dil = _dilate(ds[i].cells)
-                for j in range(i + 1, len(ds)):
-                    if (dil & ds[j].cells).any():
-                        pairs.add(frozenset((ds[i].x.instance_id,
-                                             ds[j].x.instance_id)))
+            who = np.full((H, W), -1, dtype=np.int32)
+            for k, d in enumerate(ds):
+                y0, y1, x0, x1 = d.box
+                who[y0:y1, x0:x1][d.cells] = k
+            for dy, dx in ((1, 0), (0, 1), (1, 1), (1, -1)):
+                a = who[max(0, -dy):H - max(0, dy),
+                        max(0, -dx):W - max(0, dx)]
+                b = who[max(0, dy):H - max(0, -dy),
+                        max(0, dx):W - max(0, -dx)]
+                m = (a >= 0) & (b >= 0) & (a != b)
+                if not m.any():
+                    continue
+                for key in np.unique(a[m] * len(ds) + b[m]).tolist():
+                    ka, kb = divmod(key, len(ds))
+                    pairs.add(frozenset((ds[ka].x.instance_id,
+                                         ds[kb].x.instance_id)))
         return pairs
 
     def _commit(self, t: int) -> ChangeLog:
@@ -667,9 +822,12 @@ class Engine:
                 src = self.instances.pop(iid)
                 dst = self.instances.get(delta.target)
                 if dst is not None:
-                    dst.N = np.maximum(dst.N, src.N)
-                    dst.rain += src.rain
-                    dst.div |= src.div
+                    ub = _union_box(dst.box, src.box)
+                    dst.rewindow(ub)
+                    dst.N = np.maximum(
+                        dst.N, _embed(src.N, src.box, ub, 0.0))
+                    dst.rain += _embed(src.rain, src.box, ub, 0.0)
+                    dst.div |= _embed(src.div, src.box, ub, False)
             elif delta.target:
                 # SUBSPECIES / SPLIT: the instance continues under the
                 # new lineage node
