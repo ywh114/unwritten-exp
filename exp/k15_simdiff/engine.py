@@ -933,12 +933,22 @@ class Engine:
                 # SUBSPECIES / SPLIT: the instance continues under the
                 # new lineage node
                 self.instances[iid].x.species_id = delta.target
-        # RE-SYNC: post-commit X is deprecated; re-draw via the log
+        # RE-SYNC: post-commit X is deprecated; re-draw via the log.
+        # DRIFT RETENTION (v0.5, owner ruling "keep WIP" 2026-08-01):
+        # the re-mint supplies the current lineage bookkeeping (sid,
+        # record keys), but a surviving instance KEEPS its WIP genes —
+        # sub-SUB_D divergence now ratchets round-over-round instead of
+        # being wiped by the re-mint (measured: max instance-vs-record
+        # drift 0.0000 at every round end over 20 rounds, zero
+        # divides). The tree still only sees clusters >= SUB_D — no
+        # micro-nodes; the authority's invariant is untouched.
         for iid in sorted(self.instances):
             fresh = self.authority.redraw(iid)
             if fresh is None:
                 continue
-            fresh.pressure = self.instances[iid].x.pressure
+            wip = self.instances[iid].x
+            fresh.traits = wip.traits
+            fresh.pressure = wip.pressure
             self.instances[iid].x = fresh
             self._refresh(self.instances[iid])
         return log

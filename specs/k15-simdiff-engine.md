@@ -418,9 +418,15 @@ instance_id, traits (WIP genes), mass = Σ_cells N(c).
 - **Names**: interim handles `sid.iNNN`; binomials pin only at final
   commit.
 
-**Re-sync**: genes re-minted from amended records per the changelog;
-N, rain, instance↔cell assignment and instance ids survive; merges
-re-key absorbed instances to the survivor (their N and rain transfer).
+**Re-sync**: lineage bookkeeping (sid, record keys) re-mints from
+amended records per the changelog, but a surviving instance KEEPS its
+WIP genes and pressure plane (v0.5 owner ruling: sub-SUB_D divergence
+ratchets round-over-round; the pre-v0.5 re-mint reset each instance to
+the record, capping pairwise same-lineage distance at the one-round
+nudge forever — measured 0.0000 instance-vs-record at every round end
+over 20 rounds, zero divides); N, rain, instance↔cell assignment and
+instance ids survive; merges re-key absorbed instances to the survivor
+(their N and rain transfer).
 
 ## 10. Genesis rain (round 0)
 
@@ -538,6 +544,15 @@ counts are small).
 
 ## 15. Changelog
 
+- **v0.5** (2026-08-01): §9 drift retention (owner ruling "keep WIP")
+  — the commit re-sync keeps each surviving instance's WIP genes and
+  pressure plane instead of re-minting from the record; sub-SUB_D
+  divergence now ratchets (measured pairwise +0.00025/round between
+  two same-lineage instances in contrasting cells vs. a hard cap at
+  the one-round nudge pre-v0.5). Note distance-to-record stays 0 for
+  the orthodox instance by construction (the commit amends the record
+  to it, gerrit-style) — retention is only observable pairwise. This
+  resolves the §12.3 divide-half blocker carried from v0.4.
 - **v0.4.2** (2026-08-01): §9 consolidation (owner ruling) — the
   "final pass" joins also run periodically (CONSOL_EVERY=5 commits,
   complete same-lineage candidate pairs; authority still gates

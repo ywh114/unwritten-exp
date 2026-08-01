@@ -275,6 +275,76 @@ def test_reduced_cache_budget():
     assert mb <= REDUCED_CACHE_MB
 
 
+# ── §9 drift retention (v0.5) ─────────────────────────────────────────
+
+
+def _marginal_cell(eng: Engine, preset: str) -> tuple[int, int]:
+    """A viable but stressed fixture cell whose shortfall is in a
+    DRIFTABLE factor: pressure:climate routes to no responder by design
+    (stress_response.toml — niche baseline never drifts), so a cell
+    whose only gap is climate accumulates zero pressure. Picks the
+    viable land cell with the worst driftable suitability factor."""
+    sid = eng._order_sid[preset]
+    rng = eng._stream("test", f"peek:{preset}")
+    x = eng.authority.mint(sid, eng._new_instance_id(rng), rng)
+    view = eng.sim.derive(x.traits, eng.pack)
+    cache = eng._evaluate_cache(view, x.traits)
+    driftable = {"pressure:bloom_frost", "pressure:water",
+                 "pressure:waterlogging", "pressure:fertility",
+                 "pressure:ph_low", "pressure:ph_high",
+                 "pressure:salinity", "pressure:rooting"}
+    s = cache.s_env
+    viable = eng.ctx.land_cell & (s < 0.0)
+    worst = np.ones_like(s)
+    for r, name in enumerate(cache.names):
+        if name in driftable:
+            worst = np.minimum(worst, cache.prov[r])
+    score = np.where(viable, worst, np.inf)
+    y, x = np.unravel_index(int(np.argmin(score)), s.shape)
+    assert np.isfinite(score).any(), f"no driftable-stress cell for {preset}"
+    return int(y), int(x)
+
+
+def test_drift_retained_across_commits():
+    """WIP genes ratchet across commits: two instances of ONE lineage in
+    differently-stressed cells accumulate pairwise distance every round
+    (the pre-v0.5 re-mint reset each instance to the record, capping
+    pairwise d at the one-round nudge forever — the speciation
+    blocker). Note distance-to-record is 0 by construction for the
+    orthodox instance (the commit amends the record to it, gerrit-style)
+    — retention is only observable pairwise."""
+    from exp.k15_simdiff import authority as auth
+    eng = _engine()
+    c1 = _marginal_cell(eng, "grass_sward.tussock")
+    a = _plant(eng, "grass_sward.tussock", [c1])
+    sid = eng.instances[a].x.species_id
+    # second member: the viable cell whose worst factor is as different
+    # as possible from c1's (so the two drift in different directions)
+    d0 = eng.instances[a]
+    cache = d0.cache
+    s = cache.s_env
+    viable = eng.ctx.land_cell & (s < 0.0)
+    r1 = next(r for r, n in enumerate(cache.names)
+              if cache.prov[r][c1] == min(
+                  cache.prov[q][c1] for q in range(len(cache.names))))
+    contrast = np.where(viable, -cache.prov[r1], np.inf)
+    yy, xx = np.mgrid[0:s.shape[0], 0:s.shape[1]]
+    contrast[(np.abs(yy - c1[0]) < s.shape[0] // 4)
+             & (np.abs(xx - c1[1]) < s.shape[1] // 4)] = np.inf
+    c2 = tuple(int(v) for v in np.unravel_index(
+        int(np.argmin(contrast)), s.shape))
+    b = _plant(eng, "grass_sward.tussock", [c2])
+    ds = []
+    for t in range(4):
+        eng.round(t)
+        assert a in eng.instances and b in eng.instances
+        assert eng.instances[a].x.species_id == \
+            eng.instances[b].x.species_id == sid
+        ds.append(auth.genes_distance(eng.instances[a].x.traits,
+                                      eng.instances[b].x.traits))
+    assert ds[-1] > 2.0 * ds[0], f"no ratchet: {ds}"
+
+
 # ── §9 consolidation (v0.4.2) ─────────────────────────────────────────
 
 
@@ -442,17 +512,12 @@ def test_full_run_acceptance():
 
 
 @pytest.mark.slow
-@pytest.mark.xfail(
-    reason="spec §12.3 unmet by current mechanics: commit re-mints "
-           "KEEP instances from the amended record (authority.py), so "
-           "sub-SUB_D divergence is wiped every round and a divide "
-           "needs a single-round leap >= SUB_D — none in 20 rounds on "
-           "seed 1. Pending the drift-retention design ruling.",
-    strict=True)
 def test_genesis_partition_diverges():
     """§12.3 divide half: >= 1 clone pair of one preset registers
     subspecies-or-split within R rounds (a divide under an order node —
-    genesis clones are minted under order sids)."""
+    genesis clones are minted under order sids). Possible since v0.5
+    (drift retention): divergence ratchets round-over-round instead of
+    being wiped by the commit re-mint."""
     eng = Engine(SEED)
     eng.genesis()
     for t in range(R_SLOW):
