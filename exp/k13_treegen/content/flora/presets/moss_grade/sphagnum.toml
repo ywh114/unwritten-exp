@@ -53,6 +53,11 @@ pubescence = 0.05  # token hair-pointing; must sit above the 0.0 floor
 # check_frozen_axis (metrics design note)
 leafout_month = 1
 deciduous_trigger = "none"
+snow_adaptation = "cushion_mat"   # the peat bog sits under winter pack —
+                                  # the cushion-mat state IS the sphagnum
+                                  # cushion (T0001 re-author 2026-08-01:
+                                  # the cold-bog niche is snow-blocked for
+                                  # a 0.1 m moss without the state)
 bloom_start_month = 7
 bloom_length_months = 1.0
 fruit_month = 8

@@ -215,7 +215,7 @@ preset = "rosette_mat.stonecrop"
 label = "stonecrop"
 name = { binomial = "Sedum acre", folk = "stonecrop" }
 rank = "species"
-axes = { photosynthesis = "CAM", succulence = 0.8 }
+axes = { photosynthesis = "C3", succulence = 0.8 }
 flags = ["pinned"]
 
 [[pin]]

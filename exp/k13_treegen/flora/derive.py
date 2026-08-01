@@ -124,7 +124,7 @@ T_CUTICLE_C = 3.0        # cuticle (0..1) -> heat-dial shield/reflectance
 T_LEAF_C = 4.0           # (1 - leaf_norm): small leaves shed heat
 TEMP_OPT_LO, TEMP_OPT_HI = -30.0, 45.0
 
-B_T_BASE = 6.0
+B_T_BASE = 20.0
 B_T_DECID = 4.0          # deciduous = a wider seasonal band
 B_T_TOL = 3.0            # drought tolerance widens the thermal band
 TEMP_BREADTH_LO, TEMP_BREADTH_HI = 2.0, 20.0
@@ -147,10 +147,20 @@ LEAF_SIZE_HI_CM = 400.0
 LEAF_LOG_LO = math.log(LEAF_SIZE_LO_CM)
 LEAF_LOG_SPAN = math.log(LEAF_SIZE_HI_CM) - LEAF_LOG_LO
 
-P_B_BASE = 0.08
+P_B_BASE = 0.26
 P_B_DROUGHT = 0.10       # drought tolerance widens the moisture band
 P_B_WLOG = 0.06          # waterlogging tolerance too
 MOISTURE_BREADTH_LO, MOISTURE_BREADTH_HI = 0.03, 0.5
+# Breadth calibration 2026-08-01 (T0001, viable-range collapse): the
+# genesis-range audit (tmp/k15_range_check.py, seed 1) measured 7
+# presets at ZERO cells under the unit-weight T terms — the derived
+# breadths (B_T_BASE 6.0, P_B_BASE 0.08) were too narrow for the
+# authored optima on this world's temperature range. Both bases were
+# RAISED (6 -> 20, 0.08 -> 0.26) until every preset cleared 50 cells;
+# the residual failures were trait re-authors (stonecrop/cactus CAM ->
+# C3, duckweed/ludwigia winter-deciduous, sphagnum cushion_mat) —
+# documented in biosphere-addendum-b6-flora-wiring.md §4. GENESIS_F and
+# the factor product were NOT softened.
 
 
 def _clip01(x: float) -> float:
