@@ -714,8 +714,11 @@ def test_climate_realistic_mode():
     assert np.array_equal(cl["T_monthly"], cl2["T_monthly"])
     ann = temp_c(cl["T"]).mean(axis=1)   # per-row annual mean, degC
     # the 96x96 tiny map is 384 km ~ 14 deg of latitude at shrink 4;
-    # center 50 -> 57 degN north rim (~+2 degC), 43 degN south rim (~+13)
-    assert ann[0] < 4.0
+    # center 50 -> 57 degN north rim (~+4 degC), 43 degN south rim (~+13).
+    # since 9bfc358 the snow/ice albedo feedback is a world-grid round on
+    # real cover fields, not the coarse proxy, so the north rim no longer
+    # gets the old double cooling
+    assert ann[0] < 4.5
     assert ann[-1] > 8.0
     assert ann[-1] - ann[0] > 6.0
     # July above freezing even near the north rim (tundra, not ice sheet)
