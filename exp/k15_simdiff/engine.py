@@ -52,7 +52,6 @@ ROUND_YEARS = pop.ROUND_YEARS      # the T in every per-round conversion
 N_GEN_CAP = 400                    # mutate calls per round cap (§4)
 RE_EVAL_D = 0.15                   # cache invalidation distance (§5.1)
 EST_F_MIN = dsp.EST_F_MIN          # establishment gate (settled 0.3)
-SRC_CAP = 64                       # per-instance dispersal source cap
 
 # ── rule B+ founding / differentiation knobs (spec v0.4 §7.3/§8) ──────
 DIFF_D = 0.2          # verdict-gap base threshold (s_env scale; cal
@@ -322,6 +321,17 @@ class Engine:
         self.instances: dict[str, Dressed] = {}
         self.retired: list[str] = []
         self._clone_counter = 0
+        # v0.6 §7.3 colonization memory: per lineage (sid), the cells a
+        # packet ATTEMPTED and failed -> last-attempt round. A packet
+        # whose candidate cells include a remembered cell is
+        # down-weighted x MEM_PENALTY; entries older than MEM_ROUNDS are
+        # purged each round (deterministic sorted iteration).
+        self._colon_mem: dict[str, dict[tuple[int, int], int]] = {}
+        # v0.6 diagnostics hook: per instance, the founded cells of the
+        # LAST dispersal (world (y, x) -> N) — the packet-coherence
+        # acceptance test and the stats harness read it; transient state,
+        # never serialized.
+        self._founded_new: dict[str, dict[tuple[int, int], float]] = {}
 
     # ── ids and streams ──────────────────────────────────────────────
 
@@ -475,6 +485,13 @@ class Engine:
         # transient rain expires; persistent (seed bank) decays (§7.3)
         for d in self.instances.values():
             d.rain = dsp.decay_rain(d.rain, d.view)
+        # colonization-memory purge (spec §7.3 v0.6): entries older than
+        # MEM_ROUNDS drop each round; deterministic sorted iteration
+        for sid in sorted(self._colon_mem):
+            mem = self._colon_mem[sid]
+            for c in sorted(mem):
+                if t - mem[c] > dsp.MEM_ROUNDS:
+                    del mem[c]
         # occupancy per lineage: cell -> owning instance (§3 invariant);
         # world-grid object arrays, filled window-by-window
         owner: dict[str, np.ndarray] = {}
@@ -485,13 +502,16 @@ class Engine:
             y0, y1, x0, x1 = d.box
             o[y0:y1, x0:x1][d.cells] = d.x.instance_id
         # arrival rain per instance as SPARSE dicts (world (y,x) keys —
-        # the deposit kernels' native form; the bbox optimization keeps
-        # per-instance grids windowed, never world-sized)
+        # the packet shapes' native form; the bbox optimization keeps
+        # per-instance grids windowed, never world-sized). n_new carries
+        # the per-packet founded N (rule B+ founding reads it as the
+        # N_new field); jump_cells tracks jump-packet landings per
+        # absorbing instance (jump-originated fragments mint).
         deposits: dict[str, dict[tuple[int, int], float]] = {
             iid: {} for iid in self.instances}
-        # jump-channel deposit cells per absorbing instance (rule B+:
-        # jump landings mint; sustained-channel landings join)
+        n_new: dict[str, dict[tuple[int, int], float]] = {}
         jump_cells: dict[str, set[tuple[int, int]]] = {}
+        self._founded_new = {}
         foundlings: list[tuple] = []
         for iid in sorted(self.instances):
             d = self.instances[iid]
@@ -508,12 +528,18 @@ class Engine:
             pmf = dict(d.view.get("dispersal_channels") or {})
             rng = self._stream("disperse", f"{t}:{iid}")
             shares = {ch: E * w for ch, w in pmf.items() if w > 0.0}
-            # world-coord source list (the kernels index world fields)
-            srcs_w = np.argwhere(occ) + (y0, x0)
+            # packet origins (spec §7.2 v0.6): FRONTIER cells only —
+            # occupied cells with an unoccupied 8-neighbor (the window
+            # edge qualifies); world coords, row-major
+            front = [(y + y0, x + x0) for (y, x) in dsp.frontier_cells(occ)]
+            mem = self._colon_mem.setdefault(d.x.species_id, {})
+            own = owner[d.x.species_id]
+            pk_n = 0            # per-instance packet counter (the
+                                # "establish" child's draw index)
             # jump is episodic: the share is the packet size, the rate
             # the frequency; failure redistributes to local (§7.2).
             # maybe_jump returns the (dy,dx) offset; the source cell is
-            # drawn here with its own pinned stream (dispersal note 4).
+            # drawn here from the FRONTIER with its own pinned stream.
             if "jump" in shares:
                 off = dsp.maybe_jump(d.view, ROUND_YEARS,
                                      rng.child("jump"))
@@ -521,91 +547,90 @@ class Engine:
                     shares["local"] = shares.get("local", 0.0) \
                         + shares.pop("jump")
                 else:
-                    k = rng.child("jump_source").randrange(len(srcs_w),
-                                                           0, 0)
-                    sy, sx = srcs_w[k]
+                    sy, sx = front[rng.child("jump_source").randrange(
+                        len(front), 0, 0)]
                     ty, tx = int(sy + off[0]), int(sx + off[1])
                     if 0 <= ty < self.ctx.H and 0 <= tx < self.ctx.W:
-                        shares["jump"] = (shares.pop("jump"), (ty, tx))
+                        pk_n += 1
+                        self._scatter_packet(
+                            t, iid, "jump",
+                            dsp.packet_jump_disk(
+                                (ty, tx), self.ctx.H, self.ctx.W),
+                            shares.pop("jump"), own, mem, d, rng, pk_n,
+                            deposits, n_new, jump_cells)
                     else:
                         shares["local"] = shares.get("local", 0.0) \
                             + shares.pop("jump")
-            # per-source kernels (wind/water/animal) take (N,2) cell
-            # lists and deposit per source; the engine subsamples the
-            # source set to SRC_CAP evenly-spaced cells (row-major,
-            # deterministic) and conserves the channel budget: each
-            # selected source carries share_E / n_sel (spec §7.2's
-            # deposit pattern with a bounded per-instance cost).
-            n_src = len(srcs_w)
-            n_sel = min(n_src, SRC_CAP)
-            sel = srcs_w[np.linspace(0, n_src - 1, n_sel).astype(int)] \
-                if n_sel < n_src else srcs_w
+            # sustained channels: n_pk packets each, the channel share
+            # divided equally, one frontier origin draw per packet
+            # (spec §7.2 v0.6 — NOT per source cell)
             for ch in sorted(shares):
                 share = shares[ch]
-                if ch == "local":
-                    # padded window so the spill is not clipped at the
-                    # window edge; keys shifted back to world coords
-                    dep = dsp.deposit_local(np.pad(occ, 2), share,
-                                            pmf.get("local", 0.0))
-                    dep = {(y + y0 - 2, x + x0 - 2): v
-                           for (y, x), v in dep.items()}
-                elif ch == "wind":
-                    dep = dsp.deposit_wind(sel, share / n_sel,
-                                           self.wind_u,
-                                           self.wind_v, d.view)
-                elif ch == "water":
-                    marine = d.view.get("medium") == "water"
-                    dep = dsp.deposit_water(
-                        sel, share / n_sel, self.downstream,
-                        currents=(self.cur_u, self.cur_v) if marine
-                        else None)
-                elif ch == "animal":
-                    dep = dsp.deposit_animal(sel, share / n_sel)
-                elif ch == "jump":
-                    val, (ty, tx) = share
-                    dep = {(ty, tx): val}
-                else:
-                    continue
-                # absorption: rain of L landing in a cell occupied by
-                # ANOTHER instance of L joins the occupant (§3);
-                # out-of-grid keys are dropped (dispersal note 5)
-                own = owner[d.x.species_id]
-                for (y, x), val in dep.items():
-                    if not (0 <= y < self.ctx.H and 0 <= x < self.ctx.W):
+                n_pk = dsp.packet_count(n_occ)
+                pk_share = share / n_pk
+                pk_rng = rng.child(f"pk:{ch}")
+                for k in range(n_pk):
+                    pk_n += 1
+                    if not front:
+                        break
+                    oy, ox = front[pk_rng.randrange(len(front), 0, k)]
+                    if ch == "local":
+                        cells = dsp.packet_local_blob(
+                            (oy, ox), occ, y0, x0,
+                            self.ctx.H, self.ctx.W,
+                            pmf.get("local", 0.0))
+                    elif ch == "wind":
+                        cells = dsp.packet_wind_ray(
+                            (oy, ox), self.wind_u, self.wind_v, d.view)
+                    elif ch == "water":
+                        marine = d.view.get("medium") == "water"
+                        cells = dsp.packet_water_walk(
+                            (oy, ox), self.downstream,
+                            currents=(self.cur_u, self.cur_v) if marine
+                            else None)
+                    elif ch == "animal":
+                        # one draw per packet for the disk center offset
+                        # (clock=1; the origin draw was clock=0)
+                        di = pk_rng.randrange(len(dsp._ANIMAL_DISK), 1, k)
+                        cy = oy + dsp._ANIMAL_DISK[di][0]
+                        cx = ox + dsp._ANIMAL_DISK[di][1]
+                        cells = dsp.packet_animal_disk(
+                            (cy, cx), self.ctx.H, self.ctx.W)
+                    else:
                         continue
-                    who = own[y, x]
-                    key = iid if who in ("", iid) else who
-                    deposits[key][(y, x)] = \
-                        deposits[key].get((y, x), 0.0) + val
-                    if ch == "jump":
-                        jump_cells.setdefault(key, set()).add((y, x))
-        # arrival + establishment (§7.3): the window is grown to cover
-        # the new deposits, then one vectorized gate call per instance
-        # over the window; occupancy is the same-lineage mask
+                    self._scatter_packet(
+                        t, iid, ch, cells, pk_share, own, mem, d, rng,
+                        pk_n, deposits, n_new, jump_cells)
+        # arrival + founding (rule B+, spec v0.4 §7.3 — UNCHANGED; the
+        # packet decision already chose WHICH cells get N): the window
+        # is grown to cover the new deposits and founded cells, the
+        # rain and N accumulate, then the founding rules route the
+        # founded mask (contiguous spill joins / jump landings mint /
+        # sustained remote landings join with the verdict gate)
         for iid in sorted(deposits):
             if iid not in self.instances:
                 continue
             d = self.instances[iid]
             dep = deposits[iid]
-            if dep:
-                ys = [k[0] for k in dep]
-                xs = [k[1] for k in dep]
+            nn = n_new.get(iid, {})
+            if dep or nn:
+                ys = [k[0] for k in dep] + [k[0] for k in nn]
+                xs = [k[1] for k in dep] + [k[1] for k in nn]
                 d.rewindow(_union_box(
-                    d.box, (min(ys), max(ys) + 1, min(xs), max(xs) + 1)))
+                    d.box, (min(ys), max(ys) + 1,
+                            min(xs), max(xs) + 1)))
             y0, y1, x0, x1 = d.box
             arr = np.zeros_like(d.rain)
             for (y, x), val in dep.items():
                 arr[y - y0, x - x0] += val
             d.rain += arr
-            if not (arr > 0.0).any():
-                continue
-            occupied = owner[d.x.species_id][y0:y1, x0:x1] != ""
-            N_new, founded = dsp.establish(
-                arr, d.cache.f_worst[y0:y1, x0:x1], occupied,
-                d.vital.establish, ROUND_YEARS,
-                self._stream("establish", f"{t}:{iid}"))
+            N_new = np.zeros_like(d.rain)
+            for (y, x), val in nn.items():
+                N_new[y - y0, x - x0] += val
+            founded = N_new > 0.0
             if not founded.any():
                 continue
+            self._founded_new[iid] = nn
             # founding (rule B+, spec v0.4 §7.3) — all masks below are
             # in WINDOW coords
             # 1. contiguous spill: founded cells 8-connected to the
@@ -694,6 +719,61 @@ class Engine:
                 vital=self.sim.vital(fx.traits, self.pack),
                 div=np.zeros_like(N0, dtype=bool),
                 orphan=np.zeros_like(N0, dtype=bool), box=fbox)
+
+    def _scatter_packet(self, t: int, iid: str, ch: str, cells,
+                        pk_share: float, own, mem, d: Dressed,
+                        rng: Stream, pk_n: int, deposits, n_new,
+                        jump_cells) -> None:
+        """Spec §7.2/§7.3 v0.6: ONE colonization packet of instance
+        *iid* (channel *ch*, world-coord shape *cells*, budget
+        *pk_share*).
+
+        Scatter the packet's cells into the arrival rain (absorption:
+        a cell already held by ANY instance of the lineage joins that
+        occupant — the §3 invariant, kept exactly as before), then make
+        the ONE establishment decision for the packet: it founds iff
+            u < P,   P = packet_probability(mean(f_hab^beta over the
+            UNOCCUPIED cells), vital.establish, ROUND_YEARS,
+            in_memory)
+        (u drawn from the per-instance disperse stream's "establish"
+        child at (clock=0, index=pk_n) — one draw per packet, never per
+        cell). On success the eligible cells (unoccupied AND f_hab >=
+        EST_F_MIN — the vanguard sink cells inside a packet carry rain
+        but never N) found at N = pk_share / |founded|, clipped to 1;
+        on failure the packet's cells are remembered in the lineage's
+        colonization memory (spec §7.3: a failed target is not
+        re-attempted at full weight within MEM_ROUNDS rounds)."""
+        if not cells:
+            return
+        val = float(pk_share) / len(cells)
+        for (y, x) in cells:
+            who = own[y, x]
+            key = iid if who in ("", iid) else who
+            dk = deposits[key]
+            dk[(y, x)] = dk.get((y, x), 0.0) + val
+            if ch == "jump":
+                jump_cells.setdefault(key, set()).add((y, x))
+        cand = [c for c in cells if own[c[0], c[1]] == ""]
+        if not cand:
+            return                              # fully absorbed
+        mean_f = dsp.packet_mean_f(d.cache.f_worst, cand)
+        in_mem = any(c in mem for c in cand)
+        P = dsp.packet_probability(mean_f, d.vital.establish,
+                                   ROUND_YEARS, in_mem)
+        if rng.child("establish").uniform(0, pk_n) >= P:
+            for c in cand:
+                mem[c] = t
+            return
+        founded = [c for c in cand
+                   if float(d.cache.f_worst[c[0], c[1]]) >= dsp.EST_F_MIN]
+        if not founded:
+            for c in cand:
+                mem[c] = t
+            return
+        nv = min(1.0, float(pk_share) / len(founded))
+        nn = n_new.setdefault(iid, {})
+        for c in founded:
+            nn[c] = nn.get(c, 0.0) + nv
 
     # ── §4 step 4: dressing ──────────────────────────────────────────
 

@@ -181,12 +181,14 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
             assert clone.cells.shape == seeded.shape
             assert len(connected_components(clone.cells)) == 1
             _check_clone_field(clone, seeded)
-    # pinned empirically on seed 1 (2026-08): two of the five presets
-    # whose range exceeds PART_AREA_REF, per the task's suggestion
-    assert partition_k(ranges["lichen.crust"]) == 4
-    assert ranges["lichen.crust"] >= 1600
-    assert partition_k(ranges["rosette_mat.stonecrop"]) == 3
-    assert ranges["rosette_mat.stonecrop"] >= 800
+    # pinned empirically on seed 1 (2026-08-01, re-pinned after the
+    # derived climate envelope moved the landscape — herb_forb presets
+    # now carry the large ranges): two presets whose range exceeds
+    # PART_AREA_REF, per the task's suggestion
+    assert partition_k(ranges["herb_forb.yarrow"]) == 3
+    assert ranges["herb_forb.yarrow"] >= 1200
+    assert partition_k(ranges["runner_meadow.seagrass"]) == 2
+    assert ranges["runner_meadow.seagrass"] >= 700
     assert k_gt1, "expected at least one preset with partition_k > 1 on seed 1"
 
 

@@ -1,60 +1,81 @@
 """K15 engine — spec §7 dispersal (pure functions + named constants).
 
 The round-3 dispersal step of the flora rounds: stress-gated emission
-(§7.1), the four deterministic channel deposit kernels (§7.2) and the
-establishment gate that converts rain into N and founds new instances
-(§7.3). Pure functions of (state arrays, the lineage DerivedView,
-channel shares); the only draws are the jump roll and the establishment
-Bernoullis, both from the per-(round, instance) K1 Stream the engine
-passes (spec §7.2: ``Stream(seed, "k15.disperse", f"{t}:{instance_id}")``
-with a child stream per channel — e.g. ``rng.child("jump")``,
-``rng.child("establish")``). No stream is ever constructed here and
-every draw address (clock, index) is pinned (see maybe_jump /
-establish), so replay is byte-identical. Never uuid/random/time/np.random.
+(§7.1), the PACKET colonization layer (§7.2 — a handful of coherent,
+width-carrying shapes per instance instead of the v0.5 per-source-cell
+deposit rain) and the per-packet establishment gate that converts a
+packet into N and founds new instances (§7.3). Pure functions of (state
+arrays, the lineage DerivedView, channel shares); the only draws are the
+jump roll, the packet origin / animal-center draws and the per-packet
+establishment roll, all from the per-(round, instance) K1 Stream the
+engine passes (spec §7.2: ``Stream(seed, "k15.disperse",
+f"{t}:{instance_id}")`` with a child stream per channel — e.g.
+``rng.child("jump")``, ``rng.child("establish")``, ``rng.child("pk:wind")``).
+No stream is ever constructed here and every draw address (clock, index)
+is pinned, so replay is byte-identical. Never uuid/random/time/np.random.
 
-Cell addressing (resolved): (y, x) INT PAIRS for every deposit-dict key
-and every element of *sources* (the np.argwhere(mask) convention). The
-engine's D8 downstream pointer is a separate FLAT-index field (spec
-§5.0) and is consumed internally by deposit_water. (Flat ints would
-need the grid width to flatten, and the pinned deposit_animal signature
-carries no grid, so (y, x) keeps every kernel addressable.)
+Cell addressing (resolved): (y, x) INT PAIRS, world coordinates, for
+every shape cell list and every establishment candidate (the engine's
+D8 downstream pointer is a separate FLAT-index field — spec §5.0 — and
+is consumed internally by packet_water_walk). The packet shapes raster
+deterministically: no floats enter cell selection beyond the pinned
+draws (a wind ray's length is ceil(λ) — an integer — the λ float never
+indexes).
 
-Deposits are stress-blind and deterministic (spec §7.2, critic finding
-15): rain is cheap and abundant, per-propagule draws are a performance
-trap. Each kernel returns dict[(y, x), float] of arrival rain;
-overlapping deposits from several sources ACCUMULATE on the shared
-cell. The engine owns the absorption rule (§3: rain landing on a cell
-already held by another instance of the same lineage joins the
-occupant's rain) and the §7.3 founding split (join vs mint) — both are
-instance/component state, not kernel math.
+The packet model (v0.6, spec §7): per instance per round the emission
+budget E splits across the dispersal_channels pmf as before; each
+sustained channel's share divides equally among n_pk =
+packet_count(n_occ) packets, each packet a contiguous shape launched
+from a random FRONTIER cell (occupied cell with an unoccupied
+8-neighbor). One weighted establishment decision per packet converts
+the WHOLE eligible shape or none of it — colonized ground is blobs, not
+speckle. The engine owns absorption (§3: rain landing on a cell already
+held by another instance of the same lineage joins the occupant), the
+colonization memory (§7.3) and the §7.3 founding split (join vs mint) —
+all instance/component state, not kernel math.
 
 Ambiguities resolved (recorded here for the spec log):
 
-- share_E is the CHANNEL budget (E x dispersal_channels pmf weight).
-  local spreads the whole share uniformly over the UNION neighborhood
-  (spec verbatim); wind / water / animal deposit the full share PER
-  SOURCE cell along that source's ray / walk / disk (spec verbatim
-  d_k = share_E x ...), so a kernel with several sources can deposit
-  more than share_E in total — rain is a normalized saturation
-  fraction, not a particle budget.
-- Wind lambda_w uses the speed of the source cell's mean vector:
-  lambda_w = WIND_K x hypot(wind_u, wind_v) / sqrt(propagule_mass_mg).
-  The wind ray is a STRAIGHT integer ray (Bresenham-style; direction
-  fixed from the source's vector); the marine current walk RE-READS
-  the field at every step (a streamline with dominant-axis single-cell
-  steps).
-- Establishment draw addressing: candidates (rain > 0 and no
-  occupancy of an instance of the lineage) in row-major order;
-  candidate k draws at (clock=0, index=k). Below-gate candidates draw
-  too (p = 0 — deterministically never convert), so the index mapping
-  is a stable bijection over the candidate set.
-- maybe_jump returns the (dy, dx) offset only; the caller applies it
-  to a randomly chosen source cell (its own pinned draw) and folds a
+- The v0.5 per-source kernels (deposit_local/wind/water/animal) are
+  DELETED with the per-cell deposit paths (spec v0.6 §7.2, owner ruling
+  "tentacles, not dots"); the packet shapes replace them: a filled
+  spill blob (local), a tapered ray (wind), a width-carrying D8/current
+  walk (water), a filled disk at a random reachable offset (animal) and
+  a filled disk at the jump landing (jump).
+- share_E is the CHANNEL budget (E × dispersal_channels pmf weight).
+  Every packet of a channel carries pk_share = share_E / n_pk; the
+  packet's rain spreads UNIFORMLY over its cells (val = pk_share /
+  |cells|) and, on success, its N spreads uniformly over its founded
+  cells (N = pk_share / |founded|, clipped to 1). Rain is a normalized
+  saturation fraction, not a particle budget.
+- Wind lambda_w (the ray LENGTH now, not a decay scale) uses the speed
+  of the origin cell's mean vector: L = ceil(WIND_K × hypot(wind_u,
+  wind_v) / sqrt(propagule_mass_mg)), capped at WIND_MAX_CELLS. The
+  wind ray is a STRAIGHT integer ray (Bresenham-style; direction fixed
+  from the origin's vector); the marine current walk RE-READS the field
+  at every step (a streamline with dominant-axis single-cell steps).
+  Both carry width 2 (the ray cell + one fixed perpendicular neighbor —
+  column +1 on row-major rays, row +1 on column-major) for the first
+  floor(len/2) walked cells and width 1 for the rest (a tapered
+  tentacle).
+- The packet establishment decision (spec §7.3): candidates are the
+  packet's cells with NO occupying instance of the lineage (own cells
+  included in the rain scatter — absorption — but never in N);
+  mean_f = mean(f_hab^beta) over the candidates in row-major order
+  (deterministic accumulation; beta = EST_BETA, 1.0). The packet founds
+  iff u < P with P = packet_probability(mean_f, establish, T,
+  in_memory): the §7.3 gate (mean_f < EST_F_MIN → 0), the §4 single-T
+  conversion P = 1 − (1 − p_yr)^T with p_yr = establish × mean_f, and a
+  ×MEM_PENALTY down-weight when any candidate cell is in the lineage's
+  colonization memory (recently failed). On success the eligible cells
+  (f_hab >= EST_F_MIN) found at N = pk_share / |founded| — the vanguard
+  sink cells inside a packet carry rain but never N.
+- maybe_jump returns the (dy, dx) offset only; the caller applies it to
+  a randomly chosen FRONTIER cell (its own pinned draw) and folds a
   failed roll (None) into the local channel.
-- deposit_animal carries no grid (pinned signature): it returns the
-  full disk without clipping; the caller drops out-of-grid keys when
-  scattering into the rain field. The other kernels clip internally
-  because they receive grid-sized fields.
+- packet_animal_disk / packet_jump_disk receive the world grid size and
+  clip internally (unlike the v0.5 animal stub, whose pinned signature
+  carried no grid).
 """
 
 from __future__ import annotations
@@ -65,28 +86,39 @@ import numpy as np
 
 from kernel.hashrng import Stream
 
-# ── spec §13 knobs (v0.3, settled values) ──────────────────────────────
+# ── spec §13 knobs (v0.3/v0.6, settled values) ─────────────────────────
 COUNT_REF = 1e4             # emission normalization (propagules/yr)
 EMIT_K = 1.0                # fugitive emission gain (stress gate)
 EMIT_P = 1.0                # fugitive emission power
 LOCAL_BIG = 0.5             # local share at/above which the spill is r=2
 WIND_K = 1.0                # wind distance scale
 WIND_MAX_CELLS = 40         # wind ray length cap (cells)
-WATER_LAMBDA = 20.0         # water decay scale (cells)
+WATER_LAMBDA = 20.0         # water decay scale (cells) — v0.6: reach
+                            # term for the §7.3 mobility gate only (the
+                            # water packet no longer decays)
 WATER_MAX_CELLS = 40        # water walk length cap (cells)
-ANIMAL_RADIUS_CELLS = 5     # animal stub disk radius (cells)
+ANIMAL_RADIUS_CELLS = 5     # animal packet disk radius (cells)
 JUMP_SCALE = 1.0            # jump probability scale
-JUMP_RADIUS_CELLS = 50      # jump disk radius (cells)
+JUMP_RADIUS_CELLS = 50      # jump landing roll disk radius (cells)
+JUMP_DISK_RADIUS = 3        # v0.6: jump packet blob radius (~28 cells)
 RAIN_HALF = 0.5             # rain half-saturation in rain_frac
 EST_F_MIN = 0.3             # establishment habitat gate (settled 2026-08-01)
-EST_N0 = 0.05               # founder density on conversion
+EST_N0 = 0.05               # per-cell founder density (v0.5 gate form)
 SEEDBANK_KEEP = 0.5         # persistent-rain carryover decay
+# ── spec §13 v0.6 packet knobs ─────────────────────────────────────────
+PACKET_BASE = 2             # packet-count baseline (channels)
+PACKET_MAX = 8              # packet-count cap per channel
+PACKET_AREA_REF = 32        # packet-count reference area (cells)
+EST_BETA = 1.0              # establishment habitat power (0 = stress-blind)
+MEM_ROUNDS = 3              # colonization-memory retention (rounds)
+MEM_PENALTY = 0.25          # remembered-target establishment down-weight
 
 
 def _disk_offsets(radius: int) -> tuple[tuple[int, int], ...]:
     """Euclidean disk offsets of radius *radius*, center excluded,
     lexicographically sorted — a deterministic draw table (the jump
-    roll indexes into it). The uniform-draw disk of spec §7.2."""
+    roll and the animal center draw index into these). The uniform-draw
+    disk of spec §7.2."""
     return tuple(sorted(
         (dy, dx)
         for dy in range(-radius, radius + 1)
@@ -94,24 +126,20 @@ def _disk_offsets(radius: int) -> tuple[tuple[int, int], ...]:
         if dy * dy + dx * dx <= radius * radius and (dy, dx) != (0, 0)))
 
 
+def _filled_disk_offsets(radius: int) -> tuple[tuple[int, int], ...]:
+    """Euclidean disk offsets INCLUDING the center — the packet blob
+    rasterization table (a filled disk: every cell of the packet)."""
+    return tuple(sorted(
+        (dy, dx)
+        for dy in range(-radius, radius + 1)
+        for dx in range(-radius, radius + 1)
+        if dy * dy + dx * dx <= radius * radius))
+
+
 _ANIMAL_DISK = _disk_offsets(ANIMAL_RADIUS_CELLS)
 _JUMP_DISK = _disk_offsets(JUMP_RADIUS_CELLS)
-
-
-def _as_cells(sources) -> list[tuple[int, int]]:
-    """Normalize a *sources* argument to a list of (y, x) int pairs:
-    an (N,2) int array (np.argwhere(mask)) or a sequence of 2-tuples;
-    a single (y, x) tuple is accepted too."""
-    a = np.asarray(sources)
-    if a.ndim == 2:
-        pass
-    elif a.ndim == 1 and a.size == 2:
-        a = a.reshape(1, 2)
-    else:
-        raise ValueError(
-            "sources must be (y, x) pairs — an (N,2) array or a single "
-            "(y, x) tuple")
-    return [(int(y), int(x)) for y, x in a]
+_FILLED_ANIMAL_DISK = _filled_disk_offsets(ANIMAL_RADIUS_CELLS)
+_FILLED_JUMP_DISK = _filled_disk_offsets(JUMP_DISK_RADIUS)
 
 
 def _cheb_dilate(mask: np.ndarray, radius: int) -> np.ndarray:
@@ -214,131 +242,187 @@ def emission(n_occupied: int, view: dict, mean_s_real: float) -> float:
     return max(int(n_occupied), 0) * (float(count) / COUNT_REF) * gate ** EMIT_P
 
 
-# ── §7.2 channel deposit kernels ───────────────────────────────────────
+# ── §7.2 the packet layer ──────────────────────────────────────────────
 
 
-def deposit_local(mask, share_E: float, local_share: float
-                  ) -> dict[tuple[int, int], float]:
-    """Spec §7.2 local: the 8-neighborhood of the instance's cells
-    (Chebyshev radius 1; radius 2 when the local channel share >=
-    LOCAL_BIG), the instance's OWN cells excluded, the channel share
-    spread uniformly over the union target set:
-        d = share_E / |targets|   per target cell.
-    Target cells outside the grid are dropped (the mask knows the
-    grid). Empty mask -> {}."""
-    mask = np.asarray(mask, dtype=bool)
-    if not mask.any():
-        return {}
-    radius = 2 if float(local_share) >= LOCAL_BIG else 1
-    targets = _cheb_dilate(mask, radius) & ~mask
-    cells = np.argwhere(targets)
-    if cells.size == 0:
-        return {}
-    d = float(share_E) / cells.shape[0]
-    return {(int(y), int(x)): d for y, x in cells}
+def packet_count(n_occupied: int) -> int:
+    """Spec §7.2 v0.6 packet count per channel:
+        n_pk = clip(PACKET_BASE + floor(log2(max(1, n_occ) /
+            PACKET_AREA_REF)), 1, PACKET_MAX)
+    A small instance (< 32 cells) emits ONE packet per active channel; a
+    huge range saturates at PACKET_MAX. The channel share divides
+    equally among its packets."""
+    return int(min(PACKET_MAX, max(
+        1, PACKET_BASE + math.floor(
+            math.log2(max(1, int(n_occupied)) / PACKET_AREA_REF)))))
 
 
-def deposit_wind(sources, share_E: float, wind_u, wind_v,
-                 view: dict) -> dict[tuple[int, int], float]:
-    """Spec §7.2 wind: per source cell, an integer ray along the
-    source's mean-annual wind vector; cell k of the ray receives
-        d_k = share_E * exp(-k / lambda_w)
-        lambda_w = WIND_K * |w(s)| / sqrt(propagule_mass_mg),  k <=
-        WIND_MAX_CELLS
-    *wind_u / wind_v* are the (H,W) m/s mean-vector fields (spec §5.0);
-    |w(s)| is the speed of the source's own mean vector (the ray
-    direction is fixed from it — a straight ray, not a field walk). The
-    ray stops at the grid edge. A zero vector at the source, or a plan
-    with no (positive) propagule mass, emits no wind deposits (lambda_w
-    is undefined there)."""
+def frontier_cells(occ: np.ndarray) -> list[tuple[int, int]]:
+    """Spec §7.2 v0.6 packet origins: the occupied cells of window *occ*
+    with >= 1 unoccupied 8-neighbor (the window edge qualifies — the
+    frame is padded, so edge cells see unoccupied padding). Row-major,
+    window coordinates; the engine shifts to world coordinates."""
+    occ = np.asarray(occ, dtype=bool)
+    pad = np.pad(occ, 1)
+    has_unocc = _cheb_dilate(~pad, 1)
+    ys, xs = np.nonzero(pad & has_unocc)
+    return [(int(y - 1), int(x - 1)) for y, x in zip(ys, xs)]
+
+
+def _dedupe(cells) -> list[tuple[int, int]]:
+    """Drop duplicate cells from a shape's raster list, keeping
+    first-occurrence order (deterministic — dict insertion order). A
+    width-2 tentacle's perpendicular neighbor can coincide with a later
+    walked/rayed cell; the shape is a SET of cells, and duplicate cells
+    would double the rain/N on that cell."""
+    return list(dict.fromkeys(cells))
+
+
+def packet_local_blob(origin, occ: np.ndarray, y0: int, x0: int, H: int,
+                      W: int, local_share: float) -> list[tuple[int, int]]:
+    """Spec §7.2 v0.6 local packet: a filled spill blob around the
+    origin frontier cell — the Chebyshev disk of radius 1 (radius 2
+    when the local channel share >= LOCAL_BIG, the v0.5 spill rule),
+    the instance's OWN cells excluded (the spill never lands on the
+    parent body). World-coord in-grid cells in raster order (rows then
+    columns)."""
+    oy, ox = int(origin[0]), int(origin[1])
+    r = 2 if float(local_share) >= LOCAL_BIG else 1
+    hy, wxc = occ.shape
+    cells = []
+    for dy in range(-r, r + 1):
+        for dx in range(-r, r + 1):
+            if dy == 0 and dx == 0:
+                continue
+            y, x = oy + dy, ox + dx
+            if not (0 <= y < H and 0 <= x < W):
+                continue
+            wy, wx = y - y0, x - x0
+            if 0 <= wy < hy and 0 <= wx < wxc and occ[wy, wx]:
+                continue
+            cells.append((y, x))
+    return cells
+
+
+def packet_wind_ray(origin, wind_u, wind_v, view: dict
+                    ) -> list[tuple[int, int]]:
+    """Spec §7.2 v0.6 wind packet: a tapered tentacle — the integer ray
+    along the wind vector AT THE ORIGIN CELL (the source's own mean
+    vector; a straight Bresenham-style ray, not a field walk), length
+    L = ceil(lambda) with lambda = WIND_K * speed / sqrt(propagule_mass_mg)
+    capped at WIND_MAX_CELLS. Width 2 (the ray cell plus ONE fixed
+    perpendicular neighbor: column +1 on row-major rays, row +1 on
+    column-major) for the first floor(len/2) walked cells, width 1 for
+    the rest (a tapered tentacle). Zero wind at the origin, or a plan
+    with no positive propagule mass, emits no cells. In-grid cells
+    only."""
     u = np.asarray(wind_u, dtype=np.float64)
     v = np.asarray(wind_v, dtype=np.float64)
     H, W = u.shape
     mass = view.get("propagule_mass_mg")
     if not isinstance(mass, (int, float)) or isinstance(mass, bool) \
             or mass <= 0.0:
-        return {}
-    lam_den = math.sqrt(float(mass))
-    out: dict[tuple[int, int], float] = {}
-    for y, x in _as_cells(sources):
-        uu, vv = float(u[y, x]), float(v[y, x])
-        speed = math.hypot(uu, vv)
-        if speed == 0.0:
-            continue
-        lam = WIND_K * speed / lam_den
-        for yy, xx, k in _line_ray(y, x, uu, vv, H, W, WIND_MAX_CELLS):
-            key = (yy, xx)
-            out[key] = out.get(key, 0.0) + float(share_E) * math.exp(-k / lam)
-    return out
+        return []
+    oy, ox = int(origin[0]), int(origin[1])
+    uu, vv = float(u[oy, ox]), float(v[oy, ox])
+    speed = math.hypot(uu, vv)
+    if speed == 0.0:
+        return []
+    lam = WIND_K * speed / math.sqrt(float(mass))
+    L = max(1, min(WIND_MAX_CELLS, int(math.ceil(lam))))
+    row_major = abs(vv) >= abs(uu)
+    perp = (0, 1) if row_major else (1, 0)
+    walked = [(yy, xx) for yy, xx, _k in _line_ray(oy, ox, uu, vv, H, W, L)]
+    cells = []
+    half = len(walked) // 2
+    for i, (yy, xx) in enumerate(walked):
+        cells.append((yy, xx))
+        if i < half:
+            py, px = yy + perp[0], xx + perp[1]
+            if 0 <= py < H and 0 <= px < W:
+                cells.append((py, px))
+    return _dedupe(cells)
 
 
-def deposit_water(sources, share_E: float, downstream,
-                  currents=None) -> dict[tuple[int, int], float]:
-    """Spec §7.2 water: walk the D8 downstream pointer (fresh mode) or
-    the monthly-mean current field (marine mode); step k receives
-        d_k = share_E * exp(-k / WATER_LAMBDA),  k <= WATER_MAX_CELLS
-    *downstream*: (H,W) int array of FLATTENED neighbor indices
-    (-1 = outlet, spec §5.0): from each source, follow the pointers cell
-    by cell; the walk stops at an outlet (-1), an out-of-range pointer,
-    or the step cap (which also bounds any synthetic cycle).
-    *currents* (marine): a (2,H,W) mean vector field — [0] = u,
-    [1] = v; the walk RE-READS the local vector at every cell and
-    advances one cell along its dominant axis (ties -> the row axis; a
-    zero vector ends the walk). *currents* is used only when
-    *downstream* is None; exactly one mode must be given."""
+def packet_water_walk(origin, downstream, currents=None
+                      ) -> list[tuple[int, int]]:
+    """Spec §7.2 v0.6 water packet: walk the D8 downstream pointer
+    (fresh mode) or the monthly-mean current field (marine mode) as the
+    v0.5 kernel did — downstream: follow the flattened neighbor indices
+    cell by cell, stop at an outlet (-1), an out-of-range pointer or the
+    WATER_MAX_CELLS cap (which also bounds any synthetic cycle);
+    currents: re-read the local vector at every cell, dominant-axis
+    steps, a zero vector ends the walk. The walked path carries width 2
+    (walked cell + one perpendicular neighbor: orthogonal to the
+    dominant axis of the walk's first step — row-major steps gain a
+    column neighbor, column-major gain a row neighbor) for the first
+    floor(len/2) cells, width 1 for the rest. In-grid cells only.
+    *downstream* and *currents* are mutually exclusive; exactly one must
+    be given (a ValueError otherwise, matching the v0.5 contract)."""
     if downstream is not None:
         d = np.asarray(downstream)
         H, W = d.shape
         n_cells = H * W
-        out: dict[tuple[int, int], float] = {}
         flat = d.ravel()
-        for y, x in _as_cells(sources):
-            cur = y * W + x
-            for k in range(1, WATER_MAX_CELLS + 1):
-                cur = int(flat[cur])
-                if not 0 <= cur < n_cells:
-                    break
-                key = divmod(cur, W)
-                out[key] = out.get(key, 0.0) + float(share_E) \
-                    * math.exp(-k / WATER_LAMBDA)
-        return out
-    if currents is None:
-        raise ValueError("deposit_water needs a downstream pointer or "
-                         "a currents field")
-    cur = np.asarray(currents)
-    if cur.ndim != 3 or cur.shape[0] != 2:
-        raise ValueError("currents must be a (2,H,W) mean vector field")
-    cu = np.asarray(cur[0], dtype=np.float64)
-    cv = np.asarray(cur[1], dtype=np.float64)
-    H, W = cu.shape
-    out: dict[tuple[int, int], float] = {}
-    for y, x in _as_cells(sources):
-        for yy, xx, k in _field_walk(y, x, cu, cv, H, W, WATER_MAX_CELLS):
-            key = (yy, xx)
-            out[key] = out.get(key, 0.0) + float(share_E) * math.exp(-k / WATER_LAMBDA)
-    return out
+        oy, ox = int(origin[0]), int(origin[1])
+        cur = oy * W + ox
+        walked = []
+        for _k in range(1, WATER_MAX_CELLS + 1):
+            cur = int(flat[cur])
+            if not 0 <= cur < n_cells:
+                break
+            walked.append(divmod(cur, W))
+    elif currents is not None:
+        cu = np.asarray(currents[0], dtype=np.float64)
+        cv = np.asarray(currents[1], dtype=np.float64)
+        H, W = cu.shape
+        walked = [(yy, xx) for yy, xx, _k in _field_walk(
+            int(origin[0]), int(origin[1]), cu, cv, H, W, WATER_MAX_CELLS)]
+    else:
+        raise ValueError("packet_water_walk needs a downstream pointer "
+                         "or a currents field")
+    # the width neighbor is orthogonal to the walk's dominant axis of
+    # the FIRST step (row-major steps -> column +1, column-major ->
+    # row +1 — the same convention as the wind ray), so a +x walk
+    # carries its width on the row axis and the width never degenerates
+    # onto the next walked cell. A single-cell walk falls back to
+    # column +1.
+    perp = (0, 1)
+    if len(walked) >= 2:
+        dy = walked[1][0] - walked[0][0]
+        dx = walked[1][1] - walked[0][1]
+        if abs(dx) > abs(dy):
+            perp = (1, 0)
+    cells = []
+    half = len(walked) // 2
+    for i, (yy, xx) in enumerate(walked):
+        cells.append((yy, xx))
+        if i < half:
+            py, px = yy + perp[0], xx + perp[1]
+            if 0 <= py < H and 0 <= px < W:
+                cells.append((py, px))
+    return _dedupe(cells)
 
 
-def deposit_animal(sources, share_E: float
-                   ) -> dict[tuple[int, int], float]:
-    """Spec §7.2 animal (v1 stub, no fauna): per source cell, the
-    channel share spread uniformly over the Euclidean disk of radius
-    ANIMAL_RADIUS_CELLS around the source, the source cell itself
-    excluded (deposits never land on the instance's own cells — the
-    local kernel's rule):
-        d = share_E / |disk|   per disk cell.
-    NO grid clipping: the stub's pinned signature carries no grid, so it
-    cannot know H or W — the keys are the full disk (out-of-grid cells
-    included, negative coordinates possible) and the CALLER (the
-    engine, which knows the grid) drops out-of-grid keys when
-    scattering into the rain field. Overlapping disks accumulate."""
-    out: dict[tuple[int, int], float] = {}
-    d = float(share_E) / len(_ANIMAL_DISK)
-    for y, x in _as_cells(sources):
-        for dy, dx in _ANIMAL_DISK:
-            key = (y + dy, x + dx)
-            out[key] = out.get(key, 0.0) + d
-    return out
+def packet_animal_disk(center, H: int, W: int) -> list[tuple[int, int]]:
+    """Spec §7.2 v0.6 animal packet: the FILLED Euclidean disk of radius
+    ANIMAL_RADIUS_CELLS (center included) around the packet's disk
+    center — the origin frontier cell plus a uniform offset drawn by the
+    engine from _ANIMAL_DISK (one draw per packet, the v0.5 animal range
+    semantics). In-grid cells only."""
+    cy, cx = int(center[0]), int(center[1])
+    return [(cy + dy, cx + dx) for dy, dx in _FILLED_ANIMAL_DISK
+            if 0 <= cy + dy < H and 0 <= cx + dx < W]
+
+
+def packet_jump_disk(center, H: int, W: int) -> list[tuple[int, int]]:
+    """Spec §7.2 v0.6 jump packet: the filled Euclidean disk of radius
+    JUMP_DISK_RADIUS (~28 cells; 29 with the landing center) around the
+    jump landing — replaces the v0.5 single-pixel landing. In-grid cells
+    only."""
+    cy, cx = int(center[0]), int(center[1])
+    return [(cy + dy, cx + dx) for dy, dx in _FILLED_JUMP_DISK
+            if 0 <= cy + dy < H and 0 <= cx + dx < W]
 
 
 def maybe_jump(view: dict, T: float, rng: Stream
@@ -349,10 +433,11 @@ def maybe_jump(view: dict, T: float, rng: Stream
     this round; single T-conversion policy, spec §4). On success the
     uniform (dy, dx) offset of ONE cell within JUMP_RADIUS_CELLS of a
     source cell (the Euclidean jump disk) is returned; the CALLER
-    applies it to a randomly chosen source cell (its own pinned draw —
+    applies it to a randomly chosen FRONTIER cell (its own pinned draw —
     e.g. a child stream or a distinct index) and deposits the jump
-    share there, clipping out-of-grid offsets. On failure (None) the
-    caller folds the jump share into the local channel (spec verbatim).
+    share there as a filled disk, clipping out-of-grid offsets. On
+    failure (None) the caller folds the jump share into the local
+    channel (spec verbatim).
 
     Draw addressing (pinned): roll at (clock=0, index=0), disk offset
     at (clock=0, index=1)."""
@@ -365,7 +450,7 @@ def maybe_jump(view: dict, T: float, rng: Stream
     return _JUMP_DISK[rng.randrange(len(_JUMP_DISK), 0, 1)]
 
 
-# ── §7.3 establishment gate ────────────────────────────────────────────
+# ── §7.3 establishment gate (per-packet form) ──────────────────────────
 
 
 def round_probability(p_yr, T: float):
@@ -379,22 +464,57 @@ def round_probability(p_yr, T: float):
     return 1.0 - (1.0 - p) ** T
 
 
+def packet_mean_f(f_hab, cells, beta: float = EST_BETA) -> float:
+    """Spec §7.3 v0.6: mean(f_hab^beta) over the packet's candidate
+    cells — the packet-level establishment habitat. *f_hab* is the
+    world-grid suitability field (the engine's cache.f_worst — exactly
+    what the v0.5 establish read); *cells* are world (y, x) pairs. Cells
+    are summed in sorted (row-major) order — the hard-rule: deterministic
+    float accumulation. beta = 0 makes the packet stress-blind
+    (mean of 1s = 1)."""
+    vals = [float(f_hab[y, x]) for y, x in sorted(cells)]
+    if not vals:
+        return 0.0
+    if beta != 1.0:
+        vals = [v ** beta for v in vals]
+    return sum(vals) / len(vals)
+
+
+def packet_probability(mean_f: float, establish_rate: float, T: float,
+                       in_memory: bool = False) -> float:
+    """Spec §7.3 v0.6: the per-packet founding probability
+        p_yr = establish_rate x mean_f      (vanguard gate: mean_f <
+                                                EST_F_MIN -> 0)
+        P    = 1 - (1 - p_yr) ^ T            (the §4 single-T policy)
+    down-weighted x MEM_PENALTY when the packet's candidate cells
+    include a recently-failed target (colonization memory, spec §7.3)."""
+    if mean_f < EST_F_MIN:
+        return 0.0
+    P = round_probability(float(establish_rate) * float(mean_f), T)
+    if in_memory:
+        P *= MEM_PENALTY
+    return P
+
+
 def establish(rain, f_hab, occupancy, establish_rate: float, T: float,
               rng: Stream) -> tuple[np.ndarray, np.ndarray]:
-    """Spec §7.3 establishment gate: per cell with rain of the lineage
-    and no occupying instance of the lineage (the one-instance-per-
-    lineage-per-cell invariant, §3 — *occupancy* = 1 where ANY instance
-    of this lineage holds the cell; other lineages never block):
+    """Spec §7.3 establishment gate, PER-CELL form — retained verbatim
+    as the vanguard semantics' defining kernel (sink cells below
+    EST_F_MIN never convert); the v0.6 engine drives founding through
+    the per-PACKET gate (packet_probability) instead. Per cell with
+    rain of the lineage and no occupying instance of the lineage (the
+    one-instance-per-lineage-per-cell invariant, §3 — *occupancy* = 1
+    where ANY instance of this lineage holds the cell; other lineages
+    never block):
         rain_frac = d / (d + RAIN_HALF)
         p_yr      = establish_rate * f_hab * (1 - occupancy) * rain_frac
         P_round   = 1 - (1 - p_yr) ^ T
         GATE: P_round = 0 where f_hab < EST_F_MIN (settled 0.3)
     On success the cell gets N = EST_N0. Returns (N_new, founded_mask):
-    N_new is EST_N0 on the founded cells and 0 elsewhere (founded cells
-    were unoccupied, so their N was 0); founded_mask marks every cell
-    where rain converted — whether a founded cell JOINS the founder's
-    instance or MINTS a new one (X-cloning, owner ruling) is the
-    engine's component-connectivity decision, not kernel math.
+    N_new is EST_N0 on the founded cells and 0 elsewhere; founded_mask
+    marks every cell where rain converted — whether a founded cell JOINS
+    the founder's instance or MINTS a new one (X-cloning, owner ruling)
+    is the engine's component-connectivity decision, not kernel math.
 
     Vanguard accounting (B5): cells below the gate are sinks — rain
     arrives every round and never converts; they draw too (p = 0,

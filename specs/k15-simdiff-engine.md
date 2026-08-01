@@ -1,6 +1,11 @@
-# K15 sim-diff engine (flora rounds) — build spec v0.4.2
+# K15 sim-diff engine (flora rounds) — build spec v0.6
 
-2026-08-01. v0.3 folds the stat-settling pass (35 presets × seeds 1-3):
+2026-08-01. v0.6 folds the packet-colonization redesign (owner ruling
+"tentacles, not dots"): §7 dispersal moves from per-source-cell deposit
+kernels to a handful of coherent width-carrying packets with one
+establishment decision per packet, plus the per-lineage colonization
+memory (§7.3). v0.3 folds the stat-settling pass (35 presets × seeds
+1-3):
 substrate capacity split (§5.1, §6), dormancy-gated worst month (§5.1),
 settled knobs (§13), and the moisture-niche authoring scale (§13).
 v0.2 folded the critic review (23 findings): the population
@@ -223,7 +228,7 @@ N'       = clip(N · exp((growth − mort) · T), 0, 1)
 - Negative s_real is opportunity, never immortality: it raises growth
   through bscale, it never lowers mort below the baseline vital rate.
 
-## 7. Dispersal
+## 7. Dispersal (packet colonization, v0.6)
 
 ### 7.1 Emission (per instance, stress-gated)
 
@@ -235,62 +240,100 @@ E is in normalized rain units (propagule_count is per-year and COUNT_REF
 normalizes; the T years of rain within a round arrive as one integrated
 deposit). E splits across channels by the dispersal_channels pmf.
 
-### 7.2 Channel deposit kernels (deterministic; arrival stress-blind)
+### 7.2 The packet layer (v0.6, replaces the v0.5 per-source-cell kernels)
 
-Only the jump roll and the establishment Bernoullis are stochastic —
-the deposits themselves are deterministic kernels (rain is cheap and
-abundant; per-propagule draws are a performance trap and an
-implementation-divergence hazard, critic finding 15). Per channel,
-target cells get deposit d(c) ∈ [0,1) (saturation fraction):
+The v0.5 model deposited rain from every occupied source cell
+(SRC_CAP-subsampled) and converted per cell by independent Bernoullis —
+measured on seed 1: 120k→550k deposit cells/round, 9–12% of founded
+cells isolated speckle, jump foundlings at median 1 cell, ~160
+bridge-splits/round of which 80% were slivers < 32 cells. v0.6 replaces
+per-cell deposits with a handful of coherent, width-carrying PACKETS
+per instance ("tentacles, not dots", owner ruling): 1–8 packets per
+channel, each a contiguous blob launched from a frontier cell, with ONE
+weighted establishment decision per packet converting the WHOLE blob or
+nothing.
 
-- **local** — the 8-neighborhood (radius 2 for local share ≥
-  LOCAL_BIG (cal)): d = share_E, spread uniformly.
-- **wind** — a ray along the source cell's mean annual wind vector:
-  d_k = share_E · exp(−k / λ_w) for k = 1..WIND_MAX_CELLS (cal),
-  λ_w = WIND_K · mean_speed_ms / sqrt(propagule_mass_mg) (cal: WIND_K).
-- **water** — walk the §5.0 downstream pointer (fresh) or the
-  monthly-mean current field (marine): d_k = share_E · exp(−k /
-  WATER_LAMBDA) for k = 1..WATER_MAX_CELLS (cal: both).
-- **animal** — v1 stub (no fauna): uniform disk,
-  ANIMAL_RADIUS_CELLS (cal, default 5).
-- **jump** — episodic (the pmf share is the packet size; jump_rate is
-  the frequency, resolving the v0.1 doubling): per round, roll
-  P = 1 − (1 − jump_rate·JUMP_SCALE)^T (cal); on success ONE uniform
-  cell within JUMP_RADIUS_CELLS (cal, default 50) takes the jump
-  share; on failure the share is redistributed to local.
-  (jump_rate rides the DerivedView — v0.1 omitted it.)
+- **Packet count per channel**:
+  `n_pk = clip(PACKET_BASE + floor(log2(max(1, n_occ) / PACKET_AREA_REF)), 1, PACKET_MAX)`
+  (knobs 2 / 32 / 8). The channel share E·pmf(ch) divides equally among
+  its packets.
+- **Packet origins**: FRONTIER cells only — occupied cells with ≥ 1
+  unoccupied 8-neighbor within the window (the window edge qualifies).
+  One draw per packet from the per-instance disperse stream's channel
+  child (`rng.child("pk:{ch}")` at clock=0, index=k) — never per cell.
+- **Shapes** (all rasterized deterministically; no floats enter cell
+  selection beyond the pinned draws):
+  - **local** — a filled spill blob around the origin frontier cell:
+    the v0.5 local semantics (Chebyshev radius 1, radius 2 at local
+    share ≥ LOCAL_BIG) rasterized as ONE contiguous blob, the
+    instance's own cells excluded.
+  - **wind** — a tapered tentacle: the straight integer ray along the
+    ORIGIN cell's mean wind vector (Bresenham-style, not a field
+    walk), length L = ceil(λ) with λ = WIND_K·speed/√propagule_mass_mg
+    (cap WIND_MAX_CELLS); width 2 (ray cell + one perpendicular
+    neighbor: column +1 on row-major rays, row +1 on column-major) for
+    the first floor(len/2) cells, width 1 for the rest.
+  - **water** — the v0.5 D8 downstream walk (marine: monthly-mean
+    current field), WATER_MAX_CELLS cap; the walked path carries width
+    2 (the perpendicular of the first step's dominant axis) for the
+    first floor(len/2) cells, width 1 for the rest.
+  - **animal** — a filled Euclidean disk of radius ANIMAL_RADIUS_CELLS
+    centered at the origin plus a uniform offset drawn from the animal
+    disk table (one draw per packet, clock=1 — the v0.5 animal range
+    semantics).
+  - **jump** — the episodic landing carries a filled Euclidean disk of
+    radius JUMP_DISK_RADIUS (≈ 28 cells; 29 with the landing center)
+    instead of a single pixel. The roll is unchanged (P =
+    1 − (1 − jump_rate·JUMP_SCALE)^T; on failure the share folds into
+    local).
 
-Stochastic draws from `Stream(seed, "k15.disperse", f"{t}:{instance_id}")
-children per channel; instances processed in sorted instance_id order.
+Each packet's cells receive rain uniformly (pk_share / |cells| per
+cell, world coordinates, in-grid only). Stochastic draws from
+`Stream(seed, "k15.disperse", f"{t}:{instance_id}")` children per
+channel (`jump`, `jump_source`, `pk:{channel}`, `establish`); instances
+processed in sorted instance_id order. Absorption is unchanged (§3: a
+same-lineage cell absorbs into the occupant).
 
-### 7.3 Establishment gate (rain → N, founding)
+### 7.3 Establishment gate (per packet, v0.6)
 
-Per cell with rain of lineage L (and no occupying instance of L):
+ONE weighted decision per packet — the v0.5 per-cell Bernoulli pile is
+gone:
 
 ```
-rain_frac = d(c) / (d(c) + RAIN_HALF)              (cal: RAIN_HALF —
-            the propagule_count trait enters HERE: sparse rain in a
-            marginal cell converts slowly, saturated rain surely)
-p_yr      = establish · f_hab · (1 − occupancy) · rain_frac
-P_round   = 1 − (1 − p_yr) ^ T
-f_hab     = F_worst(c) of L's cached fields
-GATE: establishment only where f_hab ≥ EST_F_MIN (settled: 0.3)
+candidates  = the packet's cells with NO occupying instance of the
+              lineage (own cells take rain via absorption but never N)
+mean_f      = mean(f_hab^β over candidates)     (row-major sum;
+              β = EST_BETA = 1.0; β = 0 = stress-blind fallback)
+p_yr        = establish · mean_f
+GATE: P = 0 where mean_f < EST_F_MIN            (vanguard at packet
+              scale: a packet into a sink region never founds)
+P           = 1 − (1 − p_yr)^T                  (§4 single-T policy)
+              × MEM_PENALTY when any candidate cell is in the
+              lineage's colonization memory
+f_hab       = F_worst(c) of L's cached fields   (exactly what the
+              v0.5 establish read)
 ```
-On success: N_seed = EST_N0 (cal). **Vanguard accounting** (B5): cells
-below EST_F_MIN are sinks — rain arrives every round and never
-converts; rain cells are reported but never count as established
-range. Transient rain expires each round (replaced); seed_bank
-"persistent" rain carries over with a SEEDBANK_KEEP (cal) decay.
-Over T = 100 years a SUITABLE cell is colonized near-certainly — the
-vanguard model lives in the floor and the rain_frac slope, not in
-denying colonization (critic finding 13's semantics, resolved).
+The packet founds iff u < P with u ~ Uniform from the "establish"
+child (clock=0, index = the per-instance packet counter). On success
+the ELIGIBLE cells — unoccupied AND f_hab ≥ EST_F_MIN — found at
+N = pk_share / |founded|, clipped to 1 (the vanguard sink cells inside
+a packet carry rain but never N: §12.6 is preserved cell-exactly). On
+failure nothing founds and the packet's cells are recorded in the
+colonization memory. Vanguard accounting (B5) is preserved: sink cells
+receive rain every round and never convert; the per-cell gate form of
+the gate (`establish`, EST_N0 founder density) is retained in
+dispersal.py as the defining kernel of that accounting.
 
-**Founding (rule B+, owner ruling 2026-08-01, supersedes the v0.3
-"mint on any non-component establishment"):** the old rule minted a
-new instance per non-contiguous fragment — measured on seed 1 round 0:
-1173 mints from 1122 genesis instances, median fragment 1 cell, p90 7
-cells (instance count doubled per round). Rule B+ instead keys the
-decision on GENE FLOW, not geometry:
+**Colonization memory (v0.6):** per lineage (sid) the engine keeps
+`_colon_mem` — attempted target cell → last-attempt round. A FAILED
+packet's candidate cells are recorded with the current round; entries
+older than MEM_ROUNDS (3) are purged each round (deterministic sorted
+iteration). A packet whose candidate cells include a remembered cell is
+down-weighted ×MEM_PENALTY (0.25) — a failed target is not re-attempted
+at full weight within MEM_ROUNDS rounds.
+
+**Founding (rule B+, owner ruling 2026-08-01, UNCHANGED from v0.4):**
+the founding decision keys on GENE FLOW, not geometry:
 
 1. **Contiguous spill joins unconditionally.** Founded cells
    8-connected to the founder through founded cells are physical
@@ -498,13 +541,17 @@ counts are small).
 | N_FLOOR | 6 | 0.01 | cell extinction floor |
 | COUNT_REF | 7.1 | 1e4 | emission normalization (count/yr) |
 | EMIT_K / EMIT_P | 7.1 | 1.0 / 1.0 | fugitive emission gain/power |
+| PACKET_BASE / PACKET_AREA_REF / PACKET_MAX | 7.2 | 2 / 32 / 8 | packet count baseline / ref area / cap |
 | LOCAL_BIG | 7.2 | 0.5 | local share for radius-2 spill |
-| WIND_K / WIND_MAX_CELLS | 7.2 | 1.0 / 40 | wind distance scale/cap |
-| WATER_LAMBDA / WATER_MAX_CELLS | 7.2 | 20 / 40 | water decay/cap |
-| ANIMAL_RADIUS_CELLS | 7.2 | 5 | animal stub radius |
-| JUMP_SCALE / JUMP_RADIUS_CELLS | 7.2 | 1.0 / 50 | jump prob scale/radius |
-| RAIN_HALF | 7.3 | 0.5 | rain half-saturation |
-| EST_F_MIN / EST_N0 | 7.3 | **0.3 (settled)** / 0.05 | gate floor / founder density |
+| WIND_K / WIND_MAX_CELLS | 7.2 | 1.0 / 40 | wind distance scale / ray-length cap |
+| WATER_LAMBDA / WATER_MAX_CELLS | 7.2 | 20 / 40 | water decay scale (v0.6: mobility reach only) / walk cap |
+| ANIMAL_RADIUS_CELLS | 7.2 | 5 | animal packet disk radius |
+| JUMP_SCALE / JUMP_RADIUS_CELLS | 7.2 | 1.0 / 50 | jump prob scale / landing roll radius |
+| JUMP_DISK_RADIUS | 7.2 | 3 | v0.6 jump packet blob radius (~28 cells) |
+| RAIN_HALF | 7.3 | 0.5 | rain half-saturation (per-cell gate form) |
+| EST_F_MIN / EST_N0 | 7.3 | **0.3 (settled)** / 0.05 | establishment gate floor / per-cell founder density (v0.5 gate form) |
+| EST_BETA | 7.3 | 1.0 | packet habitat power (0 = stress-blind) |
+| MEM_ROUNDS / MEM_PENALTY | 7.3 | 3 / 0.25 | colonization memory retention / down-weight |
 | SEEDBANK_KEEP | 7.3 | 0.5 | persistent rain carryover |
 | GENESIS_F / GENESIS_N0 | 10 | **0.5 (settled)** / 0.2 | genesis threshold/density |
 | PART_AREA_REF / PART_K_MAX / PART_MIN_CELLS | 10 | 200 / 8 / 20 | partition knobs |
@@ -544,6 +591,36 @@ counts are small).
 
 ## 15. Changelog
 
+- **v0.6** (2026-08-01): packet colonization (owner ruling "tentacles,
+  not dots", after the seed-1 dispersal stat pass: 120k→550k deposit
+  cells/round, 9–12% isolated founded speckle, jump foundlings at
+  median 1 cell, ~160 bridge-splits/round with 80% slivers < 32 cells).
+  §7.2 replaces the per-source-cell deposit kernels (deposit_local/
+  wind/water/animal and the SRC_CAP subsampling DELETED) with 1–8
+  coherent packets per channel — filled spill blobs (local), tapered
+  width-carrying rays (wind: length = ceil(λ), λ = WIND_K·speed/√mass),
+  width-carrying D8/current walks (water), filled disks at a random
+  reachable offset (animal) and a filled ~28-cell disk at the jump
+  landing — each launched from a random FRONTIER cell (one pinned draw
+  per packet, never per cell). §7.3 moves establishment to ONE weighted
+  decision per packet (mean(f_hab^β) over the packet's unoccupied
+  cells × establish, the EST_F_MIN gate, the §4 single-T conversion, ×
+  MEM_PENALTY on remembered targets); the whole eligible blob founds at
+  N = share/|founded| or nothing does. The per-cell gate form
+  (`establish`, EST_N0, RAIN_HALF) is retained as the vanguard
+  accounting's defining kernel; the per-cell EST_F_MIN gate keeps
+  §12.6 (sink cells rain but never establish) cell-exactly. New
+  per-lineage colonization memory (`_colon_mem`, MEM_ROUNDS=3): failed
+  targets are remembered and down-weighted, purged deterministically
+  each round. Rule B+ founding/dressing/commit are untouched. Measured
+  (seed 1, 12 rounds): founded cells drop from 120k–550k to ~1.4–5.8k/
+  round, isolated-founded fraction 1–4% (vanguard-gate carve-outs at
+  suitability cliffs; 0 on fully viable ground), instance count settles
+  at ~300–370 by r10–r11 (the consolidation sawtooth) vs 1135–1478,
+  jump foundlings born at median 4–14 cells on the full world (28 on a
+  clean meadow — the disk is carved by overlap with the emitter's own
+  founded rays/blobs), mints+divisions fall from ~250–300 to ~30–150
+  per round, round time 15–25s → 2–9s.
 - **v0.5** (2026-08-01): §9 drift retention (owner ruling "keep WIP")
   — the commit re-sync keeps each surviving instance's WIP genes and
   pressure plane instead of re-minting from the record; sub-SUB_D

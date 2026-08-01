@@ -1,10 +1,15 @@
 """K15 engine — spec §7 dispersal unit tests (pure math, synthetic
 small grids only — no world loads, no disk).
 
-Each kernel and the establishment gate is checked against a
-hand-computed case on a tiny synthetic grid; determinism is asserted
+Each packet-shape function and the establishment gate is checked against
+a hand-computed case on a tiny synthetic grid; determinism is asserted
 by re-running identical inputs with identical seed streams. All
 randomness comes from kernel.hashrng streams.
+
+The v0.5 per-source deposit kernels (deposit_local/wind/water/animal)
+were DELETED with the per-cell deposit paths (spec v0.6 §7.2); their
+tests went with them. The packet shapes replace them: filled spill
+blobs, tapered rays, width-carrying walks, filled disks.
 
 Run: PYTHONPATH=. uv run pytest -q exp/k15_simdiff/test_dispersal.py
 """
@@ -22,41 +27,51 @@ from exp.k15_simdiff.dispersal import (
     EMIT_P,
     EST_F_MIN,
     EST_N0,
+    JUMP_DISK_RADIUS,
     JUMP_RADIUS_CELLS,
     LOCAL_BIG,
+    MEM_PENALTY,
+    MEM_ROUNDS,
+    PACKET_AREA_REF,
+    PACKET_BASE,
+    PACKET_MAX,
     RAIN_HALF,
     SEEDBANK_KEEP,
-    WATER_LAMBDA,
     WATER_MAX_CELLS,
     WIND_K,
     _ANIMAL_DISK,
+    _FILLED_ANIMAL_DISK,
+    _FILLED_JUMP_DISK,
     _JUMP_DISK,
     decay_rain,
-    deposit_animal,
-    deposit_local,
-    deposit_water,
-    deposit_wind,
     emission,
     establish,
+    frontier_cells,
     maybe_jump,
+    packet_animal_disk,
+    packet_count,
+    packet_jump_disk,
+    packet_local_blob,
+    packet_mean_f,
+    packet_probability,
+    packet_water_walk,
+    packet_wind_ray,
     round_probability,
 )
 from kernel.hashrng import Stream
 
 
-def _assert_deposits(dep, expected):
-    """Exact key sets; values within rel 1e-12."""
-    assert set(dep) == set(expected)
-    for key in expected:
-        assert dep[key] == pytest.approx(expected[key], rel=1e-12)
-
-
-def _euclid_disk(cy: int, cx: int, r: int) -> set[tuple[int, int]]:
-    """Independent recomputation of the Euclidean disk (center excluded)."""
-    return {(y, x) for y in range(cy - r, cy + r + 1)
-            for x in range(cx - r, cx + r + 1)
-            if (y - cy) ** 2 + (x - cx) ** 2 <= r * r
-            and (y, x) != (cy, cx)}
+def _euclid_disk(cy: int, cx: int, r: int, include_center: bool = False
+                 ) -> set[tuple[int, int]]:
+    """Independent recomputation of the Euclidean disk (center included
+    for the packet blobs, excluded for the draw tables)."""
+    out = set()
+    for y in range(cy - r, cy + r + 1):
+        for x in range(cx - r, cx + r + 1):
+            if (y - cy) ** 2 + (x - cx) ** 2 <= r * r \
+                    and (include_center or (y, x) != (cy, cx)):
+                out.add((y, x))
+    return out
 
 
 def _cheb_disk(cy: int, cx: int, r: int) -> set[tuple[int, int]]:
@@ -89,209 +104,254 @@ def test_emission_stress_gate():
         10.0 * (1.0 + EMIT_K * s) ** EMIT_P)
 
 
-# ── §7.2 local ─────────────────────────────────────────────────────────
+# ── §7.2 packet count and origins ──────────────────────────────────────
 
 
-def test_local_radius_one_uniform():
-    """Single cell: the 8 neighbors, share spread uniformly, own cell
-    excluded."""
-    mask = np.zeros((9, 9), dtype=bool)
-    mask[4, 4] = True
-    dep = deposit_local(mask, 4.0, 0.3)         # < LOCAL_BIG -> radius 1
-    expected = {(y, x): 0.5 for y, x in _cheb_disk(4, 4, 1)}
-    _assert_deposits(dep, expected)
-    assert (4, 4) not in dep
-    assert len(dep) == 8
+def test_packet_count_formula():
+    """n_pk = clip(PACKET_BASE + floor(log2(max(1, n_occ)/REF)), 1, MAX):
+    a small instance emits ONE packet per active channel, a huge range
+    saturates at PACKET_MAX."""
+    assert packet_count(1) == 1
+    assert packet_count(16) == 1
+    assert packet_count(31) == 1
+    assert packet_count(32) == 2
+    assert packet_count(64) == 3
+    assert packet_count(128) == 4
+    assert packet_count(256) == 5
+    assert packet_count(512) == 6
+    assert packet_count(2048) == PACKET_MAX
+    assert packet_count(10 ** 6) == PACKET_MAX
+    # the formula verbatim (PACKET_BASE=2, REF=32)
+    assert packet_count(32) == PACKET_BASE \
+        + math.floor(math.log2(32 / PACKET_AREA_REF))
 
 
-def test_local_radius_two_at_local_big():
-    """local_share >= LOCAL_BIG widens the spill to radius 2 (the 24
-    cells at Chebyshev distance 1 or 2), still uniform, own cell out."""
-    mask = np.zeros((9, 9), dtype=bool)
-    mask[4, 4] = True
-    dep = deposit_local(mask, 4.0, 0.6)         # >= LOCAL_BIG -> radius 2
-    ring = {(y, x) for y in range(2, 7) for x in range(2, 7)} - {(4, 4)}
-    _assert_deposits(dep, {c: 4.0 / 24.0 for c in ring})
-    assert len(dep) == 24
-    # boundary: exactly LOCAL_BIG also widens
-    assert len(deposit_local(mask, 4.0, LOCAL_BIG)) == 24
-    # the r=1 case differs (already covered) — the two neighborhoods
-    assert len(deposit_local(mask, 4.0, 0.49)) == 8
+def test_frontier_cells_single_and_edges():
+    """An occupied cell with no occupied 8-neighbor is the only frontier
+    cell; window-edge occupied cells qualify (the frame is padded)."""
+    occ = np.zeros((9, 9), dtype=bool)
+    occ[4, 4] = True
+    assert frontier_cells(occ) == [(4, 4)]
+    # two adjacent cells: both have an unoccupied neighbor
+    occ[4, 5] = True
+    f = frontier_cells(occ)
+    assert (4, 4) in f and (4, 5) in f and len(f) == 2
+    # window edge: the full 9x9 block — only the boundary is frontier
+    occ2 = np.ones((9, 9), dtype=bool)
+    f2 = frontier_cells(occ2)
+    assert len(f2) == 32                    # 9x9 perimeter
+    assert (0, 0) in f2 and (4, 4) not in f2
 
 
-def test_local_union_excludes_own_cells():
-    """Two adjacent cells: the union 8-neighborhood minus ALL own cells,
-    uniform over the union."""
-    H = W = 5
-    mask = np.zeros((H, W), dtype=bool)
-    mask[2, 2] = mask[2, 3] = True
-    dep = deposit_local(mask, 8.0, 0.2)
-    own = {(2, 2), (2, 3)}
-    expected = {}
-    for y, x in own:
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                c = (y + dy, x + dx)
-                if 0 <= c[0] < H and 0 <= c[1] < W and c not in own:
-                    expected[c] = 8.0 / 10.0
-    _assert_deposits(dep, expected)
-    assert len(dep) == 10
-    assert deposit_local(np.zeros((H, W), dtype=bool), 1.0, 0.2) == {}
+def test_frontier_cells_row_major():
+    """Frontier cells come back row-major (the pinned origin-draw
+    order)."""
+    occ = np.zeros((6, 6), dtype=bool)
+    occ[1, 1] = occ[3, 4] = True
+    f = frontier_cells(occ)
+    assert f == sorted(f)
+    assert f == [(1, 1), (3, 4)]
 
 
-# ── §7.2 wind ──────────────────────────────────────────────────────────
+# ── §7.2 local packet ──────────────────────────────────────────────────
 
 
-def test_wind_uniform_field_downwind_decay():
-    """A +x uniform wind: the ray marches downwind, d_k = share_E *
-    exp(-k / lambda_w) with lambda_w = WIND_K * speed / sqrt(mass)."""
-    H = W = 12
-    wind_u = np.full((H, W), 1.0)
-    wind_v = np.zeros((H, W))
-    share = 2.0
-    dep = deposit_wind([(1, 1)], share, wind_u, wind_v,
-                       {"propagule_mass_mg": 1.0})
-    lam = WIND_K * math.hypot(1.0, 0.0) / math.sqrt(1.0)
-    _assert_deposits(dep, {(1, 1 + k): share * math.exp(-k / lam)
-                           for k in range(1, 11)})   # edge at x = 11
-    # signed projection (acceptance §12.7): every deposit downwind
-    for (y, x) in dep:
-        assert (y - 1) * 0.0 + (x - 1) * 1.0 > 0.0
-    # exponential decay: adjacent ratio is exp(-1 / lambda_w)
-    assert dep[(1, 2)] / dep[(1, 3)] == pytest.approx(math.exp(1.0 / lam))
+def test_local_blob_radius_one_uniform():
+    """The local packet is the filled Chebyshev spill around the origin
+    frontier cell: radius 1 (8 cells) below LOCAL_BIG, own cells out."""
+    occ = np.zeros((9, 9), dtype=bool)
+    occ[4, 4] = True
+    blob = packet_local_blob((4, 4), occ, 0, 0, 9, 9, 0.3)
+    assert set(blob) == _cheb_disk(4, 4, 1)
+    assert (4, 4) not in blob
+    assert len(blob) == 8
+    # exactly LOCAL_BIG also widens to radius 2 (24 cells)
+    blob2 = packet_local_blob((4, 4), occ, 0, 0, 9, 9, LOCAL_BIG)
+    assert set(blob2) == _cheb_disk(4, 4, 2)
+    assert len(blob2) == 24
+    assert len(packet_local_blob((4, 4), occ, 0, 0, 9, 9, 0.49)) == 8
 
 
-def test_wind_diagonal_ray_integer_steps():
-    """A (3, 1) wind: the Bresenham-style ray reaches (dy, dx) = (k//3,
-    k) after k steps — the minor axis advances when the fraction
-    crosses an integer; deposits stay strictly downwind."""
-    H = W = 15
-    wind_u = np.full((H, W), 3.0)
-    wind_v = np.full((H, W), 1.0)
-    share = 1.0
-    dep = deposit_wind([(5, 5)], share, wind_u, wind_v,
-                       {"propagule_mass_mg": 4.0})
-    lam = WIND_K * math.hypot(3.0, 1.0) / math.sqrt(4.0)
-    _assert_deposits(dep, {(5 + k // 3, 5 + k): share * math.exp(-k / lam)
-                           for k in range(1, 10)})   # edge at x = 14
-    for (y, x) in dep:
-        assert (y - 5) * 1.0 + (x - 5) * 3.0 > 0.0   # downwind projection
-    assert (6, 8) in dep     # k=3: rows advance 5 + floor(3/3) = 6
+def test_local_blob_excludes_own_cells():
+    """The spill never lands on the instance's OWN cells (the v0.5
+    local kernel's rule)."""
+    occ = np.zeros((9, 9), dtype=bool)
+    occ[4, 4] = occ[4, 5] = occ[4, 3] = True
+    blob = packet_local_blob((4, 4), occ, 0, 0, 9, 9, 0.3)
+    for own in ((4, 3), (4, 4), (4, 5)):
+        assert own not in blob
 
 
-def test_wind_no_ray_when_still_or_massless():
-    """Zero wind vector or no positive propagule mass -> no deposits."""
+def test_local_blob_world_shift_and_clip():
+    """The origin and occ are in window coords offset by (y0, x0); the
+    blob is world coords and clipped to the grid."""
+    # origin at the world corner: the spill clips to the grid edge and
+    # never includes the ORIGIN (a frontier cell is an own cell — the
+    # spill lands off the parent body)
+    occ = np.zeros((9, 9), dtype=bool)
+    occ[1, 1] = True
+    blob = packet_local_blob((0, 0), occ, 20, 30, 26, 34, 0.3)
+    assert set(blob) == {(0, 1), (1, 0), (1, 1)}
+    # windowed occ is shifted into world coordinates for the own-cell
+    # check: the own cell (21, 31) is never a target
+    blob2 = packet_local_blob((21, 31), occ, 20, 30, 26, 34, 0.3)
+    assert (21, 31) not in blob2
+    assert all(0 <= y < 26 and 0 <= x < 34 for y, x in blob2)
+
+
+# ── §7.2 wind packet ───────────────────────────────────────────────────
+
+
+def test_wind_ray_length_and_taper():
+    """The wind packet is a tapered tentacle of length L = ceil(lambda),
+    lambda = WIND_K * speed / sqrt(mass): L = 1 for lambda = 1, with
+    width 2 (ray cell + one perpendicular neighbor) for the first
+    floor(len/2) cells."""
+    H = W = 64
+    wu = np.ones((H, W))
+    wv = np.zeros((H, W))
+    ray = packet_wind_ray((32, 8), wu, wv, {"propagule_mass_mg": 1.0})
+    assert ray == [(32, 9)]                # L = ceil(1.0), width 1
+    # speed 2, mass 1 -> L = 2; the first floor(2/2) = 1 cell is width 2
+    ray2 = packet_wind_ray((32, 8), 2 * wu, wv, {"propagule_mass_mg": 1.0})
+    assert set(ray2) == {(32, 9), (33, 9), (32, 10)}
+    # mass 0.001, speed 5 -> L capped at WIND_MAX_CELLS: 40 ray cells +
+    # 20 width cells (first half), all distinct (dedupe)
+    ray3 = packet_wind_ray((32, 8), 5 * wu, wv,
+                           {"propagule_mass_mg": 0.001})
+    assert len(ray3) == 40 + 20
+    assert len(set(ray3)) == len(ray3)
+    # downwind projection (acceptance §12.7): every cell has positive
+    # column offset from the origin
+    assert all(x > 8 for _y, x in ray3)
+
+
+def test_wind_ray_diagonal_direction():
+    """A (3, 1) wind: the Bresenham-style ray marches downwind; the
+    perpendicular neighbor is on the row axis (column-major ray)."""
+    H = W = 64
+    wu = np.full((H, W), 3.0)
+    wv = np.full((H, W), 1.0)
+    ray = packet_wind_ray((32, 8), wu, wv, {"propagule_mass_mg": 4.0})
+    assert (32, 9) in ray and (33, 9) in ray   # first step + width
+    for (y, x) in ray:
+        assert (y - 32) * 1.0 + (x - 8) * 3.0 > 0.0    # downwind
+
+
+def test_wind_ray_empty_when_still_or_massless():
+    """Zero wind at the origin or no positive propagule mass -> no
+    cells."""
     H = W = 8
-    still = deposit_wind([(4, 4)], 1.0, np.zeros((H, W)), np.zeros((H, W)),
-                         {"propagule_mass_mg": 1.0})
-    assert still == {}
-    no_mass = deposit_wind([(4, 4)], 1.0, np.ones((H, W)), np.zeros((H, W)),
-                           {})
-    assert no_mass == {}
+    still = packet_wind_ray((4, 4), np.zeros((H, W)), np.zeros((H, W)),
+                            {"propagule_mass_mg": 1.0})
+    assert still == []
+    no_mass = packet_wind_ray((4, 4), np.ones((H, W)), np.zeros((H, W)),
+                              {})
+    assert no_mass == []
 
 
-# ── §7.2 water ─────────────────────────────────────────────────────────
+# ── §7.2 water packet ──────────────────────────────────────────────────
 
 
-def test_water_d8_walk_decays():
-    """Fresh mode: a synthetic D8 pointer chain 0 -> 6 -> 12 -> 18 -> 24
-    (flat row-major on a 5x5 grid), d_k = share_E * exp(-k /
-    WATER_LAMBDA), stopping at the outlet."""
-    H = W = 5
+def test_water_walk_d8_with_width():
+    """Fresh mode: the D8 pointer chain is walked; the first
+    floor(len/2) walked cells carry a width-2 neighbor (deduped when it
+    coincides with a later walked cell)."""
+    H = W = 9
     downstream = np.full((H, W), -1, dtype=np.int64)
     f = downstream.ravel()
-    chain = [0, 6, 12, 18, 24]
+    chain = [4 * 9 + 4, 4 * 9 + 5, 4 * 9 + 6]
     for a, b in zip(chain[:-1], chain[1:]):
         f[a] = b
-    dep = deposit_water([(0, 0)], 3.0, downstream)
-    expected = {(1, 1): 3.0 * math.exp(-1 / WATER_LAMBDA),
-                (2, 2): 3.0 * math.exp(-2 / WATER_LAMBDA),
-                (3, 3): 3.0 * math.exp(-3 / WATER_LAMBDA),
-                (4, 4): 3.0 * math.exp(-4 / WATER_LAMBDA)}
-    _assert_deposits(dep, expected)
-
-
-def test_water_d8_outlet_and_cap():
-    """An outlet mid-chain stops the walk; a chain longer than
-    WATER_MAX_CELLS is capped; an out-of-range pointer stops too."""
-    H = W = 3
-    downstream = np.full((H, W), -1, dtype=np.int64)
-    f = downstream.ravel()
-    chain = [0, 1, 2, 5, 8]                       # flat: (0,0)->(1,1)->(2,2)
-    for a, b in zip(chain, chain[1:]):
-        f[a] = b
-    dep = deposit_water([(0, 0)], 1.0, downstream)
-    assert len(dep) == 4                          # 4 chain steps, then -1
-    assert (0, 1) in dep and (2, 2) in dep
-    # mid-chain outlet
+    walk = packet_water_walk((4, 4), downstream)
+    # walked (4,5) -> (4,6); the walk is column-major so the width
+    # neighbor of (4,5) is the row +1 cell (5,5); dedupe keeps cells
+    # distinct
+    assert set(walk) == {(4, 5), (5, 5), (4, 6)}
+    assert len(walk) == len(set(walk))
+    # an outlet mid-chain stops the walk; a single walked cell carries
+    # no width (floor(1/2) = 0)
     d2 = np.full((H, W), -1, dtype=np.int64)
     d2.ravel()[0] = 1
-    _assert_deposits(deposit_water([(0, 0)], 1.0, d2),
-                     {(0, 1): 1.0 * math.exp(-1 / WATER_LAMBDA)})
-    # cap: WATER_MAX_CELLS + 5 chain, only WATER_MAX_CELLS deposits
+    assert packet_water_walk((0, 0), d2) == [(0, 1)]
+
+
+def test_water_walk_cap():
+    """A chain longer than WATER_MAX_CELLS is capped; an out-of-range
+    pointer stops too."""
     long = np.full((1, WATER_MAX_CELLS + 8), -1, dtype=np.int64)
     lf = long.ravel()
     for a, b in zip(range(WATER_MAX_CELLS + 7), range(1, WATER_MAX_CELLS + 8)):
         lf[a] = b
-    dep_long = deposit_water([(0, 0)], 1.0, long)
-    assert len(dep_long) == WATER_MAX_CELLS
-    assert (0, WATER_MAX_CELLS) in dep_long
-    assert (0, WATER_MAX_CELLS + 1) not in dep_long
+    walk = packet_water_walk((0, 0), long)
+    assert len(walk) >= WATER_MAX_CELLS
+    assert all(x < WATER_MAX_CELLS + 1 for _y, x in walk)
 
 
-def test_water_currents_uniform_field():
+def test_water_walk_currents_and_error():
     """Marine mode: a uniform +x current walks down-current with the
-    same exp decay; a zero field walks nowhere; neither mode given
-    raises."""
+    same width; a zero field walks nowhere; neither mode given raises."""
     H = W = 8
     cu = np.ones((H, W))
     cv = np.zeros((H, W))
-    dep = deposit_water([(3, 3)], 2.0, None, currents=(cu, cv))
-    _assert_deposits(dep, {(3, 3 + k): 2.0 * math.exp(-k / WATER_LAMBDA)
-                           for k in range(1, 5)})  # edge at x = 7
-    still = deposit_water([(3, 3)], 2.0, None,
-                          currents=(np.zeros((H, W)), np.zeros((H, W))))
-    assert still == {}
+    walk = packet_water_walk((3, 3), None, currents=(cu, cv))
+    assert (3, 4) in walk and (4, 4) in walk      # first step + width
+    assert (3, 7) in walk                          # walk reaches the edge
+    still = packet_water_walk((3, 3), None,
+                              currents=(np.zeros((H, W)), np.zeros((H, W))))
+    assert still == []
     with pytest.raises(ValueError):
-        deposit_water([(0, 0)], 1.0, None)
+        packet_water_walk((0, 0), None)
 
 
-# ── §7.2 animal ────────────────────────────────────────────────────────
+# ── §7.2 animal / jump packets ─────────────────────────────────────────
 
 
-def test_animal_disk_uniform():
-    """One source: the Euclidean disk of radius ANIMAL_RADIUS_CELLS
-    (center excluded), share_E spread uniformly over the disk."""
-    r = ANIMAL_RADIUS_CELLS
-    dep = deposit_animal([(5, 5)], 8.0)
-    expected = {c: 8.0 / len(_euclid_disk(5, 5, r)) for c in _euclid_disk(5, 5, r)}
-    _assert_deposits(dep, expected)
-    assert len(dep) == 80                          # 81 - center
+def test_animal_disk_filled_and_clipped():
+    """The animal packet is the FILLED Euclidean disk (center included)
+    of radius ANIMAL_RADIUS_CELLS, clipped to the grid."""
+    H = W = 20
+    disk = packet_animal_disk((10, 10), H, W)
+    assert set(disk) == _euclid_disk(10, 10, ANIMAL_RADIUS_CELLS, True)
+    assert (10, 10) in disk
+    assert len(disk) == len(_FILLED_ANIMAL_DISK)
+    # corner clipping
+    corner = packet_animal_disk((0, 0), H, W)
+    assert all(0 <= y < H and 0 <= x < W for y, x in corner)
+    assert (0, 0) in corner
 
 
-def test_animal_disk_no_clip_at_edges():
-    """The stub carries no grid (pinned signature): a corner source keys
-    out-of-grid cells (negative coords possible) — the caller drops
-    them when scattering into the rain field (documented contract)."""
-    dep = deposit_animal([(0, 0)], 1.0)
-    assert (-1, 0) in dep
-    assert (0, -1) in dep
-    assert (0, 0) not in dep                       # own cell excluded
+def test_jump_disk_filled_size():
+    """The jump packet is the filled Euclidean disk of radius
+    JUMP_DISK_RADIUS (~28 cells) around the landing."""
+    H = W = 20
+    disk = packet_jump_disk((10, 10), H, W)
+    assert set(disk) == _euclid_disk(10, 10, JUMP_DISK_RADIUS, True)
+    assert (10, 10) in disk
+    assert len(disk) == len(_FILLED_JUMP_DISK) == 29
 
 
 def test_disk_offset_tables_exact():
     """The precomputed disks are exactly the sorted Euclidean disks
-    (independent recomputation), center excluded, no duplicates."""
-    for disk, r in ((_ANIMAL_DISK, ANIMAL_RADIUS_CELLS),
-                    (_JUMP_DISK, JUMP_RADIUS_CELLS)):
+    (independent recomputation), no duplicates."""
+    for disk, r, center in ((_ANIMAL_DISK, ANIMAL_RADIUS_CELLS, False),
+                            (_JUMP_DISK, JUMP_RADIUS_CELLS, False),
+                            (_FILLED_ANIMAL_DISK, ANIMAL_RADIUS_CELLS, True),
+                            (_FILLED_JUMP_DISK, JUMP_DISK_RADIUS, True)):
         assert len(set(disk)) == len(disk)
         assert disk == tuple(sorted(disk))
-        assert all(0 < dy * dy + dx * dx <= r * r for dy, dx in disk)
+        assert all(dy * dy + dx * dx <= r * r for dy, dx in disk)
+        if center:
+            assert (0, 0) in disk
+        else:
+            assert (0, 0) not in disk
+            assert all(0 < dy * dy + dx * dx <= r * r for dy, dx in disk)
     assert _ANIMAL_DISK == tuple(sorted(_euclid_disk(0, 0, ANIMAL_RADIUS_CELLS)))
-    assert len(_JUMP_DISK) == len(_euclid_disk(0, 0, JUMP_RADIUS_CELLS))
+    assert _FILLED_JUMP_DISK == tuple(sorted(
+        _euclid_disk(0, 0, JUMP_DISK_RADIUS, True)))
 
 
-# ── §7.2 jump ──────────────────────────────────────────────────────────
+# ── §7.2 jump roll ─────────────────────────────────────────────────────
 
 
 def test_jump_failure_redistributes_to_local():
@@ -331,7 +391,59 @@ def test_jump_determinism():
                for off in run())
 
 
-# ── §7.3 establishment gate ────────────────────────────────────────────
+# ── §7.3 packet establishment gate ─────────────────────────────────────
+
+
+def test_packet_mean_f():
+    """mean(f_hab^beta) over the packet's cells, row-major order; beta
+    = 0 is the stress-blind fallback (mean of 1s = 1)."""
+    f_hab = np.full((9, 9), 0.7)
+    assert packet_mean_f(f_hab, [(4, 4), (5, 5)]) == 0.7
+    f2 = f_hab.copy()
+    f2[5, 5] = 0.1
+    assert packet_mean_f(f2, [(4, 4), (5, 5)]) == pytest.approx(0.4)
+    # order-independent value but deterministic accumulation: same cells
+    # in any order give the same mean
+    assert packet_mean_f(f2, [(5, 5), (4, 4)]) == pytest.approx(0.4)
+    assert packet_mean_f(f_hab, [(4, 4)], beta=0.0) == 1.0
+    assert packet_mean_f(f_hab, [(4, 4)], beta=2.0) == pytest.approx(0.49)
+    assert packet_mean_f(f_hab, []) == 0.0
+
+
+def test_packet_probability_formula_and_gate():
+    """P = 1 - (1 - est x mean_f)^T (the §4 single-T policy) with the
+    §7.3 gate: mean_f < EST_F_MIN -> 0 (vanguard semantics at the packet
+    scale)."""
+    assert packet_probability(0.2, 1.0, 100.0) == 0.0     # gate
+    assert packet_probability(EST_F_MIN - 1e-9, 1.0, 100.0) == 0.0
+    p = packet_probability(0.8, 1.0, 100.0)
+    assert p == pytest.approx(1.0 - 0.2 ** 100)
+    p2 = packet_probability(0.8, 0.5, 10.0)
+    assert p2 == pytest.approx(1.0 - 0.6 ** 10)
+    # monotone in mean_f and establish_rate (at non-saturating T)
+    assert packet_probability(0.9, 0.5, 5.0) \
+        > packet_probability(0.8, 0.5, 5.0)
+    assert packet_probability(0.8, 0.55, 5.0) \
+        > packet_probability(0.8, 0.5, 5.0)
+
+
+def test_packet_probability_memory_penalty():
+    """A packet whose candidate cells are remembered is down-weighted
+    x MEM_PENALTY (colonization memory, spec §7.3)."""
+    p = packet_probability(0.8, 1.0, 100.0)
+    pm = packet_probability(0.8, 1.0, 100.0, in_memory=True)
+    assert pm == pytest.approx(MEM_PENALTY * p)
+    assert MEM_PENALTY == pytest.approx(0.25)
+    # the gate is not rescued by the memory flag
+    assert packet_probability(0.2, 1.0, 100.0, in_memory=True) == 0.0
+
+
+def test_packet_probability_memory_constants():
+    """The memory knobs exist with their settled values."""
+    assert MEM_ROUNDS == 3
+
+
+# ── §7.3 per-cell establishment gate (retained) ────────────────────────
 
 
 def test_round_probability_formula():
@@ -464,58 +576,45 @@ def test_seed_bank_transient_expires():
 # ── full determinism ───────────────────────────────────────────────────
 
 
-def _pipeline(seed: int):
-    """The whole §7 step on a synthetic 9x9 world: all four kernels plus
-    the jump roll and the establishment gate under one seed."""
+def _packets(seed: int):
+    """The whole §7 packet layer under one seed on a synthetic 9x9
+    world: packet counts, origins, all four shapes, the jump roll and
+    the packet probability (no engine)."""
     H = W = 9
-    mask = np.zeros((H, W), dtype=bool)
-    mask[4, 4] = mask[2, 6] = True
+    occ = np.zeros((H, W), dtype=bool)
+    occ[4, 4] = occ[2, 6] = True
     wind_u = np.full((H, W), 2.0)
     wind_v = np.ones((H, W))
     downstream = np.full((H, W), -1, dtype=np.int64)
+    f_hab = np.full((H, W), 0.8)
     view = {"propagule_mass_mg": 1.0, "jump_rate": 0.4}
     rng = Stream(seed, "k15.disperse", "t:det")
-    jump = rng.child("jump")          # the engine's per-channel children
-    est = rng.child("establish")
+    n_pk = packet_count(2)
     return (
-        deposit_local(mask, 1.0, 0.6),
-        deposit_wind(np.argwhere(mask), 1.0, wind_u, wind_v, view),
-        deposit_water(np.argwhere(mask), 1.0, downstream),
-        deposit_animal(np.argwhere(mask), 1.0),
-        maybe_jump(view, 5.0, jump),
-        establish(np.full((H, W), 0.5), np.full((H, W), 0.8),
-                  np.zeros((H, W), dtype=bool), 0.5, 5.0, est),
+        n_pk,
+        frontier_cells(occ),
+        [packet_local_blob((4, 4), occ, 0, 0, H, W, 0.6)
+         for _ in range(n_pk)],
+        [packet_wind_ray((4, 4), wind_u, wind_v, view)
+         for _ in range(n_pk)],
+        [packet_water_walk((4, 4), downstream) for _ in range(n_pk)],
+        [packet_animal_disk((4, 4), H, W) for _ in range(n_pk)],
+        [packet_jump_disk((4, 4), H, W) for _ in range(n_pk)],
+        maybe_jump(view, 5.0, rng.child("jump")),
+        packet_probability(packet_mean_f(f_hab, [(4, 4), (2, 6)]), 0.5,
+                           5.0, in_memory=True),
     )
 
 
 def test_full_determinism_same_seed():
-    """Same inputs + same seed -> identical deposits, jump roll and
-    establishment (spec §2 determinism hard rule)."""
-    a = _pipeline(11)
-    b = _pipeline(11)
+    """Same inputs + same seed -> identical shapes, jump roll and packet
+    probability (spec §2 determinism hard rule)."""
+    a = _packets(11)
+    b = _packets(11)
     for x, y in zip(a, b):
-        if isinstance(x, dict):
+        if isinstance(x, list):
             assert x == y
         elif isinstance(x, tuple) and x and isinstance(x[0], int):
             assert x == y                    # (dy, dx) or None
         else:
-            assert np.array_equal(x[0], y[0]) and np.array_equal(x[1], y[1])
-
-
-def test_pipeline_deposits_accumulate_from_two_sources():
-    """Two source cells: the wind rays and animal disks overlap and
-    accumulate on shared cells (each kernel deposits the full share per
-    source, documented)."""
-    H = W = 9
-    mask = np.zeros((H, W), dtype=bool)
-    mask[4, 4] = mask[4, 5] = True                 # adjacent, +x wind
-    wind_u = np.full((H, W), 1.0)
-    wind_v = np.zeros((H, W))
-    view = {"propagule_mass_mg": 1.0}
-    dep = deposit_wind(np.argwhere(mask), 2.0, wind_u, wind_v, view)
-    lam = WIND_K * math.hypot(1.0, 0.0) / math.sqrt(1.0)
-    # (4, 4) -> x = 5..; (4, 5) -> x = 6..; shared cell (4, 6) sums both
-    assert dep[(4, 6)] == pytest.approx(2.0 * math.exp(-2 / lam)
-                                        + 2.0 * math.exp(-1 / lam))
-    assert dep[(4, 7)] == pytest.approx(2.0 * math.exp(-3 / lam)
-                                        + 2.0 * math.exp(-2 / lam))
+            assert x == y
