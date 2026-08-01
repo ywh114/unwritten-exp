@@ -155,6 +155,56 @@ def test_bottom_temp_deep_approaches_floor():
     assert abs(tb[0, 2] - water.T_DEEP_C) < 0.5
 
 
+# ── fresh photic depth / bottom temperature (B4 fix 2026-08-01) ────────
+
+
+def test_fresh_photic_clear_bog_bloom_and_bounds():
+    """Clear lake water reads the open base; humic blackwater (the bog
+    share fresh_ph reads) and the annual bloom each shade it; bounded
+    [FRESH_PHOTIC_MIN, FRESH_PHOTIC_MAX]."""
+    fresh = np.ones((1, 4), dtype=bool)
+    bog = np.array([[0.0, 1.0, 0.0, 0.0]])
+    prod = np.array([[0.0, 0.0, water.FRESH_PHOTIC_BLOOM_REF, 0.0]])
+    d = water.fresh_photic_depth_m(bog, prod, fresh)
+    assert d[0, 0] == water.FRESH_PHOTIC_OPEN_M    # clear water
+    assert d[0, 1] < d[0, 0]                       # bog-ringed lake shades
+    assert d[0, 2] < d[0, 0]                       # full bloom shades
+    assert water.FRESH_PHOTIC_MIN_M <= d.min()
+    assert d.max() <= water.FRESH_PHOTIC_MAX_M
+
+
+def test_fresh_photic_zero_off_fresh_and_full_shade_clips():
+    """Dry land (and ocean — the marine field owns it) reads 0; a lake
+    at full bog + full bloom clips to the FRESH_PHOTIC_MIN floor."""
+    fresh = np.zeros((1, 2), dtype=bool)
+    d = water.fresh_photic_depth_m(np.zeros((1, 2)), np.zeros((1, 2)),
+                                   fresh)
+    assert (d == 0).all()
+    bog = np.ones((1, 1))
+    prod = np.full((1, 1), water.FRESH_PHOTIC_BLOOM_REF)
+    d2 = water.fresh_photic_depth_m(bog, prod, np.ones((1, 1), dtype=bool))
+    assert d2[0, 0] == water.FRESH_PHOTIC_MIN_M
+
+
+def test_fresh_bottom_temp_damped_to_hypolimnion_and_zero():
+    """Surface annual 20 C: a 1 m pond reads ~ the surface annual; a
+    20 m lake bottom is damped toward the 4 C hypolimnion floor;
+    zero-depth cells (rivers/pools) read the surface exactly. Off
+    fresh water everything is 0 (dry land; ocean keeps the marine
+    field)."""
+    from exp.k11_worldgen.units import T_MAX_C, T_MIN_C
+    t_norm = (20.0 - T_MIN_C) / (T_MAX_C - T_MIN_C)
+    z = {"c_T_monthly": np.full((12, 1, 3), t_norm)}
+    depth = _bathy([[1.0, 20.0, 0.0]])
+    fresh = np.ones((1, 3), dtype=bool)
+    tb = water.fresh_bottom_temp_c(z, 0.35, depth, fresh)
+    assert tb[0, 0] == pytest.approx(20.0, abs=2.0)    # 1 m pond
+    assert 4.0 <= tb[0, 1] <= 10.0                     # 20 m lake bottom
+    assert tb[0, 2] == pytest.approx(20.0)             # zero depth
+    land = np.zeros((1, 3), dtype=bool)
+    assert (water.fresh_bottom_temp_c(z, 0.35, depth, land) == 0).all()
+
+
 # ── water pH (column, not bed) ──────────────────────────────────────────
 
 def test_ocean_ph_depth_gradient():

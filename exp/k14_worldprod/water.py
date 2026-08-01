@@ -48,6 +48,19 @@ PH_BED_W = 0.6              # fresh pH: bed weight (catchment gets 1-w)
 PH_BOG_SHIFT = 1.3          # humic-acid shift at 100% peat window
 PH_WINDOW_C = 2             # catchment proxy: box radius, anchor cells
 PH_LO, PH_HI = 3.5, 9.5     # clip (B3 class-table extremes)
+# fresh-water derivations (B4 fix 2026-08-01 — the submerged FRESH
+# strata read these; the marine fields above are ocean-only, and
+# reading them on a lake/river used to zero every submerged freshwater
+# plan). FRESH_PHOTIC_BLOOM_REF mirrors the marine PHOTIC_BLOOM_REF on
+# the shared B2 scale: annual-mean productivity of a full bloom.
+FRESH_PHOTIC_OPEN_M = 30.0      # clear-lake photic base, meters
+FRESH_PHOTIC_TURB_BOG_M = 20.0  # humic-blackwater shading at full bog share
+FRESH_PHOTIC_TURB_BLOOM_M = 10.0  # bloom shading at a full annual bloom
+FRESH_PHOTIC_BLOOM_REF = 0.6    # productivity of a full annual bloom
+FRESH_PHOTIC_MIN_M, FRESH_PHOTIC_MAX_M = 1.0, 60.0
+T_HYPO_C = 4.0                  # hypolimnion floor (fresh water's
+                                # density maximum — deep lakes hold ~4 C)
+FBOT_REF_M = 10.0               # fresh bottom-temp decay scale, meters
 
 # depth-zone table: (name, upper bound m, color). Categorical like the
 # B3 ground table — the palette's source of truth travels in the pack.
@@ -123,6 +136,39 @@ def fresh_ph(bed_ph: np.ndarray, land_ph_mean: np.ndarray,
     arrive pre-windowed (PH_WINDOW_C box at anchor, upsampled)."""
     return np.clip(PH_BED_W * bed_ph + (1.0 - PH_BED_W) * land_ph_mean
                    - PH_BOG_SHIFT * bog_share, PH_LO, PH_HI)
+
+
+def fresh_photic_depth_m(bog_share: np.ndarray, prod_ann: np.ndarray,
+                         fresh: np.ndarray) -> np.ndarray:
+    """How deep light reaches in LAKES/RIVERS: clear-water base shaded
+    by humic blackwater (the bog-peat share, the SAME windowed input
+    fresh_ph reads — a bog-ringed lake goes brown) and by the annual
+    bloom (freshwater_productivity annual mean on the shared B2 scale).
+    Bounded [FRESH_PHOTIC_MIN, FRESH_PHOTIC_MAX]. Zero off fresh water
+    — the ocean keeps the marine photic_depth_m (that field reads 0 on
+    every lake/river, which made submerged freshwater plans lethal by
+    construction; B4 fix 2026-08-01)."""
+    turb = (np.clip(bog_share, 0.0, 1.0) * FRESH_PHOTIC_TURB_BOG_M
+            + np.clip(prod_ann / FRESH_PHOTIC_BLOOM_REF, 0.0, 1.0)
+            * FRESH_PHOTIC_TURB_BLOOM_M)
+    d = np.clip(FRESH_PHOTIC_OPEN_M - turb, FRESH_PHOTIC_MIN_M,
+                FRESH_PHOTIC_MAX_M)
+    return np.where(fresh, d, 0.0)
+
+
+def fresh_bottom_temp_c(z, sea: float, depth_fresh: np.ndarray,
+                        fresh: np.ndarray) -> np.ndarray:
+    """Annual bottom temperature in lakes/rivers: the surface annual
+    mean damped over the column toward the hypolimnion floor —
+    t = T_HYPO + (SST_ann - T_HYPO) x exp(-depth_fresh / FBOT_REF_M).
+    Shallow cells/rivers read ~ the surface annual; deep lake bottoms
+    tend to T_HYPO_C (4 C). Zero off fresh water — the ocean keeps the
+    marine bottom_temp_c (which reads 0 on every lake/river, so fresh
+    bottoms used to be frozen at 0 C; B4 fix 2026-08-01)."""
+    sst_ann = temp_c(z["c_T_monthly"]).mean(axis=0)
+    t = (T_HYPO_C + (sst_ann - T_HYPO_C)
+         * np.exp(-depth_fresh / FBOT_REF_M))
+    return np.where(fresh, t, 0.0)
 
 
 def photic_depth_m(bathy: np.ndarray, plume: np.ndarray,

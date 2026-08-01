@@ -75,7 +75,10 @@ def save_world(out_dir: str, world: dict, delivered: dict, seed: int,
                marks: list, checks: dict) -> tuple[str, str]:
     out = Path(out_dir)
     arrays: dict[str, np.ndarray] = {}
-    for k in ("elev", "biome_map", "cover", "ocean_mask", "aquatic"):
+    # w_cover (the "cover" entry) is produced but has no L0 consumer
+    # yet (fauna-pending)
+    arrays["w_cover"] = world["cover"]
+    for k in ("elev", "biome_map", "ocean_mask", "aquatic"):
         arrays[f"w_{k}"] = world[k]
     # the smooth assignment field behind the labels (biosphere_conv d2
     # ruling): top-2 prototype distances + second id, anchor res only —

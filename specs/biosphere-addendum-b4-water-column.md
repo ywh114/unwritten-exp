@@ -24,7 +24,9 @@ and B3 (ground, underwater).
 ## Products
 
 All at anchor resolution, delivered and packed like the other K14
-products. Ocean cells only unless stated.
+products. Ocean cells only unless stated (the fresh-side derivations
+of items 9–10 are computed at anchor for the stress adapter; they are
+not persisted products).
 
 1. **`bathymetry_m` (H,W)** — real meters below sea level from
    `elev_m(w_elev, sea)` on ocean/sea cells. NOTE: `h_depth` is a
@@ -100,6 +102,29 @@ products. Ocean cells only unless stated.
    0.4 × surrounding land-soil mean − 1.3 × peat share`, the catchment
    proxied by a 2-anchor-cell box window; humic blackwater means bog
    drainage reads pH 4.5–5.5, not the bed's ~7. Zero on land.
+9. **Fresh photic depth** *(revision 2026-08-01 — the submerged FRESH
+   strata were lethal by construction: the ocean `photic_depth_m` above
+   reads 0 on every lake/river cell)*. Lakes/rivers get their OWN
+   derivation, `fresh_photic_depth_m` at anchor: a clear-water base
+   (FRESH_PHOTIC_OPEN_M ≈ 30 m), shaded by humic blackwater — the
+   bog-peat share, the SAME windowed input `fresh_ph` reads (a
+   bog-ringed lake drops toward ~10 m at full peat,
+   FRESH_PHOTIC_TURB_BOG_M ≈ 20) — and by the annual freshwater bloom
+   (annual-mean `freshwater_productivity` on the shared B2 scale, full
+   bloom at FRESH_PHOTIC_BLOOM_REF = 0.6 → FRESH_PHOTIC_TURB_BLOOM_M ≈
+   10 m). Bounded [1, 60] m. Zero off fresh water; the ocean keeps the
+   marine field. The stress adapter's `ctx.photic` is
+   `where(ocean, marine, fresh)`.
+10. **Fresh bottom temperature** *(revision 2026-08-01 — the ocean
+    `bottom_temp_c` above read 0 on every lake/river, so fresh bottoms
+    were frozen at 0 °C)*. `fresh_bottom_temp_c` at anchor: the surface
+    annual-mean temperature damped over the column toward the
+    hypolimnion floor, `T_bot = T_HYPO + (SST_ann − T_HYPO) ·
+    exp(−depth_fresh / FBOT_REF_M)`, T_HYPO = 4.0, FBOT_REF_M ≈ 10 m.
+    Shallow cells/rivers read ≈ the surface annual; deep lake bottoms
+    tend to 4 °C (fresh water's density maximum — no seasons at L0).
+    Zero off fresh water; ocean keeps the marine field. The stress
+    adapter's `ctx.bottom_temp` is `where(ocean, marine, fresh)`.
 
 ## Interplay with B2 / B3
 
@@ -198,4 +223,7 @@ L1 underwater traversal.
    in the spec; the trench-exaggeration regen may shift the histogram.)
 3. Draft constants: SNOW_REF_M 800, TBOT_REF_M 500, oasis productivity
    0.8, halo radius 2–3 anchor cells, inventory modifier clip
-   [0.5, 1.5], trench signature ~2–2.5× current.
+   [0.5, 1.5], trench signature ~2–2.5× current. Fresh side (rev.
+   2026-08-01): FRESH_PHOTIC_OPEN_M 30, FRESH_PHOTIC_TURB_BOG_M 20,
+   FRESH_PHOTIC_TURB_BLOOM_M 10, FRESH_PHOTIC_BLOOM_REF 0.6,
+   FRESH_PHOTIC clip [1, 60] m, T_HYPO_C 4, FBOT_REF_M 10.

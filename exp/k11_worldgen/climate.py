@@ -1056,7 +1056,8 @@ def build_climate(elev: np.ndarray, hydro: dict, sea_level: float,
         "snowfall_monthly": snowfall_m.astype(np.float32),
         "meltpot_monthly": meltpot_m.astype(np.float32),
         # standing soil moisture per month (normalized-P units) — the
-        # baseflow reservoir for the monthly river networks
+        # baseflow reservoir for the monthly river networks.
+        # c_soil_monthly: produced, no L0 consumer yet (fauna-pending)
         "soil_monthly": soil_monthly.astype(np.float32),
         # the weather pattern proper: N fluid-simulated surface-wind
         # snapshots per month at the coarse grid, in M/S (see the

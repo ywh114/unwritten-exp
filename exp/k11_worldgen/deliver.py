@@ -676,6 +676,8 @@ def upscale_world(elev: np.ndarray, hydro: dict, climate: dict,
         "T": T_hi,
         "P": P_hi,
         "biome_map": biome_hi,
+        # d_cover (this "cover" entry): produced, no L0 consumer yet
+        # (fauna-pending)
         "cover": cover_hi,
     }
     if glacier_hi is not None:
