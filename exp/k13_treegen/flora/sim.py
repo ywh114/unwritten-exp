@@ -84,8 +84,19 @@ from kernel.hashrng import Stream
 # z = pressure x NUDGE_RATE sigma-units per call. mutate is invoked at
 # generation boundaries inside the round (gen_time decides call
 # frequency); at full pressure (shortfall 1) a trait moves ~0.5 sigma
-# per 10 generations — slow, deliberate drift, tunable.
-NUDGE_RATE = 0.05
+# per call — big enough that changes are made even with the ~90-axis
+# dilution of genes_distance (owner directive 2026-08-01).
+# Calibrated 2026-08-01 (tmp/k15_drift_calib2.py, grass_sward.reed pair
+# on a cold-shortfall vs a heat-shortfall cell, 20 rounds, no-merge
+# observation, after the continuous heat dials): pairwise genes_distance
+# mean drift/round at NUDGE_RATE 0.25/0.5/1.0 = +0.000433 / +0.000899 /
+# +0.000969, d@round20 = 0.0087 / 0.0180 / 0.0194, monotonic throughout.
+# 0.5 is the smallest rate that lands the pair inside the d ~ 0.01-0.05
+# window within 20 rounds (d >= 0.01 at round 12); 1.0 buys ~nothing
+# more (both envelopes saturate their dials by round ~8-19). Pre-fix
+# (one-way envelope) the same pair converged at +0.00043/round with a
+# ~0.009 ceiling — the dial fix removed the ceiling, so 0.5 diverges.
+NUDGE_RATE = 0.5
 # log-space nudge clamp: exp(±50) is far past any authored bound, so a
 # pathological pressure cannot overflow float before the bound clip.
 MUTATE_EXP_CLAMP = 50.0

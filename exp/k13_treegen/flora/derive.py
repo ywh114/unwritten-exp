@@ -23,6 +23,8 @@ the record, recomputed at consumption.
 
 from __future__ import annotations
 
+import math
+
 from exp.k13_treegen.flora.content import ContentPack
 from exp.k13_treegen.model import Node
 
@@ -96,13 +98,19 @@ CLONAL_PATCH_M = 5.0
 # When stress pushes the traits (select -> mutate, the backward pass),
 # the envelope moves with them: a lineage pushed toward winter
 # deciduousness / lower growing-season need / C4 runs a colder optimum;
-# drought tolerance, succulence, cuticle and waterlogging tolerance
-# slide the moisture envelope. Numeric axes that a plan does not author
-# read 0 (or the neutral value noted) — a missing axis is a neutral
-# trait, not an error. All axis scales per axes_core.toml: succulence,
+# cuticle and smaller leaves (the HEAT-side continuous dials, owner
+# ruling 2026-08-01 — the old heat side had only the discrete C4 switch
+# gated at DISCRETE_THRESHOLD, unreachable at viable cells) run a hotter
+# one; drought tolerance, succulence, cuticle, small leaves and
+# waterlogging tolerance slide the moisture envelope. Numeric axes that
+# a plan does not author read 0 (or the neutral value noted) — a missing
+# axis is a neutral trait, not an error (a missing/non-numeric
+# leaf_size_cm reads leaf_norm 1.0, so the (1 - leaf_norm) heat/arid
+# dials vanish). All axis scales per axes_core.toml: succulence,
 # pubescence, cuticle_thickness, drought_tolerance and
-# waterlogging_tolerance are 0..1 normalized; snow_adaptation and
-# photosynthesis are enums.
+# waterlogging_tolerance are 0..1 normalized; leaf_size_cm is
+# log-normalized over [0.05, 400.0] (wide bounds — the leaf economics
+# spectrum is log-shaped); snow_adaptation and photosynthesis are enums.
 T_BASE_C = 18.0          # neutral woody/C3 optimum
 T_DECID_C = 8.0          # winter-deciduous optimum drop (leafless winter)
 T_GS_C = 1.5             # per month of growing-season shortfall vs GS_REF
@@ -112,6 +120,8 @@ T_SNOW_C = 4.0           # any snow_adaptation state -> cold-tolerant
 T_C4_C = 6.0             # C4 runs hotter
 T_CAM_C = 10.0           # CAM hotter still
 T_SUCC_C = 4.0           # succulent tissue stores against heat
+T_CUTICLE_C = 3.0        # cuticle (0..1) -> heat-dial shield/reflectance
+T_LEAF_C = 4.0           # (1 - leaf_norm): small leaves shed heat
 TEMP_OPT_LO, TEMP_OPT_HI = -30.0, 45.0
 
 B_T_BASE = 6.0
@@ -125,7 +135,17 @@ P_SUCC = 0.12            # succulence stores water: drier optimum
 P_C4 = 0.08              # C4 water-efficiency: drier optimum
 P_CAM = 0.15             # CAM most water-efficient
 P_CUTICLE = 0.08         # cuticle trims transpiration: drier optimum
+P_LEAF = 0.10            # (1 - leaf_norm): small leaves = arid adaptation
 MOISTURE_OPT_LO, MOISTURE_OPT_HI = 0.02, 0.98
+
+# leaf_size_cm axis bounds (axes_core.toml [0.05, 400.0]) — wide, so the
+# normalized leaf dials run on a LOG scale (the leaf economics spectrum
+# is log-shaped): leaf_norm 0 = smallest leaf (max heat/arid dial),
+# 1 = largest (no dial).
+LEAF_SIZE_LO_CM = 0.05
+LEAF_SIZE_HI_CM = 400.0
+LEAF_LOG_LO = math.log(LEAF_SIZE_LO_CM)
+LEAF_LOG_SPAN = math.log(LEAF_SIZE_HI_CM) - LEAF_LOG_LO
 
 P_B_BASE = 0.08
 P_B_DROUGHT = 0.10       # drought tolerance widens the moisture band
@@ -135,6 +155,18 @@ MOISTURE_BREADTH_LO, MOISTURE_BREADTH_HI = 0.03, 0.5
 
 def _clip01(x: float) -> float:
     return min(1.0, max(0.0, x))
+
+
+def _leaf_norm(axes: dict) -> float:
+    """leaf_size_cm normalized 0..1 on a LOG scale over the axis bounds
+    [0.05, 400.0] (wide — see LEAF_LOG_*). Small leaves -> 0 (the max
+    heat/arid dial), largest leaves -> 1 (no dial). Missing /
+    non-numeric / nonpositive reads 1.0: a neutral trait, so the
+    (1 - leaf_norm) heat/arid terms vanish."""
+    v = axes.get("leaf_size_cm")
+    if not isinstance(v, (int, float)) or v <= 0.0:
+        return 1.0
+    return _clip01((math.log(float(v)) - LEAF_LOG_LO) / LEAF_LOG_SPAN)
 
 
 def _dull_color(node: Node) -> str:
@@ -427,6 +459,7 @@ def effective_climate(node: Node, pack: ContentPack) -> dict:
     wlog = _num("waterlogging_tolerance")
     snow = int(str(axes.get("snow_adaptation") or "none") != "none")
     gs_req = _num("growing_season_req", GS_REF_C)   # months; missing -> ref
+    leaf_norm = _leaf_norm(axes)   # log-normalized; missing -> neutral 1.0
 
     temp_opt = (T_BASE_C
                 - T_DECID_C * winter_dec
@@ -435,7 +468,9 @@ def effective_climate(node: Node, pack: ContentPack) -> dict:
                 - T_SNOW_C * snow
                 + T_C4_C * int(photo == "C4")
                 + T_CAM_C * int(photo == "CAM")
-                + T_SUCC_C * succ)
+                + T_SUCC_C * succ
+                + T_CUTICLE_C * cuticle
+                + T_LEAF_C * (1.0 - leaf_norm))
     temp_opt = min(TEMP_OPT_HI, max(TEMP_OPT_LO, temp_opt))
     temp_breadth = min(TEMP_BREADTH_HI,
                        max(TEMP_BREADTH_LO,
@@ -446,7 +481,8 @@ def effective_climate(node: Node, pack: ContentPack) -> dict:
                            P_BASE - P_DROUGHT * drought - P_SUCC * succ
                            - P_C4 * int(photo == "C4")
                            - P_CAM * int(photo == "CAM")
-                           - P_CUTICLE * cuticle))
+                           - P_CUTICLE * cuticle
+                           - P_LEAF * (1.0 - leaf_norm)))
     moisture_breadth = min(MOISTURE_BREADTH_HI,
                            max(MOISTURE_BREADTH_LO,
                                P_B_BASE + P_B_DROUGHT * drought

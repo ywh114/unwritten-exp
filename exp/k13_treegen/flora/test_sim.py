@@ -196,11 +196,15 @@ def test_select_climate_routes_never_pressures_envelope(sim, pack):
     assert cold["deciduous_trigger"] > 0.0      # toward winter
     assert cold["growing_season_req"] < 0.0     # shorter season = adapted
     assert cold["leafout_month"] > 0.0          # later leafout
-    # heat: toward C4, away from big leaves
+    # heat: toward C4, away from big leaves, thicker cuticle — the
+    # continuous heat dials (owner ruling 2026-08-01). Pubescence is
+    # NOT a heat responder: derive SUBTRACTS T_PUB_C x pubescence from
+    # temp_opt, so a heat push on it would lower the optimum (the
+    # contradiction fixed 2026-08-01 — it stays a cold-answer trait).
     assert heat["photosynthesis"] > 0.0         # toward C4
     assert heat["leaf_size_cm"] < 0.0
     assert heat["cuticle_thickness"] > 0.0
-    assert heat["pubescence"] > 0.0
+    assert "pubescence" not in heat
 
 
 def test_select_climate_pressure_drifts_envelope(sim, pack):
@@ -221,6 +225,31 @@ def test_select_climate_pressure_drifts_envelope(sim, pack):
     assert x.traits["pubescence"] > traits["pubescence"]
     assert v1["temp_opt_c"] < v0["temp_opt_c"]
     assert "temp_opt_c" not in x.pressure
+
+
+def test_select_climate_heat_pressure_drifts_envelope(sim, pack):
+    """The heat responder MOVES the derived envelope UP (owner ruling
+    2026-08-01 — the continuous heat dials): sustained pressure:heat
+    drifts cuticle_thickness up and leaf_size_cm down, and derive
+    recomputes a HOTTER optimum from the pushed traits (T_CUTICLE_C /
+    T_LEAF_C) and a DRIER moisture optimum (P_CUTICLE / P_LEAF). This
+    is the mirror of the cold drift test — before the dials the heat
+    side had no continuous raisers, so the pair converged instead of
+    diverging."""
+    traits = _traits(pack, "tree.oak")
+    verdict = StressVerdict(s=0.0, provenance={"pressure:heat": 0.1})
+    x = Instance("s", "i", traits=dict(traits), pressure={})
+    v0 = sim.derive(x.traits, pack)
+    for _ in range(10):
+        x.pressure.update(sim.select(verdict, x.traits, pack))
+        FloraSim(pack).mutate(x, Stream(7, "mut", "heat-drift"))
+    v1 = sim.derive(x.traits, pack)
+    assert x.traits["cuticle_thickness"] > traits["cuticle_thickness"]
+    assert x.traits["leaf_size_cm"] < traits["leaf_size_cm"]
+    assert v1["temp_opt_c"] > v0["temp_opt_c"]
+    assert v1["moisture_opt"] < v0["moisture_opt"]
+    assert "temp_opt_c" not in x.pressure
+    assert "moisture_opt" not in x.pressure
 
 
 def test_select_ph_split_direction(sim, pack):

@@ -40,8 +40,7 @@ responders = [
     { trait = "growing_season_req", dir = "down", weight = 1.0 },
     { trait = "leafout_month", dir = "up", weight = 0.5 },
     { trait = "bark_thickness_cm", dir = "up", weight = 0.4 },
-    { trait = "pubescence", dir = "up", weight = 0.4 },
-    { trait = "leaf_size_cm", dir = "down", weight = 0.3 }
+    { trait = "pubescence", dir = "up", weight = 0.4 }
 ]
 # The T-requirement is SPLIT one-sided env-side (req_flora ruling
 # 2026-08-01): pressure:cold = saturating shortfall of T below the
@@ -50,22 +49,30 @@ responders = [
 # winter deciduousness (leaf_persistence/deciduous_trigger) drops
 # temp_opt and widens temp_breadth (the derive table rewards it),
 # a shorter growing_season_req is cold adaptation, later leafout
-# skips the frost-risk band, bark and pubescence insulate, small
-# leaves shed heat.
+# skips the frost-risk band, bark and pubescence insulate. Leaf size
+# is NOT a cold responder: the derive table reads small leaves as
+# hot/arid (T_LEAF_C raises the optimum) — shrinking them under cold
+# pressure would contradict the direction of the pressure.
 
 [[responder]]
 name = "pressure:heat"
 responders = [
     { trait = "photosynthesis", toward = ["C4"], weight = 0.8 },
     { trait = "leaf_size_cm", dir = "down", weight = 0.4 },
-    { trait = "cuticle_thickness", dir = "up", weight = 0.4 },
-    { trait = "pubescence", dir = "up", weight = 0.3 }
+    { trait = "cuticle_thickness", dir = "up", weight = 0.4 }
 ]
 # The mirror: pressure:heat = saturating excess of T above the derived
 # envelope optimum. The hot-side answer is the C4 switch (the derive
-# table raises temp_opt by 6 C for C4), smaller leaves, a thicker
-# cuticle and reflective pubescence (which the derive table turns into
-# a hotter optimum via T_PUB_C / moisture_opt via P_CUTICLE).
+# table raises temp_opt by 6 C for C4), smaller leaves, and a thicker
+# cuticle — the CONTINUOUS heat dials (owner ruling 2026-08-01: the
+# heat side needs continuous raisers like the cold side, not only the
+# C4 switch gated at DISCRETE_THRESHOLD). The derive table turns
+# cuticle_thickness and (1 - leaf_norm) into a hotter optimum
+# (T_CUTICLE_C / T_LEAF_C) and a drier moisture optimum (P_CUTICLE /
+# P_LEAF). Pubescence is NOT a heat responder: it lowers the envelope
+# optimum (T_PUB_C) — a heat adaptation that pushes temp_opt DOWN
+# contradicts the direction of the pressure (it belongs only under
+# pressure:cold, where insulation against cold is the answer).
 
 [[responder]]
 name = "pressure:bloom_frost"
