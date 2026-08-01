@@ -34,9 +34,15 @@ import numpy as np
 from exp.k13_treegen.flora.backbone import build as build_backbone
 from exp.k13_treegen.flora.content import ContentPack, load_content
 from exp.k13_treegen.flora.sim import FloraSim
+from exp.k13_treegen.forces import (
+    Condition, G_NOVEL, G_REF, G_STEADY_ONSET, G_STEADY_RAMP,
+    NOVELTY_MULT, P_NOVEL_MAX, STRESS_G_BOOST, g_star as draw_g_star,
+    rate_multiplier, share_ratios, step_scale,
+)
 from exp.k13_treegen.interface import (ChangeLog, Instance, StressVerdict,
                                        VitalRates)
 from exp.k13_treegen.model import Rank, Tree
+from exp.k13_treegen.registry import Tier, ValueType
 from exp.k15_simdiff import authority as auth
 from exp.k15_simdiff import dispersal as dsp
 from exp.k15_simdiff import genesis as gen
@@ -70,6 +76,36 @@ CONSOL_EVERY = 5      # full-lineage consolidation period (spec v0.4.2
                       # instance cluster to one record. The §9 "final
                       # pass" run periodically — the instance-count
                       # governor (owner ruling 2026-08-01)
+
+# ── g currency (ticket 0008 — fauna RFC §1: generation-time clock,
+#    three forces, per-clade seeded g*; forces.py constants referenced,
+#    never duplicated) ────────────────────────────────────────────────
+# The per-round Δg formula (ticket 0008 item a), per generation:
+#   Δg_gen = rate_mult × (drift baseline + stress-descent share ×
+#            (1 + STRESS_G_BOOST·stress) + runaway share × ornament
+#            fraction + enum share)
+# with the shares from forces.py's Condition table (isolation 0 — the
+# rounds have no isolate input; the dressed partition is the rounds'
+# vicariance and g* decides the rank). At benign stress the shares
+# normalize so Δg ≈ n_gen (the anchor: g_star median 500 generations ≈
+# 9 rounds for a fast grass, ~50 for a slow tree at ROUND_YEARS=100).
+DG_DRIFT_BASE = 1.0     # the drift baseline (~1 generation-distance
+                        # per generation; the plain generation clock)
+DG_ENUM_SHARE = 0.05    # enum redraws' g contribution per generation
+                        # (forces.py ENUM_RATE is small; a redraw is a
+                        # discrete jump worth a few % of a generation)
+G_STEP_REF = 100.0      # the species-edge dg scale (flora backbone
+                        # DG_* medians 300/150/60): forces.py's p_novel
+                        # is a per-EDGE rate, so the rounds' per-round
+                        # novel probability per axis is
+                        # p_novel × n_gen / G_STEP_REF
+# flora display/ornament axes — the runaway force's target (fauna RFC
+# §1: "runaway applies to flora display organs: flowers"). The CONTENT
+# names them: axes whose consumers include "runaway" (flower_symmetry,
+# pigment_expression, flower_size_mm — the display section of
+# axes_core.toml). The ornament FRACTION of the mutable registry axes
+# is computed at engine init; the runaway share scales the g accrual
+# by it (a flora without flowers runs no runaway contribution).
 
 _D8 = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0),
        (1, 1)]
@@ -322,6 +358,39 @@ class Engine:
         self.instances: dict[str, Dressed] = {}
         self.retired: list[str] = []
         self._clone_counter = 0
+        # ticket 0008 g bookkeeping: per-instance generations since the
+        # last split (the g clock's Δg accrues in _verdict_feed);
+        # per-lineage (sid) lognormal rate multiplier and seeded g*
+        # (fauna RFC §1: fast radiators AND living fossils; per-clade
+        # radiation tempos), drawn once via pinned k15.g streams.
+        self._g_since_split: dict[str, float] = {}
+        self._rate_mult: dict[str, float] = {}
+        self._g_star: dict[str, float] = {}
+        # transient diagnostic: instance -> g_since_split at its last
+        # divide re-key (the g-currency tempo evidence; the clock
+        # resets on re-key, so the post-commit value is 0)
+        self._divide_g: dict[str, float] = {}
+        reg = self.pack.registry.axes
+        mut_axes = [n for n, s in reg.items() if s.mutable]
+        # runaway's ornament fraction of the mutable registry axes (the
+        # content's own "runaway" consumer tag; plan-scoped axis sets
+        # carry the same mutable axes, so this is a pack constant)
+        self._ornament_frac = (
+            sum(1 for n in mut_axes if "runaway" in reg[n].consumers)
+            / max(1, len(mut_axes)))
+        # mutable scalar/int axes: the only axes the novelty tail rolls
+        # on (forces.py's p_novel lives in the scalar branch)
+        self._scalar_axes = {
+            n for n, s in reg.items()
+            if s.mutable and s.value_type in (ValueType.SCALAR,
+                                              ValueType.INT)}
+        # f(g) ramp lookup sets (the per-axis hot path of the verdict
+        # feed): steady axes get the leaky tier gate, non-mutable axes
+        # never move (forces.py gate 0)
+        self._steady_axes = {n for n, s in reg.items()
+                             if s.mutable and s.tier is Tier.STEADY}
+        self._immutable_axes = {n for n, s in reg.items()
+                                if not s.mutable}
         # v0.6 §7.3 colonization memory: per lineage (sid), the cells a
         # packet ATTEMPTED and failed -> last-attempt round. A packet
         # whose candidate cells include a remembered cell is
@@ -342,6 +411,25 @@ class Engine:
 
     def _stream(self, stage: str, key: str) -> Stream:
         return Stream(self.seed, f"k15.{stage}", key)
+
+    def _seed_lineage(self, sid: str) -> None:
+        """Draw the lineage's rate multiplier and g* ONCE (pinned by
+        sid through the k15.g stream — fauna RFC §1: per-lineage
+        lognormal rate multiplier, per-clade seeded speciation cutoff;
+        forces.py rate_multiplier/g_star idioms). Deterministic: the
+        stream is content-addressed by sid, so draw order never
+        matters."""
+        rng = self._stream("g", sid)
+        self._rate_mult[sid] = rate_multiplier(rng.child("rate"))
+        self._g_star[sid] = draw_g_star(rng.child("star"))
+
+    def _lineage(self, sid: str) -> tuple[float, float]:
+        """(rate_mult, g_star) for lineage *sid*, seeded on first use —
+        covers every minting path (genesis, divides, foundlings,
+        test-planted instances)."""
+        if sid not in self._rate_mult:
+            self._seed_lineage(sid)
+        return self._rate_mult[sid], self._g_star[sid]
 
     # ── §5.1 cache ───────────────────────────────────────────────────
 
@@ -393,10 +481,12 @@ class Engine:
         full = (0, self.ctx.H, 0, self.ctx.W)
         for pid in sorted(seeds):
             sid = self._order_sid[pid]
+            self._seed_lineage(sid)
             rng = self._stream("genesis", f"mint:{pid}")
             shared = None
             for i, clone in enumerate(seeds[pid]):
                 iid = self._new_instance_id(rng)
+                self._g_since_split[iid] = 0.0
                 x = self.authority.mint(sid, iid, rng.child(str(i)))
                 if shared is None:
                     view = self.sim.derive(x.traits, self.pack)
@@ -509,14 +599,87 @@ class Engine:
             gen_time = 2.0 * math.sqrt(max(height, 1e-6))
             n_gen = int(min(N_GEN_CAP,
                             max(1, math.ceil(ROUND_YEARS / gen_time))))
-            for g in range(n_gen):
+            # ── g accumulation (ticket 0008, fauna RFC §1) ──────────
+            # Δg this round = n_gen × rate_mult × (drift baseline +
+            # stress-descent share × (1 + STRESS_G_BOOST·stress) +
+            # runaway share × ornament fraction + enum share), the
+            # forces.py Condition share table adapted to flora
+            # (isolation 0 — the rounds have no isolate input; the
+            # dressed partition is the rounds' vicariance and g*
+            # decides the rank). n_gen is the flora gen_time clock
+            # (gen_time = 2·sqrt(height_m) — spec §4 step 1).
+            rate_mult, _star = self._lineage(d.x.species_id)
+            stress = min(max(res.s, 0.0), 1.0)
+            shares = share_ratios(Condition(stress=stress))
+            dg = n_gen * rate_mult * (
+                DG_DRIFT_BASE
+                + shares.descent * (1.0 + STRESS_G_BOOST * stress)
+                + shares.runaway * self._ornament_frac
+                + DG_ENUM_SHARE)
+            self._g_since_split[iid] = \
+                self._g_since_split.get(iid, 0.0) + dg
+            # mutation magnitude ∝ f(g) (forces.py): the round's
+            # mutations run at the round's POST-accrual g (forces.py's
+            # g_line semantics) — step_scale × the leaky steady-tier
+            # gate (frozen at low g, open by ~g+2×onset) × the
+            # occasional novel 5× jump. forces.py's p_novel is a
+            # per-EDGE rate (one roll per axis per evolve call spanning
+            # ~DG generations); the rounds' per-round equivalent is
+            # p_novel × n_gen / G_STEP_REF per axis — the "striking
+            # trait", never a uniform rate (P_NOVEL_MAX 0.02 lands ~1
+            # jumped axis per species).
+            g_now = self._g_since_split[iid]
+            scale_g = step_scale(g_now)
+            steady_gate = 1.0 - math.exp(
+                -max(0.0, g_now - G_STEADY_ONSET) / G_STEADY_RAMP)
+            p_round = min(1.0, P_NOVEL_MAX
+                          * (1.0 - math.exp(-g_now / G_NOVEL))
+                          * n_gen / G_STEP_REF)
+            novel = self._stream("g", f"novel:{t}:{iid}")
+            for gen in range(n_gen):
                 # the same round pressure re-applied before each call
-                # (mutate clears the plane) — spec §4 step 1
+                # (mutate clears the plane) — spec §4 step 1; scaled by
+                # f(g) (the f(g) ramp replaces the pre-ticket flat
+                # per-generation nudge). One direct uniform draw per
+                # pressured scalar axis (no child streams — the
+                # per-(axis,generation) child construction was the
+                # commit wall-clock bottleneck at 3k+ instances).
+                n_ax = 0
                 for k, v in pressure.items():
-                    d.x.pressure[k] = d.x.pressure.get(k, 0.0) + v
+                    if k in self._immutable_axes:
+                        continue          # never moves (forces.py gate 0)
+                    mag = v * scale_g
+                    if k in self._steady_axes:
+                        mag *= steady_gate
+                    if p_round > 0.0 and k in self._scalar_axes \
+                            and novel.uniform(gen, n_ax) < p_round:
+                        mag *= NOVELTY_MULT
+                    n_ax += 1
+                    d.x.pressure[k] = d.x.pressure.get(k, 0.0) + mag
                 self.sim.mutate(
-                    d.x, self._stream("mutate", f"{t}:{iid}:{g}"))
+                    d.x, self._stream("mutate", f"{t}:{iid}:{gen}"))
             self._refresh(d)
+
+    def _f_magnitude(self, name: str, g: float) -> float:
+        """Mutation magnitude ∝ f(g) for one pressured trait
+        (forces.py): step_scale(g) = 1 + g/G_REF on every trait, × the
+        leaky steady-tier gate (1 − exp(−(g − G_STEADY_ONSET)/
+        G_STEADY_RAMP) — effectively frozen at low g, smoothly open at
+        high g) on steady axes. Labile axes and plan generics (no
+        registry tier) get scale only; invariant/non-mutable axes get
+        0 (they must never move — matches forces.py's gate). The heavy
+        tail is the caller's per-axis roll, not this scale. (The
+        verdict feed inlines the same math with per-instance scale and
+        gate hoisted; this helper is the single-source formulation for
+        tests.)"""
+        spec = self.pack.registry.axes.get(name)
+        if spec is None or not spec.mutable:
+            return 0.0 if spec is not None else step_scale(g)
+        scale = step_scale(g)
+        if spec.tier is Tier.STEADY:
+            return scale * (1.0 - math.exp(
+                -max(0.0, g - G_STEADY_ONSET) / G_STEADY_RAMP))
+        return scale
 
     # ── §4 step 2: population update ─────────────────────────────────
 
@@ -777,6 +940,12 @@ class Engine:
                 for frag in frags:
                     nid = self._new_instance_id(
                         self._stream("found", f"{t}:{iid}"))
+                    # same lineage: the foundling's g clock continues
+                    # from the founder's (the gene pool split, the
+                    # distance from the lineage's split ancestor is
+                    # shared) — ticket 0008
+                    self._g_since_split[nid] = \
+                        self._g_since_split.get(iid, 0.0)
                     fx = Instance(species_id=d.x.species_id,
                                   instance_id=nid,
                                   traits=dict(d.x.traits))
@@ -933,6 +1102,8 @@ class Engine:
                             continue
                         nid = self._new_instance_id(
                             self._stream("divsplit", f"{t}:{iid}"))
+                        self._g_since_split[nid] = \
+                            self._g_since_split.get(iid, 0.0)
                         fx = Instance(species_id=d.x.species_id,
                                       instance_id=nid,
                                       traits=dict(d.x.traits))
@@ -980,6 +1151,8 @@ class Engine:
                     continue
                 nid = self._new_instance_id(
                     self._stream("split", f"{t}:{iid}"))
+                self._g_since_split[nid] = \
+                    self._g_since_split.get(iid, 0.0)
                 fx = Instance(species_id=d.x.species_id,
                               instance_id=nid,
                               traits=dict(d.x.traits))
@@ -1091,8 +1264,11 @@ class Engine:
                 for i in range(len(ids)):
                     for j in range(i + 1, len(ids)):
                         candidates.add(frozenset((ids[i], ids[j])))
+        gs = {iid: self._g_since_split.get(iid, 0.0)
+              for iid in sorted(self.instances)}
         log = self.authority.update(
-            views, rng, merge_candidates=candidates)
+            views, rng, merge_candidates=candidates,
+            g_since_split=gs, g_star=dict(self._g_star))
         for delta in log.instances:
             iid = delta.instance_id
             if iid not in self.instances:
@@ -1113,8 +1289,20 @@ class Engine:
                     dst.orphan |= _embed(src.orphan, src.box, ub, False)
             elif delta.target:
                 # SUBSPECIES / SPLIT: the instance continues under the
-                # new lineage node
+                # new lineage node — fresh g clock from the split
+                # ancestor (fauna RFC §1: d(A,B) = (g_A − g0) +
+                # (g_B − g0)), and the new lineage draws its own rate
+                # multiplier and g* once (ticket 0008)
                 self.instances[iid].x.species_id = delta.target
+                # transient diagnostic: the g at divide time (the
+                # rounds' evidence for the g-currency tempo; the
+                # measurement harness reads it — the clock resets
+                # below, so the post-commit value would be 0)
+                self._divide_g[iid] = \
+                    self._g_since_split.get(iid, 0.0)
+                self._g_since_split[iid] = 0.0
+                if delta.target not in self._g_star:
+                    self._seed_lineage(delta.target)
         # RE-SYNC: post-commit X is deprecated; re-draw via the log.
         # DRIFT RETENTION (v0.5, owner ruling "keep WIP" 2026-08-01):
         # the re-mint supplies the current lineage bookkeeping (sid,

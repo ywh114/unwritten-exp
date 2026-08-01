@@ -34,6 +34,13 @@ table can be injected for tests or other kingdoms. In flora every
 scalar/int axis is driftable (mutation != none), so the L1 term over
 scalars IS the L1 term over mutable scalars; an invariant scalar (none
 exist) would contribute 0 anyway because its value never changes.
+The MERGE GATE does not read this metric: it reads the scalar-only
+subset (``_merge_metric``, ticket 0008) — enum flips and generics are
+same-blob noise that diluted the merge signal (measured 15% enum
+mismatch at equal pressure), so the merge gate sees ONLY the
+diverging scalar axes; weighted_set axes are dropped (their TV is
+noise-dominated). The cluster/orthodox bookkeeping keeps the full
+metric at SUB_D.
 
 ┌─ the commit pipeline (per species group; sids processed in sorted
    order, instances in sorted instance_id order) ─────────────────────
@@ -51,23 +58,38 @@ exist) would contribute 0 anyway because its value never changes.
    before/after). KEEP instances re-mint from the amended record, so
    their sub-SUB_D drift is NOT retained — by design (no micro-nodes
    for drift; divergence needs real separation).
-4. Every other cluster is a real divide: its distance to the orthodox
-   cluster (min pairwise) in [SUB_D, SPECIATION_D) → SUBSPECIES node;
-   ≥ SPECIATION_D → SPLIT (new species node, parent linked). Distinct
-   components always have distance ≥ SUB_D, so the band's lower bound
-   holds by construction. The cluster's most-established member
-   (tie: lowest instance id) provides the new node's genes; every
-   member re-keys to the new sid in the changelog.
+4. Every other cluster is a real divide (its distance to the orthodox
+   cluster is >= SUB_D by construction). The RANK is the g currency
+   (fauna RFC §1, ticket 0008): a cluster whose representative is
+   BELOW the lineage's g_star divides as a SUBSPECIES node (the
+   "fragment below g* = subspecies" half); a cluster beyond g* is NOT
+   divided individually — it rides the wholesale g-promotion below
+   (dividing beyond-g* clusters individually churns a species per
+   extreme-mutant fragment). The representative (most-established
+   member, tie: lowest instance id) provides the new node's genes;
+   every member re-keys to the new sid in the changelog. Callers that
+   pass no g state (unit tests) fall back to the old
+   [SUB_D, SPECIATION_D) trait-distance band for the rank.
+   **g-promotion (ticket 0008):** the rounds' divide trigger — the
+   LINEAGE's g (the orthodox instance's g_since_split, the record's
+   representative) crossing the lineage's g_star promotes the WHOLE
+   gene pool to ONE new SPECIES node: a dense lineage is a continuous
+   trait cloud that never splits at SUB_D (measured on seed 1), so
+   the g crossing IS the divide. One-shot: a SPECIES node is born
+   promoted and never re-promotes (its g keeps accumulating and
+   classify stays "species"). The engine resets re-keyed instances'
+   g_since_split to 0 (the split ancestor) and seeds the new
+   lineage's g*/rate multiplier.
 5. Merges, only through the engine-side spatial gate (this class never
    sees cells): ``update`` takes an optional ``merge_candidates``
    argument (see the seam note below). A candidate pair is merged iff
-   both members share one species group AND their pairwise distance
-   < MERGE_D AND rounds_since_divergence ≥ MERGE_GRACE. The survivor
-   is the more-established member (tie: lowest instance id); the
-   orthodox instance is never absorbed (it keeps the species ID).
+   both members share one species group AND their SCALAR-ONLY pairwise
+   distance < MERGE_D AND rounds_since_divergence >= MERGE_GRACE. The
+   survivor is the more-established member (tie: lowest instance id);
+   the orthodox instance is never absorbed (it keeps the species ID).
    Merges never cross species (speciation is a hard reproductive
    barrier), and two distinct clusters can never be candidates anyway
-   (d ≥ SUB_D > MERGE_D).
+   (d >= SUB_D > MERGE_D).
 6. Species that had living instances but have none now are marked
    extinct: the record stays in the tree as a ghost, the changelog
    lists the sid, the reflog gets the entry. Species never minted are
@@ -125,14 +147,24 @@ from exp.k13_treegen.interface import (
     Outcome,
     SpeciesId,
 )
+from exp.k13_treegen.forces import classify as g_classify
 from exp.k13_treegen.model import RANK_PREFIX, Node, Rank, Tree
 from kernel.hashrng import Stream
 
 # ── commit knobs (§13) ────────────────────────────────────────────────
 
 SUB_D = 0.1              # cluster edge: pairwise distance below this
-SPECIATION_D = 0.35      # cluster distance at/above this -> new species
-MERGE_D = 0.05           # pairwise distance below this -> merge-eligible
+SPECIATION_D = 0.35      # g-less FALLBACK divide rank (authority tests
+                         # that call update() without the g bookkeeping;
+                         # the engine always passes g, so the rounds use
+                         # classify(g_since_split, g_star) instead — the
+                         # SPECIATION_D band is NOT a rounds currency)
+MERGE_D = 0.045          # merge gate: pairwise SCALAR-ONLY L1 below
+                         # this -> merge-eligible (ticket 0008, agent-58
+                         # measurement: same-blob scalar-only p99 floor
+                         # ~0.073, contrast pairs p90 ~0.057 — 0.045
+                         # merges same-blob pairs and lets genuinely
+                         # diverging pairs escape the CONSOL sweep)
 MERGE_GRACE = 5          # rounds since divergence before a merge is legal
 GENERIC_SALIENCE = 0.4   # weight of plan-generic keys (registry rates none)
 DEFAULT_SALIENCE = 0.2   # weight when an authored axis lacks salience
@@ -214,7 +246,8 @@ def _term(entry: AxisMetric | None, k: str, a: Mapping, b: Mapping) -> float:
 
 
 def genes_distance(a: Mapping, b: Mapping,
-                   metric: Mapping[str, AxisMetric] = AXIS_METRIC) -> float:
+                   metric: Mapping[str, AxisMetric] = AXIS_METRIC, *,
+                   include_generics: bool = True) -> float:
     """Salience-weighted distance between two gene mappings (instance
     traits or record genes: axes + generics as one flat mapping).
 
@@ -223,12 +256,20 @@ def genes_distance(a: Mapping, b: Mapping,
     weighted_set axis w·TV, with w the axis salience (or
     GENERIC_SALIENCE for generics). Returns 0.0 for identical or empty
     mappings, 1.0 when every considered axis is at full divergence.
+
+    ``include_generics=False`` restricts the key set to the metric's
+    own table: keys with no AxisMetric entry (plan generics, enums the
+    caller's subset table omits) contribute NOTHING and are excluded
+    from the denominator — the merge-gate metric's shape (ticket 0008:
+    the merge gate sees only the diverging scalar axes).
     """
     num = den = 0.0
     for k in sorted(set(a) | set(b)):
         if k in _NON_GENE_KEYS:
             continue
         entry = metric.get(k)
+        if entry is None and not include_generics:
+            continue
         w = entry.salience if entry is not None else GENERIC_SALIENCE
         num += w * _term(entry, k, a, b)
         den += w
@@ -236,7 +277,8 @@ def genes_distance(a: Mapping, b: Mapping,
 
 
 def _group_distances(traits_list: list[Mapping], record: Mapping,
-                     metric: Mapping[str, AxisMetric]
+                     metric: Mapping[str, AxisMetric], *,
+                     include_generics: bool = True
                      ) -> tuple[np.ndarray, np.ndarray]:
     """Vectorized exact equivalent of pairwise genes_distance over a
     group (the commit's O(n²) hot loop): returns (dist (n,n), rec (n,))
@@ -251,7 +293,8 @@ def _group_distances(traits_list: list[Mapping], record: Mapping,
     repair: genes_distance's weighted_set TV sums over a Python set
     (hash-randomized iteration order across processes — a latent
     cross-run nondeterminism in float accumulation); here categories
-    are sorted, which is deterministic."""
+    are sorted, which is deterministic. ``include_generics=False``
+    skips keys outside the metric table (see genes_distance)."""
     n = len(traits_list)
     keys = sorted((set().union(*(set(t) for t in traits_list))
                    | set(record)) - _NON_GENE_KEYS)
@@ -261,6 +304,8 @@ def _group_distances(traits_list: list[Mapping], record: Mapping,
     rden = np.zeros(n)
     for k in keys:
         entry = metric.get(k)
+        if entry is None and not include_generics:
+            continue
         w = entry.salience if entry is not None else GENERIC_SALIENCE
         p = np.array([t.get(k) is not None for t in traits_list])
         rp = record.get(k) is not None
@@ -329,13 +374,32 @@ class TreeAuthority:
     itself, ``reflog`` (append-only), ``_round`` (commit counter),
     ``_divergence_round`` (per instance), ``_instance_lineage``
     (instance id -> current sid), ``_alive`` (sids with living
-    instances), and ``_sid_path`` (sid -> node path).
+    instances), ``_promoted`` (sids that have g-promoted — ticket
+    0008; derivable from the tree: every SPECIES node created by a
+    promotion is born promoted), and ``_sid_path`` (sid -> node path).
     """
 
     def __init__(self, tree: Tree,
                  metric: Mapping[str, AxisMetric] | None = None) -> None:
         self.tree = tree
         self.metric = AXIS_METRIC if metric is None else metric
+        # merge-gate metric: scalar/int axes only (ticket 0008 — enum
+        # flips and generics are same-blob noise; the merge gate must
+        # see ONLY the diverging scalar axes). Falls back to the full
+        # metric when the table has no scalars (degenerate, never for
+        # the real flora content).
+        scalar = {k: e for k, e in self.metric.items()
+                  if e.value_type in ("scalar", "int")}
+        self._merge_metric = scalar if scalar else self.metric
+        # ticket 0008: sids that have already g-promoted (their g
+        # crossed the lineage's g_star — reproductively isolated).
+        # A SPECIES node is born promoted and NEVER re-promotes (its g
+        # keeps accumulating; classify stays "species"; further
+        # divides come from the trait-cluster path as SPLITs). The
+        # order-side lineages promote once per crossing cohort, so a
+        # lineage whose members cross at different rounds radiates
+        # one species per cohort instead of re-promoting every commit.
+        self._promoted: set[SpeciesId] = set()
         self.reflog: list[dict] = []
         self._round = 0
         self._divergence_round: dict[InstanceId, int] = {}
@@ -388,8 +452,9 @@ class TreeAuthority:
     # ── the commit ─────────────────────────────────────────────────
 
     def update(self, views: list[InstanceView], rng: Stream, *,
-               merge_candidates: set[frozenset[str]] | None = None
-               ) -> ChangeLog:
+               merge_candidates: set[frozenset[str]] | None = None,
+               g_since_split: Mapping[str, float] | None = None,
+               g_star: Mapping[str, float] | None = None) -> ChangeLog:
         """The commit. See the module docstring for the full pipeline.
 
         ``merge_candidates``: optional set of 2-instance frozensets the
@@ -397,6 +462,16 @@ class TreeAuthority:
         critic finding 5). The authority still re-checks the gene
         distance < MERGE_D and the MERGE_GRACE before merging. See the
         seam note in the module docstring.
+
+        ``g_since_split`` / ``g_star``: the lineage g bookkeeping
+        (fauna RFC §1, ticket 0008) — per-instance accumulated genetic
+        distance in generations since the last split, and per-lineage
+        seeded speciation cutoff. When a group's lineage has a g_star,
+        the divide RANK (subspecies vs species) is
+        classify(g_since_split, g_star) instead of the SPECIATION_D
+        trait-distance band. The engine always passes both; callers
+        that omit them get the old trait-distance band (authority unit
+        tests).
         """
         commit_round = self._round
         self._round += 1
@@ -428,7 +503,8 @@ class TreeAuthority:
             group = sorted(groups[sid], key=lambda v: v.instance_id)
             alive_now.add(sid)
             self._process_group(node, group, commit_round, rng,
-                                candidates, deltas, alive_now)
+                                candidates, deltas, alive_now,
+                                g_since_split, g_star)
 
         extinct = sorted(self._alive - alive_now)
         for sid in extinct:
@@ -447,7 +523,9 @@ class TreeAuthority:
                        commit_round: int, rng: Stream,
                        candidates: set[frozenset[str]],
                        deltas: dict[InstanceId, InstanceDelta],
-                       alive_now: set[SpeciesId]) -> None:
+                       alive_now: set[SpeciesId],
+                       g_since_split: Mapping[str, float] | None = None,
+                       g_star: Mapping[str, float] | None = None) -> None:
         """One species group: orthodox, clusters, divides, merges."""
         sid = node.sid
         m = self.metric
@@ -509,24 +587,92 @@ class TreeAuthority:
                                             outcome=Outcome.KEEP,
                                             target=None, orthodox=True)
 
-        # divergent clusters -> real divides (SUBSPECIES / SPLIT)
+        star = (g_star or {}).get(sid)
+        gs = g_since_split or {}
+        handled: set[int] = set()
+        dist_merge = None          # scalar-only merge matrix (lazy)
+
+        # g-currency promotion (ticket 0008, fauna RFC §1): the
+        # LINEAGE's g — the orthodox instance's g_since_split (the
+        # record's representative — "per lineage, scalar g") —
+        # crossing the lineage's seeded g* means the whole gene pool
+        # is reproductively isolated from its founder: ONE promotion
+        # re-keys every instance of the lineage to a new SPECIES node
+        # (the old record stays as the ghost ancestor). This is the
+        # rounds' divide trigger — a dense lineage is a continuous
+        # trait cloud that never splits at SUB_D (measured on seed 1),
+        # so the trait clusters can't fire the divide. One-shot: a
+        # SPECIES node is born promoted and never re-promotes (its g
+        # keeps accumulating; classify stays "species"; further
+        # divides come from the trait-cluster path as SPLITs). The
+        # engine resets the re-keyed instances' g_since_split (the
+        # split ancestor — fauna RFC §1's d(A,B) = (g_A − g0) +
+        # (g_B − g0)) and seeds the new lineage's g*/rate multiplier.
+        if star is not None and sid not in self._promoted:
+            if gs.get(orthodox_id, 0.0) > star:
+                new_sid = self._divide(
+                    node, Rank.SPECIES, group[orthodox_i].traits,
+                    [v.instance_id for v in group], rng)
+                alive_now.add(new_sid)
+                self._promoted.add(new_sid)
+                for i in range(n):
+                    handled.add(i)
+                    iid = group[i].instance_id
+                    deltas[iid] = InstanceDelta(instance_id=iid,
+                                                outcome=Outcome.SPLIT,
+                                                target=new_sid,
+                                                orthodox=False)
+                    self._instance_lineage[iid] = new_sid
+                    self._divergence_round[iid] = commit_round
+
+        # divergent clusters -> real divides (ticket 0008): the RANK is
+        # the g currency — classify(cluster rep's g_since_split, the
+        # lineage's g_star) (fauna RFC §1: fragment beyond g* = new
+        # species, below = subspecies). g never converges, so it can
+        # NOT gate clusters — the SUB_D trait-distance graph above is
+        # the cluster bookkeeping, unchanged. A cluster whose rep is
+        # BEYOND the lineage's g* is NOT divided here: the fragments
+        # past g* ride the wholesale g-promotion above (the lineage
+        # promotes as ONE record when its orthodox crosses g*) —
+        # dividing them individually would churn a species per
+        # extreme-mutant fragment (measured: hundreds of spurious
+        # SPLITs per round at seed 1). The SPECIATION_D band is only
+        # the g-less fallback for callers that pass no g state.
         for cluster in clusters:
             if cluster == orthodox_cluster:
                 continue
-            cdist = min(dist[i][j] for i in cluster
-                        for j in orthodox_cluster)
-            if cdist >= SPECIATION_D:
-                outcome, rank = Outcome.SPLIT, Rank.SPECIES
-            else:
-                outcome, rank = Outcome.SUBSPECIES, Rank.SUBSPECIES
+            if all(i in handled for i in cluster):
+                continue          # already re-keyed by the promotion
             rep = min(cluster, key=lambda i: (-group[i].mass,
                                               group[i].instance_id))
+            if star is not None:
+                rep_g = gs.get(group[rep].instance_id, 0.0)
+                if rep_g > star:
+                    # beyond g*: the wholesale promotion handles the
+                    # lineage — the fragment stays KEEP for now
+                    for i in cluster:
+                        iid = group[i].instance_id
+                        if iid not in deltas:
+                            deltas[iid] = InstanceDelta(
+                                instance_id=iid, outcome=Outcome.KEEP,
+                                target=None, orthodox=False)
+                    continue
+                outcome, rank = Outcome.SUBSPECIES, Rank.SUBSPECIES
+            else:
+                cdist = min(dist[i][j] for i in cluster
+                            for j in orthodox_cluster)
+                outcome, rank = (Outcome.SPLIT, Rank.SPECIES) \
+                    if cdist >= SPECIATION_D \
+                    else (Outcome.SUBSPECIES, Rank.SUBSPECIES)
             new_sid = self._divide(node, rank, group[rep].traits,
                                    [group[i].instance_id for i in cluster],
                                    rng)
             alive_now.add(new_sid)
+            if rank is Rank.SPECIES:
+                self._promoted.add(new_sid)
             for i in cluster:
                 iid = group[i].instance_id
+                handled.add(i)
                 deltas[iid] = InstanceDelta(instance_id=iid,
                                             outcome=outcome,
                                             target=new_sid, orthodox=False)
@@ -537,13 +683,27 @@ class TreeAuthority:
         # Vectorized prefilter (the candidate set reaches 1e5 at high
         # occupancy — the per-pair Python checks dominated the commit):
         # only survivors get the sequential survivor/absorbed pass.
+        # Instances already re-keyed by a divide this commit (handled)
+        # are not merge candidates.
         cand: list[tuple[str, str]] = []
         for pair in sorted(candidates, key=lambda p: tuple(sorted(p))):
             a_id, b_id = sorted(pair)
             if {a_id, b_id} - set(idx):            # unknown / other species
                 continue
+            if idx[a_id] in handled or idx[b_id] in handled:
+                continue
             cand.append((a_id, b_id))
         if cand:
+            if dist_merge is None:
+                # scalar-only merge matrix: the merge gate reads the
+                # same-blob noise floor under the DIVERGENT axes only
+                # (ticket 0008 — the full metric dilutes the signal
+                # with enum noise; the CONSOL sweep erased the
+                # incipient cohort at d_V0 < MERGE_D). Generics are
+                # excluded (enum-like flips are noise).
+                dist_merge, _ = _group_distances(
+                    traits_list, record_genes, self._merge_metric,
+                    include_generics=False)
             in_orth = np.zeros(n, dtype=bool)
             in_orth[orthodox_cluster] = True
             ia_v = np.array([idx[a] for a, _ in cand])
@@ -553,7 +713,7 @@ class TreeAuthority:
                     self._divergence_round.get(a, commit_round),
                     self._divergence_round.get(b, commit_round))
                 for a, b in cand])
-            ok = (dist[ia_v, ib_v] < MERGE_D) \
+            ok = (dist_merge[ia_v, ib_v] < MERGE_D) \
                 & (grace_v >= MERGE_GRACE) \
                 & in_orth[ia_v] & in_orth[ib_v]
             cand = [c for c, keep in zip(cand, ok) if keep]

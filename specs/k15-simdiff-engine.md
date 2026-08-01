@@ -1,6 +1,14 @@
-# K15 sim-diff engine (flora rounds) — build spec v0.6
+# K15 sim-diff engine (flora rounds) — build spec v0.7
 
-2026-08-01. v0.6 folds the packet-colonization redesign (owner ruling
+2026-08-01. v0.7 adopts K13's g currency for the divide side (ticket
+0008 — the owner caught that K15 rounds invented a parallel speciation
+currency, genes_distance vs absolute SUB_D/SPECIATION_D, instead of
+fauna RFC §1's g): instances accumulate g_since_split per round in
+generation time (Δg from the three forces' share table, forces.py
+idioms), divides rank by classify(g_since_split, g_star), and the
+merge gate moves to a scalar-only L1 metric calibrated on the
+measured same-blob noise floor (agent-58, 2026-08-01). v0.6 folds the
+packet-colonization redesign (owner ruling
 "tentacles, not dots"): §7 dispersal moves from per-source-cell deposit
 kernels to a handful of coherent width-carrying packets with one
 establishment decision per packet, plus the per-lineage colonization
@@ -14,7 +22,9 @@ handshake (§9) and the dispersal deposit model (§7) were rewritten.
 
 Builds on: B5 (`biosphere-addendum-b5-flora-stress.md`), the K13/K14/K15
 restructure spec-note (2026-07-30), the owner rulings of
-2026-07-31 → 2026-08-01 (conversation), and the landed code:
+2026-07-31 → 2026-08-01 (conversation), the fauna RFC §1 phylogenetics
+core (the g currency, restated for flora in the flora RFC), and the
+landed code:
 `kernel/stress/`, `exp/k15_simdiff/req_flora.py`,
 `exp/k15_simdiff/stress_adapter.py` (env side, B5 §8 green),
 `exp/k13_treegen/interface.py` (Instance/StressVerdict/KingdomSim/
@@ -103,6 +113,27 @@ Per round t, in order:
    gen_time = 2·sqrt(height_m) (the backbone formula) — a duckweed
    drifts per generation, an oak barely per round (interface ruling:
    gen_time decides call frequency).
+   **g accumulation (v0.7, fauna RFC §1):** each instance carries
+   `g_since_split` — genetic distance in generations from its
+   lineage's split ancestor. Per round the feed accrues
+   `Δg = n_gen · rate_mult · (drift baseline + stress-descent share ·
+   (1 + STRESS_G_BOOST·stress) + runaway share · ornament fraction +
+   enum share)`, where the shares are forces.py's Condition table
+   (isolation 0 — the rounds have no isolate input; the dressed
+   partition is the rounds' vicariance and g* decides the rank).
+   `rate_mult` is the lineage's lognormal rate multiplier and the
+   ornament fraction is the runaway-consumer axes' share of the
+   mutable registry (flower display, fauna RFC §1), both drawn once
+   per lineage via pinned `k15.g` streams. Mutation magnitude ramps
+   with f(g) (forces.py): each generation's pressure is scaled by
+   `step_scale(g) = 1 + g/G_REF` × the leaky steady-tier gate
+   (`1 − exp(−(g − G_STEADY_ONSET)/G_STEADY_RAMP)` — steady axes
+   effectively frozen at low g), and each pressured scalar axis rolls
+   the heavy tail (P_NOVEL_MAX, × NOVELTY_MULT) at p_novel·n_gen/
+   G_STEP_REF per round — the occasional striking trait, never a
+   uniform rate. Fast lineages (duckweed, n_gen 400) blow past g*
+   within a round or two; slow trees take decades of rounds — the
+   grass/oak tempo split is emergent (flora RFC).
 2. **Population update** — per instance × cell: density term, vital
    update, extinction floor (§6).
 3. **Dispersal** — per instance: emission (stress-gated), channel
@@ -419,7 +450,10 @@ prerequisite.
 
 **Parse** (engine → Authority): one InstanceView PER INSTANCE
 (critic finding 9 — not a per-lineage aggregate): species_id,
-instance_id, traits (WIP genes), mass = Σ_cells N(c).
+instance_id, traits (WIP genes), mass = Σ_cells N(c). The g
+bookkeeping rides as SEPARATE update() arguments (the view is the
+interface.py protocol's shape — unchanged): `g_since_split` (per
+instance id, generations) and `g_star` (per lineage sid).
 
 **Decisions** (Authority, space-blind — it sees gene views only):
 - **Orthodox lineage**: the instance closest to the amended species
@@ -428,22 +462,45 @@ instance_id, traits (WIP genes), mass = Σ_cells N(c).
 - **Distance**: salience-weighted L1 over mutable scalar axes
   (normalized by axis span) + mismatch indicator over enums, averaged
   — computed pairwise on instance gene views. Clusters = connected
-  components of the pairwise graph at SUB_D.
-- **Subspecies**: a cluster at distance ∈ [SUB_D, SPECIATION_D) from
-  the orthodox cluster — a real tree divide, registered, not too
-  common (owner ruling). (cal: SUB_D, SPECIATION_D.)
-- **Split (speciation)**: distance ≥ SPECIATION_D — the hard
-  reproductive barrier; new record, parent linked, reflog entry.
+  components of the pairwise graph at SUB_D. (Cluster/orthodox
+  bookkeeping only — see the divide below.)
+- **Subspecies / Split**: the divide decision is the g currency
+  (v0.7, fauna RFC §1). The rounds' divide trigger is the
+  g-PROMOTION: the LINEAGE's g — the orthodox instance's
+  g_since_split (the record's representative, "per lineage, scalar
+  g") — crossing the lineage's seeded g* promotes the WHOLE gene pool
+  to ONE new SPECIES node (a dense lineage is a continuous trait
+  cloud that never splits at SUB_D — measured on seed 1 — so the
+  trait clusters cannot fire the divide). One-shot: a SPECIES node is
+  born promoted and never re-promotes (its g keeps accumulating and
+  classify stays "species"). A divergent trait cluster (the SUB_D
+  graph) whose representative is BELOW the lineage's g* divides as a
+  SUBSPECIES node (the RFC's "fragment below g* = subspecies");
+  a cluster beyond g* is NOT divided individually (that would churn a
+  species per extreme-mutant fragment — measured hundreds of spurious
+  SPLITs per round at seed 1) — it rides the wholesale promotion. On
+  re-key the instances' g_since_split resets to 0 (the split ancestor
+  — fauna RFC §1's d(A,B) = (g_A − g0) + (g_B − g0)) and the new
+  lineage draws fresh g* / rate multiplier. SPECIATION_D is no longer
+  a rounds currency (kept only as the g-less fallback for direct
+  authority unit tests). Cluster formation itself stays trait-distance
+  at SUB_D — g never converges, so it can gate RANKS and the
+  promotion, not cluster edges.
 - **Extinct**: no living instances → record marked extinct (reflog
   entry), branch terminated.
-- **Merge**: distance < MERGE_D (cal), AND a spatial-contact gate
-  computed ENGINE-side (the engine presents merge candidates only when
-  the instances' cells touch — the space-blind Authority never sees
-  cells, critic finding 5), AND rounds_since_divergence ≥ MERGE_GRACE
-  (cal, default 5) — the grace exempts genesis siblings from instant
-  re-merge (critic finding 10). Re-merge only when REALLY similar
-  (owner ruling); the FINAL pass (end of run) joins all
-  non-differentiated instances of a lineage back into one record.
+- **Merge**: scalar-only L1 distance < MERGE_D (v0.7 — the merge
+  metric excludes enum and generic axes and weighted_set TV; enum
+  flips are measured same-blob noise (15% mismatch at equal pressure,
+  agent-58) and diluted the merge signal, so the CONSOL sweep erased
+  the incipient-species cohort under the old full metric), AND a
+  spatial-contact gate computed ENGINE-side (the engine presents merge
+  candidates only when the instances' cells touch — the space-blind
+  Authority never sees cells, critic finding 5), AND
+  rounds_since_divergence ≥ MERGE_GRACE (cal, default 5) — the grace
+  exempts genesis siblings from instant re-merge (critic finding 10).
+  Re-merge only when REALLY similar (owner ruling); the FINAL pass
+  (end of run) joins all non-differentiated instances of a lineage
+  back into one record.
   **Consolidation (v0.4.2, owner ruling 2026-08-01):** the final pass
   also runs PERIODICALLY — every CONSOL_EVERY-th commit (default 5)
   the engine presents ALL same-lineage pairs as candidates (the
@@ -458,6 +515,15 @@ instance_id, traits (WIP genes), mass = Σ_cells N(c).
   STACKED instances (same lineage, same cell — measured up to 1132
   layers in one cell at r19) were invisible to it; a per-cell
   layer-count pass adds star-topology candidates per overlapped cell.
+  **v0.7 merge calibration:** MERGE_D = 0.045 on the scalar-only
+  metric (ticket 0008, agent-58 measurement: same-blob scalar p99
+  floor ≈ 0.073, contrast pairs p90 ≈ 0.057 by r5). MERGE_D sits
+  BELOW the same-blob floor by design: merging same-blob pairs below
+  the floor is harmless (they are not diverged — the CONSOL sweep
+  re-collapses them) while genuinely diverging pairs (above the
+  floor) escape the sweep; the pairs between MERGE_D and the floor
+  are diverging-but-immature and the sweep's sawtooth re-creates
+  them.
 - **Names**: interim handles `sid.iNNN`; binomials pin only at final
   commit.
 
@@ -469,7 +535,11 @@ the record, capping pairwise same-lineage distance at the one-round
 nudge forever — measured 0.0000 instance-vs-record at every round end
 over 20 rounds, zero divides); N, rain, instance↔cell assignment and
 instance ids survive; merges re-key absorbed instances to the survivor
-(their N and rain transfer).
+(their N and rain transfer). v0.7: a divide re-key resets the
+instance's g_since_split to 0 (the split ancestor's g0 — fauna RFC
+§1's d(A,B) = (g_A − g0) + (g_B − g0)) and the new lineage draws its
+own rate multiplier and g* once; foundlings/dressing splits inherit
+the founder's g_since_split (same gene pool, shared clock).
 
 ## 10. Genesis rain (round 0)
 
@@ -558,8 +628,13 @@ counts are small).
 | RE_EVAL_D | 5.1 | 0.15 | cache invalidation distance |
 | DIFF_D / MOB_K | 7.3 | **0.2 (cal)** / 1.0 | verdict-gate base / mobility gain |
 | DIFF_MIN_CELLS | 8 | **32 (cal)** | divergent sub-range split floor |
-| SUB_D / SPECIATION_D / MERGE_D / MERGE_GRACE | 9 | 0.1 / 0.35 / 0.05 / 5 | commit distances/grace |
+| SUB_D / MERGE_D / MERGE_GRACE | 9 | 0.1 / **0.045 (v0.7)** / 5 | commit cluster edge / scalar-only merge gate / grace |
+| SPECIATION_D | 9 | 0.35 | g-less FALLBACK divide rank (authority unit tests only; NOT a rounds currency since v0.7) |
 | CONSOL_EVERY | 9 | 5 | full-lineage consolidation period (rounds) |
+| DG_DRIFT_BASE | 4 | 1.0 | g drift baseline (generation-distance per generation) |
+| DG_ENUM_SHARE | 4 | 0.05 | g contribution of enum redraws (per generation) |
+| G_STEP_REF | 4 | 100 | species-edge dg scale: rounds' novel-tail rate = p_novel·n_gen/G_STEP_REF per axis |
+| STRESS_G_BOOST / G_STEADY_ONSET / G_STEADY_RAMP / G_REF / G_NOVEL / P_NOVEL_MAX / NOVELTY_MULT | 4 | forces.py | the g-clock and f(g) ramp constants (referenced, never duplicated) |
 | TAKEOVER_RATIO | 12 | 0.8 | acceptance 5 |
 
 **Content authoring conventions** (stat-pass E, 2026-08-01):
@@ -591,6 +666,47 @@ counts are small).
 
 ## 15. Changelog
 
+- **v0.7** (2026-08-01, ticket 0008): the g currency replaces the
+  trait-distance speciation thresholds — fauna RFC §1's generation-
+  time clock, three forces, and per-clade seeded g*, restated for
+  flora (flora RFC). §4 verdict feed: instances carry g_since_split,
+  accruing Δg = n_gen·rate_mult·(drift baseline + descent share·(1 +
+  STRESS_G_BOOST·stress) + runaway share·ornament fraction + enum
+  share) per round (forces.py Condition shares, isolation 0); lineage
+  rate multiplier and g* drawn once via pinned k15.g streams; the
+  mutation magnitude ramps with f(g) (step_scale × leaky steady-tier
+  gate × the novel heavy tail, forces.py constants referenced not
+  duplicated). §9: divide rank = classify(rep g_since_split, lineage
+  g_star) for trait clusters AND a g-PROMOTION for the crossing
+  cohort (instances past g* re-key to a new species node, grouped by
+  trait connectivity at SUB_D — the divide trigger for the rounds,
+  since a dense lineage is a continuous trait cloud that never splits
+  at SUB_D on seed 1; one-shot per species node); SPECIATION_D
+  demoted to the g-less authority-test fallback. The merge gate
+  moves to a scalar-only L1 metric (enum/generic axes and weighted_set
+  TV excluded — enum flips are measured same-blob noise) with
+  MERGE_D = 0.045, calibrated on agent-58's scalar-only same-blob p99
+  floor (≈0.073) and contrast p90 (≈0.057): same-blob pairs below the
+  floor merge harmlessly while diverging pairs escape the CONSOL
+  sweep (which erases the incipient cohort under the diluted full
+  metric — 7232 contrast pairs at r5 → 0 alive at r25 pre-v0.7).
+  Determinism preserved: all new draws ride k15.g streams; two full
+  runs remain byte-identical. Measured (seed 1, tmp/k15_gcheck.py, 30
+  rounds): the g-promotion fires on the emergent tempo — the fast
+  lineages (duckweed/lichen-grade, n_gen 400) promote wholesale in
+  rounds 0–6 (divide-time g ≈ 300–900 vs their seeded g*), the
+  grass-grade lineages at ~r8–10 (the "~9 rounds" anchor), stragglers
+  at r13–23, and the slow trees never cross g* within 30 rounds —
+  their first divide lands beyond r30 (tempo split by design). Each
+  promotion re-keys the whole gene pool to ONE species node (the
+  instance-delta counts run 4–754); the old lineage's record stays as
+  the ghost ancestor and is marked extinct. Turnover (item d): no
+  die-out knob change was needed — the live lineage count holds at 35
+  across all 30 rounds (each promotion is balanced one-for-one by the
+  ancestor's extinction), no subspecies accumulate (zero SUBSPECIES
+  divides fired on seed 1 — below-g* trait clusters never form in the
+  continuous clouds), and the instance count is bounded by the CONSOL
+  sawtooth (4606 max at r4 → 2142 at r29).
 - **v0.6** (2026-08-01): packet colonization (owner ruling "tentacles,
   not dots", after the seed-1 dispersal stat pass: 120k→550k deposit
   cells/round, 9–12% isolated founded speckle, jump foundlings at

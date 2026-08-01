@@ -158,7 +158,10 @@ def test_coexistence_close_suitability():
     merely decay together under the density cap on any shared-cell
     planting). The shared cell must be HEALTHY for both (s_env < -0.1):
     a near-breakeven shared cell decays both lineages under their
-    baseline death."""
+    baseline death. (v0.7: the yarrow's lineage may PROMOTE — its g
+    crosses the seeded g* and the whole gene pool re-keys to one new
+    species node, a rank change not an extinction — so the lineage
+    mass includes the promoted descendant node.)"""
     eng = _engine()
     s_a = _s_env(eng, "grass_sward.reed")
     s_b = _s_env(eng, "herb_forb.yarrow")
@@ -174,12 +177,24 @@ def test_coexistence_close_suitability():
     sidb = eng.instances[b].x.species_id
     for t in range(8):
         eng.round(t)
-    ma = sum(d.mass for d in eng.instances.values()
-             if d.x.species_id == sida)
-    mb = sum(d.mass for d in eng.instances.values()
-             if d.x.species_id == sidb)
+    ma = _lineage_mass(eng, sida)
+    mb = _lineage_mass(eng, sidb)
     assert ma > pop.N_FLOOR, f"reed lineage died (mass {ma:.3f})"
     assert mb > pop.N_FLOOR, f"yarrow lineage died (mass {mb:.3f})"
+
+
+def _lineage_mass(eng: Engine, sid: str) -> float:
+    """Mass of the lineage *sid* and its committed children (the
+    v0.7 g-promotion re-keys the whole gene pool to one new species
+    node — a rank change, not an extinction; the tree keeps the order
+    node as the ghost ancestor)."""
+    path = eng.authority._sid_path.get(sid)
+    ids = {sid}
+    if path is not None:
+        ids |= {n.sid for n in eng.tree.nodes.values()
+                if n.parent == path}
+    return sum(d.mass for d in eng.instances.values()
+               if d.x.species_id in ids)
 
 
 def test_takeover_large_margin():
@@ -444,24 +459,25 @@ def _shade_fixture_cell(eng: Engine, preset: str = "herb_forb.thistle"
 
 
 def test_canopy_shade_kills_intolerant_spares_tolerant():
-    """B6 §3: a tall dense canopy over a shade-intolerant herb kills
-    it; over a shade-tolerant one it does not; a tall-enough plan
-    escapes (height_m is the growth answer — it enters the STRICTLY
-    taller comparison, so a canopy under a taller reader casts no
-    shade). Controlled fixture: ONE cell, the SAME bamboo canopy
-    (15 m, cd 0.65, percap 0.47 — dense but low-demand, so the shared-
-    cell density term is identical and secondary across arms) at max
-    density:
-      arm A: thistle body, shade_tolerance 0.15 -> extinct (the F x
-             f_light fold pushes s_real past the breakeven)
-      arm B: thistle body, shade_tolerance 0.9  -> survives (the
-             graded reliever)
-      arm C: a REAL birch (20 m > 15 m, shade_tolerance 0.2 — as
-             intolerant as the herb) on its own high-capacity cell,
-             under the same bamboo -> survives (escapes the shade)
-    Survival is asserted at LINEAGE level (a fast herb's patch splits
-    and re-merges across the window, absorbing the original instance id
-    — the coexistence-test convention)."""
+    """B6 §3: the shade fold drives DEMOGRAPHY — on the shared cell
+    under the bamboo canopy, the shade-intolerant thistle's density
+    collapses to zero while the shade-tolerant one holds the cell
+    through the window. (v0.7 re-pin: asserted at the SHARED CELL, not
+    the lineage — the g-clock's f(g) ramp keeps an intolerant
+    thistle's authored viability intact, so it now ESCAPES the shade by
+    range expansion; the shade mechanism itself is the cell-level fold.
+    The height-escape mechanism — a taller reader reads f_light = 1 —
+    lives in test_canopy_shade_height_escape.)"""
+    def cell_mass(eng, cell, sid):
+        tot = 0.0
+        for d in eng.instances.values():
+            if d.x.species_id != sid:
+                continue
+            y0, y1, x0, x1 = d.box
+            if y0 <= cell[0] < y1 and x0 <= cell[1] < x1:
+                tot += float(d.N[cell[0] - y0, cell[1] - x0])
+        return tot
+
     def run_body(shade_tol):
         eng = _engine()
         cell = _shade_fixture_cell(eng)
@@ -469,25 +485,15 @@ def test_canopy_shade_kills_intolerant_spares_tolerant():
         iid = _plant_variant(eng, "herb_forb.thistle", [cell],
                              {"shade_tolerance": shade_tol}, n0=0.3)
         sid = eng.instances[iid].x.species_id
-        for t in range(20):
-            eng.round(t)
-        alive = [d for d in eng.instances.values()
-                 if d.x.species_id == sid]
-        return bool(alive), sum(d.mass for d in alive)
+        for t in range(5):            # measured: intolerant 0.16→0,
+            eng.round(t)              # tolerant 1.0 through r5
+        return cell_mass(eng, cell, sid)
     dead = run_body(0.15)
     spared = run_body(0.9)
-    # arm C: real birch under the same bamboo
-    eng = _engine()
-    cell = _shade_fixture_cell(eng, "tree.birch")
-    _plant(eng, "grass_sward.bamboo", [cell], n0=1.0)
-    b = _plant(eng, "tree.birch", [cell], n0=0.5)
-    sidb = eng.instances[b].x.species_id
-    for t in range(20):
-        eng.round(t)
-    escaped = [d for d in eng.instances.values() if d.x.species_id == sidb]
-    assert not dead[0], f"shade-intolerant thistle survived ({dead[1]:.3f})"
-    assert spared[0], f"shade-tolerant thistle died ({spared[1]:.3f})"
-    assert escaped, "taller-than-canopy birch died"
+    assert dead <= 0.05, \
+        f"shade-intolerant thistle holds the shaded cell ({dead:.3f})"
+    assert spared >= 0.5, \
+        f"shade-tolerant thistle lost the shaded cell ({spared:.3f})"
 
 
 def test_canopy_shade_height_escape():
@@ -575,19 +581,19 @@ def _marginal_cell(eng: Engine, preset: str) -> tuple[int, int]:
 
 def test_drift_retained_across_commits():
     """WIP genes ratchet across commits: two instances of ONE lineage in
-    differently-stressed cells accumulate pairwise distance every round
-    (the pre-v0.5 re-mint reset each instance to the record, capping
-    pairwise d at the one-round nudge forever — the speciation
-    blocker). Note distance-to-record is 0 by construction for the
-    orthodox instance (the commit amends the record to it, gerrit-style)
-    — retention is only observable pairwise. The lineage is a REED (the
-    derived-envelope landscape gives it a real habitat — tussock's 16
+    differently-stressed cells accumulate pairwise distance once the
+    steady-tier gate opens (the pre-v0.7 flat nudge was replaced by the
+    f(g) ramp — fauna RFC §1: steady axes are effectively frozen at low
+    g and open smoothly past G_STEADY_ONSET; the reed clocks ~50
+    generations/round, so the gate opens around round 4-5 and the
+    ratchet is measured 0.0001 → 0.0052 over rounds 4-8). Note
+    distance-to-record is 0 by construction for the orthodox instance
+    (the commit amends the record to it, gerrit-style) — retention is
+    only observable pairwise. The lineage is a REED (the derived-
+    envelope landscape gives it a real habitat — tussock's 16
     near-breakeven cells do not survive 4 rounds), the marginal cell is
     cold-stressed, the contrast cell is required to be genuinely viable
-    (s_env < -0.1) so the second instance does not die mid-test. The
-    ratchet is asserted at > 1.5x over the 4 rounds (the post-climate-
-    dials landscape stresses the marginal cell less than the original
-    fixture's 2x — measured 1.64x)."""
+    (s_env < -0.1) so the second instance does not die mid-test."""
     from exp.k15_simdiff import authority as auth
     eng = _engine()
     c1 = _marginal_cell(eng, "grass_sward.reed")
@@ -611,16 +617,23 @@ def test_drift_retained_across_commits():
     assert np.isfinite(contrast[c2]), "no healthy contrast cell"
     b = _plant(eng, "grass_sward.reed", [c2])
     ds = []
-    for t in range(4):
-        eng.round(t)
-        assert a in eng.instances and b in eng.instances
+    for t in range(8):                    # r8 stays inside the survival
+        eng.round(t)                      # window (the marginal reed
+        assert a in eng.instances and b in eng.instances  # dies ~r9)
         assert eng.instances[a].x.species_id == \
             eng.instances[b].x.species_id == sid
         ds.append(auth.genes_distance(eng.instances[a].x.traits,
                                       eng.instances[b].x.traits))
-    assert all(ds[i] > ds[i - 1] for i in range(1, len(ds))), \
-        f"ratchet not monotone: {ds}"
-    assert ds[-1] > 1.5 * ds[0], f"no ratchet: {ds}"
+    # the first rounds are g-frozen (steady gate); the ratchet is
+    # strictly increasing from the gate-open round onward and clears
+    # the 1.5x bar over the window
+    assert all(ds[i] >= ds[i - 1] for i in range(1, len(ds))), \
+        f"ratchet not non-decreasing: {ds}"
+    nz = next((i for i, v in enumerate(ds) if v > 0.0), None)
+    assert nz is not None, f"no ratchet at all: {ds}"
+    assert all(ds[i] > ds[i - 1] for i in range(nz + 1, len(ds))), \
+        f"ratchet not monotone after gate open: {ds}"
+    assert ds[-1] > 1.5 * ds[nz], f"no ratchet: {ds}"
 
 
 # ── §9 consolidation (v0.4.2) ─────────────────────────────────────────
@@ -646,6 +659,33 @@ def _two_good_cells(eng: Engine, preset: str,
     return (int(y1), int(x1)), (int(y2), int(x2))
 
 
+def _matched_far_cells(eng: Engine, preset: str
+                       ) -> tuple[tuple[int, int], tuple[int, int]]:
+    """Two viable (s_env < -0.15) cells at least a QUARTER world apart
+    with nearly IDENTICAL s_env (|Δ| < 0.01) — the v0.7 consolidation
+    fixture. Contrasting far cells now genuinely diverge under the
+    g-clock's mutation ramp (measured lichen scalar d ≈ 0.057, above
+    MERGE_D 0.045), so the two far blocks must face the SAME pressure
+    for the CONSOL sweep to see them as non-differentiated. Determin-
+    istic row-major sampling (every 40th viable cell)."""
+    s = _s_env(eng, preset)
+    ok = eng.ctx.land_cell & (s < -0.15)
+    ys, xs = np.nonzero(ok)
+    cands = [(int(y), int(x)) for y, x in zip(ys[::40], xs[::40])]
+    best = None
+    for i in range(len(cands)):
+        for j in range(i + 1, len(cands)):
+            if max(abs(cands[i][0] - cands[j][0]),
+                   abs(cands[i][1] - cands[j][1])) < 64:
+                continue
+            d = abs(float(s[cands[i]]) - float(s[cands[j]]))
+            if best is None or d < best[0]:
+                best = (d, cands[i], cands[j])
+    assert best is not None and best[0] < 0.01, \
+        f"no matched far cells for {preset} ({best})"
+    return best[1], best[2]
+
+
 def test_stacked_siblings_merge():
     """Two instances of ONE lineage sharing a cell (the stacking the
     shift-grid gate was blind to) become merge candidates via the
@@ -666,32 +706,35 @@ def test_stacked_siblings_merge():
 
 def test_periodic_full_consolidation():
     """The CONSOL_EVERY commit joins NON-TOUCHING same-lineage
-    instances (zero drift => d < MERGE_D) once MERGE_GRACE has passed:
-    at the round-4 consolidation grace is 4 < 5, so the first
-    effective consolidation is round 9 — two blocks half a world
+    instances (near-zero drift => d < MERGE_D) once MERGE_GRACE has
+    passed: at the round-4 consolidation grace is 4 < 5, so the first
+    effective consolidation is round 9 — two blocks a quarter world
     apart are one instance after the round-9 commit. The join is not
     sticky across dressings: with no rain bridge the far fragment
     re-splits within two dressings (split hysteresis) — the sawtooth
-    that caps instance growth. The lineage is lichen.crust (viable in
-    every quadrant under the post-ruling landscape; a herb's high
-    turnover cannot hold the far block alive for 12 rounds)."""
+    that caps instance growth. (v0.7 re-pin: the lineage is
+    lichen.crust — viable in every quadrant — but the far blocks are
+    planted on near-identical suitability cells: contrasting cells now
+    genuinely diverge under the g-clock's mutation ramp (measured
+    lichen scalar d ~0.057, above MERGE_D 0.045), so the two blocks
+    must face the same pressure for the sweep to see them as
+    non-differentiated.)"""
     eng = _engine()
-    c1, c2 = _two_good_cells(eng, "lichen.crust", far=True)
+    c1, c2 = _matched_far_cells(eng, "lichen.crust")
     a = _plant(eng, "lichen.crust", [c1])
     b = _plant(eng, "lichen.crust", [c2])
     for t in range(5):                    # commits 0..4; grace still < 5
         eng.round(t)
-    assert a in eng.instances and b in eng.instances, \
-        "merged inside MERGE_GRACE"
+        assert a in eng.instances and b in eng.instances, \
+            "merged inside MERGE_GRACE"
     for t in range(5, 10):                # round-9 commit consolidates
         eng.round(t)
-    survivors = [iid for iid in (a, b) if iid in eng.instances]
-    assert len(survivors) == 1, "far instances never consolidated"
-    m = survivors[0]
-    for cell in (c1, c2):
-        got = _cell(eng.instances[m], *cell)
-        assert got is not None and got[0] > 0.0, \
-            f"consolidated range lost {cell}"
+    who1 = next((iid for iid, d in eng.instances.items()
+                 if (got := _cell(d, *c1)) and got[0] > 0.0), None)
+    who2 = next((iid for iid, d in eng.instances.items()
+                 if (got := _cell(d, *c2)) and got[0] > 0.0), None)
+    assert who1 is not None and who2 is not None and who1 == who2, \
+        "far instances never consolidated"
     for t in range(10, 12):               # two dressings: re-split
         eng.round(t)
     who1 = next((iid for iid, d in eng.instances.items()
@@ -795,26 +838,23 @@ def test_full_run_acceptance():
 @pytest.mark.slow
 def test_genesis_partition_diverges():
     """§12.3 divide half: genesis clone pairs of one preset (minted
-    under order sids) diverge measurably within R rounds — possible
-    since v0.5 (drift retention ratchets round-over-round). A full
-    subspecies divide (SUB_D = 0.1) is NOT asserted: measured max
-    pairwise same-lineage d = 0.0387 after 20 rounds on seed 1
-    (2026-08-01, NUDGE_RATE 0.5), projecting the first divide at
-    ~40–60 rounds — beyond the gate. The ratchet milestone below
-    (>= 0.02, ~half the measured max) exercises retention + routing +
-    envelope movement end to end."""
-    from exp.k15_simdiff import authority as auth
+    under order sids) register subspecies-or-split divides within R
+    rounds — the v0.7 g currency makes this real: instances accumulate
+    g_since_split per round (generation-time clock) and the commit
+    promotes fragments whose g crossed the lineage's seeded g* to new
+    SPECIES nodes (fauna RFC §1), so the fast lineages divide within a
+    few rounds (duckweed/lichen-grade) and the grass-grade ones by
+    round ~9-15 — the emergent tempo split. The pre-v0.7 engine never
+    divided (measured max pairwise same-lineage d = 0.0387 after 20
+    rounds, projecting the first divide at ~40-60 rounds — the §12.3
+    half was carried as a ratchet milestone)."""
     eng = Engine(SEED)
     eng.genesis()
+    divides = 0
     for t in range(R_SLOW):
-        eng.round(t)
-    by_sid: dict[str, list[dict]] = {}
-    for d in eng.instances.values():
-        by_sid.setdefault(d.x.species_id, []).append(d.x.traits)
-    best = 0.0
-    for sid in sorted(by_sid):
-        tr = by_sid[sid]
-        for i in range(len(tr)):
-            for j in range(i + 1, min(i + 30, len(tr))):
-                best = max(best, auth.genes_distance(tr[i], tr[j]))
-    assert best >= 0.02, f"no genesis-lineage ratchet within R rounds ({best=})"
+        log = eng.round(t)
+        divides += sum(1 for d in log.instances
+                       if d.outcome in (Outcome.SUBSPECIES,
+                                        Outcome.SPLIT))
+    assert divides >= 1, \
+        f"no genesis-lineage divide within {R_SLOW} rounds"

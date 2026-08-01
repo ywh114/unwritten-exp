@@ -196,6 +196,157 @@ def test_split_cluster_all_members_rekey_to_one_node():
     assert auth.redraw("iC").species_id == by["iC"].target
 
 
+# ── g-currency divide rank (ticket 0008, fauna RFC §1) ───────────────
+
+
+def test_divide_rank_by_g_below_star_is_subspecies():
+    """With the g bookkeeping supplied, a below-g* trait-separated
+    cluster divides as SUBSPECIES — even a large trait-distance
+    cluster stays SUBSPECIES below g* (the SPECIATION_D band is not a
+    rounds currency)."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(temp=30.0, moisture=0.6)       # 0.367 >= SPECIATION_D
+    assert genes_distance(RECORD, b, _METRIC) >= SPECIATION_D
+    gs = {"iA": 120.0, "iB": 220.0}            # below the lineage g*
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                      g_since_split=gs, g_star={SID1: 500.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iB"].outcome is Outcome.SUBSPECIES
+    assert by["iB"].target and len(by["iB"].target) == 16
+    assert auth.tree.nodes["1.ss0"].rank is Rank.SUBSPECIES
+
+
+def test_divide_beyond_g_star_waits_for_the_promotion():
+    """A trait-separated cluster whose rep is BEYOND the lineage's g*
+    is NOT divided individually (that would churn a species per
+    extreme-mutant fragment — measured hundreds of spurious SPLITs per
+    round at seed 1); it stays with the lineage until the wholesale
+    g-promotion re-keys the whole gene pool when the ORTHODOX crosses
+    g*."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(moisture=0.9)                  # 0.133: separated cluster
+    assert SUB_D <= genes_distance(RECORD, b, _METRIC) < SPECIATION_D
+    # orthodox below g*, fragment beyond: no divide at all
+    gs = {"iA": 120.0, "iB": 700.0}
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                      g_since_split=gs, g_star={SID1: 500.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iA"].outcome is Outcome.KEEP
+    assert by["iB"].outcome is Outcome.KEEP
+    assert len(auth.tree.nodes) == 1
+    # once the orthodox crosses, the whole lineage promotes as ONE
+    gs2 = {"iA": 700.0, "iB": 720.0}
+    log2 = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                        _view(SID1, "iB", b, mass=1.0)], _rng(),
+                       g_since_split=gs2, g_star={SID1: 500.0})
+    by2 = {d.instance_id: d for d in log2.instances}
+    assert by2["iA"].outcome is Outcome.SPLIT
+    assert by2["iA"].target == by2["iB"].target
+    assert auth.tree.nodes["1.s0"].rank is Rank.SPECIES
+
+
+def test_g_crossing_promotes_whole_lineage():
+    """Ticket 0008: the LINEAGE's g — the orthodox instance's
+    g_since_split (the record's representative) — crossing the
+    lineage's g_star promotes the WHOLE gene pool to one new SPECIES
+    node in a single divide, even though every instance remains
+    trait-connected to the orthodox (a dense lineage is a continuous
+    trait cloud — the trait cluster never forms, so the g crossing IS
+    the divide trigger)."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(temp=10.5)                    # 0.025/3 < SUB_D: one cluster
+    assert genes_distance(RECORD, b, _METRIC) < SUB_D
+    gs = {"iA": 700.0, "iB": 720.0}           # orthodox crossed g*
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                      g_since_split=gs, g_star={SID1: 500.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iA"].outcome is Outcome.SPLIT
+    assert by["iB"].outcome is Outcome.SPLIT
+    assert by["iA"].target == by["iB"].target     # one node for all
+    assert len(by["iA"].target) == 16
+    assert auth.tree.nodes["1.s0"].rank is Rank.SPECIES
+    assert auth.redraw("iB").species_id == by["iA"].target
+    assert auth.redraw("iA").species_id == by["iA"].target
+
+
+def test_g_crossing_promotion_is_one_shot_and_trait_clusters_rank():
+    """Below the orthodox's crossing the lineage does NOT promote —
+    the trait-cluster path ranks the divides by classify(rep g,
+    g_star): a trait-separated cluster is SUBSPECIES below g*, SPLIT
+    beyond. And the promotion is one-shot: a second commit with the
+    same post-crossing g values does not re-promote (the species node
+    is born promoted)."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(moisture=0.9)      # 0.133: trait-separated cluster
+    assert SUB_D <= genes_distance(RECORD, b, _METRIC) < SPECIATION_D
+    gs = {"iA": 120.0, "iB": 220.0}            # orthodox below g*
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                      g_since_split=gs, g_star={SID1: 500.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iA"].outcome is Outcome.KEEP and by["iA"].orthodox
+    assert by["iB"].outcome is Outcome.SUBSPECIES    # below g*
+    # the orthodox later crosses g*: the whole lineage promotes once
+    gs2 = {"iA": 700.0, "iB": 740.0}
+    log2 = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                        _view(SID1, "iB", b, mass=1.0)], _rng(),
+                       g_since_split=gs2, g_star={SID1: 500.0})
+    by2 = {d.instance_id: d for d in log2.instances}
+    assert by2["iA"].outcome is Outcome.SPLIT
+    assert by2["iB"].outcome is Outcome.SPLIT
+    promoted = by2["iA"].target
+    # one-shot: the same g values again do not re-promote the species
+    # node — the orthodox stays under it; the beyond-g* separated
+    # fragment waits for the promotion too (no trait-cluster SPLITs)
+    log3 = auth.update([_view(promoted, "iA", RECORD, mass=5.0),
+                        _view(promoted, "iB", b, mass=1.0)], _rng(),
+                       g_since_split=gs2, g_star={promoted: 500.0})
+    by3 = {d.instance_id: d for d in log3.instances}
+    assert all(d.outcome is Outcome.KEEP for d in by3.values())
+
+
+def test_merge_gate_uses_scalar_only_metric():
+    """The merge gate reads the scalar-only subset of the metric
+    (ticket 0008): enum flips are same-blob noise and do NOT gate
+    merges — a pair whose FULL-metric distance (enum-inflated) is
+    above MERGE_D merges anyway, while the same pair's scalar
+    divergence still refuses. The leaf enum carries LOW salience here,
+    mirroring the real flora table (a single enum flip among ~70 keys
+    is a few % of V0, far below SUB_D)."""
+    low = {"temp": AxisMetric(salience=1.0, span=20.0,
+                              value_type="scalar"),
+           "moisture": AxisMetric(salience=1.0, span=1.0,
+                                  value_type="scalar"),
+           "leaf": AxisMetric(salience=0.05, value_type="enum")}
+    # enum flip + small scalar drift: full d = 0.0512 > MERGE_D (the
+    # old full-metric gate refuses) but scalar-only d = 0.0275 <
+    # MERGE_D -> the enum-inflated pair still merges
+    auth = _auth(_species("1", SID1, RECORD), metric=low)
+    b = _traits(temp=10.5, moisture=0.53, leaf="lobed")
+    assert MERGE_D <= genes_distance(RECORD, b, low) < SUB_D
+    pair = frozenset({"iA", "iB"})
+    for _ in range(MERGE_GRACE + 1):
+        log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                           _view(SID1, "iB", b, mass=1.0)], _rng(),
+                          merge_candidates={pair})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iB"].outcome is Outcome.MERGE
+    # scalar divergence still refuses: temp 12.8 -> scalar d = 0.07
+    auth2 = _auth(_species("1", SID1, RECORD), metric=low)
+    far = _traits(temp=12.8, leaf="lobed")     # full d < SUB_D: one cluster
+    assert genes_distance(RECORD, far, low) < SUB_D
+    pair2 = frozenset({"iA", "iB"})
+    for _ in range(MERGE_GRACE + 1):
+        log2 = auth2.update([_view(SID1, "iA", RECORD, mass=5.0),
+                             _view(SID1, "iB", far, mass=1.0)], _rng(),
+                            merge_candidates={pair2})
+    by2 = {d.instance_id: d for d in log2.instances}
+    assert by2["iB"].outcome is Outcome.KEEP
+
+
 # ── merges (engine-gated) ────────────────────────────────────────────
 
 
