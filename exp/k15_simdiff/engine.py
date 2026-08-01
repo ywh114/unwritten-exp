@@ -254,13 +254,16 @@ def _overlap_view(arr: np.ndarray, box, rect):
 # ── §5.0 engine world fields ──────────────────────────────────────────
 
 
-def mean_wind(z: dict, H: int, W: int) -> tuple[np.ndarray, np.ndarray]:
+def mean_wind(ctx: sa.WorldContext, H: int, W: int
+              ) -> tuple[np.ndarray, np.ndarray]:
     """Annual mean wind vector (u, v) at anchor (spec §5.0): the monthly
     delivered fields averaged over the month AND sample axes, bilinear-
     upsampled via the adapter's convention when the delivered grid is
-    coarser (c_wind_* are (12, samples, h, w) at 128² on seed 1)."""
-    wu = z["c_wind_u"].astype(np.float64).mean(axis=(0, 1))
-    wv = z["c_wind_v"].astype(np.float64).mean(axis=(0, 1))
+    coarser (c_wind_* are (12, samples, h, w) at 128² on seed 1). The
+    raw monthly fields come from the WorldContext cache (load_world
+    holds the dump; ticket 0022 — no second world.npz open)."""
+    wu = ctx.wind_u_raw.astype(np.float64).mean(axis=(0, 1))
+    wv = ctx.wind_v_raw.astype(np.float64).mean(axis=(0, 1))
     out = []
     for a in (wu, wv):
         if a.shape != (H, W):
@@ -271,20 +274,22 @@ def mean_wind(z: dict, H: int, W: int) -> tuple[np.ndarray, np.ndarray]:
     return out[0], out[1]
 
 
-def downstream_pointer(z: dict) -> np.ndarray:
+def downstream_pointer(ctx: sa.WorldContext) -> np.ndarray:
     """D8 downstream pointer as flattened neighbor indices (-1 =
     terminal). Reuses the persisted h_flow_dir (the K11 hydrology
     function's own output); re-derives via priority_flood +
-    flow_direction when absent (spec §5.0)."""
-    H, W = z["h_ocean_mask"].shape
-    if "h_flow_dir" in z:
-        codes = z["h_flow_dir"].astype(np.int32)
+    flow_direction when absent (spec §5.0). The dump fields come from
+    the WorldContext cache (load_world holds the dump; ticket 0022 —
+    no second world.npz open)."""
+    H, W = ctx.ocean_mask.shape
+    if ctx.flow_dir is not None:
+        codes = ctx.flow_dir.astype(np.int32)
     else:
         from exp.k11_worldgen.hydrology import (flow_direction,
                                                 priority_flood)
-        ocean = (z["h_ocean_mask"] | z["h_sea_mask"]).astype(bool)
-        w = priority_flood(z["w_elev"].astype(np.float64), ocean)
-        codes, _cost = flow_direction(w, z["w_elev"].astype(np.float64))
+        w = priority_flood(ctx.w_elev.astype(np.float64),
+                           ctx.ocean_mask.astype(bool))
+        codes, _cost = flow_direction(w, ctx.w_elev.astype(np.float64))
         codes = codes.astype(np.int32)
     ptr = np.full((H, W), -1, dtype=np.int32)
     for i, (dy, dx) in enumerate(_D8):
@@ -345,11 +350,13 @@ class Engine:
         self.authority = auth.TreeAuthority(self.tree)
         self.K = gen.load_capacity(seed, self.ctx)
         seed_dir = sa.K11_OUT / f"seed_{seed:08d}"
-        with np.load(seed_dir / "world.npz") as zf:
-            z = {k: zf[k] for k in zf.files}
-        self.wind_u, self.wind_v = mean_wind(z, self.ctx.H, self.ctx.W)
+        # §5.0 world fields: load_world already holds the K11 dump, so
+        # the mean wind and D8 downstream read the raw fields it cached
+        # on the context instead of re-opening world.npz (ticket 0022).
+        self.wind_u, self.wind_v = mean_wind(
+            self.ctx, self.ctx.H, self.ctx.W)
         self.wspd = np.hypot(self.wind_u, self.wind_v)
-        self.downstream = downstream_pointer(z)
+        self.downstream = downstream_pointer(self.ctx)
         self.cur_u, self.cur_v = mean_currents(seed_dir)
         # preset id -> the ORDER node sid carrying the preset record
         self._order_sid = {
@@ -551,7 +558,13 @@ class Engine:
         (understory plans EXPECT shade: coef understory < subcanopy <
         canopy). Deterministic: instances processed in sorted id order,
         the canopy planes accumulated in sorted-height order (float
-        accumulation pinned by the hard rule)."""
+        accumulation pinned by the hard rule). The sweep keeps ONE
+        running cumulative (ticket 0022): each height's plane is built
+        in sorted-instance-id order and added IN PLACE as the sweep
+        descends — the exact add sequence of the old planes+cums
+        (descending heights, sorted iids within height), so the shade
+        sums are bitwise-identical with only two (H,W) f64 planes live
+        at once instead of one per distinct height + one cumulative."""
         H, W = self.ctx.H, self.ctx.W
         by_h: dict[float, list[Dressed]] = {}
         for d in self.instances.values():
@@ -563,7 +576,30 @@ class Engine:
         if not by_h:
             return {}
         hs = sorted(by_h, reverse=True)          # descending heights
-        planes = []
+
+        def _light(d: Dressed, shade: np.ndarray) -> np.ndarray:
+            """The layer-coefficient × shade-tolerance f_light fold."""
+            layer = str(d.view.get("layer") or "ground")
+            coef = sa.LAYER_LIGHT_COEF.get(layer, 0.5)
+            tol = d.view.get("shade_tolerance")
+            tol = float(tol) if isinstance(tol, (int, float)) else 0.0
+            return np.clip(1.0 - coef * shade
+                           * (1.0 - min(max(tol, 0.0), 1.0)),
+                           0.0, 1.0).astype(np.float32)
+
+        # reader cursor: every non-water instance sorted by height
+        # DESCENDING — a reader's shade level is a step function of its
+        # height (the count of canopy heights strictly above it), so one
+        # monotone sweep emits each reader exactly once, at the cum that
+        # holds its strictly-taller planes (ticket 0022).
+        readers = sorted(
+            ((float(d.view.get("height_m") or 0.0), iid, d)
+             for iid, d in self.instances.items()
+             if d.view.get("medium") != "water"),
+            key=lambda t: t[0], reverse=True)
+        cum = np.zeros((H, W), dtype=np.float64)
+        out: dict[str, np.ndarray] = {}
+        ri = 0
         for h in hs:
             plane = np.zeros((H, W), dtype=np.float64)
             # sorted instance ids within a height: the float accumulation
@@ -573,29 +609,20 @@ class Engine:
                 d = by_iid[iid]
                 plane[d.world_slice()] += d.N * float(
                     d.view.get("canopy_density") or 0.0)
-            planes.append(plane)
-        # cums[k] = sum of the k TALLEST planes (heights hs[:k]);
-        # reader shade = cums[count of heights > height_reader].
-        cums = [np.zeros((H, W), dtype=np.float64)]
-        for p in planes:
-            cums.append(cums[-1] + p)
-        out: dict[str, np.ndarray] = {}
-        for iid in sorted(self.instances):
-            d = self.instances[iid]
-            if d.view.get("medium") == "water":
-                continue
-            h_r = float(d.view.get("height_m") or 0.0)
-            cnt = 0
-            while cnt < len(hs) and hs[cnt] > h_r:
-                cnt += 1
-            shade = np.clip(cums[cnt][d.world_slice()], 0.0, 1.0)
-            layer = str(d.view.get("layer") or "ground")
-            coef = sa.LAYER_LIGHT_COEF.get(layer, 0.5)
-            tol = d.view.get("shade_tolerance")
-            tol = float(tol) if isinstance(tol, (int, float)) else 0.0
-            f = np.clip(1.0 - coef * shade
-                        * (1.0 - min(max(tol, 0.0), 1.0)), 0.0, 1.0)
-            out[iid] = f.astype(np.float32)
+            # readers at or above this height see only the STRICTLY
+            # taller planes — emit them before this plane lands
+            while ri < len(readers) and readers[ri][0] >= h:
+                d = readers[ri][2]
+                out[readers[ri][1]] = _light(
+                    d, np.clip(cum[d.world_slice()], 0.0, 1.0))
+                ri += 1
+            cum += plane
+        # the tail: readers below every canopy height read the full sum
+        while ri < len(readers):
+            d = readers[ri][2]
+            out[readers[ri][1]] = _light(
+                d, np.clip(cum[d.world_slice()], 0.0, 1.0))
+            ri += 1
         return out
 
     def _verdict_feed(self, t: int,
@@ -785,14 +812,21 @@ class Engine:
                 if t - mem[c] > dsp.MEM_ROUNDS:
                     del mem[c]
         # occupancy per lineage: cell -> owning instance (§3 invariant);
-        # world-grid object arrays, filled window-by-window
+        # int world-grids of per-lineage instance INDEX plus the
+        # id↔index table (the _merge_candidates idiom) — the old object
+        # grids carried a 0.5 MiB string-pointer array per lineage;
+        # int32 + a list is ~48 MB/round cheaper at high instance
+        # counts and value-identical (-1 = empty, last writer wins).
         owner: dict[str, np.ndarray] = {}
+        owner_ids: dict[str, list[str]] = {}
         for d in self.instances.values():
+            ids = owner_ids.setdefault(d.x.species_id, [])
             o = owner.setdefault(
                 d.x.species_id,
-                np.full((self.ctx.H, self.ctx.W), "", dtype=object))
+                np.full((self.ctx.H, self.ctx.W), -1, dtype=np.int32))
             y0, y1, x0, x1 = d.box
-            o[y0:y1, x0:x1][d.cells] = d.x.instance_id
+            o[y0:y1, x0:x1][d.cells] = len(ids)
+            ids.append(d.x.instance_id)
         # arrival rain per instance as SPARSE dicts (world (y,x) keys —
         # the packet shapes' native form; the bbox optimization keeps
         # per-instance grids windowed, never world-sized). n_new carries
@@ -826,6 +860,7 @@ class Engine:
             front = [(y + y0, x + x0) for (y, x) in dsp.frontier_cells(occ)]
             mem = self._colon_mem.setdefault(d.x.species_id, {})
             own = owner[d.x.species_id]
+            own_ids = owner_ids[d.x.species_id]
             pk_n = 0            # per-instance packet counter (the
                                 # "establish" child's draw index)
             # jump is episodic: the share is the packet size, the rate
@@ -848,8 +883,8 @@ class Engine:
                             t, iid, "jump",
                             dsp.packet_jump_disk(
                                 (ty, tx), self.ctx.H, self.ctx.W),
-                            shares.pop("jump"), own, mem, d, rng, pk_n,
-                            deposits, n_new, jump_cells)
+                            shares.pop("jump"), own, own_ids, mem, d,
+                            rng, pk_n, deposits, n_new, jump_cells)
                     else:
                         shares["local"] = shares.get("local", 0.0) \
                             + shares.pop("jump")
@@ -891,8 +926,8 @@ class Engine:
                     else:
                         continue
                     self._scatter_packet(
-                        t, iid, ch, cells, pk_share, own, mem, d, rng,
-                        pk_n, deposits, n_new, jump_cells)
+                        t, iid, ch, cells, pk_share, own, own_ids, mem,
+                        d, rng, pk_n, deposits, n_new, jump_cells)
         # arrival + founding (rule B+, spec v0.4 §7.3 — UNCHANGED; the
         # packet decision already chose WHICH cells get N): the window
         # is grown to cover the new deposits and founded cells, the
@@ -1019,9 +1054,9 @@ class Engine:
                 orphan=np.zeros_like(N0, dtype=bool), box=fbox)
 
     def _scatter_packet(self, t: int, iid: str, ch: str, cells,
-                        pk_share: float, own, mem, d: Dressed,
-                        rng: Stream, pk_n: int, deposits, n_new,
-                        jump_cells) -> None:
+                        pk_share: float, own, own_ids, mem,
+                        d: Dressed, rng: Stream, pk_n: int, deposits,
+                        n_new, jump_cells) -> None:
         """Spec §7.2/§7.3 v0.6: ONE colonization packet of instance
         *iid* (channel *ch*, world-coord shape *cells*, budget
         *pk_share*).
@@ -1045,13 +1080,17 @@ class Engine:
             return
         val = float(pk_share) / len(cells)
         for (y, x) in cells:
-            who = own[y, x]
-            key = iid if who in ("", iid) else who
+            idx = own[y, x]
+            # -1 = empty; own_ids resolves the index to the occupant id
+            # (the id↔index table, ticket 0022 — value-identical to the
+            # old object grid: empty or self-owned -> the emitter).
+            key = iid if idx < 0 or own_ids[idx] == iid \
+                else own_ids[idx]
             dk = deposits[key]
             dk[(y, x)] = dk.get((y, x), 0.0) + val
             if ch == "jump":
                 jump_cells.setdefault(key, set()).add((y, x))
-        cand = [c for c in cells if own[c[0], c[1]] == ""]
+        cand = [c for c in cells if own[c[0], c[1]] < 0]
         if not cand:
             return                              # fully absorbed
         mean_f = dsp.packet_mean_f(d.cache.f_worst, cand)
@@ -1346,8 +1385,15 @@ class Engine:
             wip = self.instances[iid].x
             fresh.traits = wip.traits
             fresh.pressure = wip.pressure
+            # NO re-derive here (ticket 0022): post-commit traits are
+            # exactly what the feed's _refresh already derived above
+            # (drift retention keeps the WIP genes — same dict object —
+            # and the re-mint changes only the record bookkeeping, never
+            # the genes), and derive/vital/percap are pure and
+            # draw-free, so view/percap/vital/cache are unchanged by the
+            # re-mint (the cache re-evaluation gate re-decides
+            # identically: genes_distance(traits, cache.traits) = 0).
             self.instances[iid].x = fresh
-            self._refresh(self.instances[iid])
         return log
 
     # ── the round ────────────────────────────────────────────────────

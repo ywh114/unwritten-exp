@@ -546,6 +546,33 @@ def test_canopy_shade_height_escape():
     assert np.allclose(light2[iid], 1.0)
 
 
+# ── commit re-sync: derived views unchanged (ticket 0022) ─────────────
+
+
+def test_commit_leaves_derived_views_unchanged():
+    """Ticket 0022 item 2: the commit re-sync re-draws the Instance
+    record (lineage bookkeeping) but must NOT re-derive the derived
+    view — post-commit traits equal what the feed's _refresh already
+    derived, and derive/vital/percap are pure and draw-free, so
+    view/percap/vital are unchanged by the commit. A re-added
+    commit-side _refresh re-deriving different values would break the
+    invariant."""
+    eng = _engine()
+    ys, xs = np.nonzero(eng.ctx.land_cell)
+    mid = len(ys) // 2
+    _plant(eng, "tree.oak", [(int(ys[mid]), int(xs[mid]))])
+    eng.round(0)
+    for d in eng.instances.values():
+        fresh_view = eng.sim.derive(d.x.traits, eng.pack)
+        assert fresh_view == d.view, \
+            "post-commit derived view differs from the traits' pure " \
+            "derivation (the commit must not re-derive)"
+        assert d.percap == pop.percap_demand(d.view), \
+            "post-commit percap stale"
+        assert d.vital == eng.sim.vital(d.x.traits, eng.pack), \
+            "post-commit vital stale"
+
+
 # ── §12.8 cache budget ───────────────────────────────────────────────
 
 

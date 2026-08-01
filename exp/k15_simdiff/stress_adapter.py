@@ -365,6 +365,13 @@ class WorldContext:
     sal_water: np.ndarray       # (H,W) h_salinity / SAL_REF_GKG clipped
     water_cell: np.ndarray      # (H,W) bool ocean|sea|lake
     land_cell: np.ndarray       # (H,W) bool
+    ocean_mask: np.ndarray      # (H,W) bool ocean|sea (the engine's
+                                # §5.0 downstream fallback input)
+    wind_u_raw: np.ndarray      # (12,8,128,128) f32 monthly wind (raw
+                                # dump; the engine's §5.0 mean_wind input)
+    wind_v_raw: np.ndarray      # (12,8,128,128) f32
+    flow_dir: np.ndarray | None  # (H,W) i8 K11 h_flow_dir, or None
+    w_elev: np.ndarray | None   # (H,W) f64 elevation, or None
     hand_m: np.ndarray          # (H,W) m height above nearest drainage
     ground_class: np.ndarray    # (H,W) uint8 argmin over ground_d2
     eff_retention: np.ndarray   # (H,W) (kept for completeness/debug)
@@ -409,8 +416,6 @@ def load_world(seed: int) -> WorldContext:
     ctx.sea_level = sea = float(manifest["sea_level"])
     with np.load(k11_dir / "world.npz") as zf:
         z = {k: zf[k] for k in zf.files}
-    with np.load(K14_OUT / f"seed_{seed:08d}" / "derived.npz") as df:
-        d = {k: df[k] for k in df.files}
 
     H, W = z["h_ocean_mask"].shape
     ctx.H, ctx.W = H, W
@@ -427,6 +432,16 @@ def load_world(seed: int) -> WorldContext:
     lake = z["h_lake_mask"].astype(bool)
     ctx.water_cell = ocean | lake
     ctx.land_cell = ~ctx.water_cell
+    # the engine's §5.0 world fields (mean wind, D8 downstream) read
+    # the RAW dump fields — cached here so Engine.__init__ does not
+    # re-open world.npz (ticket 0022; the _ensure_snow_glacier
+    # self-provisioning idiom). The wind fields are the 128² (12, 8)
+    # monthly sets; flow_dir/w_elev are the (H,W) D8 fallback inputs.
+    ctx.ocean_mask = ocean
+    ctx.wind_u_raw = z["c_wind_u"]
+    ctx.wind_v_raw = z["c_wind_v"]
+    ctx.flow_dir = z["h_flow_dir"] if "h_flow_dir" in z else None
+    ctx.w_elev = z["w_elev"] if "w_elev" in z else None
     ctx.hand_m = hand_m(z["h_hand"], sea).astype(np.float32)
     river_any = (z["h_river_width_monthly"] > 0).any(axis=0) \
         if "h_river_width_monthly" in z else z["h_river_mask"]
@@ -468,7 +483,13 @@ def load_world(seed: int) -> WorldContext:
     ctx.eff_sal_add = eff["sal_add"].astype(np.float32)
     ctx.eff_hard = eff["hard"].astype(np.float32)
     ctx.eff_loose = eff["loose"].astype(np.float32)
-    persisted = {k: d[f"ground_eff_{k}"].astype(np.float32) for k in eff}
+    # lazy derived.npz access: the file holds ~470 MB of decompressed
+    # 1024² products (marine_productivity, water_potential, ...) but the
+    # anchor pass only needs the persisted ground_eff_* rasters (B5 §3
+    # verification) — ~1.8 MB, read key-by-key (ticket 0022).
+    with np.load(K14_OUT / f"seed_{seed:08d}" / "derived.npz") as df:
+        persisted = {k: df[f"ground_eff_{k}"].astype(np.float32)
+                     for k in eff}
     for k in eff:
         if not np.array_equal(persisted[k], ctx.__dict__[f"eff_{k}"]):
             raise RuntimeError(

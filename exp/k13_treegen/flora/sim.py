@@ -62,8 +62,8 @@ Contract notes (ambiguities resolved here):
   per content pack: FloraSim(pack). derive/select/vital use their passed
   pack; mutate uses the carried one.
 * The ``toward`` target sets must be unambiguous per trait: no trait may
-  appear with different toward sets in two table rows (checked at mutate
-  time — ValueError).
+  appear with different toward sets in two table rows (checked at
+  construction — ValueError).
 """
 
 from __future__ import annotations
@@ -247,6 +247,11 @@ class FloraSim:
 
     def __init__(self, pack: ContentPack) -> None:
         self.pack = pack
+        # the stress_response toward sets (trait/generic -> target
+        # frozenset) — a pure function of the immutable pack table,
+        # computed once at construction (mutate ran a full table walk
+        # per call; ticket 0022). The ambiguity ValueError fires here.
+        self._toward = _toward_map(pack.stress_response)
 
     # ── derive ──────────────────────────────────────────────────────
 
@@ -360,7 +365,7 @@ class FloraSim:
         then reset the plane. All draws through *rng* (child stream per
         pressured trait — the forces.py idiom)."""
         pack = self.pack
-        toward = _toward_map(pack.stress_response)
+        toward = self._toward
         plan = _plan_of(x.traits)
         before = dict(x.traits)
         changed = False
