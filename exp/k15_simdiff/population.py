@@ -106,8 +106,13 @@ def vital_update(N, s_env, D, K_L, birth: float, death: float) -> np.ndarray:
     s_real = np.asarray(s_env, dtype=np.float64) + density_stress(D, K_L)
     growth = birth * bscale(s_real)
     mort = death + DIE_K * np.maximum(s_real, 0.0)
+    # clip the exponent: short-generation plans have birth ≫ 1/yr and
+    # exp((growth − mort)·T) overflows long before the clip to [0, 1]
+    # matters (exp(50) already exceeds any representable density); the
+    # clip also keeps 0·inf → nan out of N.
     N1 = np.clip(np.asarray(N, dtype=np.float64)
-                 * np.exp((growth - mort) * ROUND_YEARS), 0.0, 1.0)
+                 * np.exp(np.clip((growth - mort) * ROUND_YEARS,
+                                  -50.0, 50.0)), 0.0, 1.0)
     return N1
 
 
