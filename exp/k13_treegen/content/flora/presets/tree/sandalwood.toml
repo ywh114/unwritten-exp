@@ -1,0 +1,104 @@
+# Tree preset: sandalwood-grade — the hemiparasitic tree archetype
+# (Santalales, the order the composition research flags as
+# glaringly-missing-if-absent; Santalum is a root hemiparasite).
+# Added 2026-08-02: breaks the tree-plan parasitism freeze the
+# frozen_axis gate surfaced on seed 2 after the bundle removal.
+
+[preset]
+id = "tree.sandalwood"
+plan = "tree"
+grade = "sandalwood"
+status = "hand-authored"
+source = "Santalales hemiparasitic tree archetype (Santalum album)"
+
+[axes]
+height_m = 12.0
+woodiness = 1.0
+wood_density = 0.9
+growth_rate = 0.25
+longevity_yr = 150.0
+shade_tolerance = 0.3
+pioneer_climax = 0.7
+layer = "canopy"
+halle_axes = "monoaxial"
+halle_growth = "rhythmic"
+halle_flowering = "terminal"
+halle_branching = "sympodial"
+halle_orientation = "orthotropic"
+apical_dominance = 0.6
+branch_angle = 50.0
+tier_spacing_m = 1.0
+leaf_shape = "elliptical"
+leaf_size_cm = 6.0
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_compoundness = "simple"
+leaf_arrangement = "opposite"
+leaf_sla = 8.0
+leaf_trap = "none"
+drip_tips = 0.0
+root_type = "tap"
+root_depth_m = 1.5
+root_spread_m = 12.0
+crown_spread_m = 7.0
+root_special = "haustoria"
+mycorrhizal = "none"
+n_fixation = "none"
+flower_symmetry = "radial"
+pigment_pathway = "carotenoid"
+pigment_expression = 0.3
+flower_size_mm = 6.0
+inflorescence = "panicle"
+pollination_syndrome = "bee"
+sexuality = "perfect"
+fruit_type = "drupe"
+fruit_size_mm = 12.0
+fruit_color = "black"
+dispersal_channels = { local = 0.3, wind = 0.0, water = 0.0, animal = 0.65, jump = 0.05 }
+propagule_mass_mg = 300.0
+propagule_count = 50000.0
+seed_bank = "transient"
+serotiny = "no"
+masting_interval_yr = 2.0
+jump_rate = 0.05
+mechanical_defense = "none"
+chemical_defense = "essential_oil"
+defense_potency = 0.3
+storage_organ = "endosperm"
+clonal_spread_m = 0.0
+succulence = 0.0
+bark_thickness_cm = 1.5
+bark_texture = "scaly"
+cuticle_thickness = 0.4
+pubescence = 0.05
+leafout_month = 1
+deciduous_trigger = "none"
+bloom_start_month = 2
+bloom_length_months = 2.0
+fruit_month = 9
+synchronous_flowering = "no"
+photosynthesis = "C3"
+parasitism = "hemi"
+mycoheterotrophy = "no"
+nutrient_package = "none"
+drought_tolerance = 0.6
+salinity_tolerance = 0.1
+waterlogging_tolerance = 0.2
+ph_tolerance = 0.45
+fertility_requirement = 0.4
+growing_season_req = 8.0
+fire_strategy = "resprouter"
+snow_adaptation = "none"
+engineer_impact = 0.3
+coloniality = 0.05
+
+[generics]
+support = "trunk_single"
+feeding_organ = "C3_foliage"
+signal = "flower_small_color"
+dispersal = "animal_bird"
+defense = "chemical_aromatic"
+storage = "endosperm"
+covering = "bark_thin"
+phenology = "evergreen"
+sensor_array = "tropism_standard"

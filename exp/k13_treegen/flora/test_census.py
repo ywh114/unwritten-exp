@@ -1,9 +1,10 @@
-"""Census validation — 0012 Task A invariants (the open-catalog gate).
+"""Census validation — 0012 interim (individual-track only).
 
-Every check is content-level (reads pins.toml + presets) except the
-lineage count, which builds the tree the way genesis would. A new
-species or bundle entry must keep these green; that is the entry
-contract documented in CENSUS.md.
+The bundle-track pins and their validation were REMOVED 2026-08-02:
+bundles were misimplemented as species-rank tree pins (the definition,
+per rulings 9-14, is a SIM-SIDE envelope + anchor-clade entity, NOT a
+tree node). The rework re-adds bundle + stub-scaffold validation; the
+checks here enforce the individual-track census that remains.
 
 Run: uv run pytest -q exp/k13_treegen/flora/test_census.py
 """
@@ -17,18 +18,21 @@ import pytest
 from exp.k13_treegen.flora.backbone import build
 from exp.k13_treegen.flora.constraints import violations
 from exp.k13_treegen.flora.content import (
-    bundle_region, is_bundle, load_content, merged_pin, merged_preset)
+    load_content, merged_pin, merged_preset)
 from exp.k13_treegen.flora.naming import assign_names
 from exp.k13_treegen.model import Rank
 from exp.k13_treegen.registry import ValueType
 
 CONTENT = pathlib.Path(__file__).parent.parent / "content" / "flora"
 
-# the two-track budget (owner ruling 2026-08-01: "<200 feasible").
+# the seeded-lineage budget (owner ruling 2026-08-01: "<200 feasible").
 MAX_LINEAGES = 200
-# seeded-substrate floor (0012 coverage floor 2): >=2 SEEDED lineages
-# (individual pins + bundle pins) whose tolerance envelope covers each
-# B3 substrate class. Content-level proxy for the Task C audit.
+# seeded-substrate floor (0012 coverage floor 2): >=2 SEEDED individual-
+# track lineages whose tolerance envelope covers each B3 substrate
+# class. Interim note: the old two-track census met some rows via
+# bundles; with the misinterpreted bundle pins removed, a row that falls
+# below the floor is xfailed as a documented interim gap until the
+# rework lands.
 SUBSTRATE_FLOOR = {
     "bog/fen":          {"waterlogging_tolerance": 0.8},
     "alluvium (rip.)":  {"waterlogging_tolerance": 0.5},
@@ -46,30 +50,25 @@ def pack():
 
 
 @pytest.fixture(scope="module")
-def census(pack):
-    """Census view: the authored records with merged axes, split by
-    track."""
-    ind, bundles = [], []
-    for pin in pack.pins:
-        axes, generics = merged_pin(pack, pin)
-        rec = {"pin": pin, "axes": axes, "generics": generics}
-        (bundles if is_bundle(pin) else ind).append(rec)
-    return {"individual": ind, "bundle": bundles, "pack": pack}
+def records(pack):
+    """Individual-track census view: the authored pin records with merged
+    axes (bundles removed 2026-08-02; the rework re-adds them)."""
+    return [{"pin": pin, "axes": merged_pin(pack, pin)[0]}
+            for pin in pack.pins]
 
 
 # ── census size ────────────────────────────────────────────────────────
 
 
-def test_census_under_200_pins(census):
-    """The authored census (both tracks) stays under the 200 budget."""
-    total = len(census["individual"]) + len(census["bundle"])
-    assert total < MAX_LINEAGES, total
+def test_census_under_200_pins(records):
+    """The authored individual-track census stays under the 200 budget."""
+    assert len(records) < MAX_LINEAGES, len(records)
 
 
 @pytest.mark.parametrize("seed", [1, 2, 3])
 def test_built_tree_under_200_lineages(pack, seed):
-    """The lineage count the sim would seed: the built tree's species
-    (pins + radiations + background + relatives) stays < 200."""
+    """The lineage count the sim would seed (pins + radiations +
+    background + relatives) stays < 200."""
     tree = build(seed, pack)
     assign_names(tree, pack, seed)
     sp = [n for n in tree.nodes.values() if n.rank is Rank.SPECIES]
@@ -82,77 +81,20 @@ def test_sids_unique(pack):
     assert len(sids) == len(set(sids))
 
 
-# ── two-track partition ────────────────────────────────────────────────
-
-
-def test_track_counts(census):
-    """Individual track in [40, 70]; bundle track an order of 10s."""
-    n_ind, n_bun = len(census["individual"]), len(census["bundle"])
-    assert 40 <= n_ind <= 70, n_ind
-    assert 30 <= n_bun <= 70, n_bun
-
-
-def test_bundle_flag_shape(census):
-    """A bundle record is a species-rank pin with `bundle = true`, a
-    covered-region note, no radiation (frozen placeholder), no
-    parent_pin (never nested in an individual genus clade), and a
-    valid preset."""
-    for rec in census["bundle"]:
-        pin = rec["pin"]
-        assert is_bundle(pin) is True
-        assert pin.get("rank", "species") == "species", pin["label"]
-        assert bundle_region(pin), f"{pin['label']}: covered_region missing"
-        assert not pin.get("radiation"), \
-            f"{pin['label']}: bundles are frozen, no radiation"
-        assert not pin.get("parent_pin"), \
-            f"{pin['label']}: bundle must not nest in an individual genus"
-        assert pin["preset"] in census["pack"].presets, pin["preset"]
-
-
-def test_disjoint_partition(census):
-    """No individual-track species is also a bundle member: the two
-    tracks' binomial genera are disjoint (an oak is never inside a
-    woodland bundle), and no pin carries both flags."""
-    ind_genera = set()
-    for rec in census["individual"]:
-        nm = rec["pin"].get("name", {})
-        b = nm.get("binomial")
-        if b:
-            ind_genera.add(b.split()[0])
-        assert not is_bundle(rec["pin"])
-    for rec in census["bundle"]:
-        nm = rec["pin"].get("name", {})
-        g = nm.get("binomial", "").split()[0]
-        assert g, rec["pin"]["label"]
-        assert g not in ind_genera, \
-            f"bundle {rec['pin']['label']} shares genus {g!r} with an individual-track lineage"
-
-
-def test_clade_spread_co_window(census):
-    """Bundles whose covered regions name the same biome-region window
-    are spread across binomial genera (families) — no clade clones."""
-    from collections import defaultdict
-    by_region = defaultdict(list)
-    for rec in census["bundle"]:
-        region = bundle_region(rec["pin"]).split(";")[0].strip()
-        g = rec["pin"]["name"]["binomial"].split()[0]
-        by_region[region].append(g)
-    for region, genera in sorted(by_region.items()):
-        if len(genera) >= 2:
-            assert len(set(genera)) == len(genera), \
-                f"co-window bundles {region!r} share a genus: {genera}"
+def test_individual_track_count(records):
+    """Individual track in [40, 70] (0012 Task A item 2)."""
+    assert 40 <= len(records) <= 70, len(records)
 
 
 # ── record coherence (the open-catalog gate) ───────────────────────────
 
 
-def test_all_enum_values_legal(census):
+def test_all_enum_values_legal(records, pack):
     """Every committed enum value in a pin record is a registry state
     — except the spore/decomposer "none" idiom (pre-existing: spore
     plans author `inflorescence = "none"`, outside the registry). The
     real legality gate is the constraint audit (next test)."""
-    pack = census["pack"]
-    for rec in list(census["individual"]) + list(census["bundle"]):
+    for rec in records:
         for ax, v in rec["axes"].items():
             spec = pack.registry.axes.get(ax)
             if spec is None or spec.value_type is not ValueType.ENUM:
@@ -163,12 +105,11 @@ def test_all_enum_values_legal(census):
                 f"{rec['pin']['label']}: {ax}={v!r} not in registry states"
 
 
-def test_pin_records_pass_constraint_gate(census):
+def test_pin_records_pass_constraint_gate(records, pack):
     """A merged pin record must not breach a triggered constraint rule
     (the build-time trust caveat: pinned records are authored, so the
     author is responsible for legality)."""
-    pack = census["pack"]
-    for rec in list(census["individual"]) + list(census["bundle"]):
+    for rec in records:
         errs = violations_from_axes(pack, rec["axes"], rec["pin"])
         assert not errs, f"{rec['pin']['label']}: {errs[:2]}"
 
@@ -184,20 +125,19 @@ def violations_from_axes(pack, axes, pin):
 # ── seeded substrate floor (content-level proxy) ───────────────────────
 
 
-def test_substrate_floor(census):
-    """Each B3 substrate class has >=2 seeded lineages (individual OR
-    bundle) whose merged tolerance envelope covers it. Glacier MASK is
-    not a substrate: the snow-margin row keys on the snow_adaptation
-    margin forms instead (nothing roots on the mask)."""
-    pool = [rec for rec in census["individual"] + census["bundle"]]
+def test_substrate_floor(records):
+    """Each B3 substrate class has >=2 seeded individual-track lineages
+    whose merged tolerance envelope covers it. Glacier MASK is not a
+    substrate: the snow-margin row keys on the snow_adaptation margin
+    forms instead (nothing roots on the mask)."""
     for substrate, req in SUBSTRATE_FLOOR.items():
         if "snow_adaptation" in req:
             margin = {"conical_shed", "flexible", "cushion_mat"}
-            hit = [r for r in pool
+            hit = [r for r in records
                    if r["axes"].get("snow_adaptation") in margin]
         else:
             ax, lo = next(iter(req.items()))
-            hit = [r for r in pool
+            hit = [r for r in records
                    if isinstance(r["axes"].get(ax), (int, float))
                    and r["axes"][ax] >= lo]
         assert len(hit) >= 2, \

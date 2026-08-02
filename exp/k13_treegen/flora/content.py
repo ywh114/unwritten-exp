@@ -43,22 +43,6 @@ class ContentPack:
         return float(v) if isinstance(v, (int, float)) else None
 
 
-def is_bundle(pin: dict) -> bool:
-    """Content-level bundle-track flag (0012 Task A). A bundle is an
-    authored archetype SUPERSET generalist (one plan+layer, wide
-    tolerances, central optima, archetypal enums) — frozen in the sim
-    and differentiated post-sim by 0027. The flag is a plain data field
-    on the [[pin]] table (`bundle = true`); the machinery ignores it
-    except where a caller asks. Absence (or false) = individual track."""
-    return bool(pin.get("bundle"))
-
-
-def bundle_region(pin: dict) -> str | None:
-    """The bundle's covered-region note (free text; a coverage-audit
-    input, never read by the engine)."""
-    return pin.get("covered_region")
-
-
 def merged_preset(pack: ContentPack, preset: dict) -> tuple[dict, dict]:
     """(axes, generics) for a preset. Flora presets author every axis —
     no organ defaults layer (interface parity with K13's merged_preset).
