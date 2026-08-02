@@ -275,6 +275,111 @@ def test_beyond_g_star_cluster_branches_as_daughter():
     assert len(auth2.tree.nodes) == 1
 
 
+def test_first_commit_birth_g_ranks_fragment():
+    """Ticket 0018 (the earned-g first-commit rank): a fragment minted
+    with a birth-g (the pre-genesis descent's g_end) ranks at its FIRST
+    commit — classify(birth_g, the lineage's g_star) — EXEMPT from the
+    cluster floors (CLUSTER_PERSIST_ROUNDS / CLUSTER_MIN_SIZE guard
+    emergent wobble, not earned divergence): NO seed_clusters, NO
+    persistence, a single-instance fragment branches immediately when
+    its scalar-only distance from the record clears the lineage's merge
+    threshold. Beyond g* → a real SPECIES branch (the tree gains
+    width)."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(temp=30.0, moisture=0.6)       # 0.55 scalar-only >> thresh
+    assert rec_merge_dist(RECORD, b) >= MERGE_D
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                      g_since_split={"iA": 120.0, "iB": 700.0},
+                      g_star={SID1: 500.0},
+                      birth_g={"iB": 700.0})   # the fragment's earned g
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iA"].outcome is Outcome.KEEP and by["iA"].orthodox
+    assert by["iB"].outcome is Outcome.SPLIT
+    assert by["iB"].target and len(by["iB"].target) == 16
+    assert auth.tree.nodes["1.s0"].rank is Rank.SPECIES
+    assert auth.redraw("iB").species_id == by["iB"].target
+    # one-shot: the same instance WITHOUT birth-g does NOT rank (the
+    # cluster floors still apply to ordinary instances)
+    auth2 = _auth(_species("1", SID1, RECORD))
+    log2 = auth2.update([_view(SID1, "iA", RECORD, mass=5.0),
+                         _view(SID1, "iB", b, mass=1.0)], _rng(),
+                        g_since_split={"iA": 120.0, "iB": 700.0},
+                        g_star={SID1: 500.0})
+    by2 = {d.instance_id: d for d in log2.instances}
+    assert by2["iB"].outcome is Outcome.KEEP
+    assert len(auth2.tree.nodes) == 1
+
+
+def test_first_commit_birth_g_below_star_is_subspecies():
+    """The same first-commit rank BELOW the lineage's g* divides as a
+    SUBSPECIES node (the RFC's "fragment below g* = subspecies") — even
+    though the trait distance alone would exceed SPECIATION_D (the
+    SPECIATION_D band is not a rounds currency; g gates the rank)."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(temp=30.0, moisture=0.6)       # 0.55 >> thresh and band
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                      g_since_split={"iA": 120.0, "iB": 200.0},
+                      g_star={SID1: 500.0},
+                      birth_g={"iB": 200.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iA"].outcome is Outcome.KEEP
+    assert by["iB"].outcome is Outcome.SUBSPECIES
+    assert auth.tree.nodes["1.ss0"].rank is Rank.SUBSPECIES
+
+
+def test_first_commit_birth_g_below_merge_threshold_recombines():
+    """A fragment whose scalar-only distance from the orthodox record
+    does NOT clear the lineage's merge threshold was not actually
+    diverged: it merges back into the parent at the first commit — no
+    rank, no new node (correct: it is still "same species, same place"
+    on the merge metric)."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(temp=10.2)                     # 0.01 scalar-only < MERGE_D
+    assert rec_merge_dist(RECORD, b) < MERGE_D
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                      g_since_split={"iA": 120.0, "iB": 700.0},
+                      g_star={SID1: 500.0},
+                      birth_g={"iB": 700.0})   # high g, but not diverged
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iA"].outcome is Outcome.KEEP and by["iA"].orthodox
+    assert by["iB"].outcome is Outcome.MERGE
+    assert by["iB"].target == "iA"
+    assert len(auth.tree.nodes) == 1           # no rank: merged back
+    assert auth.redraw("iB") is None           # absorbed, gone
+
+
+def test_first_commit_birth_g_sole_survivor_keeps():
+    """A fragment that IS the orthodox (its lineage's other instances
+    were all carved off at the descent) keeps — it is the lineage's
+    continuity; the normal amend ratchets the record toward it and the
+    normal stem-promotion path speciates it later. No step-0 self-
+    divide. (A sole survivor whose earned g already crossed g* rides
+    the normal whole-lineage promotion instead — same-lineage
+    re-keying, not a step-0 rank: tested by the promotion suite.)"""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(temp=30.0, moisture=0.6)       # diverged, below g*
+    log = auth.update([_view(SID1, "iB", b, mass=1.0)], _rng(),
+                      g_since_split={"iB": 200.0}, g_star={SID1: 500.0},
+                      birth_g={"iB": 200.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iB"].outcome is Outcome.KEEP and by["iB"].orthodox
+    assert len(auth.tree.nodes) == 1
+    assert auth.redraw("iB").species_id == SID1
+
+
+def rec_merge_dist(record, traits) -> float:
+    """The scalar-only distance to the record (the merge-metric shape,
+    ticket 0028) — what the first-commit rank's threshold gate reads."""
+    from exp.k15_simdiff.authority import genes_distance
+    metric = {k: e for k, e in _METRIC.items()
+              if e.value_type in ("scalar", "int")}
+    return genes_distance(record, traits, metric,
+                          include_generics=False)
+
+
 def test_g_crossing_promotes_whole_lineage():
     """Ticket 0008: the LINEAGE's g — the orthodox instance's
     g_since_split (the record's representative) — crossing the

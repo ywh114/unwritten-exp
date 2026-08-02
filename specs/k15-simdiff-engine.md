@@ -1,6 +1,19 @@
-# K15 sim-diff engine (flora rounds) — build spec v1.2
+# K15 sim-diff engine (flora rounds) — build spec v1.6
 
-2026-08-01. v1.2 (ticket 0010, real cladogenesis) replaces the
+2026-08-01. v1.6 (ticket 0018 REBUILD, 2026-08-02, pre-genesis
+descent with the earned-g first-commit rank) supersedes the v1.3
+design note below it: the adapted fringe returns, but the fragments
+now EARN their g (g_end = DES_G_FRAC × n_gen × rate_mult — the v4-era
+build minted them at g = 0, which was wrong) and the authority ranks
+a fragment at its FIRST commit — classify(g_end, the lineage's g*):
+beyond g* → a real SPECIES branch (the tree gains width), below →
+SUBSPECIES node; EXEMPT from the cluster floors (they guard emergent
+wobble, not earned divergence), PROVIDED the fragment's scalar-only
+distance from the orthodox record exceeds the lineage's merge
+threshold (else it merges back — no rank: it was not actually
+diverged). NO seed_clusters, NO genesis-time tree writes — round 0
+does nothing to the tree. The v1.2 baseline (real cladogenesis)
+replaces the
 wholesale g-promotion with CLUSTER-LEVEL divides: non-orthodox trait
 clusters tracked across commits (member-overlap continuity) divide off
 as real daughters once stable (CLUSTER_PERSIST_ROUNDS) and
@@ -15,8 +28,10 @@ sibling, ramped over ISO_RAMP_ROUNDS, fully isolated lineages accrue
 g at (1 + ISO_G_GAIN)× — island clones speciate first); clusters are
 merge-exempt by construction (scalar d >= SUB_D > MERGE_D), so the
 CONSOL governor never resets a persistence clock; `seed_clusters`
-makes a pre-seeded round-0 cluster geometry (ticket 0018's pre-genesis
-descent) a first-class input. Measured seed-1 30-round run: see §15.
+makes a pre-seeded round-0 cluster geometry a first-class input
+(machinery available; ticket 0018's adapted fragments do NOT register
+— the first-commit rank path handles them instead). Measured seed-1
+30-round run: see §15.
 v1.1 (ticket 0020, DESIGN PIVOT) makes genesis seeding
 capacity-aware with SPARSE founders and PARTIAL range coverage: §10
 replaces the flat GENESIS_N0 = 0.2 founder density with the
@@ -770,15 +785,176 @@ median pair's U is ~1/12 of its cell's total ΣU, so u = F0·ΣU/U_j
 stays ~1.2 at F0=0.1 — see the v1.1 changelog; the pre-0020 done-means
 u targets are unreachable without a density gate).
 
+### 10.1 Pre-genesis descent — the adapted fringe (ticket 0018; owner
+model 2026-08-02, binding; REBUILT 2026-08-02 with the earned-g
+first-commit rank — the v4-era build notes are superseded by the
+g-earning + rank rulings where they conflict)
+
+1. Genesis: random distribution (UNCHANGED — sparse founders, partial
+   coverage, partition; the existing genesis stays as-is).
+2. Per species, ONE pinned roll from `Stream(seed, "k15.descent",
+   sid)` (`P_ADAPT`): the species' chance at adaptation. Most species
+   don't get it.
+3. If harsh cells/blobs exist for that species (the marginal tail:
+   s_env ≥ S_ENV_TAIL of the species' viable range; connected
+   components = blobs ≥ DESCENT_MIN_BLOB_CELLS), each blob has a
+   pinned chance (`P_BREAKOFF`) of being broken off into a NEW
+   INSTANCE (same lineage sid, new instance id, normal engine
+   instance — NOT a species node at genesis, NOT seed_clusters) whose
+   traits are **adapted** toward those cells' conditions by the
+   descent.
+   - The descent modifies the SEEDED component ONLY (owner ruling
+     2026-08-02): the new instance covers the blob's SEEDED part
+     (blob ∩ the species' clone union); that part is carved out of
+     the owning parent clone's range in place (a clone emptied
+     entirely is not minted — no zero-mass parent), and the
+     instance's N is minted over it at founder demand with the
+     ADAPTED percap.
+   - A broken blob with NO seeded cells is skipped entirely — no
+     instance. Unseeded harsh cells (the coverage drops, or the
+     eligibility gate's freak-tail residual) STAY unseeded — partial
+     coverage (ticket 0020) deliberately leaves them for §7
+     colonization, and the descent must not override that.
+4. **g-earning (the rebuild's fix — the v4-era build minted fragments
+   at g = 0, which was wrong):** the fragment's `g_since_split` at
+   mint is `g_end = DES_G_FRAC × n_gen × rate_mult` — its n_gen
+   descent generations × the lineage's rate multiplier (fauna RFC §1,
+   drawn once via pinned k15.g; content-addressed, so the descent
+   reading it before the mint loop changes nothing), on the rounds'
+   generation-time g scale. DES_G_FRAC = 3.0 (cal): the fast-tail
+   head-start — the tree's fast lineages (tempo n_gen×rate_mult p90 ≈
+   187, seed 1) × 3 ≈ 560 clear the MEDIAN g* (500), so fast lineages
+   rank as new SPECIES at the first commit; the median tempo (p50 ≈
+   52) × 3 ≈ 156 stays below the MINIMUM g* (160.7) — slow trees land
+   far below, SUBSPECIES candidates. Normal clones stay g = 0; the
+   species record's traits are NEVER modified.
+5. **Rank at the first commit (the rebuild's rank path):** the
+   authority ranks a fragment minted with birth-g at its FIRST commit
+   — `classify(g_end, the LINEAGE's g*)`: beyond g* → a real SPECIES
+   node (a branch: the tree gains width), below → SUBSPECIES node.
+   EXEMPT from the cluster floors (CLUSTER_MIN_SIZE /
+   CLUSTER_PERSIST_ROUNDS — those guard emergent wobble, not earned
+   divergence), PROVIDED the fragment's scalar-only trait distance
+   from the orthodox record EXCEEDS the lineage's merge threshold
+   (the commit-time per-lineage threshold, §9 — else it merges back
+   into the parent immediately: no rank; it was not actually
+   diverged). A fragment that IS the orthodox (its lineage's other
+   instances were all carved off) keeps — it is the lineage's
+   continuity; the normal amend ratchets the record toward it and the
+   normal stem-promotion path speciates it later. The engine passes
+   birth-g per instance to `authority.update()` (the same channel as
+   g_star / merge_d), ONE-SHOT at the fragments' first commit. NO
+   seed_clusters, NO genesis-time tree writes — round 0 does nothing
+   to the tree.
+
+Hard constraints (owner rulings, 2026-08-02):
+
+- **Simulation-free, practically free**: NO `stress_adapter.evaluate`
+  calls inside the descent loop — the blob cells' per-requirement
+  provenance is already in the genesis §5.1 reduced cache (`prov` at
+  the worst month, `F_worst`, `U`). ONE evaluate per ADAPTED INSTANCE
+  (its amended view) for its own cache — that's it. Wall target:
+  single-digit seconds added to genesis (not minutes).
+- **Eligibility gate IS the whole freak-tail handling**: `K_L >=
+  N_FLOOR·percap` in the genesis seeding mask (one-line, toggleable
+  `GENESIS_K_L_GATE`, default True) drops the clamp-bound freak-tail
+  residual (u ≈ 1e5 artifact). The descent is seeded-only (above), so
+  gate-excluded clamp cells are never candidates — there is NO rescue
+  arm until a real substrate-fit (U or percap) lever exists (none
+  wired today: nothing pressures crown_spread_m/woodiness, and U is
+  not trait-pressureable).
+- **Determinism**: all draws via pinned `k15.descent` streams (per
+  species; content-addressed children per blob/draw); the k15.genesis
+  draw sequence is never perturbed (separate stage). P_ADAPT = 0 +
+  gate off ⇒ the pass is a no-op and genesis is byte-identical to
+  HEAD.
+- Per-species AND per-blob rolls as the owner's sentence reads (species
+  gate, then each blob independently). Roll probabilities are named
+  module constants (`descent.P_ADAPT`, `descent.P_BREAKOFF`).
+- Descent mechanics: aggregate the blob's cached provenance into one
+  verdict (compose → `FloraSim.select` → pressure plane), mutate the
+  new instance's traits for a small generation budget (n_gen =
+  clip(ceil(ROUND_YEARS/gen_time), 1, N_GEN_CAP), gen_time =
+  2·sqrt(height_m) — the engine idiom, from the RECORD view's height)
+  against the fixed pressure, NO re-eval inside the loop, NO
+  steady-tier gate / novel tail (rounds phenomena; this is the
+  ticket's "clean adaptation signal"). The species record's traits
+  are NOT modified.
+
+As built (clone @ 2c4513f + the rebuild, `exp/k15_descent/descent.py`
++ `engine._pregenesis_descent` + `authority._process_group` step 0):
+
+- **Roll scheme**: species gate `P_ADAPT = 0.1` (content-addressed
+  child "adapt"); per blob `P_BREAKOFF = 0.2` (child "break:{i}", in
+  the pinned connected-components emission order). Blob i's instance
+  id draws `rng.child("mint:{i}")`; the descent's per-generation
+  mutate streams are `rng.child("mutate:{iid}:{gen}")` — every draw
+  content-addressed, so draw order never matters.
+- **Blob definition**: `ok_ungated ∧ (s_env ≥ S_ENV_TAIL ∨ K_L <
+  N_FLOOR·percap)` — the marginal band of the viable range (s_env ≥
+  S_ENV_TAIL = −0.15: F_worst ∈ [0.5, 0.575]) UNION the clamp-bound
+  freak-tail residual (the gate's drop set — gate-excluded cells are
+  never candidates; the gate IS the whole freak-tail handling);
+  connected components (8-connectivity) ≥ DESCENT_MIN_BLOB_CELLS = 8.
+- **g-earning**: `g_end = DES_G_FRAC × n_gen × rate_mult` with
+  `DES_G_FRAC = 3.0`; the engine mints the fragment at
+  `_g_since_split[iid] = g_end` and hands `_birth_g[iid] = g_end` to
+  `authority.update()` at the first commit (cleared after — a
+  fragment ranks exactly once).
+- **Rank path**: `authority._process_group` step 0 — before the
+  cluster graph, each birth-g instance (sorted instance id) is
+  classified: rec_merge[i] ≥ thresh → `_divide` (SPECIES if
+  birth-g > g*, else SUBSPECIES), else MERGE into the orthodox
+  parent. Ranked/merged members are excluded from the cluster
+  adjacency (the persistence tracker never re-sees them as emergent
+  geometry). Runs before the amend; the SPECIES rank is born promoted
+  (never re-promotes).
+- **Seeded-only mint**: the adapted instance is minted over the
+  blob's SEEDED part only — N = `_n_field(seeded, K_L, percap_a)` at
+  founder demand with the ADAPTED percap, box from the seeded mask,
+  verdict/pressure from the seeded cells' cached prov.
+- **Parent surgery**: the seeded part is zeroed from the owning
+  clone's range in place; a clone emptied entirely is not minted. A
+  broken blob with no seeded cells is skipped entirely.
+- **Empty roll ⇒ byte-identical**: P_ADAPT = 0 + gate off ⇒ genesis
+  byte-identical to HEAD (verified on the clone).
+
+Measured (seed 1, clone @ 2c4513f + the rebuild, 2026-08-02):
+14/102 species rolled in, 26 adapted instances from 356 harsh blobs
+(42 break-off blobs skipped — no seeded cells). Genesis wall:
+gate-only ≈ 7.9 s → gate + descent ≈ 8.7–9.3 s (+0.9 s — the 26
+per-adapted-instance evaluates; absolute walls on this shared box are
+load-noisy, the deltas are not). r1 fragment fates: 5 SPECIES (birth-g
+beyond the lineage g*), 7 SUBSPECIES, 11 merged back (scalar distance
+below the lineage's commit-time merge threshold — not actually
+diverged), 3 dead in round 1 (the first-round extinction wave, never
+committed); no fragment is KEEP except a sole-survivor. Distinctness:
+ranked fragments' scalar distance to record med 0.0078 (range
+0.0045–0.0222) — each cleared its lineage's commit-time threshold by
+construction. 10-round speciation vs the P_ADAPT = 0 control (both
+gate on): branches 50 vs 47 (+3), subspecies 47 vs 33 (+14), total
+divides +17; living lineages 102 → 107 (peak 112 at r3, never below
+the 102 start) vs the control's monotone fall 102 → 94. Ranked
+fragment persistence: 9/12 ranked lineages still alive at r10, 1
+descendant divide from a ranked lineage. Determinism: genesis + 3
+rounds double run byte-identical (836 instances); P_ADAPT = 0 + gate
+off byte-identical to HEAD (772 instances, digest `cmp` clean).
+
 ## 11. Module layout
 
 ```
 exp/k15_simdiff/
   req_flora.py        (landed)      stress_adapter.py   (landed)
-  engine.py           round loop + context wiring (§4, §5.0)
+  engine.py           round loop + context wiring (§4, §5.0, §10.1 hook)
   genesis.py          §10           dispersal.py        §7
-  population.py       §6            authority.py        §9 (+reflog)
+  population.py       §6            authority.py        §9 (+reflog,
+                                                     §10.1 rank step 0)
   test_engine.py      §12           __main__.py         extend: rounds demo
+exp/k15_descent/
+  descent.py          §10.1         (ticket 0018: the adapted fringe +
+                                    g-earning; P_ADAPT/P_BREAKOFF/
+                                    S_ENV_TAIL/DESCENT_MIN_BLOB_CELLS/
+                                    DES_G_FRAC)
 ```
 Pure functions + named module constants throughout (house style);
 numpy-vectorized per-cell updates, per-instance Python loops (instance
@@ -840,6 +1016,10 @@ counts are small).
 | SEEDBANK_KEEP | 7.3 | 0.5 | persistent rain carryover |
 | GENESIS_F / GENESIS_F0 / GENESIS_COVER | 10 | **0.5 (settled)** / **0.1 (ticket 0020)** / **0.5 (ticket 0020)** | genesis threshold / capacity-relative sparse founder demand fraction / per-component coverage keep probability (partial range coverage) |
 | GENESIS_MIN_CELLS | 10 | **32 (ticket 0009)** | genesis mint floor — components below this are dropped (DIFF_MIN_CELLS sliver scale) |
+| GENESIS_K_L_GATE | 10.1 | **True (ticket 0018)** | eligibility gate — seed only where K_L ≥ N_FLOOR·percap (the whole freak-tail handling: the descent is seeded-only, so gate-excluded clamp cells are never candidates; toggleable — off + P_ADAPT=0 ⇒ genesis byte-identical to HEAD) |
+| P_ADAPT / P_BREAKOFF | 10.1 | **0.1 / 0.2 (ticket 0018, cal)** | species' chance at adaptation (ONE pinned roll per species) / per-harsh-blob break-off probability |
+| S_ENV_TAIL / DESCENT_MIN_BLOB_CELLS | 10.1 | **−0.15 / 8 (ticket 0018, cal)** | marginal-tail threshold on s_env (F_worst ∈ [0.5, 0.575]) / minimum harsh-blob cells to break off |
+| DES_G_FRAC | 10.1 | **3.0 (ticket 0018 rebuild, cal)** | g-earning scale: g_end = DES_G_FRAC × n_gen × rate_mult — the fast-tail head-start (fast lineages clear the median g* 500; slow trees stay below the min g* 160) |
 | PART_AREA_REF / PART_K_MAX / PART_MIN_CELLS | 10 | 200 / 8 / 20 | partition knobs |
 | RE_EVAL_D | 5.1 | 0.15 | cache invalidation distance |
 | DIFF_D / MOB_K | 7.3 | **0.2 (cal)** / 1.0 | verdict-gate base / mobility gain |
@@ -886,6 +1066,54 @@ counts are small).
 
 ## 15. Changelog
 
+- **v1.6** (2026-08-02, ticket 0018 REBUILD — pre-genesis descent
+  with the earned-g first-commit rank): the adapted fringe returns
+  (spec §10.1; v4-era P_ADAPT = 0.1 / P_BREAKOFF = 0.2 / S_ENV_TAIL =
+  −0.15 / DESCENT_MIN_BLOB_CELLS = 8 / GENESIS_K_L_GATE = True, the
+  seeded-only scope, cache-only sim-free descent, ONE evaluate per
+  adapted instance — all preserved from the v4-era design), with the
+  v4-era build's TWO fixes:
+  1. **g-earning**: a fragment is minted at `_g_since_split = g_end =
+     DES_G_FRAC × n_gen × rate_mult` (its descent generations × the
+     lineage's rate multiplier, on the rounds' generation-time g
+     scale) — the v4-era build minted fragments at g = 0, which was
+     wrong (they could never rank by g). DES_G_FRAC settled 3.0: the
+     fast-tail head-start — fast lineages (tempo p90 ≈ 187) clear the
+     median g* (500); slow trees (tempo p50 ≈ 52) stay below the
+     minimum g* (160.7). Normal clones stay g = 0; the species record
+     is untouched.
+  2. **First-commit rank**: the authority ranks a fragment minted
+     with birth-g at its FIRST commit — `classify(g_end, the
+     lineage's g*)`: beyond g* → a new SPECIES node (a real branch),
+     below → SUBSPECIES node. EXEMPT from the cluster floors
+     (CLUSTER_MIN_SIZE / CLUSTER_PERSIST_ROUNDS guard emergent
+     wobble, not earned divergence), PROVIDED the fragment's
+     scalar-only distance from the orthodox record EXCEEDS the
+     lineage's merge threshold (else it merges back into the parent —
+     no rank: it was not actually diverged). The engine passes
+     birth-g per instance to `authority.update()` (the g_star /
+     merge_d channel), one-shot at the fragments' first commit. NO
+     seed_clusters, NO genesis-time tree writes — round 0 does
+     nothing to the tree. The rank path is `_process_group` step 0
+     (before the cluster graph); it coexists with the 0010 cluster
+     path unchanged — handled members are excluded from the cluster
+     adjacency, so the persistence tracker never re-sees them.
+  Measured (seed 1, clone @ 2c4513f + the rebuild): 14/102 species
+  rolled in, 26 adapted instances (356 harsh blobs; 42 break-off
+  blobs skipped — no seeded cells); genesis wall gate-only ≈ 7.9 s →
+  gate + descent ≈ 8.7–9.3 s (+0.9 s). r1 fragment fates: 5 SPECIES
+  / 7 SUBSPECIES / 11 merged back / 3 dead in round 1 (no fragment is
+  KEEP except a sole-survivor). 10-round speciation vs the P_ADAPT =
+  0 control: branches 50 vs 47 (+3), subspecies 47 vs 33 (+14),
+  living lineages 102 → 107 (peak 112, never below the start) vs the
+  control's fall to 94; 9/12 ranked fragment lineages alive at r10, 1
+  descendant divide. Determinism: genesis + 3 rounds double run
+  byte-identical; P_ADAPT = 0 + gate off byte-identical to HEAD.
+  Fast tier: 405 passed (401 + 4 new authority first-commit-rank
+  tests). Re-pins (slow tier, measured): speckle floor →
+  DESCENT_MIN_BLOB_CELLS // 2 (realized post-descent min 7);
+  max_round_divides < 1000 (10-round max 206; the v4-era 20-round max
+  with the fringe was 705).
 - **v1.5** (2026-08-02, ticket 0030, threshold re-anchor + gain
   revert): both 0028's and 0029's calibrations sat on a CONTAMINATED
   same-env baseline — the |Δ mean s_env| class mixes genuinely-

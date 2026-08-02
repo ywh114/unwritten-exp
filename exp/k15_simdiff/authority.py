@@ -639,7 +639,8 @@ class TreeAuthority:
                g_since_split: Mapping[str, float] | None = None,
                g_star: Mapping[str, float] | None = None,
                merge_d: Mapping[str, float] | None = None,
-               merge_grace: int | None = None) -> ChangeLog:
+               merge_grace: int | None = None,
+               birth_g: Mapping[str, float] | None = None) -> ChangeLog:
         """The commit. See the module docstring for the full pipeline.
 
         ``merge_candidates``: optional set of 2-instance frozensets the
@@ -664,6 +665,20 @@ class TreeAuthority:
         trait-distance band. The engine always passes both; callers
         that omit them get the old trait-distance band (authority unit
         tests).
+
+        ``birth_g`` (ticket 0018, the earned-g first-commit rank):
+        optional per-instance map of the g an instance was MINTED with
+        (the engine's pre-genesis descent hands the adapted-fringe
+        fragments' g_end here, at their FIRST commit only). A listed
+        instance ranks immediately — classify(birth_g, the LINEAGE's
+        g_star): beyond g* → a real SPECIES branch, below →
+        SUBSPECIES node — EXEMPT from the cluster floors
+        (CLUSTER_PERSIST_ROUNDS / CLUSTER_MIN_SIZE guard emergent
+        wobble, not earned divergence), PROVIDED its scalar-only trait
+        distance from the orthodox record EXCEEDS the lineage's merge
+        threshold (else it merges back into the parent — no rank: it
+        was not actually diverged). Callers that pass no map (unit
+        tests) get no first-commit ranking.
         """
         commit_round = self._round
         self._round += 1
@@ -719,7 +734,7 @@ class TreeAuthority:
             self._process_group(node, group, commit_round, rng,
                                 cands_by_sid.get(sid, ()), deltas,
                                 alive_now, g_since_split, g_star,
-                                merge_d, merge_grace)
+                                merge_d, merge_grace, birth_g)
 
         extinct = sorted(self._alive - alive_now)
         for sid in extinct:
@@ -745,7 +760,8 @@ class TreeAuthority:
                        g_since_split: Mapping[str, float] | None = None,
                        g_star: Mapping[str, float] | None = None,
                        merge_d: Mapping[str, float] | None = None,
-                       merge_grace: int | None = None) -> None:
+                       merge_grace: int | None = None,
+                       birth_g: Mapping[str, float] | None = None) -> None:
         """One species group: orthodox, clusters, divides, merges.
         *candidates* is the group's OWN merge-candidate pairs (the
         update() caller buckets the same-lineage pairs per species —
@@ -754,7 +770,11 @@ class TreeAuthority:
         lineage counts, ticket 0004). *merge_d*: per-lineage merge
         thresholds (ticket 0028 — see merge_d_threshold; per sid the
         gate reads merge_d.get(sid, MERGE_D)); *merge_grace*: the
-        rounds-since-divergence floor (default MERGE_GRACE)."""
+        rounds-since-divergence floor (default MERGE_GRACE).
+        *birth_g*: the ticket-0018 first-commit rank map (see
+        update()) — fragments minted with an earned g rank at their
+        first commit, exempt from the cluster floors, gated by the
+        lineage's merge threshold."""
         sid = node.sid
         m = self.metric
         thresh = (merge_d or {}).get(sid, MERGE_D)
@@ -783,7 +803,7 @@ class TreeAuthority:
         # axes).
         traits_list = [v.traits for v in group]
         dist, rec = _group_distances(traits_list, record_genes, m)
-        dist_merge, _ = _group_distances(
+        dist_merge, rec_merge = _group_distances(
             traits_list, record_genes, self._merge_metric,
             include_generics=False)
 
@@ -793,13 +813,88 @@ class TreeAuthority:
             key=lambda i: (rec[i], -group[i].mass, group[i].instance_id))
         orthodox_id = group[orthodox_i].instance_id
 
+        star = (g_star or {}).get(sid)
+        gs = g_since_split or {}
+        handled: set[int] = set()
+
+        # ── 0. the earned-g FIRST-COMMIT rank (ticket 0018) ─────────
+        # A fragment minted with a birth-g (the pre-genesis descent's
+        # g_end — its earned g) ranks at its FIRST commit: classify
+        # (birth_g, the LINEAGE's g_star) — beyond g* → a real SPECIES
+        # branch (the tree gains width), below → SUBSPECIES node. The
+        # cluster floors (CLUSTER_PERSIST_ROUNDS / CLUSTER_MIN_SIZE)
+        # are EXEMPT here: they guard emergent wobble, not earned
+        # divergence (a fragment descended sim-free before the sim —
+        # it is not a round-1 mutation spike). The one gate: the
+        # fragment's SCALAR-ONLY distance from the orthodox record
+        # must EXCEED the lineage's merge threshold — else it merges
+        # back into the parent immediately (no rank: it was not
+        # actually diverged; the per-lineage threshold is the
+        # discriminating "same species, same place" bound). A fragment
+        # that IS the orthodox (its lineage's other instances were all
+        # carved off) keeps — it IS the lineage's continuity; the
+        # normal amend ratchets the record toward it and the normal
+        # stem-promotion path speciates it later. Runs BEFORE the
+        # cluster graph: the ranked/merged fragments are removed from
+        # the emergent-geometry machinery below. Deterministic: sorted
+        # instance-id iteration, pure bookkeeping, no draws.
+        for i in sorted(range(n), key=lambda i: group[i].instance_id):
+            b_g = (birth_g or {}).get(group[i].instance_id)
+            if b_g is None:
+                continue
+            if i == orthodox_i:
+                continue          # sole survivor: the lineage lives on
+            if rec_merge[i] >= thresh:
+                # earned divergence past the merge gate → rank now
+                if star is not None:
+                    outcome, rank = (Outcome.SPLIT, Rank.SPECIES) \
+                        if b_g > star \
+                        else (Outcome.SUBSPECIES, Rank.SUBSPECIES)
+                else:
+                    # g-less caller: the SPECIATION_D band stands in
+                    # for classify (authority unit tests)
+                    outcome, rank = (Outcome.SPLIT, Rank.SPECIES) \
+                        if rec_merge[i] >= SPECIATION_D \
+                        else (Outcome.SUBSPECIES, Rank.SUBSPECIES)
+                new_sid = self._divide(node, rank, group[i].traits,
+                                       [group[i].instance_id], rng)
+                alive_now.add(new_sid)
+                if rank is Rank.SPECIES:
+                    self._promoted.add(new_sid)
+                handled.add(i)
+                deltas[group[i].instance_id] = InstanceDelta(
+                    instance_id=group[i].instance_id, outcome=outcome,
+                    target=new_sid, orthodox=False)
+                self._instance_lineage[group[i].instance_id] = new_sid
+                self._divergence_round[group[i].instance_id] = \
+                    commit_round
+            else:
+                # below the lineage's merge threshold — not actually
+                # diverged: recombine into the orthodox parent now
+                iid = group[i].instance_id
+                handled.add(i)
+                deltas[iid] = InstanceDelta(
+                    instance_id=iid, outcome=Outcome.MERGE,
+                    target=orthodox_id, orthodox=False)
+                self._instance_lineage.pop(iid, None)
+                self.reflog.append({"event": "merge", "sid": sid,
+                                    "instance": iid,
+                                    "into": orthodox_id})
+
         # clusters = connected components of the graph at d < SUB_D on
         # the scalar-only metric (the merge-metric shape — the full
         # metric's enum contribution would spuriously separate same-blob
-        # pairs at the v1.2 edge, corrupting the cluster geometry)
+        # pairs at the v1.2 edge, corrupting the cluster geometry).
+        # Handled members (the first-commit ranks/merges above) are
+        # excluded: their divide/merge already consumed them — the
+        # persistence tracker must not re-see them as emergent geometry.
         adj = [[] for _ in range(n)]
         for i in range(n):
+            if i in handled:
+                continue
             for j in range(i + 1, n):
+                if j in handled:
+                    continue
                 if dist_merge[i][j] < SUB_D:
                     adj[i].append(j)
                     adj[j].append(i)
@@ -833,10 +928,6 @@ class TreeAuthority:
         deltas[orthodox_id] = InstanceDelta(instance_id=orthodox_id,
                                             outcome=Outcome.KEEP,
                                             target=None, orthodox=True)
-
-        star = (g_star or {}).get(sid)
-        gs = g_since_split or {}
-        handled: set[int] = set()
 
         # ── 1. persistence-tracked cluster divides (ticket 0010 —
         #       replaces the "beyond-g* rides the promotion" sweep) ──

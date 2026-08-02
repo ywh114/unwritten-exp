@@ -45,6 +45,7 @@ from exp.k13_treegen.interface import (ChangeLog, Instance, StressVerdict,
                                        VitalRates)
 from exp.k13_treegen.model import Rank, Tree
 from exp.k13_treegen.registry import Tier, ValueType
+from exp.k15_descent import descent as desc
 from exp.k15_simdiff import authority as auth
 from exp.k15_simdiff import dispersal as dsp
 from exp.k15_simdiff import genesis as gen
@@ -462,6 +463,17 @@ class Engine:
         # acceptance test and the stats harness read it; transient state,
         # never serialized.
         self._founded_new: dict[str, dict[tuple[int, int], float]] = {}
+        # ticket 0018 diagnostics: the last genesis' descent stats
+        # (adapted species / blobs considered / broken instances /
+        # skipped-unseeded blobs) — transient, never serialized
+        self._descent_stats = None
+        # ticket 0018 (rebuild): the fragments' birth-g — g_since_split
+        # at MINT for the adapted-fringe instances (their earned g, spec
+        # §10.1). Presented to the authority at the fragments' FIRST
+        # commit (classify(g_end, lineage g*) + the merge-threshold
+        # gate) and cleared — a fragment ranks exactly once. Normal
+        # clones never enter (minted at g = 0).
+        self._birth_g: dict[str, float] = {}
 
     # ── ids and streams ──────────────────────────────────────────────
 
@@ -603,6 +615,18 @@ class Engine:
             key=lambda n: n.sid)
         rain = gen.genesis_rain_species(
             self.pack, self.ctx, self.seed, self.K, species)
+        # ticket 0018 (spec §10.1): the pre-genesis descent — per
+        # species adaptation roll, per-blob break-off, trait descent,
+        # ONE evaluate per adapted instance. Mutates the parent
+        # CloneSeeds in place (the SEEDED part of a broken-off blob
+        # leaves the parent's range; unseeded cells stay unseeded —
+        # owner ruling 2026-08-02), mints the fragments with their
+        # earned g (g_end ∝ how much they descended — spec §10.1) and
+        # returns the adapted seeds to mint + dress below. Round 0
+        # does nothing to the tree (NO seed_clusters, NO genesis-time
+        # writes — the fragments rank at the first commit).
+        adapted, _ds = self._pregenesis_descent(rain, species)
+        self._descent_stats = _ds
         unseeded: list[str] = []
         for node in species:
             clones, _range_cells, bundle = rain[node.sid]
@@ -613,6 +637,11 @@ class Engine:
             rng = self._stream("genesis", f"mint:{node.sid}")
             shared = None
             for i, clone in enumerate(clones):
+                if not clone.cells.any():
+                    # ticket 0018: the descent broke this clone's whole
+                    # range off into an adapted instance — never mint a
+                    # zero-mass parent
+                    continue
                 iid = self._new_instance_id(rng)
                 self._g_since_split[iid] = 0.0
                 # ticket 0010: born at round 0; contact history empty —
@@ -634,8 +663,154 @@ class Engine:
                     view=view, percap=percap, vital=vital,
                     div=np.zeros_like(N, dtype=bool),
                     orphan=np.zeros_like(N, dtype=bool), box=box)
+        # ticket 0018 (spec §10.1): dress the adapted-fringe instances —
+        # the engine's normal Dressed dressing (own box, N at founder
+        # demand with the ADAPTED percap, div/orphan empty;
+        # _g_since_split and _last_contact already set by the descent
+        # pass — g_since_split at the fragment's EARNED g_end, NOT 0)
+        for _sid, iid, x, N, cache, view, percap, vital, box in adapted:
+            Nw = N[np.s_[box[0]:box[1], box[2]:box[3]]]
+            self.instances[iid] = Dressed(
+                x=x, N=Nw, rain=np.zeros_like(Nw), cache=cache,
+                view=view, percap=percap, vital=vital,
+                div=np.zeros_like(Nw, dtype=bool),
+                orphan=np.zeros_like(Nw, dtype=bool), box=box)
         if unseeded:
             self.authority.register_unseeded(sorted(unseeded))
+        if _ds["broken"]:
+            print(f"  0018 descent: {_ds['broken']} adapted instances "
+                  f"across {_ds['adapted_species']} species "
+                  f"({_ds['blobs']} harsh blobs; "
+                  f"{_ds['skipped_unseeded']} break-off blobs "
+                  f"skipped — no seeded cells)")
+
+    # ── §10.1 pre-genesis descent (ticket 0018) ────────────────────────
+
+    def _pregenesis_descent(self, rain, species) -> list:
+        """Spec §10.1 (ticket 0018): the adapted-fringe instances.
+        Slots AFTER the rain, BEFORE the mint. Per species (sorted
+        sid): the ONE pinned adaptation roll (``k15.descent``,
+        ``descent.P_ADAPT`` — most species don't get it). For an
+        adapted species, each harsh blob (the marginal tail of its
+        viable range — s_env ≥ S_ENV_TAIL — UNION the clamp-bound
+        freak-tail residual K_L < N_FLOOR·percap; connected components
+        ≥ DESCENT_MIN_BLOB_CELLS) rolls an independent
+        ``descent.P_BREAKOFF``. A broken blob is clipped to its SEEDED
+        part (blob ∩ the species' clone union; owner ruling
+        2026-08-02: the descent modifies the SEEDED component ONLY —
+        unseeded harsh cells stay unseeded for §7 colonization, and a
+        blob with no seeded cells is skipped entirely): that part is
+        carved out of the owning parent clone's range in place and
+        mints the adapted instance — N at founder demand with the
+        ADAPTED percap over ``seeded``, box from ``seeded``, traits
+        descended over the engine's generation budget against the
+        seeded cells' cached provenance — simulation-free, NO adapter
+        evaluate inside the loop — and ONE final evaluate produces its
+        own CachedFields. The fragment is minted at its EARNED g (the
+        rebuild's fix — v4 minted at 0): ``g_end = DES_G_FRAC ×
+        n_gen × rate_mult`` (descent generations × the lineage's rate
+        multiplier, the rounds' Δg magnitude; the lineage params are
+        drawn once via pinned k15.g — content-addressed by sid, so
+        the descent reading them before the mint loop changes
+        nothing); ``_g_since_split`` AND the ``_birth_g`` first-commit
+        handoff carry g_end. Gate-excluded clamp cells are never in
+        the union, hence never candidates — the eligibility gate IS
+        the whole freak-tail handling (no real substrate-fit lever
+        exists; the v3 "lifted 0" was structural). Returns (seeds,
+        stats): the adapted seeds (minted + dressed by genesis()) and
+        the pass accounting (adapted species, blobs considered,
+        broken instances, break-off blobs skipped for lack of seeded
+        cells); mutates the parent CloneSeed arrays in place.
+        Deterministic: every draw rides the species' pinned k15.descent
+        stream (content-addressed children: adapt / break:{i} / mint:{i}
+        / rec:{i} / mutate:{iid}:{gen}), blob order pinned
+        (connected_components' sorted-top-left emission). P_ADAPT = 0
+        (with the §10 eligibility gate off) ⇒ a no-op — genesis
+        byte-identical to HEAD."""
+        full = (0, self.ctx.H, 0, self.ctx.W)
+        out = []
+        stats = {"adapted_species": 0, "blobs": 0, "broken": 0,
+                 "skipped_unseeded": 0}
+        for node in species:
+            clones, _range_cells, bundle = rain[node.sid]
+            if not clones:
+                continue
+            if not desc.species_adapts(self.seed, node.sid):
+                continue
+            rng = desc.stream(self.seed, node.sid)
+            # the record view (derive is pure and draw-free; the record
+            # is never modified — descent starts from a fresh mint)
+            rec_traits = {**node.axes, **node.generics,
+                          "plan": node.plan, "preset": node.preset}
+            view_rec = self.sim.derive(rec_traits, self.pack)
+            percap = pop.percap_demand(view_rec)
+            U = bundle["U"].astype(np.float64)
+            K_L = gen.lineage_capacity(self.K, U)
+            harsh = desc.harsh_mask(bundle["F_worst"],
+                                    gen.valid_mask(view_rec, self.ctx),
+                                    K_L, percap)
+            blobs = [c for c in gen.connected_components(harsh)
+                     if int(c.sum()) >= desc.DESCENT_MIN_BLOB_CELLS]
+            if not blobs:
+                continue
+            stats["adapted_species"] += 1
+            stats["blobs"] += len(blobs)
+            union = np.logical_or.reduce([cl.cells for cl in clones])
+            rate_mult, _star = self._lineage(node.sid)
+            for i, blob in enumerate(blobs):
+                if not desc.blob_breaks_off(self.seed, node.sid, i):
+                    continue
+                # owner ruling 2026-08-02: the descent modifies the
+                # SEEDED component ONLY — unseeded harsh cells (the
+                # coverage drops / the gate's clamp residual) stay
+                # unseeded for §7 colonization; a blob with no seeded
+                # cells is skipped entirely (no instance)
+                seeded = blob & union
+                if not seeded.any():
+                    stats["skipped_unseeded"] += 1
+                    continue
+                stats["broken"] += 1
+                iid = self._new_instance_id(rng.child(f"mint:{i}"))
+                x = self.authority.mint(node.sid, iid,
+                                        rng.child(f"rec:{i}"))
+                verdict = desc.blob_verdict(bundle, seeded, K_L, percap)
+                pressure = self.sim.select(verdict, x.traits, self.pack)
+                height = float(view_rec.get("height_m") or 0.0)
+                ng = desc.descent_n_gen(height)
+                desc.descend(self.sim, x, pressure, rng, iid, ng)
+                view = self.sim.derive(x.traits, self.pack)
+                # ONE evaluate per adapted instance — its amended view,
+                # for its own cache (spec §10.1; the descent loop itself
+                # is evaluate-free)
+                cache = self._evaluate_cache(view, x.traits)
+                percap_a = pop.percap_demand(view)
+                vital = self.sim.vital(x.traits, self.pack)
+                # minted over the SEEDED part only; the unseeded part of
+                # the blob is untouched — no instance covers it
+                N = gen._n_field(seeded, K_L, percap_a).astype(np.float64)
+                box = _mask_box(seeded, full)
+                # the seeded part is carved out of the owning parent
+                # clone's range in place (a cell belongs to one clone —
+                # partitions are disjoint)
+                for cl in clones:
+                    if not (seeded & cl.cells).any():
+                        continue
+                    cl.cells[seeded] = False
+                    cl.N[seeded] = 0.0
+                # ── g-earning (the rebuild's fix) ──
+                # the fragment's g_since_split = g_end ∝ how much it
+                # descended: its n_gen descent generations × the
+                # lineage's rate_mult on the rounds' generation-time g
+                # scale (DES_G_FRAC mirrors the rounds' Δg magnitude).
+                # Normal clones stay g = 0. The authority classifies
+                # this birth-g at the fragment's FIRST commit.
+                g_end = desc.g_end(ng, rate_mult)
+                self._g_since_split[iid] = g_end
+                self._birth_g[iid] = g_end
+                self._last_contact[iid] = 0
+                out.append((node.sid, iid, x, N, cache, view,
+                            percap_a, vital, box))
+        return out, stats
 
     # ── §4 step 1: verdict feed ──────────────────────────────────────
 
@@ -1490,7 +1665,14 @@ class Engine:
             views, rng, merge_candidates=candidates,
             g_since_split=gs, g_star=dict(self._g_star),
             merge_d=self._merge_thresholds(),
-            merge_grace=self.merge_grace)
+            merge_grace=self.merge_grace,
+            birth_g=dict(self._birth_g))
+        # ticket 0018: the birth-g handoff is ONE-SHOT — a fragment
+        # ranks at its FIRST commit (classify(g_end, lineage g*) +
+        # the merge-threshold gate); cleared here so later commits see
+        # an empty map. Pure bookkeeping, draw-free (an unranked
+        # fragment that died before the commit never returns).
+        self._birth_g.clear()
         for delta in log.instances:
             iid = delta.instance_id
             if iid not in self.instances:

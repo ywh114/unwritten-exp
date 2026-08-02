@@ -41,6 +41,7 @@ from exp.k15_simdiff.genesis import (
     reduced,
     valid_mask,
 )
+from exp.k15_descent.descent import DESCENT_MIN_BLOB_CELLS
 from kernel.hashrng import Stream
 
 FLORA_CONTENT = Path("exp/k13_treegen/content/flora")
@@ -294,7 +295,16 @@ def test_genesis_species_sparse_founders(pack_sim, world, k15_world):
     u = D/K_L is REPORTED, not asserted: sparse founders deliberately
     leave density competition to the rounds (measured u p50 1.22 /
     frac u>1 0.58 at F0=0.1 — the old done-means u targets are
-    unreachable without a density gate; see the v1.1 changelog)."""
+    unreachable without a density gate; see the v1.1 changelog).
+    v1.3 re-pin (ticket 0018, pre-genesis descent): the no-speckle
+    floor moves from the GENESIS_MIN_CELLS mint floor to
+    DESCENT_MIN_BLOB_CELLS // 2 — the descent legitimately mints
+    fringe instances at the 8-cell blob floor AND shrinks parents
+    below the original mint floor when a marginal blob breaks off (a
+    broken-off fringe is not speckle; the 32-cell floor still governs
+    the ORIGINAL clone seeding — pre-descent). A true speckle
+    instance (1-3 cells) still trips the bound (realized post-descent
+    minimum on seed 1: 7)."""
     from exp.k15_simdiff.engine import Engine
 
     eng = Engine(1, pack=pack_sim[0], ctx=k15_world)
@@ -311,7 +321,7 @@ def test_genesis_species_sparse_founders(pack_sim, world, k15_world):
     for d in live:
         ws = d.world_slice()
         occ = d.cells
-        assert int(occ.sum()) >= GENESIS_MIN_CELLS, \
+        assert int(occ.sum()) >= DESCENT_MIN_BLOB_CELLS // 2, \
             f"speckle clone of {d.x.species_id}: {int(occ.sum())} cells"
         minted_cells[d.x.species_id] = \
             minted_cells.get(d.x.species_id, 0) + int(occ.sum())

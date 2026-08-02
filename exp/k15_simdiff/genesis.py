@@ -120,6 +120,17 @@ PART_MIN_CELLS = 20     # partition: components below this stay single
 # (median 3), so the floor cuts genesis to the ~9% fat blobs the owner's
 # fat-blobs ruling wants (1-10 instances per lineage).
 GENESIS_MIN_CELLS = 32
+# ticket 0018 (spec §10.1): the eligibility gate — seed a cell only
+# where K_L >= N_FLOOR * percap, i.e. where the N_FLOOR clamp does NOT
+# bind (a clamp-bound cell is born at u = N_FLOOR·percap/K_L > 1 —
+# guaranteed round-1 density death + stress noise, the measured u≈1e5
+# freak-tail artifact). The descent is seeded-only, so gate-excluded
+# clamp cells are never descent candidates — the gate IS the whole
+# freak-tail handling (no substrate-fit lever exists; the v3 "lifted
+# 0" was structural, not a tuning miss). One line, toggleable
+# (False → the pre-0018 seeding; P_ADAPT=0 + gate off ⇒ genesis
+# byte-identical to HEAD).
+GENESIS_K_L_GATE = True
 # freshwater habitat mask floor for the medium mask (stat-pass value)
 FRESH_MASK_MIN = 0.01
 
@@ -588,6 +599,8 @@ def genesis_rain_species(pack, ctx: sa.WorldContext, seed: int,
         K_L = lineage_capacity(K, U)
         ok = ((F_worst >= GENESIS_F) & valid_mask(view, ctx)
               & (K_L > pop.K_EPS))
+        if GENESIS_K_L_GATE:
+            ok &= K_L >= pop.N_FLOOR * percap
         evals[node.sid] = {
             "U": U, "K_L": K_L, "ok": ok, "percap": percap,
             "D": demand_field(K_L, percap),

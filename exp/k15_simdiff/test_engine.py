@@ -54,6 +54,7 @@ REDUCED_CACHE_MB = 4.25         # spec §12 item 8 (§13): 3.9 + one plane —
 HERE = Path(__file__).resolve().parent
 SCANNED = ["engine.py", "genesis.py", "dispersal.py", "population.py",
            "authority.py", "stress_adapter.py", "req_flora.py"]
+SCANNED_DESCENT = ["descent.py"]   # ticket 0018: same hard-rule scan
 # usage-shaped patterns only (a docstring saying "never np.random" is
 # the rule stated, not a violation)
 BANNED = re.compile(
@@ -954,6 +955,11 @@ def test_hard_rule_source_scan():
         for i, line in enumerate(text.splitlines(), 1):
             if BANNED.search(line):
                 offenders.append(f"{name}:{i}: {line.strip()}")
+    for name in SCANNED_DESCENT:               # ticket 0018 (descent.py
+        text = (HERE.parent / "k15_descent" / name).read_text()  # lives
+        for i, line in enumerate(text.splitlines(), 1):  # in its own pkg)
+            if BANNED.search(line):
+                offenders.append(f"{name}:{i}: {line.strip()}")
     assert not offenders, "\n".join(offenders)
 
 
@@ -1041,7 +1047,11 @@ def test_full_run_acceptance():
 @pytest.mark.slow
 def test_genesis_partition_diverges():
     """§12.3 divide half (v1.2 re-pin, ticket 0010; re-pinned again
-    ticket 0028): genesis clone pairs of one lineage (minted under the
+    ticket 0028; v1.3 ticket 0018: the pre-genesis descent ranks 12
+    fragments at r1 (5 SPECIES + 7 SUBSPECIES, earned-g first-commit
+    rank) and the lineage count GROWS 102 -> 107 by r10 (never below
+    the 102 start) vs the control's monotone fall to 94): genesis
+    clone pairs of one lineage (minted under the
     radiated SPECIES sids since ticket 0004 — the 35 ORDER nodes are
     ancestors, never seeded) register REAL divides within R rounds.
     The v1.2 machinery: isolated clones accrue g faster (the forces.py
@@ -1118,6 +1128,11 @@ def test_genesis_partition_diverges():
     # the v0.7 disease was SUSTAINED spurious per-instance splits
     # (100s every round); the measured max here is a one-off promotion
     # wave (464 at r13, mostly 0-160 elsewhere) — the bound is loose
-    # enough to admit waves, tight enough to catch sustained churn
-    assert max_round_divides < 700, \
+    # enough to admit waves, tight enough to catch sustained churn.
+    # v1.3 re-pin (ticket 0018): the pre-genesis descent's earned-g
+    # first-commit ranks (5 SPECIES + 7 SUBSPECIES at r1 on seed 1)
+    # add to the waves — measured 10-round max 206 (r3); the v4-era
+    # 20-round max with the adapted fringe was 705 (r13), so the bound
+    # moves to 1000 (loose enough for waves, tight enough for churn)
+    assert max_round_divides < 1000, \
         f"churn: {max_round_divides} divides in one round"
