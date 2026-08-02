@@ -4,8 +4,8 @@
 
 Builds the flora tree for SEED (8-digit zero-padded in output names),
 names it, runs the metrics gate, and writes:
-    <out>/k14_seedNNNNNNNN.json    the committed tree (byte-stable)
-    <out>/k14_seedNNNNNNNN.report  the metrics report (diff-able)
+    <out>/flora_seedNNNNNNNN.json    the committed tree (byte-stable)
+    <out>/flora_seedNNNNNNNN.report  the metrics report (diff-able)
 With --species, also prints N sample species one-liners. Defaults:
 out = exp/k13_treegen/out.
 """
@@ -51,7 +51,7 @@ def main() -> None:
     tree, report = generate(args.seed, pack)
     out_dir = args.out or OUT
     out_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"k14_seed{args.seed:08d}"
+    stem = f"flora_seed{args.seed:08d}"
     tree_path = out_dir / f"{stem}.json"
     report_path = out_dir / f"{stem}.report"
     tree_path.write_text(tree.dumps())

@@ -1,7 +1,8 @@
 """Flora naming glue — the K13 M8 nomenclature engine with the flora
-plan->suffix-grade map and the k14 stream persona. Everything else
-(salience, synonym chains, context stems, guaranteed naming) is the
-shared engine.
+plan->suffix-grade map and the flora stream persona (root entity "k14"
+in seeding.py — a historical determinism anchor, kept until the
+documented re-pin). Everything else (salience, synonym chains, context
+stems, guaranteed naming) is the shared engine.
 """
 
 from __future__ import annotations

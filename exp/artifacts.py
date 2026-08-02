@@ -16,7 +16,7 @@ byte hash), and regenerate via the producer's CLI when missing.
 Layout convention (producer-owned):
     k11   -> exp/k11_worldgen/out/seed_{seed:08d}/   (world.json + world.npz)
     k13   -> exp/k13_treegen/out/k13_seed{seed:08d}.json
-    flora -> exp/k13_treegen/out/k14_seed{seed:08d}.json
+    flora -> exp/k13_treegen/out/flora_seed{seed:08d}.json
     k15   -> exp/k15_simdiff/out/seed_{seed:08d}/    (the ticket-0013
              delivery dump: state/density/tree/reflog + display layers)
 
@@ -68,7 +68,7 @@ GENERATORS: dict[str, GeneratorSpec] = {
         cli=("exp.k13_treegen", "{seed}")),
     "flora": GeneratorSpec(
         name="k13_flora",
-        rel_path="exp/k13_treegen/out/k14_seed{seed:08d}.json",
+        rel_path="exp/k13_treegen/out/flora_seed{seed:08d}.json",
         is_dir=False,
         stamp_files=(),
         version_key="version",

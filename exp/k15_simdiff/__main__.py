@@ -6,7 +6,7 @@ plus the sim-diff engine rounds demo.
     PYTHONPATH=. uv run python -m exp.k15_simdiff --seed 1 --rounds 8 --per-round
 
 The default mode loads the flora tree
-(exp/k13_treegen/out/k14_seedNNNNNNNN.json) and the anchor world
+(exp/k13_treegen/out/flora_seedNNNNNNNN.json) and the anchor world
 context, evaluates all 150 radiated species (timed), and prints the
 B5 §8 acceptance table on seed 1:
 
@@ -295,7 +295,7 @@ def run(seed: int) -> int:
     pack = load_content(FLORA_CONTENT)
     ctx = load_world(seed)
     tree = Tree.from_json(json.loads(
-        (TREE_OUT / f"k14_seed{seed:08d}.json").read_text()))
+        (TREE_OUT / f"flora_seed{seed:08d}.json").read_text()))
     sp = [n for n in tree.nodes.values() if n.rank is Rank.SPECIES]
     assert len(sp) == 150, len(sp)
 

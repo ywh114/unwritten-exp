@@ -5,6 +5,10 @@ C3) with its own root persona, so flora draws never alias fauna draws.
 from kernel.hashrng import Stream
 
 # Root persona for the whole flora tree-gen. Everything descends from this.
+# The "k14" string is a historical determinism anchor (the flora tree
+# predates the k13 unification): renaming it re-keys every flora draw and
+# forces a full re-pin — kept until the documented re-pin (0012 Task D /
+# 0032). Do not change without re-pinning every pinned test.
 _ROOT_ENTITY = "k14"
 
 

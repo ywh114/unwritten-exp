@@ -24,7 +24,7 @@ def test_layout():
     assert str(artifact_path("k13", 12)).endswith(
         "exp/k13_treegen/out/k13_seed00000012.json")
     assert str(artifact_path("flora", 1)).endswith(
-        "exp/k13_treegen/out/k14_seed00000001.json")
+        "exp/k13_treegen/out/flora_seed00000001.json")
     with pytest.raises(KeyError):
         artifact_path("k99", 1)
 
