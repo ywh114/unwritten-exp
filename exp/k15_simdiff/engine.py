@@ -26,6 +26,7 @@ functions (spec §5.0 wording covers both).
 from __future__ import annotations
 
 import math
+import time
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -578,7 +579,7 @@ class Engine:
 
     # ── §10 genesis ──────────────────────────────────────────────────
 
-    def genesis(self) -> None:
+    def genesis(self, *, progress: bool = False) -> None:
         """Round 0 (spec §10, tickets 0004/0020): seed every radiated
         SPECIES node of the committed tree directly — each species gets
         its own range evaluation, partition and clones (the 35 ORDER
@@ -608,13 +609,28 @@ class Engine:
         branch terminated (ticket 0004; measured 48/150 unseeded on
         seed 1: 4 zero-range + 41 all-sub-floor + 3 all-below-K_EPS).
         Deterministic: species processed in sorted sid order, every
-        draw from pinned k15 streams."""
+        draw from pinned k15 streams. With ``progress`` True, the rain
+        prints per-species progress (genesis.py) and the engine prints
+        a phase tick per stage (rain / descent / mint) as each
+        completes — timing and counter-only, no draws, no state."""
+        t0 = time.perf_counter()
+
+        def tick(label: str) -> None:
+            nonlocal t0
+            if not progress:
+                return
+            dt = time.perf_counter() - t0
+            t0 = time.perf_counter()
+            print(f"genesis  {label:>8} {dt:5.2f}s", flush=True)
+
         full = (0, self.ctx.H, 0, self.ctx.W)
         species = sorted(
             (n for n in self.tree.nodes.values() if n.rank is Rank.SPECIES),
             key=lambda n: n.sid)
         rain = gen.genesis_rain_species(
-            self.pack, self.ctx, self.seed, self.K, species)
+            self.pack, self.ctx, self.seed, self.K, species,
+            progress=progress)
+        tick("rain")
         # ticket 0018 (spec §10.1): the pre-genesis descent — per
         # species adaptation roll, per-blob break-off, trait descent,
         # ONE evaluate per adapted instance. Mutates the parent
@@ -627,6 +643,7 @@ class Engine:
         # writes — the fragments rank at the first commit).
         adapted, _ds = self._pregenesis_descent(rain, species)
         self._descent_stats = _ds
+        tick("descent")
         unseeded: list[str] = []
         for node in species:
             clones, _range_cells, bundle = rain[node.sid]
@@ -675,6 +692,7 @@ class Engine:
                 view=view, percap=percap, vital=vital,
                 div=np.zeros_like(Nw, dtype=bool),
                 orphan=np.zeros_like(Nw, dtype=bool), box=box)
+        tick("mint")
         if unseeded:
             self.authority.register_unseeded(sorted(unseeded))
         if _ds["broken"]:

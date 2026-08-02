@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -55,10 +56,31 @@ def _compass_from(mu: float, mv: float) -> str:
         int((deg + 22.5) // 45) % 8]
 
 
+_step_t = [0.0]
+_step_msg = [""]
+
+
 def _step(msg: str) -> None:
-    """Progress line for the demo build (each logic pass, as it starts).
-    Stderr, so `--json` stdout stays machine-readable."""
-    print(f"[k11] {msg}", file=sys.stderr, flush=True)
+    """Progress line for the demo build: the PREVIOUS stage's elapsed
+    time (as it completes), then the next stage's announcement. Stderr,
+    so `--json` stdout stays machine-readable."""
+    now = time.perf_counter()
+    if _step_msg[0]:
+        print(f"[k11] {_step_msg[0]} ... {now - _step_t[0]:5.2f}s",
+              file=sys.stderr, flush=True)
+    _step_t[0] = now
+    _step_msg[0] = msg
+    print(f"[k11] {msg} ...", file=sys.stderr, flush=True)
+
+
+def _step_end() -> None:
+    """Flush the final stage's elapsed time (the last _step has no
+    successor to close it)."""
+    if _step_msg[0]:
+        print(f"[k11] {_step_msg[0]} ... "
+              f"{time.perf_counter() - _step_t[0]:5.2f}s",
+              file=sys.stderr, flush=True)
+        _step_msg[0] = ""
 
 
 def build_world(seed: int, shape: tuple[int, int] = SHAPE, sink=None,
@@ -259,6 +281,7 @@ def run_demo(seed: int, check_determinism: bool = False,
                        currents=world["currents"],
                        climate=world["climate"])
     monthly_paths = render_monthly(out_dir, world["climate"], currents=world["currents"])
+    _step_end()
 
     elev, hydro, climate = world["elev"], world["hydro"], world["climate"]
     biome_map, complex_ = world["biome_map"], world["complex"]

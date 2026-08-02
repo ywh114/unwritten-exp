@@ -537,7 +537,8 @@ def _reduced_bundle(factors: dict) -> dict:
 
 
 def genesis_rain_species(pack, ctx: sa.WorldContext, seed: int,
-                         K: np.ndarray, nodes
+                         K: np.ndarray, nodes, *,
+                         progress: bool = False
                          ) -> dict[str, tuple[tuple[CloneSeed, ...], int,
                                               dict]]:
     """Spec §10 for every radiated SPECIES node in ONE batch (ticket
@@ -590,7 +591,10 @@ def genesis_rain_species(pack, ctx: sa.WorldContext, seed: int,
     fields."""
     order = sorted(nodes, key=lambda n: n.sid)
     evals: dict[str, dict] = {}
-    for node in order:
+    n = len(order)
+    for k, node in enumerate(order):
+        if progress and k % 10 == 0:
+            print(f"  rain {k}/{n}", flush=True)
         view = sa.species_view(node, pack)
         factors = sa.evaluate(view, ctx)
         U = factors["substrate_share"].astype(np.float64)

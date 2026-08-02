@@ -363,11 +363,12 @@ def run_rounds(seed: int, rounds: int, *, do_dump: bool = True,
     from exp.k15_simdiff import persist
     from exp.k15_simdiff.engine import Engine
 
+    print(f"K15 sim-diff engine — rounds demo (seed {seed})")
+    print("  loading world + backbone ...", flush=True)
     eng = Engine(seed)
     t0 = time.perf_counter()
-    eng.genesis()
+    eng.genesis(progress=True)
     n0 = len(eng.instances)
-    print(f"K15 sim-diff engine — rounds demo (seed {seed})")
     print(f"  genesis: {n0} instances "
           f"({len({d.x.species_id for d in eng.instances.values()})} "
           f"lineages) in {time.perf_counter() - t0:.1f}s")

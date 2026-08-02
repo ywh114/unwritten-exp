@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -768,6 +769,8 @@ def render_monthly(out_dir: str, climate: dict,
     os.makedirs(f"{out_dir}/monthly", exist_ok=True)
     paths: list[str] = []
     for m in range(12):
+        print(f"[k11] render monthly {m + 1}/12",
+              file=sys.stderr, flush=True)
         for key, tag in (
             ("T_monthly", "T"),
             ("P_monthly", "P"),
@@ -803,6 +806,7 @@ def render_all(out_dir: str, delivered: dict, complex_, factor: int = 4,
 
     def _w(name, fn, *args):
         p = f"{out_dir}/{name}.png"
+        print(f"[k11] render {name}.png", file=sys.stderr, flush=True)
         fn(p, *args)
         paths.append(p)
 
