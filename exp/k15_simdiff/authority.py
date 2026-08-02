@@ -198,19 +198,33 @@ MERGE_D = 0.045          # merge-gate FALLBACK: pairwise SCALAR-ONLY L1
                          # passes the per-lineage threshold (ticket 0028
                          # — see merge_d_threshold; the fixed 0.045 is
                          # retired as a rounds currency)
-MERGE_D_BASE = 0.03      # per-lineage threshold anchor (ticket 0028):
-                         # threshold = MERGE_D_BASE x (n_gen x
-                         # rate_mult / MERGE_D_RATE_REF)^MERGE_D_EXP,
-                         # SATURATED at MERGE_D_CAP. CALIBRATED on
-                         # seed 1 (2026-08-02): the median lineage's
-                         # threshold (0.03) sits at the measured
-                         # same-environment cumulative drift band
-                         # (age-4 p50 0.012 / p75 0.023) so same-env
-                         # pieces recombine; cross-env divergence was
-                         # measured only ~1.2-1.3x the same-env band
-                         # (overlapping), so different-environment
-                         # persistence rides the contact gate +
-                         # cluster/divide machinery
+MERGE_D_BASE = 0.012      # per-lineage threshold anchor (ticket 0028,
+                         # RE-ANCHORED ticket 0030): threshold =
+                         # MERGE_D_BASE x (n_gen x rate_mult /
+                         # MERGE_D_RATE_REF)^MERGE_D_EXP, SATURATED at
+                         # MERGE_D_CAP. CALIBRATED on seed 1 with the
+                         # CORRECTED same-env baseline (2026-08-02,
+                         # tmp/k15_calib/corrected_baseline.py — pairs
+                         # classed by the per-requirement provenance
+                         # vector, what select() actually reads, not
+                         # |Delta mean s_env|): the true same-env
+                         # floor is p50 0.005 at gain 1.0, so 0028's
+                         # 0.03 anchored the median threshold ~5x too
+                         # wide (th p50 0.026 = 5.2x the drift p50).
+                         # Settled 0.012: the median-lineage threshold
+                         # (th p50 0.0108) = 2.0x the clean same-env
+                         # drift p50 (0.0054) — the owner's 2-3x band
+                         # (0.015/0.010 sit at 1.3x, too tight for the
+                         # median lineage's fresh pieces; the ratchet
+                         # tail p90 ~0.043 exceeds any sane threshold
+                         # by design — drift retention -> the 0010
+                         # path). Clean same-env recombination holds
+                         # (r6 frac d<th 0.62; the ~38% failures are
+                         # old ratchet-tail pieces), cross-env
+                         # blocking ~4x vs 0.03 (BLOCK frac
+                         # d>=th at pdist>=0.05: 0.11 -> 0.46), and
+                         # the r16 fat-blob holds (377 instances /
+                         # p50 2 / max 21 / 8% species >10)
 MERGE_D_RATE_REF = 28.0  # the seed-1 median n_gen x rate_mult (the
                          # lineage-rate anchor: threshold(median
                          # lineage) = MERGE_D_BASE)

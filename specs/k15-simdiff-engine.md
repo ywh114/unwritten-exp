@@ -598,11 +598,31 @@ instance id, generations) and `g_star` (per lineage sid).
   tests) fall back to the fixed MERGE_D. The saturation cap
   (MERGE_D_CAP = 0.05) keeps the gate below the cluster edge (clusters
   are merge-exempt by construction, ticket 0010).
-  **Calibration (seed 1, ticket 0028):** the same-env and cross-env
-  drift bands OVERLAP (cross-env divergence only ~1.2-1.3x same-env,
-  not separable per round) — the threshold sits at the same-env band
-  (median lineage 0.030 vs same-env cumulative age-4 p50 0.012 / p75
-  0.023), and cross-env persistence rides the contact gate (disjoint
+  **Calibration (seed 1, ticket 0028; RE-ANCHORED ticket 0030):** the
+  0028 calibration classed "same-env" by |Δ mean s_env| — an aggregate
+  that mixes genuinely-different selection vectors (same average
+  stress, different per-factor shortfalls — e.g. cold vs dry), so
+  both 0028's and 0029's conclusions sat on a contaminated baseline.
+  The corrected probe (tmp/k15_calib/corrected_baseline.py) classes
+  same-lineage pairs by the per-requirement provenance-vector pdist —
+  exactly what select() actually reads — and shows the TRUE same-env
+  floor is p50 0.005 at gain 1.0: 0028's median threshold (0.030) was
+  anchored ~5× too wide. Re-anchored (0030): MERGE_D_BASE = 0.012 —
+  the median-lineage threshold (th p50 0.0108) = 2.0× the clean
+  same-env drift p50 (0.0054), the owner's 2–3× band, below the
+  ratchet tail (clean d p90 ~0.043 — old same-env pieces past any
+  sane threshold by design: drift retention → the 0010 path, not a
+  bug). At the settled value (seed 1 r6): clean same-env
+  recombination fraction (d < th) 0.62 at pdist<0.02 (vs 0.78 at
+  0.030 — the ~38% failures are ratchet-tail pieces, clean d p90
+  0.037); cross-env block fraction (d ≥ th) 0.46 at pdist≥0.05 (vs
+  0.11 at 0.030 — the discrimination job moved from the gain to the
+  tight threshold) and 0.34 at pdist≥0.10 (n=35 — within-lineage
+  environment-differentiated pairs are rare at r6, n≈4–44, and
+  accumulate later); the r16 fat-blob holds (377 instances /
+  per-species p50 2 / max 21 / 8% species >10 vs 251 / 2 / 15 / 2%
+  at 0.030 — the count responds ~+50% as recombination tightens).
+  Cross-env persistence still rides the contact gate (disjoint
   partitions / remote foundlings never become candidates) +
   cluster/divide machinery. Same-env per-round drift scales linearly
   with n_gen×rate_mult (log-log slope 1.00, n=39).
@@ -825,7 +845,7 @@ counts are small).
 | DIFF_D / MOB_K | 7.3 | **0.2 (cal)** / 1.0 | verdict-gate base / mobility gain |
 | DIFF_MIN_CELLS | 8 | **32 (cal)** | divergent sub-range split floor |
 | SUB_D / MERGE_D / MERGE_GRACE | 9 | **0.08 (v1.2, scalar-only)** / **0.045 (FALLBACK only, v1.3)** / **0 (v1.3, immediate)** | commit cluster edge on the scalar-only metric / fixed merge-gate fallback for no-map update() calls (the rounds read the per-lineage threshold) / rounds since divergence before a merge is legal |
-| MERGE_D_BASE / MERGE_D_RATE_REF / MERGE_D_EXP / MERGE_D_CAP | 9 | **0.03 (cal, ticket 0028)** / **28 (seed-1 median n_gen×rate_mult)** / **1.0 (fitted drift slope)** / **0.05** | per-lineage threshold anchor / rate-product reference (threshold(median lineage) = base) / exponent / saturation cap (below the cluster edge) |
+| MERGE_D_BASE / MERGE_D_RATE_REF / MERGE_D_EXP / MERGE_D_CAP | 9 | **0.012 (cal, ticket 0030)** / **28 (seed-1 median n_gen×rate_mult)** / **1.0 (fitted drift slope)** / **0.05** | per-lineage threshold anchor / rate-product reference (threshold(median lineage) = base) / exponent / saturation cap (below the cluster edge); re-anchored 0030 on the corrected provenance-vector baseline (0028's 0.03 was ~5× the true same-env floor) — th p50 0.0108 = 2.0× the clean drift p50 (0.0054), the 2–3× band |
 | CLUSTER_PERSIST_ROUNDS / CLUSTER_MIN_SIZE | 9 | **3 (ticket 0010)** / **2 (ticket 0010)** | cluster stability floor (consecutive commits, member-overlap continuity) / min members for a divide-eligible cluster — the v0.7-disease churn control |
 | SPECIATION_D | 9 | 0.35 | g-less FALLBACK divide rank (authority unit tests only; NOT a rounds currency since v0.7) |
 | CONSOL_EVERY | 9 | **5 (kept, ticket 0028)** | full-lineage consolidation period (rounds); 0 disables the sweep |
@@ -834,7 +854,7 @@ counts are small).
 | ISO_G_GAIN / ISO_RAMP_ROUNDS | 4 | **1.0 / 2 (ticket 0010)** | Δg base multiplier at full isolation (1.0 = 2× at iso 1 — the RFC §1 pairwise 2× divergence rate) / rounds without gene flow to full isolation |
 | G_STEP_REF | 4 | 100 | species-edge dg scale: rounds' novel-tail rate = p_novel·n_gen/G_STEP_REF per axis |
 | STRESS_G_BOOST / G_STEADY_ONSET / G_STEADY_RAMP / G_REF / G_NOVEL / P_NOVEL_MAX / NOVELTY_MULT | 4 | forces.py | the g-clock and f(g) ramp constants (referenced, never duplicated) |
-| SELECT_GAIN | 4 | **2.0 (cal, ticket 0029)** | the flora `select()` provenance→pressure gain (flora/sim.py: scales the verdict shortfall×row-weight mapping; stress function, mortality, NUDGE_RATE untouched; 1.0 = bit-identical HEAD) — seed-1 sweep r0–r15: bands do not separate by SEP at any gain, but 2.0 is the empirical optimum (mid-run r4–r8 cross-env threshold margin +0.05–0.08, fat-blob model + 0010 path intact); see §15 v1.4 |
+| SELECT_GAIN | 4 | **1.0 (reverted, ticket 0030)** | the flora `select()` provenance→pressure gain (flora/sim.py: scales the verdict shortfall×row-weight mapping; stress function, mortality, NUDGE_RATE untouched; 1.0 = bit-identical HEAD) — 0029's "2.0 empirical optimum" was an AGGREGATE artifact of the \|Δ mean s_env\| same-env class (corrected provenance-vector baseline: gain 2.0 raises the clean drift band 0.005→0.0177 AND erodes the per-lineage threshold via the taller-lineage→halved-n_gen channel → 56% vs 22% clean-pair recombination failure); reverted to 1.0 — the discrimination job sits on the 0030 tight threshold; the knob stays for experiments; see §15 v1.4/v1.5 |
 | TAKEOVER_RATIO | 12 | 0.8 | acceptance 5 |
 
 **Content authoring conventions** (stat-pass E, 2026-08-01):
@@ -866,6 +886,61 @@ counts are small).
 
 ## 15. Changelog
 
+- **v1.5** (2026-08-02, ticket 0030, threshold re-anchor + gain
+  revert): both 0028's and 0029's calibrations sat on a CONTAMINATED
+  same-env baseline — the |Δ mean s_env| class mixes genuinely-
+  different selection vectors (same average stress, different
+  per-factor shortfalls — e.g. cold vs dry). The corrected probe
+  (tmp/k15_calib/corrected_baseline.py, seed 1 r6, pairs classed by
+  the N-weighted per-requirement provenance-vector pdist — exactly
+  what select() reads) shows the TRUE same-env floor is p50 0.005 at
+  gain 1.0: 0028's median threshold (0.030) anchored ~5× too wide,
+  and gain 2.0 is COUNTERPRODUCTIVE — it raises the clean same-env
+  band (0.005 → 0.0177) AND erodes the per-lineage threshold (th p50
+  0.026 → 0.0133 via the taller-lineage → halved-n_gen channel), so
+  56% of clean same-env pairs fail to recombine vs 22% at gain 1.0
+  (the 0029 "empirical optimum" was an aggregate-level artifact).
+  Changes: SELECT_GAIN reverted 2.0 → 1.0 (1.0 × shortfall × weight
+  == shortfall × weight, IEEE-exact — the knob stays for
+  experiments); MERGE_D_BASE re-anchored 0.03 → 0.012 (the per-
+  lineage form, exponent and cap untouched). Sweep (seed 1, gain
+  1.0, r6 fractions + r16 instance distributions):
+
+  | base | th p50 (× drift p50) | RECOMB d<th @ pdist<0.02 | BLOCK d≥th @ pdist≥0.05 / ≥0.10 | r16 instances / p50 / max / %>10 |
+  |---|---|---|---|---|
+  | 0.030 (0028) | 0.0261 (5.2×) | 0.78 (n=211) | 0.11 (n=395) / 0.00 (n=4) | 251 / 2 / 15 / 2% |
+  | 0.015 | 0.0079 (1.3×) | 0.65 (n=294) | 0.51 (n=620) / 0.61 (n=33) | 373 / 2 / 19 / 9% |
+  | **0.012 (settled)** | **0.0108 (2.0×)** | **0.62 (n=333)** | **0.46 (n=528) / 0.34 (n=35)** | **377 / 2 / 21 / 8%** |
+  | 0.010 | 0.0073 (1.3×) | 0.61 (n=555) | 0.61 (n=809) / 0.68 (n=44) | 472 / 2 / 34 / 14% |
+
+  Settled MERGE_D_BASE = **0.012**: the median-lineage threshold
+  (th p50 0.0108) = 2.0× the clean same-env drift p50 (0.0054) —
+  the owner's 2–3× band (0.03 sat at 5.2×, 0.015/0.010 at 1.3×,
+  too tight for the median lineage's fresh pieces) and below the
+  ratchet tail (clean d p90 ~0.043 — old same-env pieces past any
+  sane threshold by design: drift retention → the 0010 path, not a
+  bug). Clean same-env recombination holds (0.62 — the ~38%
+  failures are ratchet-tail pieces at clean d p90 0.037), cross-env
+  blocking quadruples vs the 0028 baseline (0.11 → 0.46 at pdist≥0.05;
+  the pdist≥0.10 class is small at r6, n≈35, and within-lineage
+  environment-differentiated pairs accumulate later), and the r16
+  fat-blob ~1–10 model holds (377 instances / p50 2 / max 21 / 8%
+  species >10 vs 251 / 2 / 15 / 2% at 0.030 — the count responds
+  +50% as recombination tightens; 0.010 starts to stretch it: 472 /
+  max 34 / 14%). 0010 path at the settled values (20 rounds, the
+  slow gate's own print): branches 66 / subspecies 4 / lineage
+  102 → 97 plateau / max divides/round 135 (the 0028 reference
+  62 / 38 / 102→97 — the tighter threshold shifts divides toward
+  branches and away from the late subspecies burst; all divide
+  asserts hold); full-run acceptance: 20 rounds, 285 instances /
+  97 lineages, range-tracking margins all negative; determinism:
+  gain 1.0 + base 0.03 byte-identical to 0028's HEAD (state-digest
+  sha256 2212bbd8…, r16, 251
+  instances/98 lineages both sides), settled values byte-identical
+  double run (sha256 21adcf7b…, r16, 377/96) plus the slow gate's
+  own 20-round double-run; gates: fast 401 green (45s) with ZERO
+  re-pins, slow gates 5 passed (0:03:47) with ZERO re-pins
+  (first-merge ≤ r1, plateau, range-tracking, churn bound all hold).
 - **v1.4** (2026-08-02, ticket 0029, select-pressure gain — settled
   SELECT_GAIN = 2.0): adds the `SELECT_GAIN` lever — the flora
   `select()` provenance→pressure gain (`flora/sim.py`, applied at the

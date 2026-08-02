@@ -106,27 +106,29 @@ NUDGE_RATE = 0.5
 # SELECT_GAIN (ticket 0029, owner 2026-08-02): the select() pressure
 # gain — scales the provenance->pressure mapping (shortfall x row
 # weight) WITHOUT touching the env->suitability stress function, the
-# mortality curve, or NUDGE_RATE. Rationale: same-environment pairs
-# share a common-mode pressure (a steeper gain moves them together,
-# adding no separation) while different-environment pairs have
-# pressure vectors pointing at different optima (a steeper gain moves
-# each toward its own optimum faster) — so the gain grows the ADAPTIVE
-# component of cross-env divergence, which is exactly what the 0028
-# per-lineage merge threshold discriminates on. Early-rate lever only:
-# pressure -> 0 as traits approach the optima. Calibrated on seed 1
-# (tmp/k15_gain, probe_0029_calib.py): swept 1.0-5.0 over r0-r15 — the
-# same/cross bands do NOT separate by SEP at any gain (~0.9-1.5), but
-# gain 2.0 is the empirical optimum: the strongest sustained mid-run
-# threshold discrimination (r4-r8 cross-env frac_d>=th margin +0.03 to
-# +0.08, four of five rounds >= +0.05; the steady-tier gate's r6-r8
-# adaptive window) while keeping
-# the 0028 fat-blob model (r16 p50 2 / max 14 / 97% <=10) and the 0010
-# path (64 branches / 78 subspecies); gain >=3 collapses the per-lineage
-# threshold via the taller-lineages gen_time channel and breaks
-# recombination (see spec §15 v1.4).
+# mortality curve, or NUDGE_RATE. Rationale (0029): same-environment
+# pairs share a common-mode pressure (a steeper gain moves them
+# together, adding no separation) while different-environment pairs
+# have pressure vectors pointing at different optima (a steeper gain
+# moves each toward its own optimum faster) — so the gain would grow
+# the ADAPTIVE component of cross-env divergence. Reverted to 1.0 by
+# ticket 0030 (owner 2026-08-02): the 0029 "empirical optimum" (2.0)
+# was an AGGREGATE-LEVEL ARTIFACT of the |Delta mean s_env| same-env
+# class, which mixes genuinely-different selection vectors (same
+# average stress, different per-factor shortfalls). The corrected
+# probe (tmp/k15_calib/corrected_baseline.py, provenance-vector pdist
+# — what select() actually reads) shows gain 2.0 RAISES the clean
+# same-env drift band (p50 0.005 -> 0.0177) AND erodes the per-lineage
+# threshold via the taller-lineage -> halved-n_gen channel, so 56% of
+# clean same-env pairs fail to recombine (vs 22% at gain 1.0) — the
+# discrimination job belongs to the per-lineage merge threshold
+# (MERGE_D_BASE, re-anchored to the true floor by ticket 0030), not
+# the gain. The knob stays for experiments; gain >=3 collapses the
+# per-lineage threshold via the taller-lineages gen_time channel and
+# breaks recombination (see spec §15 v1.4/v1.5).
 # Gain 1.0 is bit-identical to HEAD (1.0 x shortfall x weight ==
 # shortfall x weight, IEEE-exact).
-SELECT_GAIN = 2.0
+SELECT_GAIN = 1.0
 # log-space nudge clamp: exp(±50) is far past any authored bound, so a
 # pathological pressure cannot overflow float before the bound clip.
 MUTATE_EXP_CLAMP = 50.0
