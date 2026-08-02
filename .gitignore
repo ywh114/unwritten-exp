@@ -24,3 +24,6 @@ exp/k11_worldgen/out/
 exp/k14_worldprod/out/seed_*/derived.npz
 exp/k14_worldprod/out/seed_*/derived.k11pack
 exp/k14_worldprod/out/seed_*/manifest.json
+
+# K15 sim-diff delivery dumps (regenerable per seed — ticket 0013)
+exp/k15_simdiff/out/
