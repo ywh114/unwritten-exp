@@ -576,42 +576,64 @@ instance id, generations) and `g_star` (per lineage sid).
   never minted, but the engine registers them with the authority
   (`register_unseeded`) so THIS pass marks them at the first commit —
   same reflog entry, same ghost record.
-- **Merge**: scalar-only L1 distance < MERGE_D (v0.7 — the merge
-  metric excludes enum and generic axes and weighted_set TV; enum
-  flips are measured same-blob noise (15% mismatch at equal pressure,
-  agent-58) and diluted the merge signal, so the CONSOL sweep erased
-  the incipient-species cohort under the old full metric), AND a
-  spatial-contact gate computed ENGINE-side (the engine presents merge
-  candidates only when the instances' cells touch — the space-blind
-  Authority never sees cells, critic finding 5), AND
-  rounds_since_divergence ≥ MERGE_GRACE (cal, default 5) — the grace
-  exempts genesis siblings from instant re-merge (critic finding 10).
-  Re-merge only when REALLY similar (owner ruling); the FINAL pass
-  (end of run) joins all non-differentiated instances of a lineage
-  back into one record.
-  **Consolidation (v0.4.2, owner ruling 2026-08-01):** the final pass
-  also runs PERIODICALLY — every CONSOL_EVERY-th commit (default 5)
-  the engine presents ALL same-lineage pairs as candidates (the
-  authority still re-checks MERGE_D and MERGE_GRACE; its greedy
-  survivor absorbs each partner in turn, so a complete candidate
-  clique collapses in one update). This is the instance-count
-  governor: the join is deliberately not sticky — unbridged distant
-  fragments re-split within two dressings (§8 hysteresis), giving a
-  sawtooth that bounds instance count instead of unbounded growth.
-  The contact gate itself is overlap-aware since v0.4.2: the
-  shift-grid touch test holds only one instance index per cell, so
-  STACKED instances (same lineage, same cell — measured up to 1132
-  layers in one cell at r19) were invisible to it; a per-cell
-  layer-count pass adds star-topology candidates per overlapped cell.
-  **v0.7 merge calibration:** MERGE_D = 0.045 on the scalar-only
-  metric (ticket 0008, agent-58 measurement: same-blob scalar p99
-  floor ≈ 0.073, contrast pairs p90 ≈ 0.057 by r5). MERGE_D sits
-  BELOW the same-blob floor by design: merging same-blob pairs below
-  the floor is harmless (they are not diverged — the CONSOL sweep
-  re-collapses them) while genuinely diverging pairs (above the
-  floor) escape the sweep; the pairs between MERGE_D and the floor
-  are diverging-but-immature and the sweep's sawtooth re-creates
-  them.
+- **Merge (v1.3, ticket 0028 — per-lineage threshold, immediate
+  recombination):** scalar-only L1 distance < the LINEAGE's merge
+  threshold AND a spatial-contact gate computed ENGINE-side (the
+  engine presents merge candidates only when the instances' cells
+  touch — the space-blind Authority never sees cells, critic finding
+  5). The threshold is PER-LINEAGE and mutation-tuned (owner design
+  2026-08-02, ticket 0028): threshold(sid) = min(MERGE_D_CAP,
+  MERGE_D_BASE × (n_gen × rate_mult / MERGE_D_RATE_REF)^MERGE_D_EXP),
+  where n_gen is the lineage's per-round generation count
+  (gen_time = 2·sqrt(height_m), spec §4 step 1) and rate_mult the
+  per-lineage lognormal rate multiplier (fauna RFC §1, drawn once via
+  k15.g). The threshold is TIGHT at the reference rate — a differing
+  environment diverges past it, so environment acts through the
+  GENETIC channel (no environment field); it widens with the mutation
+  rate so a fast mutator's own same-environment pieces ("same species,
+  same place") still recombine. The engine computes it per commit (per
+  lineage, from the max-mass instance's height) and passes it to the
+  authority's update() as a per-sid map — the same channel as g_star;
+  the authority stays space-blind. Callers that pass no map (unit
+  tests) fall back to the fixed MERGE_D. The saturation cap
+  (MERGE_D_CAP = 0.05) keeps the gate below the cluster edge (clusters
+  are merge-exempt by construction, ticket 0010).
+  **Calibration (seed 1, ticket 0028):** the same-env and cross-env
+  drift bands OVERLAP (cross-env divergence only ~1.2-1.3x same-env,
+  not separable per round) — the threshold sits at the same-env band
+  (median lineage 0.030 vs same-env cumulative age-4 p50 0.012 / p75
+  0.023), and cross-env persistence rides the contact gate (disjoint
+  partitions / remote foundlings never become candidates) +
+  cluster/divide machinery. Same-env per-round drift scales linearly
+  with n_gen×rate_mult (log-log slope 1.00, n=39).
+- **Immediate recombination (v1.3):** merge candidates are processed
+  EVERY round (event-driven, contact-gated), and the merge grace is 0
+  (MERGE_GRACE — was 5): a same-environment piece recombines at the
+  first commit it touches the parent — the range GROWS (one instance,
+  fat blob). Genesis stacks (same-lineage instances sharing cells,
+  d ≈ 0) collapse at the round-0 commit. The grace's old role —
+  exempting genesis siblings until they diverge — is retired: the
+  per-lineage threshold does the discriminating.
+- **Consolidation (v1.3, KEPT):** the final pass still runs
+  periodically — every CONSOL_EVERY-th commit (5) the engine presents
+  ALL same-lineage pairs as candidates (the authority still re-checks
+  the per-lineage threshold; its greedy survivor absorbs each partner
+  in turn, so a complete candidate clique collapses in one update).
+  This is the instance-count backstop: measured without it (grace 0,
+  contact gate only) the seed-1 r16 instance count is 1341 (per-
+  species p50 12, 55% species >10) vs 251 with it (p50 2, 2% >10).
+  The join is deliberately not sticky — unbridged distant fragments
+  re-split within two dressings (§8 hysteresis), the sawtooth that
+  bounds instance count. The contact gate itself is overlap-aware
+  since v0.4.2: the shift-grid touch test holds only one instance
+  index per cell, so STACKED instances (same lineage, same cell —
+  measured up to 1132 layers in one cell at r19) were invisible to it;
+  a per-cell layer-count pass adds star-topology candidates per
+  overlapped cell.
+  **v0.7 merge calibration (retired as a rounds currency):** the fixed
+  MERGE_D = 0.045 (same-blob scalar p99 floor ≈ 0.073, contrast pairs
+  p90 ≈ 0.057 by r5) is now only the no-map fallback. The rounds gate
+  reads the per-lineage threshold (ticket 0028; §13).
 - **Names**: interim handles `sid.iNNN`; binomials pin only at final
   commit.
 
@@ -802,10 +824,11 @@ counts are small).
 | RE_EVAL_D | 5.1 | 0.15 | cache invalidation distance |
 | DIFF_D / MOB_K | 7.3 | **0.2 (cal)** / 1.0 | verdict-gate base / mobility gain |
 | DIFF_MIN_CELLS | 8 | **32 (cal)** | divergent sub-range split floor |
-| SUB_D / MERGE_D / MERGE_GRACE | 9 | **0.08 (v1.2, scalar-only)** / **0.045 (v0.7)** / 5 | commit cluster edge on the scalar-only metric / scalar-only merge gate / grace |
+| SUB_D / MERGE_D / MERGE_GRACE | 9 | **0.08 (v1.2, scalar-only)** / **0.045 (FALLBACK only, v1.3)** / **0 (v1.3, immediate)** | commit cluster edge on the scalar-only metric / fixed merge-gate fallback for no-map update() calls (the rounds read the per-lineage threshold) / rounds since divergence before a merge is legal |
+| MERGE_D_BASE / MERGE_D_RATE_REF / MERGE_D_EXP / MERGE_D_CAP | 9 | **0.03 (cal, ticket 0028)** / **28 (seed-1 median n_gen×rate_mult)** / **1.0 (fitted drift slope)** / **0.05** | per-lineage threshold anchor / rate-product reference (threshold(median lineage) = base) / exponent / saturation cap (below the cluster edge) |
 | CLUSTER_PERSIST_ROUNDS / CLUSTER_MIN_SIZE | 9 | **3 (ticket 0010)** / **2 (ticket 0010)** | cluster stability floor (consecutive commits, member-overlap continuity) / min members for a divide-eligible cluster — the v0.7-disease churn control |
 | SPECIATION_D | 9 | 0.35 | g-less FALLBACK divide rank (authority unit tests only; NOT a rounds currency since v0.7) |
-| CONSOL_EVERY | 9 | 5 | full-lineage consolidation period (rounds) |
+| CONSOL_EVERY | 9 | **5 (kept, ticket 0028)** | full-lineage consolidation period (rounds); 0 disables the sweep |
 | DG_DRIFT_BASE | 4 | 1.0 | g drift baseline (generation-distance per generation) |
 | DG_ENUM_SHARE | 4 | 0.05 | g contribution of enum redraws (per generation) |
 | ISO_G_GAIN / ISO_RAMP_ROUNDS | 4 | **1.0 / 2 (ticket 0010)** | Δg base multiplier at full isolation (1.0 = 2× at iso 1 — the RFC §1 pairwise 2× divergence rate) / rounds without gene flow to full isolation |
@@ -842,6 +865,49 @@ counts are small).
 
 ## 15. Changelog
 
+- **v1.3** (2026-08-02, ticket 0028, immediate recombination +
+  mutation-tuned threshold): the consolidation machinery is corrected
+  to the owner's design. §9: (a) the fixed MERGE_D = 0.045 merge gate
+  becomes a PER-LINEAGE threshold = min(MERGE_D_CAP, MERGE_D_BASE ×
+  (n_gen × rate_mult / MERGE_D_RATE_REF)^MERGE_D_EXP) — tight at the
+  reference rate (a differing environment diverges past it, so
+  environment acts through the genetic channel, no environment field)
+  and widened with the species' inherent mutation rate (fast mutators
+  drift apart quickly; their own same-environment pieces would cross a
+  fixed tight threshold and never recombine). The engine computes it
+  per commit (per lineage, from the max-mass instance's height —
+  gen_time = 2·sqrt(height_m) — and the lineage's rate_mult, fauna
+  RFC §1) and passes it to the authority's update() as a per-sid map,
+  the same channel as g_star; the authority falls back to the fixed
+  MERGE_D for no-map calls (unit tests). (b) Merge candidates are
+  processed EVERY round (event-driven, contact-gated) with
+  MERGE_GRACE = 0 — same-environment pieces recombine immediately
+  (the genesis stacks collapse at the round-0 commit; the range
+  grows); the round-4 CONSOL sweep is kept as the instance-count
+  backstop (measured without it: seed-1 r16 1341 instances / per-
+  species p50 12 / 55% species >10 vs 251 / p50 2 / 2% with it). (c)
+  The merge metric is unchanged: scalar-only trait distance, no
+  environment field. Calibrated on seed 1 (work clone tmp/k15_consol):
+  the same-env and cross-env drift bands OVERLAP (cross-env divergence
+  only ~1.2-1.3x same-env, not separable per round — the threshold
+  sits at the same-env band: median lineage 0.030 vs same-env
+  cumulative age-4 p50 0.012 / p75 0.023; cross-env persistence rides
+  the contact gate + cluster/divide machinery); same-env per-round
+  drift scales linearly with n_gen×rate_mult (log-log slope 1.00).
+  Instance distribution at r16: baseline 3876 instances / per-species
+  p50 20 / max 595 / 66% species >10 -> v1.3 251 / p50 2 / max 15 /
+  2% — the owner's ~1-10 per species with fat blobs. Divides still
+  fire (62 real branches and 38 subspecies over the 20-round slow
+  gate — the 0010 path is intact; non-touching clones are unaffected
+  by merges; the lineage count plateaus at its trough, 102 -> 97,
+  instead of the v1.2 recovery — the re-pinned genesis-diverges
+  assert). Determinism:
+  byte-identical double run (slow gate re-pinned); the §12.3 grace
+  assert becomes the immediate-recombination assert (first merge ≤
+  round 1); fast-tier fixtures re-pinned to the new schedule (the
+  round-4 consolidation, the immediate stacked merge, the canopy
+  window, the sweep-free drift-retention pair). Owner intent recorded
+  verbatim in tmp/tickets/open/0028-consolidation-recombination.md.
 - **v1.2** (2026-08-01, ticket 0010, real cladogenesis): the divide
   machinery moves from the wholesale g-promotion to CLUSTER-LEVEL
   divides. §9: (a) the cluster graph reads the SCALAR-ONLY metric at

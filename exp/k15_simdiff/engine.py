@@ -71,13 +71,19 @@ DIFF_MIN_CELLS = 32   # divergent sub-range split size floor (sliver
                       # suppression: below it the blob incubates inside
                       # the parent, never mints)
 CONSOL_EVERY = 5      # full-lineage consolidation period (spec v0.4.2
-                      # §9): every CONSOL_EVERY-th commit the merge
-                      # candidates are ALL same-lineage pairs (not just
+                      # §9, ticket 0028 re-scoped): every
+                      # CONSOL_EVERY-th commit the merge candidates are
+                      # ALL same-lineage pairs (not just
                       # touching/overlapping), collapsing every
-                      # non-differentiated (d < MERGE_D, grace-honored)
-                      # instance cluster to one record. The §9 "final
-                      # pass" run periodically — the instance-count
-                      # governor (owner ruling 2026-08-01)
+                      # non-differentiated, grace-honored instance
+                      # cluster to one record. The §9 "final pass" run
+                      # periodically — the instance-count backstop
+                      # (owner ruling 2026-08-01). ticket 0028: the
+                      # event-driven contact gate now runs EVERY round
+                      # with the per-lineage threshold; CONSOL_EVERY is
+                      # an experiment knob (Engine(consol_every=...))
+                      # whose keep/drop the ticket settles with
+                      # measurement
 
 # ── g currency (tickets 0008/0010 — fauna RFC §1: generation-time
 #    clock, three forces, per-clade seeded g*; forces.py constants
@@ -367,8 +373,18 @@ class Engine:
     def __init__(self, seed: int, content: Path = FLORA_CONTENT,
                  pack: ContentPack | None = None,
                  ctx: sa.WorldContext | None = None,
-                 capacity: np.ndarray | None = None) -> None:
+                 capacity: np.ndarray | None = None,
+                 consol_every: int | None = None,
+                 merge_grace: int | None = None) -> None:
         self.seed = seed
+        # ticket 0028 experiment knobs: the periodic complete-pair
+        # consolidation period and the merge grace, settable per engine
+        # for the immediate-recombination measurement (defaults to the
+        # module constants CONSOL_EVERY / MERGE_GRACE).
+        self.consol_every = CONSOL_EVERY if consol_every is None \
+            else consol_every
+        self.merge_grace = auth.MERGE_GRACE if merge_grace is None \
+            else merge_grace
         self.pack = pack if pack is not None else load_content(content)
         self.sim = FloraSim(self.pack)
         # shared seed-1 world ctx / capacity from the session fixtures
@@ -1338,6 +1354,33 @@ class Engine:
 
     # ── §4 step 5: commit ────────────────────────────────────────────
 
+    def _merge_thresholds(self) -> dict[str, float]:
+        """Per-lineage merge thresholds (ticket 0028): the authority's
+        merge gate is per-sid — ``merge_d_threshold(rate_mult, n_gen)``
+        — so the threshold widens with the lineage's inherent mutation
+        rate (n_gen per round from the lineage's gen_time, spec §4 step
+        1, x the per-lineage lognormal rate multiplier, fauna RFC §1).
+        Per lineage the representative is the max-mass instance (tie:
+        lowest instance id — the same de-facto orthodox rule the
+        authority applies), whose height_m gives the lineage's
+        gen_time. Deterministic: sorted-free per-lineage max over the
+        instances dict; no draws."""
+        by_lin: dict[str, list[Dressed]] = {}
+        for d in self.instances.values():
+            by_lin.setdefault(d.x.species_id, []).append(d)
+        out: dict[str, float] = {}
+        for sid, ds in by_lin.items():
+            rep = max(ds, key=lambda d: d.mass)
+            rep = min((d for d in ds if d.mass == rep.mass),
+                      key=lambda d: d.x.instance_id)
+            height = float(rep.x.traits.get("height_m", 0.0) or 0.0)
+            gen_time = 2.0 * math.sqrt(max(height, 1e-6))
+            n_gen = int(min(N_GEN_CAP,
+                            max(1, math.ceil(ROUND_YEARS / gen_time))))
+            rate_mult, _star = self._lineage(sid)
+            out[sid] = auth.merge_d_threshold(rate_mult, n_gen)
+        return out
+
     def _merge_candidates(self) -> set[frozenset[str]]:
         """The engine-side spatial-contact gate (§9): same-lineage
         instance pairs whose N>0 cells 8-touch OR OVERLAP. Vectorized
@@ -1420,14 +1463,18 @@ class Engine:
             a, b = tuple(pair)
             self._last_contact[a] = t
             self._last_contact[b] = t
-        if (t + 1) % CONSOL_EVERY == 0:
+        if self.consol_every and (t + 1) % self.consol_every == 0:
             # full-lineage consolidation (spec v0.4.2 §9, the "final
             # pass" run periodically): every same-lineage pair is a
-            # candidate — the authority still re-checks d < MERGE_D and
-            # MERGE_GRACE, so only non-differentiated, grace-eligible
-            # clusters collapse. Complete pairs per lineage: the
-            # authority's greedy survivor absorbs each partner in turn,
-            # collapsing the clique in one update.
+            # candidate — the authority still re-checks the per-lineage
+            # threshold and the grace, so only non-differentiated,
+            # grace-eligible clusters collapse. Complete pairs per
+            # lineage: the authority's greedy survivor absorbs each
+            # partner in turn, collapsing the clique in one update.
+            # (ticket 0028: the event-driven contact gate runs EVERY
+            # round; this periodic sweep is the instance-count
+            # backstop — KEPT by the ticket's measurement: without it
+            # the seed-1 r16 count is 1341 vs 251 with it).
             by_lineage: dict[str, list[str]] = {}
             for d in self.instances.values():
                 by_lineage.setdefault(d.x.species_id, []).append(
@@ -1441,7 +1488,9 @@ class Engine:
               for iid in sorted(self.instances)}
         log = self.authority.update(
             views, rng, merge_candidates=candidates,
-            g_since_split=gs, g_star=dict(self._g_star))
+            g_since_split=gs, g_star=dict(self._g_star),
+            merge_d=self._merge_thresholds(),
+            merge_grace=self.merge_grace)
         for delta in log.instances:
             iid = delta.instance_id
             if iid not in self.instances:

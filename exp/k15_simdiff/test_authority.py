@@ -535,13 +535,15 @@ def test_merge_under_merge_d_with_grace():
     pair = frozenset({"iA", "iB"})
     views = [_view(SID1, "iA", RECORD, mass=5.0),
              _view(SID1, "iB", b, mass=1.0)]
-    # rounds 0..4: grace refuses (genesis siblings diverged at round 0)
+    # ticket 0028: the default grace is 0 — a within-threshold pair
+    # merges at the FIRST commit (the loop below runs zero times when
+    # MERGE_GRACE is 0 and asserts the pre-merge refusal otherwise)
     for _ in range(MERGE_GRACE):
         log = auth.update(views, _rng(), merge_candidates={pair})
         by = {d.instance_id: d for d in log.instances}
         assert by["iB"].outcome is Outcome.KEEP
     assert not [e for e in auth.reflog if e["event"] == "merge"]
-    # round 5: rounds_since_divergence = 5 >= MERGE_GRACE -> merge
+    # the first grace-eligible commit merges (round 0 at grace 0)
     log = auth.update(views, _rng(), merge_candidates={pair})
     by = {d.instance_id: d for d in log.instances}
     assert by["iB"].outcome is Outcome.MERGE and by["iB"].target == "iA"

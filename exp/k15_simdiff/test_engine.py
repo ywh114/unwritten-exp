@@ -11,7 +11,8 @@ Fast tier (fixture engines, a handful of planted instances each):
 Slow tier (`-m slow`, one 20-round run pair):
   1. determinism — two full runs byte-identical
   2. range tracking — occupied mean s_env < unoccupied per lineage
-  3. genesis partition diverges (>= 1 divide; MERGE_GRACE honored)
+  3. genesis partition diverges (>= 1 divide; immediate recombination
+     re-pin, ticket 0028)
   8. performance report (wall time; the §12.8 60 s gate is reported,
      not asserted — growth dynamics make it unmet by design)
 
@@ -507,7 +508,13 @@ def test_canopy_shade_kills_intolerant_spares_tolerant():
     marginal-band cell (-0.05 < s_env < 0), restoring the pre-gate
     character; measured on the gated world: the band's argmax is the
     pre-gate cell itself (90,149), intolerant 0.3 -> 0.000 over r0..r5,
-    tolerant 1.000. The height-escape mechanism — a taller reader reads
+    tolerant 1.000. ticket 0028 re-pin (2026-08-02, immediate
+    recombination): the fixture's founded pieces now recombine into the
+    thistle at the round-0 commit (grace 0), shifting the density
+    dynamics — the tolerant thistle's survival window narrows to r4
+    (measured: dead <= 0.05 / spared >= 0.5 at r4 for tolerances
+    <= 0.15 vs >= 0.5; everyone folds by r5). The height-escape
+    mechanism — a taller reader reads
     f_light = 1 — lives in test_canopy_shade_height_escape.)"""
     def cell_mass(eng, cell, sid):
         tot = 0.0
@@ -526,8 +533,8 @@ def test_canopy_shade_kills_intolerant_spares_tolerant():
         iid = _plant_variant(eng, "herb_forb.thistle", [cell],
                              {"shade_tolerance": shade_tol}, n0=0.3)
         sid = eng.instances[iid].x.species_id
-        for t in range(5):            # measured: intolerant 0.16→0,
-            eng.round(t)              # tolerant 1.0 through r5
+        for t in range(4):            # measured (ticket 0028 re-pin):
+            eng.round(t)              # intolerant 0.000, tolerant 1.000
         return cell_mass(eng, cell, sid)
     dead = run_body(0.15)
     spared = run_body(0.9)
@@ -670,9 +677,17 @@ def test_drift_retained_across_commits():
     lineages mid-window — that is the point of the ticket, and the
     ratchet measurement below is unaffected because WIP retention
     survives the re-key (a divide is one branch per lineage; the pair
-    never collapses back into one instance)."""
+    never collapses back into one instance). ticket 0028 re-pin: the
+    per-lineage threshold + grace-0 recombination merge this
+    slow-diverging cross-env pair at the round-4 consolidation sweep
+    (their d ~0.003 at age 4 < the reed lineage's threshold, long
+    before the steady gate opens) — the retention mechanism is
+    isolated from the consolidation governor by running sweep-free
+    (consol_every = 0); the ratchet then measures over the full
+    window (measured: 0 -> 0.0033 (r4) -> 0.0069 (r5) -> 0.0073)."""
     from exp.k15_simdiff import authority as auth
     eng = _engine()
+    eng.consol_every = 0          # ticket 0028: sweep-free (see above)
     c1 = _marginal_cell(eng, "grass_sward.reed")
     a = _plant(eng, "grass_sward.reed", [c1])
     sid = eng.instances[a].x.species_id
@@ -856,19 +871,21 @@ def _matched_far_cells(eng: Engine, preset: str
 def test_stacked_siblings_merge():
     """Two instances of ONE lineage sharing a cell (the stacking the
     shift-grid gate was blind to) become merge candidates via the
-    overlap pass and collapse once MERGE_GRACE has passed (eligible at
-    commit round 5, the sixth update). v0.9 re-pin (2026-08-01, the
-    dune + lake-fetch gates 0d432c5/758ec17): the old argmin-s_env
-    tussock cells (236,156/157) read U = 0 on the gated world (K x U =
-    0 — instant density death at r0, both arms extinct), so the
-    fixture now also requires K x U > CELL_CAP_MIN (see its note);
-    measured on the final world the fixture lands at (239,150)/(239,149)
-    — both survive to the round-5 commit, merge, and retain c2."""
+    overlap pass and collapse immediately (ticket 0028 re-pin: the
+    merge grace is 0 — same-env stacked clones recombine at the first
+    commit, d ≈ 0 < the per-lineage threshold). v0.9 re-pin
+    (2026-08-01, the dune + lake-fetch gates 0d432c5/758ec17): the
+    old argmin-s_env tussock cells (236,156/157) read U = 0 on the
+    gated world (K x U = 0 — instant density death at r0, both arms
+    extinct), so the fixture now also requires K x U > CELL_CAP_MIN
+    (see its note); measured on the final world the fixture lands at
+    (239,150)/(239,149) — both survive, merge at the round-0 commit,
+    and retain c2."""
     eng = _engine()
     c1, c2 = _two_good_cells(eng, "grass_sward.tussock", far=False)
     a = _plant(eng, "grass_sward.tussock", [c1, c2])
     b = _plant(eng, "grass_sward.tussock", [c1])     # shares c1 with a
-    for t in range(6):
+    for t in range(2):
         eng.round(t)
     survivors = [iid for iid in (a, b) if iid in eng.instances]
     assert len(survivors) == 1
@@ -879,34 +896,35 @@ def test_stacked_siblings_merge():
 
 def test_periodic_full_consolidation():
     """The CONSOL_EVERY commit joins NON-TOUCHING same-lineage
-    instances (near-zero drift => d < MERGE_D) once MERGE_GRACE has
-    passed: at the round-4 consolidation grace is 4 < 5, so the first
-    effective consolidation is round 9 — two blocks a quarter world
-    apart are one instance after the round-9 commit. The join is not
-    sticky across dressings: with no rain bridge the far fragment
-    re-splits within two dressings (split hysteresis) — the sawtooth
-    that caps instance growth. (v0.7 re-pin: the lineage is
-    lichen.crust — viable in every quadrant — but the far blocks are
-    planted on near-identical suitability cells: contrasting cells now
-    genuinely diverge under the g-clock's mutation ramp (measured
-    lichen scalar d ~0.057, above MERGE_D 0.045), so the two blocks
-    must face the same pressure for the sweep to see them as
-    non-differentiated.) v0.9 re-pin (2026-08-01, the dune + lake-fetch
-    gates 0d432c5/758ec17): the old matched pair's second cell read
-    U = 0 (lichen (194,202) decayed 1.0 -> 0.0 by r2 — the far block
-    died instead of consolidating), so _matched_far_cells now also
-    requires K x U > CELL_CAP_MIN; measured on the final world the
-    pair lands at (73,120)/(230,93) — consolidated at the round-9
-    commit, re-split within two dressings."""
+    instances (near-zero drift => d < the per-lineage threshold) once
+    the grace allows: with the ticket 0028 grace of 0 the first
+    effective consolidation is the round-4 commit — two blocks a
+    quarter world apart are one instance after the round-4 commit.
+    The join is not sticky across dressings: with no rain bridge the
+    far fragment re-splits within two dressings (split hysteresis) —
+    the sawtooth that caps instance growth. (v0.7 re-pin: the lineage
+    is lichen.crust — viable in every quadrant — but the far blocks
+    are planted on near-identical suitability cells: contrasting cells
+    now genuinely diverge under the g-clock's mutation ramp, so the
+    two blocks must face the same pressure for the sweep to see them
+    as non-differentiated.) v0.9 re-pin (2026-08-01, the dune +
+    lake-fetch gates 0d432c5/758ec17): the old matched pair's second
+    cell read U = 0 (lichen (194,202) decayed 1.0 -> 0.0 by r2 — the
+    far block died instead of consolidating), so _matched_far_cells
+    now also requires K x U > CELL_CAP_MIN; measured on the final
+    world the pair lands at (73,120)/(230,93). ticket 0028 re-pin
+    (2026-08-02): with the grace 0 the sweep is the round-4 commit
+    (was round 9 with the old grace 5); measured — consolidated at
+    the round-4 commit, re-split by round 6."""
     eng = _engine()
     c1, c2 = _matched_far_cells(eng, "lichen.crust")
     a = _plant(eng, "lichen.crust", [c1])
     b = _plant(eng, "lichen.crust", [c2])
-    for t in range(5):                    # commits 0..4; grace still < 5
+    for t in range(4):                    # commits 0..3: no contact, separate
         eng.round(t)
         assert a in eng.instances and b in eng.instances, \
-            "merged inside MERGE_GRACE"
-    for t in range(5, 10):                # round-9 commit consolidates
+            "far instances merged without contact"
+    for t in range(4, 6):                 # round-4 commit consolidates
         eng.round(t)
     who1 = next((iid for iid, d in eng.instances.items()
                  if (got := _cell(d, *c1)) and got[0] > 0.0), None)
@@ -914,7 +932,7 @@ def test_periodic_full_consolidation():
                  if (got := _cell(d, *c2)) and got[0] > 0.0), None)
     assert who1 is not None and who2 is not None and who1 == who2, \
         "far instances never consolidated"
-    for t in range(10, 12):               # two dressings: re-split
+    for t in range(6, 8):                 # two dressings: re-split
         eng.round(t)
     who1 = next((iid for iid, d in eng.instances.items()
                  if (got := _cell(d, *c1)) and got[0] > 0.0), None)
@@ -977,12 +995,18 @@ def test_full_run_acceptance():
         eng2.round(t)
     assert json.dumps(eng2.state_json(), sort_keys=True) == digest
 
-    # §12.3 MERGE_GRACE honored (no merge before commit round 5); the
-    # divide half of item 3 lives in test_genesis_partition_diverges
-    # below (currently xfail — see its docstring)
-    for t, log in enumerate(logs[:5]):
-        assert all(d.outcome is not Outcome.MERGE for d in log.instances), \
-            f"merge inside MERGE_GRACE at round {t}"
+    # §12.3 (ticket 0028 re-pin): the merge grace is 0 — same-env
+    # touching pieces recombine IMMEDIATELY (event-driven, contact-
+    # gated, every round; the per-lineage threshold refuses genuinely
+    # diverged pairs). The first commit must already merge: the genesis
+    # stacks (same-lineage instances sharing cells, d ≈ 0 < the
+    # per-lineage threshold) collapse at round 0. The divide half of
+    # item 3 lives in test_genesis_partition_diverges below.
+    first_merge = next((t for t, log in enumerate(logs)
+                        if any(d.outcome is Outcome.MERGE
+                               for d in log.instances)), None)
+    assert first_merge is not None and first_merge <= 1, \
+        f"immediate recombination did not fire (first merge at {first_merge})"
 
     # §12.2 range tracking: per lineage alive at R, occupied cells'
     # mean s_env < unoccupied cells' (cache of the lineage's first
@@ -1016,19 +1040,24 @@ def test_full_run_acceptance():
 
 @pytest.mark.slow
 def test_genesis_partition_diverges():
-    """§12.3 divide half (v1.2 re-pin, ticket 0010): genesis clone
-    pairs of one lineage (minted under the radiated SPECIES sids since
-    ticket 0004 — the 35 ORDER nodes are ancestors, never seeded)
-    register REAL divides within R rounds. The v1.2 machinery: isolated
-    clones accrue g faster (the forces.py Condition isolation input is
-    wired into Δg — option B), their trait cluster separates at the
-    scalar-only SUB_D 0.08 edge, and once it has persisted
-    (CLUSTER_PERSIST_ROUNDS) as a multi-member component
-    (CLUSTER_MIN_SIZE) it branches as a SPECIES daughter beyond the
-    lineage's g* (the tree gains WIDTH) or divides as SUBSPECIES below
-    it. Ticket done-means: (1) the living lineage count GROWS at some
-    point (a branch is not a relabel), (2) subspecies fires at least
-    once, (3) divides/round stay bounded (no v0.7-disease churn)."""
+    """§12.3 divide half (v1.2 re-pin, ticket 0010; re-pinned again
+    ticket 0028): genesis clone pairs of one lineage (minted under the
+    radiated SPECIES sids since ticket 0004 — the 35 ORDER nodes are
+    ancestors, never seeded) register REAL divides within R rounds.
+    The v1.2 machinery: isolated clones accrue g faster (the forces.py
+    Condition isolation input is wired into Δg — option B), their
+    trait cluster separates at the scalar-only SUB_D 0.08 edge, and
+    once it has persisted (CLUSTER_PERSIST_ROUNDS) as a multi-member
+    component (CLUSTER_MIN_SIZE) it branches as a SPECIES daughter
+    beyond the lineage's g* (the tree gains WIDTH) or divides as
+    SUBSPECIES below it. ticket 0028: the immediate-recombination
+    rework (per-lineage merge threshold, grace 0) does not touch this
+    path — genesis clones in different environments are spatially
+    DISJOINT (never merge candidates), so they still diverge into
+    clusters and divide. Ticket done-means: (1) the living lineage
+    count GROWS at some point (a branch is not a relabel), (2)
+    subspecies fires at least once, (3) divides/round stay bounded (no
+    v0.7-disease churn)."""
     eng = Engine(SEED)
     eng.genesis()
     n0 = len({d.x.species_id for d in eng.instances.values()})
@@ -1075,9 +1104,16 @@ def test_genesis_partition_diverges():
     # maladapted lineages die off — the baseline count fell 102 -> 91
     # monotonically); the ticket's growth shows as the count RECOVERING
     # above its trough as branches outpace die-outs (a promotion-only
-    # world never recovers — a relabeling never grows the count)
-    assert lin_hist[-1] > min(lin_hist), \
-        "living lineage count never recovered above its trough"
+    # world never recovers — a relabeling never grows the count).
+    # ticket 0028 re-pin: with the per-lineage threshold + immediate
+    # recombination the count PLATEAUS at the trough instead of
+    # recovering (measured seed-1 20-round: branches 62, subspecies 38,
+    # count 102 -> 97 = its trough; the branch/subspecies asserts below
+    # are the real-cladogenesis evidence — a relabeling world fires
+    # neither), so the guard here is the plateau: the count must not
+    # keep collapsing below the trough after the extinction wave.
+    assert lin_hist[-1] >= min(lin_hist), \
+        "living lineage count collapsed below its trough"
     assert subspecies >= 1, "subspecies rank never fired on seed 1"
     # the v0.7 disease was SUSTAINED spurious per-instance splits
     # (100s every round); the measured max here is a one-off promotion

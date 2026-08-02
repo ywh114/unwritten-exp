@@ -96,12 +96,16 @@ metric at SUB_D.
    sees cells): ``update`` takes an optional ``merge_candidates``
    argument (see the seam note below). A candidate pair is merged iff
    both members share one species group AND their SCALAR-ONLY pairwise
-   distance < MERGE_D AND rounds_since_divergence >= MERGE_GRACE. The
-   survivor is the more-established member (tie: lowest instance id);
-   the orthodox instance is never absorbed (it keeps the species ID).
-   Merges never cross species (speciation is a hard reproductive
-   barrier), and two distinct clusters can never be candidates anyway
-   (d >= SUB_D > MERGE_D).
+   distance < the LINEAGE's merge threshold (ticket 0028: per-lineage
+   = merge_d_threshold(rate_mult, n_gen), passed as a per-sid map the
+   same way g_star is; callers that pass no map get the fixed MERGE_D
+   fallback) AND rounds_since_divergence >= the grace (engine-passed
+   merge_grace, default MERGE_GRACE). The survivor is the
+   more-established member (tie: lowest instance id); the orthodox
+   instance is never absorbed (it keeps the species ID). Merges never
+   cross species (speciation is a hard reproductive barrier), and two
+   distinct clusters can never be candidates anyway
+   (d >= SUB_D > threshold — the threshold saturates below SUB_D).
 6. Species that had living instances but have none now are marked
    extinct: the record stays in the tree as a ghost, the changelog
    lists the sid, the reflog gets the entry. Species never minted are
@@ -111,19 +115,21 @@ metric at SUB_D.
    extinct at the first commit.
 7. ``spawns`` is always empty in v1 (origin events are out of scope).
 
-┌─ divergence-round tracking (MERGE_GRACE) ───────────────────────────
+┌─ divergence-round tracking (the merge grace) ────────────────────────
 The authority is round-agnostic (reflog entries carry no round), but
 the grace needs a round count, so the authority tracks it internally:
 ``self._round`` counts update() calls (the first call is round 0) and
 ``self._divergence_round[instance_id]`` records the round at which the
 instance's lineage last diverged — its first appearance (genesis or
 mid-run founding) or a re-key to a new divide node. Then
-rounds_since_divergence(i, j) = current_round − max(div[i], div[j]);
-genesis siblings (round 0) first become merge-eligible at commit round
-5 (their sixth update). update() is deterministic given the
-authority's full state — tree + reflog + round counter + divergence
-table + lineage map + alive set — so saved-round replay must restore
-all of it (the reflog already rides along with the tree JSON).
+rounds_since_divergence(i, j) = current_round − max(div[i], div[j]).
+The engine passes its merge_grace (ticket 0028: immediate
+recombination — the grace is small, the threshold does the
+discriminating); callers that pass none get MERGE_GRACE. update() is
+deterministic given the authority's full state — tree + reflog + round
+counter + divergence table + lineage map + alive set — so saved-round
+replay must restore all of it (the reflog already rides along with the
+tree JSON).
 
 ┌─ merge-candidate seam (engine-side gate, critic finding 5) ─────────
 update()'s signature stays the protocol's (views, rng); the spatial
@@ -185,13 +191,71 @@ SPECIATION_D = 0.35      # g-less FALLBACK divide rank (authority tests
                          # the engine always passes g, so the rounds use
                          # classify(g_since_split, g_star) instead — the
                          # SPECIATION_D band is NOT a rounds currency)
-MERGE_D = 0.045          # merge gate: pairwise SCALAR-ONLY L1 below
-                         # this -> merge-eligible (ticket 0008, agent-58
-                         # measurement: same-blob scalar-only p99 floor
-                         # ~0.073, contrast pairs p90 ~0.057 — 0.045
-                         # merges same-blob pairs and lets genuinely
-                         # diverging pairs escape the CONSOL sweep)
-MERGE_GRACE = 5          # rounds since divergence before a merge is legal
+MERGE_D = 0.045          # merge-gate FALLBACK: pairwise SCALAR-ONLY L1
+                         # below this -> merge-eligible, used when an
+                         # update() call passes no per-lineage merge_d
+                         # map (authority unit tests). The ENGINE always
+                         # passes the per-lineage threshold (ticket 0028
+                         # — see merge_d_threshold; the fixed 0.045 is
+                         # retired as a rounds currency)
+MERGE_D_BASE = 0.03      # per-lineage threshold anchor (ticket 0028):
+                         # threshold = MERGE_D_BASE x (n_gen x
+                         # rate_mult / MERGE_D_RATE_REF)^MERGE_D_EXP,
+                         # SATURATED at MERGE_D_CAP. CALIBRATED on
+                         # seed 1 (2026-08-02): the median lineage's
+                         # threshold (0.03) sits at the measured
+                         # same-environment cumulative drift band
+                         # (age-4 p50 0.012 / p75 0.023) so same-env
+                         # pieces recombine; cross-env divergence was
+                         # measured only ~1.2-1.3x the same-env band
+                         # (overlapping), so different-environment
+                         # persistence rides the contact gate +
+                         # cluster/divide machinery
+MERGE_D_RATE_REF = 28.0  # the seed-1 median n_gen x rate_mult (the
+                         # lineage-rate anchor: threshold(median
+                         # lineage) = MERGE_D_BASE)
+MERGE_D_EXP = 1.0        # exponent on the rate scale (fitted to the
+                         # measured same-env per-round drift-vs-rate
+                         # slope: log-log p50 slope = 1.00, n=39
+                         # lineages, seed 1)
+MERGE_D_CAP = 0.05       # saturation: the per-lineage threshold never
+                         # exceeds this (the same-blob noise floor
+                         # region — a genuinely diverged population at
+                         # d ~0.05+, the cross-env age-5 p90, BLOCKS
+                         # the merge). Keeps the gate well below
+                         # SUB_D (clusters merge-exempt by
+                         # construction, ticket 0010; the old fixed
+                         # MERGE_D 0.045 sat here too)
+MERGE_GRACE = 0          # rounds since divergence before a merge is legal
+                         # (ticket 0028: IMMEDIATE recombination — the
+                         # grace is 0, the per-lineage threshold does
+                         # the discriminating; the old 5-round genesis-
+                         # sibling exemption is retired with the v0.7
+                         # fixed threshold). FALLBACK for update()
+                         # calls that pass no merge_grace (unit tests);
+                         # the engine passes its own.
+
+
+def merge_d_threshold(rate_mult: float, n_gen: float,
+                      *, base: float = MERGE_D_BASE,
+                      ref: float = MERGE_D_RATE_REF,
+                      exp: float = MERGE_D_EXP,
+                      cap: float = MERGE_D_CAP) -> float:
+    """The per-lineage merge threshold (ticket 0028, owner design
+    2026-08-02): threshold widens with the species' inherent mutation
+    rate so "same species, same place" still merges. The rate scale is
+    the per-round generation count x the per-lineage lognormal rate
+    multiplier — both engine-side lineage params (n_gen from the
+    lineage's gen_time = 2·sqrt(height_m), spec §4 step 1; rate_mult
+    drawn once per lineage via k15.g, fauna RFC §1). The threshold is
+    TIGHT at the reference rate (a differing environment diverges past
+    it — environment acts through the genetic channel, no environment
+    field) and widens with the rate product so a fast mutator's own
+    same-environment pieces stay within it; it SATURATES at MERGE_D_CAP
+    so the merge gate never approaches the cluster edge (clusters are
+    merge-exempt by construction, ticket 0010)."""
+    rate = max(n_gen, 0.0) * max(rate_mult, 0.0)
+    return min(cap, base * (rate / ref) ** exp)
 # ticket 0010 real-cladogenesis floors (the v0.7-disease churn control:
 # per-instance g crossings churned 100s of spurious splits/round; a
 # wobble never accumulates the persistence, so the stable-component
@@ -559,14 +623,23 @@ class TreeAuthority:
     def update(self, views: list[InstanceView], rng: Stream, *,
                merge_candidates: set[frozenset[str]] | None = None,
                g_since_split: Mapping[str, float] | None = None,
-               g_star: Mapping[str, float] | None = None) -> ChangeLog:
+               g_star: Mapping[str, float] | None = None,
+               merge_d: Mapping[str, float] | None = None,
+               merge_grace: int | None = None) -> ChangeLog:
         """The commit. See the module docstring for the full pipeline.
 
         ``merge_candidates``: optional set of 2-instance frozensets the
         engine has verified spatially touch (this class is space-blind;
         critic finding 5). The authority still re-checks the gene
-        distance < MERGE_D and the MERGE_GRACE before merging. See the
-        seam note in the module docstring.
+        distance and the grace before merging. See the seam note in the
+        module docstring.
+
+        ``merge_d`` / ``merge_grace`` (ticket 0028): per-lineage merge
+        thresholds and the grace — the engine's per-lineage merge
+        semantics (see merge_d_threshold). Per sid the gate reads
+        ``merge_d.get(sid, MERGE_D)``; callers that pass no map (unit
+        tests) get the fixed MERGE_D fallback. ``merge_grace`` defaults
+        to the MERGE_GRACE constant.
 
         ``g_since_split`` / ``g_star``: the lineage g bookkeeping
         (fauna RFC §1, ticket 0008) — per-instance accumulated genetic
@@ -631,7 +704,8 @@ class TreeAuthority:
             alive_now.add(sid)
             self._process_group(node, group, commit_round, rng,
                                 cands_by_sid.get(sid, ()), deltas,
-                                alive_now, g_since_split, g_star)
+                                alive_now, g_since_split, g_star,
+                                merge_d, merge_grace)
 
         extinct = sorted(self._alive - alive_now)
         for sid in extinct:
@@ -655,15 +729,22 @@ class TreeAuthority:
                        deltas: dict[InstanceId, InstanceDelta],
                        alive_now: set[SpeciesId],
                        g_since_split: Mapping[str, float] | None = None,
-                       g_star: Mapping[str, float] | None = None) -> None:
+                       g_star: Mapping[str, float] | None = None,
+                       merge_d: Mapping[str, float] | None = None,
+                       merge_grace: int | None = None) -> None:
         """One species group: orthodox, clusters, divides, merges.
         *candidates* is the group's OWN merge-candidate pairs (the
         update() caller buckets the same-lineage pairs per species —
         see the seam note; the pre-bucket full-set scan was
         O(groups × pairs) and dominated the CONSOL commit at high
-        lineage counts, ticket 0004)."""
+        lineage counts, ticket 0004). *merge_d*: per-lineage merge
+        thresholds (ticket 0028 — see merge_d_threshold; per sid the
+        gate reads merge_d.get(sid, MERGE_D)); *merge_grace*: the
+        rounds-since-divergence floor (default MERGE_GRACE)."""
         sid = node.sid
         m = self.metric
+        thresh = (merge_d or {}).get(sid, MERGE_D)
+        grace = MERGE_GRACE if merge_grace is None else merge_grace
         n = len(group)
         idx = {v.instance_id: i for i, v in enumerate(group)}
         record_genes = {**node.axes, **node.generics}
@@ -874,8 +955,8 @@ class TreeAuthority:
                     self._divergence_round.get(a, commit_round),
                     self._divergence_round.get(b, commit_round))
                 for a, b in cand])
-            ok = (dist_merge[ia_v, ib_v] < MERGE_D) \
-                & (grace_v >= MERGE_GRACE) \
+            ok = (dist_merge[ia_v, ib_v] < thresh) \
+                & (grace_v >= grace) \
                 & in_orth[ia_v] & in_orth[ib_v]
             cand = [c for c, keep in zip(cand, ok) if keep]
         absorbed: set[str] = set()
