@@ -834,6 +834,7 @@ counts are small).
 | ISO_G_GAIN / ISO_RAMP_ROUNDS | 4 | **1.0 / 2 (ticket 0010)** | Δg base multiplier at full isolation (1.0 = 2× at iso 1 — the RFC §1 pairwise 2× divergence rate) / rounds without gene flow to full isolation |
 | G_STEP_REF | 4 | 100 | species-edge dg scale: rounds' novel-tail rate = p_novel·n_gen/G_STEP_REF per axis |
 | STRESS_G_BOOST / G_STEADY_ONSET / G_STEADY_RAMP / G_REF / G_NOVEL / P_NOVEL_MAX / NOVELTY_MULT | 4 | forces.py | the g-clock and f(g) ramp constants (referenced, never duplicated) |
+| SELECT_GAIN | 4 | **2.0 (cal, ticket 0029)** | the flora `select()` provenance→pressure gain (flora/sim.py: scales the verdict shortfall×row-weight mapping; stress function, mortality, NUDGE_RATE untouched; 1.0 = bit-identical HEAD) — seed-1 sweep r0–r15: bands do not separate by SEP at any gain, but 2.0 is the empirical optimum (mid-run r4–r8 cross-env threshold margin +0.05–0.08, fat-blob model + 0010 path intact); see §15 v1.4 |
 | TAKEOVER_RATIO | 12 | 0.8 | acceptance 5 |
 
 **Content authoring conventions** (stat-pass E, 2026-08-01):
@@ -865,6 +866,53 @@ counts are small).
 
 ## 15. Changelog
 
+- **v1.4** (2026-08-02, ticket 0029, select-pressure gain — settled
+  SELECT_GAIN = 2.0): adds the `SELECT_GAIN` lever — the flora
+  `select()` provenance→pressure gain (`flora/sim.py`, applied at the
+  verdict shortfall×row-weight mapping; the env→suitability stress
+  function, mortality, and NUDGE_RATE are untouched per the owner's
+  constraint). Gain 1.0 is bit-identical to HEAD (probe JSON
+  byte-compared). Calibrated on seed 1 (work clone tmp/k15_gain,
+  probe_0029_calib.py — the 0028 methodology: per-round scalar-only
+  distance on same-lineage pairs, same-env |Δ mean s_env|<0.05 vs
+  cross-env ≥0.15, cumulative d p50/p90, per-pair lineage threshold):
+  swept gains 1.0/1.5/2.0/3.0/5.0 over r0–r5 plus 15-round runs at
+  1.0/2.0. Result: the bands do NOT separate by cross/same p50 SEP at
+  any gain (~0.9–1.5 through r15; transient peak 2.3 at gain 1.0 r6) —
+  same-lineage pairs within the |Δ s_env|<0.05 class carry a real
+  selection component (per-factor shortfalls differ cell to cell), so
+  the gain amplifies same-env divergence nearly 1:1 with cross-env.
+  BUT the gain does grow the ADAPTIVE component where it counts, at the
+  per-lineage THRESHOLD: gain 2.0 is the empirical optimum — the
+  cross-env minus same-env frac_d≥threshold margin turns consistently
+  positive in the r4–r8 window (+0.03 to +0.08, four of five rounds
+  ≥ +0.05 vs ±0.03 noise at gain 1.0), i.e. the merge threshold
+  discriminates cross-env from same-env exactly in the window where
+  the steady-tier gate opens. Where the gate bites: the adaptive burst
+  is suppressed through r5 (fraction g>200 13% → 46% r0→r5, gate_mean
+  0.24; g>400 ~16% — the steady axes move at ~0.4–0.6× only for the
+  top decile), fires in the r6–r8 window (the discrimination above),
+  then washes out by r9+ as lineages grow tall, n_gen falls and the
+  per-lineage threshold erodes (th_p50 0.026 at r5 → 0.005–0.015 by
+  r14 even at gain 1.0). Gains ≥3 break the model: faster adaptation
+  makes lineages taller (gen_time p50 3.9 → 7.8 yr at gain 5.0),
+  halving n_gen and collapsing the 0028 threshold (th_p50 0.006–0.018
+  at gain ≥2 r5), same-env recombination fails (same-env frac_d≥th 0.33
+  → 0.74–0.90) and instances explode (281 → 717 at r5, gain 3.0).
+  Settled: SELECT_GAIN = **2.0** — re-measured at it: per-species
+  instances r16 p50 2 / max 14 / 97% ≤10 (0028 baseline 2 / 15 / 98% —
+  the fat-blob model holds; 251 → 310 instances, +24% cross-env
+  persistence, +2 live lineages), the 0010 path intact (64 branches /
+  78 subspecies / 20 rounds vs 62 / 38), determinism byte-identical
+  double run (slow gate), fast tier 138 green with ZERO re-pins, slow
+  gates green with zero re-pins (the §12.3 first-merge ≤ round 1, the
+  plateau, the range-tracking and churn bounds all hold at 2.0).
+  Remaining limitation (owner-anticipated): this is an early-rate
+  lever, not a steady-state separator — SEP stays ~1.2–1.5, the
+  steady-state blocking still rides the contact gate + clusters;
+  follow-up candidates: same/cross classes on the verdict-pressure
+  vector instead of mean s_env, or pricing the gen_time feedback into
+  the 0028 threshold.
 - **v1.3** (2026-08-02, ticket 0028, immediate recombination +
   mutation-tuned threshold): the consolidation machinery is corrected
   to the owner's design. §9: (a) the fixed MERGE_D = 0.045 merge gate

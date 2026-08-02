@@ -21,11 +21,13 @@ plan/preset degrade to defaults).
 ┌─ select ────────────────────────────────────────────────────────────
 Routes each verdict provenance factor (the ENV-defined req_flora names)
 through content/flora/stress_response.toml (loaded into the ContentPack)
-to the driftable traits that answer it. Magnitude = (1 - suitability) x
-row weight: the worse the factor, the harder the push. Responders are
-only ever driftable TRAITS (axes + generics); the climate ENVELOPE is a
-derived (never pressured directly) and plan-level medium never receives
-pressure. One documented rule:
+to the driftable traits that answer it. Magnitude = SELECT_GAIN x
+(1 - suitability) x row weight: the worse the factor, the harder the
+push (the gain, ticket 0029, steepens the provenance->pressure
+mapping only — stress function and NUDGE_RATE untouched). Responders
+are only ever driftable TRAITS (axes + generics); the climate ENVELOPE
+is a derived (never pressured directly) and plan-level medium never
+receives pressure. One documented rule:
 
 * No-responder requirements (pressure:medium — medium is plan-level
   registry data) emit NO pressure: the lineage accumulates nowhere and
@@ -101,6 +103,30 @@ from kernel.hashrng import Stream
 # (one-way envelope) the same pair converged at +0.00043/round with a
 # ~0.009 ceiling — the dial fix removed the ceiling, so 0.5 diverges.
 NUDGE_RATE = 0.5
+# SELECT_GAIN (ticket 0029, owner 2026-08-02): the select() pressure
+# gain — scales the provenance->pressure mapping (shortfall x row
+# weight) WITHOUT touching the env->suitability stress function, the
+# mortality curve, or NUDGE_RATE. Rationale: same-environment pairs
+# share a common-mode pressure (a steeper gain moves them together,
+# adding no separation) while different-environment pairs have
+# pressure vectors pointing at different optima (a steeper gain moves
+# each toward its own optimum faster) — so the gain grows the ADAPTIVE
+# component of cross-env divergence, which is exactly what the 0028
+# per-lineage merge threshold discriminates on. Early-rate lever only:
+# pressure -> 0 as traits approach the optima. Calibrated on seed 1
+# (tmp/k15_gain, probe_0029_calib.py): swept 1.0-5.0 over r0-r15 — the
+# same/cross bands do NOT separate by SEP at any gain (~0.9-1.5), but
+# gain 2.0 is the empirical optimum: the strongest sustained mid-run
+# threshold discrimination (r4-r8 cross-env frac_d>=th margin +0.03 to
+# +0.08, four of five rounds >= +0.05; the steady-tier gate's r6-r8
+# adaptive window) while keeping
+# the 0028 fat-blob model (r16 p50 2 / max 14 / 97% <=10) and the 0010
+# path (64 branches / 78 subspecies); gain >=3 collapses the per-lineage
+# threshold via the taller-lineages gen_time channel and breaks
+# recombination (see spec §15 v1.4).
+# Gain 1.0 is bit-identical to HEAD (1.0 x shortfall x weight ==
+# shortfall x weight, IEEE-exact).
+SELECT_GAIN = 2.0
 # log-space nudge clamp: exp(±50) is far past any authored bound, so a
 # pathological pressure cannot overflow float before the bound clip.
 MUTATE_EXP_CLAMP = 50.0
@@ -380,7 +406,8 @@ class FloraSim:
             if shortfall <= 0.0:
                 continue
             for row in rows:
-                weight = shortfall * float(row.get("weight", 1.0))
+                weight = SELECT_GAIN * shortfall * float(row.get(
+                    "weight", 1.0))
                 trait = row.get("trait")
                 if trait:
                     spec = pack.registry.axes.get(trait)
