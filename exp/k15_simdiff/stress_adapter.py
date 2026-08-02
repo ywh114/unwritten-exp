@@ -545,7 +545,8 @@ def load_world(seed: int) -> WorldContext:
     ).astype(np.float32)
     dis_ref = max(float(np.percentile(z["h_discharge"], 99.0)), 1e-12)
     plume = _plume_source(z, ocean, dis_ref)
-    mprod_prov = marine_productivity(z, _currents_payload(k11_dir))
+    _cp = _currents_payload(k11_dir)
+    mprod_prov = marine_productivity(z, _cp)
     fprod_ann = freshwater_productivity(z, sea).mean(axis=0)
     ctx.photic = np.where(
         ocean,
@@ -553,6 +554,14 @@ def load_world(seed: int) -> WorldContext:
                               PLUME_WEIGHT),
         _water.fresh_photic_depth_m(bog_share, fprod_ann, fresh)
     ).astype(np.float32)
+    # §5.0 ocean currents: mean_currents (engine) reads the raw payload
+    # from the ctx cache instead of re-opening the K11 dump per engine
+    # construction (ticket 0021 item 4 — the ticket 0022 wind-field
+    # idiom). Not attached when the payload fell back to the annual mean
+    # (None); mean_currents then re-loads as before.
+    if _cp is not None:
+        ctx.currents_u = _cp["u"]
+        ctx.currents_v = _cp["v"]
     return ctx
 
 

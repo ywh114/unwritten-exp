@@ -41,6 +41,7 @@ import pytest
 from exp.k13_treegen.interface import Outcome
 from exp.k15_simdiff import dispersal as dsp
 from exp.k15_simdiff import population as pop
+from exp.k15_simdiff import stress_adapter as sa
 from exp.k15_simdiff.engine import Dressed, Engine, _dilate
 
 SEED = 1
@@ -61,10 +62,28 @@ BANNED = re.compile(
 
 # ── fixtures ──────────────────────────────────────────────────────────
 
+# The seed-1 world ctx + capacity anchor, built ONCE per worker process
+# by the session fixtures in conftest.py (ticket 0021 item 4). The
+# autouse session fixture stashes them here so ``_engine()`` shares one
+# read-only world instead of re-opening the K11 dump + currents payload
+# per test (~2 s per engine before the shared world). The ctx is never
+# mutated after ``load_world`` (every ctx.* write lives inside it) and
+# K is only ever indexed, never written — so sharing is
+# determinism-neutral, and with xdist each worker builds its own
+# session copy.
+_CTX: sa.WorldContext | None = None
+_CAP: np.ndarray | None = None
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _k15_shared_world(k15_world, k15_capacity):
+    global _CTX, _CAP
+    _CTX, _CAP = k15_world, k15_capacity
+
 
 def _engine() -> Engine:
     """A bare engine (world + tree + authority, NO genesis rain)."""
-    return Engine(SEED)
+    return Engine(SEED, ctx=_CTX, capacity=_CAP)
 
 
 def _plant(eng: Engine, preset: str, cells: list[tuple[int, int]],

@@ -318,13 +318,20 @@ def downstream_pointer(ctx: sa.WorldContext) -> np.ndarray:
     return ptr
 
 
-def mean_currents(seed_dir: Path) -> tuple[np.ndarray, np.ndarray]:
-    """Monthly-mean current field (u, v) at anchor (spec §5.0): the
-    persisted payload's mean velocity (the adapter's private loader,
-    promoted to shared use here)."""
-    p = sa._currents_payload(seed_dir)
-    return (np.ascontiguousarray(p["u"], dtype=np.float64),
-            np.ascontiguousarray(p["v"], dtype=np.float64))
+def mean_currents(ctx: sa.WorldContext) -> tuple[np.ndarray, np.ndarray]:
+    """Monthly-mean current field (u, v) at anchor (spec §5.0). The
+    payload's mean velocity is read from the WorldContext cache —
+    load_world holds it (ticket 0021 item 4, the 0022 wind-field
+    idiom: no per-engine K11-dump re-open); falls back to the adapter's
+    private loader when the payload was absent at build time."""
+    u = getattr(ctx, "currents_u", None)
+    if u is None:
+        p = sa._currents_payload(sa.K11_OUT / f"seed_{ctx.seed:08d}")
+        u, v = p["u"], p["v"]
+    else:
+        v = ctx.currents_v
+    return (np.ascontiguousarray(u, dtype=np.float64),
+            np.ascontiguousarray(v, dtype=np.float64))
 
 
 def mobility(view: dict, wspd: np.ndarray, cells: np.ndarray) -> float:
@@ -358,15 +365,21 @@ class Engine:
     round 0; ``round(t)`` runs one round; ``run(rounds)`` both."""
 
     def __init__(self, seed: int, content: Path = FLORA_CONTENT,
-                 pack: ContentPack | None = None) -> None:
+                 pack: ContentPack | None = None,
+                 ctx: sa.WorldContext | None = None,
+                 capacity: np.ndarray | None = None) -> None:
         self.seed = seed
         self.pack = pack if pack is not None else load_content(content)
         self.sim = FloraSim(self.pack)
-        self.ctx = sa.load_world(seed)
+        # shared seed-1 world ctx / capacity from the session fixtures
+        # (ticket 0021 item 4): None falls back to the per-engine load —
+        # identical values, just not cached. ctx is read-only after
+        # load_world, capacity is never written, so sharing is safe.
+        self.ctx = ctx if ctx is not None else sa.load_world(seed)
         self.tree: Tree = build_backbone(seed, self.pack)
         self.authority = auth.TreeAuthority(self.tree)
-        self.K = gen.load_capacity(seed, self.ctx)
-        seed_dir = sa.K11_OUT / f"seed_{seed:08d}"
+        self.K = capacity if capacity is not None \
+            else gen.load_capacity(seed, self.ctx)
         # §5.0 world fields: load_world already holds the K11 dump, so
         # the mean wind and D8 downstream read the raw fields it cached
         # on the context instead of re-opening world.npz (ticket 0022).
@@ -374,7 +387,7 @@ class Engine:
             self.ctx, self.ctx.H, self.ctx.W)
         self.wspd = np.hypot(self.wind_u, self.wind_v)
         self.downstream = downstream_pointer(self.ctx)
-        self.cur_u, self.cur_v = mean_currents(seed_dir)
+        self.cur_u, self.cur_v = mean_currents(self.ctx)
         # preset id -> the ORDER node sid carrying the preset record
         self._order_sid = {
             n.preset: n.sid for n in self.tree.nodes.values()

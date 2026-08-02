@@ -37,7 +37,6 @@ from exp.k15_simdiff.genesis import (
     _partition,
     connected_components,
     genesis_rain,
-    load_capacity,
     partition_k,
     reduced,
     valid_mask,
@@ -57,13 +56,13 @@ def pack_sim():
 
 
 @pytest.fixture(scope="session")
-def world():
-    return sa.load_world(1)
+def world(k15_world):
+    return k15_world
 
 
 @pytest.fixture(scope="session")
-def capacity(world):
-    return load_capacity(1, world)
+def capacity(k15_capacity):
+    return k15_capacity
 
 
 # ── spec §10 step 3: the partition knobs (fast) ────────────────────────
@@ -282,7 +281,7 @@ def test_genesis_determinism(world, pack_sim, capacity):
 
 
 @pytest.mark.slow
-def test_genesis_species_sparse_founders(pack_sim, world):
+def test_genesis_species_sparse_founders(pack_sim, world, k15_world):
     """Ticket 0020 (DESIGN PIVOT) done-means on seed 1 through the
     ENGINE (the species rain — sparse founders + partial coverage, NO
     density budget): every species with a mintable blob mints (the
@@ -298,7 +297,7 @@ def test_genesis_species_sparse_founders(pack_sim, world):
     unreachable without a density gate; see the v1.1 changelog)."""
     from exp.k15_simdiff.engine import Engine
 
-    eng = Engine(1, pack=pack_sim[0])
+    eng = Engine(1, pack=pack_sim[0], ctx=k15_world)
     eng.genesis()
     H, W = eng.ctx.H, eng.ctx.W
     live = [d for d in eng.instances.values() if d.mass > 0.0]
