@@ -1,6 +1,7 @@
-# K15 sim-diff engine (flora rounds) — build spec v1.6
+# K15 sim-diff engine (flora rounds) — build spec v1.7
 
-2026-08-01. v1.6 (ticket 0018 REBUILD, 2026-08-02, pre-genesis
+2026-08-01. v1.7 (ticket 0013, the delivery pass, 2026-08-02)
+supersedes v1.6; v1.6 (ticket 0018 REBUILD, 2026-08-02, pre-genesis
 descent with the earned-g first-commit rank) supersedes the v1.3
 design note below it: the adapted fringe returns, but the fragments
 now EARN their g (g_end = DES_G_FRAC × n_gen × rate_mult — the v4-era
@@ -950,6 +951,10 @@ exp/k15_simdiff/
   population.py       §6            authority.py        §9 (+reflog,
                                                      §10.1 rank step 0)
   test_engine.py      §12           __main__.py         extend: rounds demo
+  persist.py          §12/0013      the delivery dump — per-instance
+                                    density fields, amended tree, reflog,
+                                    high-res display pass + viewer pack
+                                    (exp/k15_simdiff/out/seed_NNNNNNNN/)
 exp/k15_descent/
   descent.py          §10.1         (ticket 0018: the adapted fringe +
                                     g-earning; P_ADAPT/P_BREAKOFF/
@@ -987,6 +992,16 @@ counts are small).
    instance.
 9. **Hard-rule audit**: no uuid/random/time; every stream traces to K1
    (grep + a runtime guard in test_engine).
+10. **Delivery (ticket 0013)**: the rounds demo writes the dump under
+    `exp/k15_simdiff/out/seed_NNNNNNNN/` — per-instance density fields
+    (bbox + mask + N, windowed), the amended tree (k13 schema,
+    post-rounds), the authority reflog; two runs at the same
+    (seed, rounds) are byte-identical (`cmp` the whole dump dir —
+    sorted iteration, fixed dtypes, no timestamps in payloads). The
+    viewer datapack (`delivery.k11pack`) renders the species-richness /
+    lineages-present overlay; the high-res (1024²) density pass is
+    display-only (edge-aware upscale + settlement diffusion, never
+    fed back into a sim round).
 
 ## 13. Knob table (all module constants; (cal) = stat-pass settled)
 
@@ -1065,6 +1080,34 @@ counts are small).
 - Animal dispersal vector (real frugivores) → fauna rounds.
 
 ## 15. Changelog
+
+- **v1.7** (2026-08-02, ticket 0013 — the delivery pass): K15 stops
+  dying with the process. `persist.py` writes the per-run dump under
+  `exp/k15_simdiff/out/seed_NNNNNNNN/` (k11/k14 convention, registered
+  as the "k15" artifact generator): `density.json` (per-instance
+  WINDOWED density fields — bbox + N f8 + mask u1, sorted instance
+  ids; optional per-round snapshots under `rounds/rNNNN.json` with
+  `--per-round`), `tree.json` (the amended tree — the SAME schema k13
+  delivers, post-rounds, meta amended with delivered_by/rounds),
+  `reflog.json` (the full authority decision record), `state.json`
+  (the acceptance digest + run provenance), `delivery.npz` +
+  `delivery.k11pack` (the viewer overlay: species richness, the
+  lineages-present tooltip layer, and the high-res display pass).
+  The high-res half (owner addendum 2026-08-01; display-only by
+  default): each final-round instance density field upscaled to 1024²
+  with edge-aware interpolation (bilinear field + interpolated-mask
+  re-threshold — the k14 display-map de-blocking idiom, NOT raw 4x
+  blocks) plus a settlement diffusion at delivery res (3x3 box
+  average restricted to the instance's own hi-res mask), streamed
+  into ONE running plane (never a per-lineage stack); display-only —
+  nothing feeds back into a sim round. Viewer: `map.html` gains a
+  `kind: "list"` layer (the lineages-present tooltip row); the k15
+  pack is exercised by `viewer/test_k15pack.mjs` (+ pytest wrapper
+  `exp/k11_worldgen/test_k15pack.py`, SKIPs when the pack is absent).
+  Determinism gate: two full `--rounds 8` runs — `diff -r` on the
+  whole dump dir is empty (byte-identical, incl. the binary pack/npz).
+  Fast tier: 479 passed + the k14 datapack E2E (14/14) unaffected.
+  Re-pins: none (the dump is additive; no existing test pins it).
 
 - **v1.6** (2026-08-02, ticket 0018 REBUILD — pre-genesis descent
   with the earned-g first-commit rank): the adapted fringe returns

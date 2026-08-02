@@ -17,6 +17,8 @@ Layout convention (producer-owned):
     k11   -> exp/k11_worldgen/out/seed_{seed:08d}/   (world.json + world.npz)
     k13   -> exp/k13_treegen/out/k13_seed{seed:08d}.json
     flora -> exp/k13_treegen/out/k14_seed{seed:08d}.json
+    k15   -> exp/k15_simdiff/out/seed_{seed:08d}/    (the ticket-0013
+             delivery dump: state/density/tree/reflog + display layers)
 
 The stamp is the contract: {generator, version, seed, commit, sha256}.
 ``sha256`` covers the canonical artifact bytes (for k11: world.json
@@ -45,6 +47,8 @@ class GeneratorSpec:
     version_key: str         # stamp field carrying the schema version
     cli: tuple[str, ...]     # regen command after `python -m`; "{seed}"
                              # is formatted with the seed number
+    meta_file: str = "world.json"  # dir manifests' JSON header file
+                             # (k15's delivery dump names it state.json)
 
 
 GENERATORS: dict[str, GeneratorSpec] = {
@@ -69,6 +73,15 @@ GENERATORS: dict[str, GeneratorSpec] = {
         stamp_files=(),
         version_key="version",
         cli=("exp.k13_treegen.flora", "{seed}")),
+    "k15": GeneratorSpec(
+        name="k15_simdiff",
+        rel_path="exp/k15_simdiff/out/seed_{seed:08d}",
+        is_dir=True,
+        stamp_files=("state.json", "density.json", "tree.json",
+                     "reflog.json"),
+        version_key="k15_version",
+        meta_file="state.json",
+        cli=("exp.k15_simdiff", "--seed", "{seed}", "--rounds", "8")),
 }
 
 _commit_cache: str | None = None
@@ -139,7 +152,7 @@ def stamp(generator: str, seed: int, with_hash: bool = True) -> dict:
     if find(generator, seed) is None:
         raise FileNotFoundError(f"no {generator} artifact for seed {seed}")
     p = artifact_path(generator, seed)
-    meta_file = (p / "world.json") if spec.is_dir else p
+    meta_file = (p / spec.meta_file) if spec.is_dir else p
     meta = json.loads(meta_file.read_text())
     if spec.is_dir:
         version = meta.get(spec.version_key)

@@ -3,6 +3,7 @@ plus the sim-diff engine rounds demo.
 
     PYTHONPATH=. uv run python -m exp.k15_simdiff --seed 1
     PYTHONPATH=. uv run python -m exp.k15_simdiff --seed 1 --rounds 8
+    PYTHONPATH=. uv run python -m exp.k15_simdiff --seed 1 --rounds 8 --per-round
 
 The default mode loads the flora tree
 (exp/k13_treegen/out/k14_seedNNNNNNNN.json) and the anchor world
@@ -32,6 +33,12 @@ radiated species, which is the spec's budget unit.
 
 Determinism: everything here is a pure function of (world dump, record)
 — no draws — so the two timing runs must be byte-identical.
+
+The rounds demo (--rounds N) ends with the delivery pass (ticket 0013):
+the full dump under exp/k15_simdiff/out/seed_NNNNNNNN/ (density
+fields, amended tree, authority reflog, high-res display pass + viewer
+pack — see persist.py). Deterministic: same (seed, rounds) => the
+whole dump dir is byte-identical across processes; --no-dump skips it.
 """
 
 from __future__ import annotations
@@ -341,13 +348,19 @@ def run(seed: int) -> int:
     return 0 if all_ok else 1
 
 
-def run_rounds(seed: int, rounds: int) -> int:
+def run_rounds(seed: int, rounds: int, *, do_dump: bool = True,
+               per_round: bool = False) -> int:
     """The engine rounds demo (spec §4/§12 driver side): genesis plus
     *rounds* full rounds on the world seed, with a per-round table
     (instances, lineages, mass, occupied cells, commit outcomes, wall)
     and a final digest. Determinism note: the same (seed, rounds) run
     is byte-identical across processes — ``test_full_run_acceptance``
-    (slow) is the gate for that."""
+    (slow) is the gate for that. The delivery pass (ticket 0013): by
+    default the run ends by writing the full dump under
+    ``exp/k15_simdiff/out/seed_NNNNNNNN/`` (density fields, amended
+    tree, reflog, high-res display pass + viewer pack) — deterministic,
+    same seed => byte-identical files."""
+    from exp.k15_simdiff import persist
     from exp.k15_simdiff.engine import Engine
 
     eng = Engine(seed)
@@ -365,6 +378,8 @@ def run_rounds(seed: int, rounds: int) -> int:
     for t in range(rounds):
         tr = time.perf_counter()
         log = eng.round(t)
+        if per_round:
+            persist.round_snapshot(eng, t)
         oc = Counter(int(d.outcome) for d in log.instances)
         mass = sum(d.mass for d in eng.instances.values())
         cells = sum(int(d.cells.sum()) for d in eng.instances.values())
@@ -378,6 +393,11 @@ def run_rounds(seed: int, rounds: int) -> int:
           f"(mean {total / max(rounds, 1):.1f}s/round); retired "
           f"{len(eng.retired)}, reflog {len(eng.authority.reflog)} "
           f"entries")
+    if do_dump:
+        out = persist.dump(eng, rounds)
+        for f in sorted(p.name for p in out.iterdir()):
+            print(f"  delivered {out.name}/{f}")
+        print(f"delivery dump: {out}")
     return 0
 
 
@@ -387,9 +407,16 @@ def main() -> None:
     ap.add_argument("--rounds", type=int, default=0,
                     help="run the engine rounds demo instead of the "
                          "adapter acceptance (N full rounds)")
+    ap.add_argument("--no-dump", action="store_true",
+                    help="skip the delivery dump after the rounds demo")
+    ap.add_argument("--per-round", action="store_true",
+                    help="also write per-round density snapshots "
+                         "(rounds/rNNNN.json)")
     args = ap.parse_args()
     if args.rounds > 0:
-        raise SystemExit(run_rounds(args.seed, args.rounds))
+        raise SystemExit(run_rounds(args.seed, args.rounds,
+                                    do_dump=not args.no_dump,
+                                    per_round=args.per_round))
     raise SystemExit(run(args.seed))
 
 

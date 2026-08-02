@@ -1934,6 +1934,19 @@ function pixelAt(wx, wy) {
         if (parts.length) out._pack.push({
           label: L.id.charAt(0).toUpperCase() + L.id.slice(1),
           mix: parts.join(", ")});
+      } else if (L.kind === "list" && L.data) {
+        // sim-delivery layer (k15): the lineages present at this cell
+        const [Hf, Wf] = L.shape;
+        const fx = Math.min(Wf - 1, Math.floor(wx * (Wf / W)));
+        const fy = Math.min(Hf - 1, Math.floor(wy * (Hf / H)));
+        const entries = (L.lists && L.lists[Math.round(L.data[fy * Wf + fx])]) || [];
+        if (entries.length) {
+          const head = entries.slice(0, 12);
+          const more = entries.length > 12
+            ? ` (+${entries.length - 12} more)` : "";
+          out._pack.push({ label: L.label, value: head.join(", ") + more,
+                           unit: "" });
+        }
       } else if (L.kind === "points" && L.points) {
         const thr = 8.0 / S.scale;      // 8 screen px pick radius
         let best = null, bestD = thr;
