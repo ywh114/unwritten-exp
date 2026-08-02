@@ -232,14 +232,14 @@ def test_pin_enums_byte_exact(tree1, pack):
 
 def test_binomial_genus_anchoring(tree1):
     """Pinned species sit under a genus bearing their authored binomial
-    genus (Achillea millefolium under Achillea, never a composed name)."""
+    genus (Quercus robur under Quercus, never a composed name)."""
     for n in tree1.nodes.values():
-        if n.label == "yarrow":
+        if n.label == "common-oak":
             genus = tree1.nodes[n.parent]
-            assert genus.name.binomial == "Achillea"
-            assert n.name.binomial == "Achillea millefolium"
+            assert genus.name.binomial == "Quercus"
+            assert n.name.binomial == "Quercus robur"
             return
-    raise AssertionError("yarrow pin missing")
+    raise AssertionError("common-oak pin missing")
 
 
 # ── derived axes ───────────────────────────────────────────────────────
@@ -280,26 +280,25 @@ def test_derived_flower_color_presets(tree1):
     colors — the mechanical migration (authored color -> nearest
     pathway + expression + ph position) keeps the F0 colors stable."""
     expected = {
-        "tree.oak": "green", "tree.conifer": "green", "tree.birch": "green",
-        "tree.willow": "green", "tree.palm": "cream",
+        "tree.oak": "green", "tree.conifer": "green", "tree.willow": "green",
+        "tree.palm": "cream", "tree.tropical": "green", "tree.mangrove": "green",
         "shrub.bramble": "white", "shrub.heath": "pink",
-        "herb_forb.carrot": "white", "herb_forb.chive": "pink",
-        "herb_forb.forb": "white", "herb_forb.grave_flower": "white",
-        "herb_forb.iris": "purple", "herb_forb.legume": "pink",
-        "herb_forb.thistle": "purple", "herb_forb.yarrow": "white",
+        "shrub.xeric": "white", "shrub.betulaceae": "green",
+        "shrub.tropical": "white",
+        "herb_forb.forb": "white", "herb_forb.asterid": "yellow",
         "grass_sward.bamboo": "green", "grass_sward.reed": "brown",
         "grass_sward.sedge": "brown", "grass_sward.tussock": "brown",
-        "succulent.cactus": "red", "rosette_mat.ice_crown": "white",
-        "rosette_mat.stonecrop": "yellow",
+        "grass_sward.bulrush": "brown",
+        "succulent.cactus": "red", "rosette_mat.stonecrop": "yellow",
         "fern_grade.bracken": "brown",
-        "moss_grade.cushion": "green", "moss_grade.sphagnum": "green",
+        "moss_grade.sphagnum": "green",
         "runner_meadow.seagrass": "green",
-        "floating_leaf.ludwigia": "yellow", "floating_leaf.waterlily": "white",
+        "floating_leaf.waterlily": "white",
         "floater.duckweed": "green",
         "macroalgae_holdfast.kelp": "brown",
         "coral_grade.branching_coral": "brown",
         "sponge_grade.barrel_sponge": "brown",
-        "fungus.agaric": "brown", "fungus.bracket": "brown",
+        "fungus.agaric": "brown",
         "lichen.crust": "brown",
     }
     by_order = {}

@@ -96,7 +96,7 @@ tier = "steady"
 value_type = "enum"
 mutation = "enum_redraw"
 states = ["canopy", "subcanopy", "shrub", "sward", "ground",
-          "aquatic_surface", "aquatic_benthic"]
+          "aquatic_surface", "aquatic_benthic", "epiphyte"]
 plan_scope = "all"
 consumers = ["stress", "pop", "id"]
 salience = 0.4

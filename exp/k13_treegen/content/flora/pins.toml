@@ -1,227 +1,919 @@
-# pins.toml — K14 flora Tier-1 anchors (K13 pin format).
-# Common-cover genus pins (rank = "genus", radiation = authored 3-6)
-# anchor the everyday register; landmark species pins (rank = "species",
-# no radiation) sit under their binomial genus automatically (K13
-# backbone rule). Axis overrides use the M1 registry axis names
-# (height_m, leaf_shape, pigment_pathway, ...). flower_color is DERIVED
-# (B5 §5.2) — pins tune it via pigment_pathway / pigment_expression /
+# pins.toml — K14 flora census (0012 Task A: two-track, <200 lineages).
+#
+# TWO TRACKS (see CENSUS.md):
+#   individual-track — habitat-defining physics (canopy/sward/holdfast/
+#     mat via layer + engineer_impact, high expected cover). Genus-rank
+#     pins radiate 1-2 species; species-rank pins are single lineages.
+#     No bundle flag.
+#   bundle-track — archetype superset generalists cut by REGION x
+#     PHYSIOLOGY. One (plan, layer), WIDER tolerance breadths, CENTRAL
+#     optima, archetypal enums, generous propagule_count (guild seed
+#     rain). Marked `bundle = true` (content-level flag; content.py
+#     exposes it via is_bundle()). `covered_region` records the biome-
+#     region x substrate window the envelope covers (a note for the
+#     coverage audit; the ENGINE reads neither).
+#
+# Pin records commit byte-exact at their rank (backbone rule); scalar
+# axes get a small seeded jitter, enums stay exact. flower_color is
+# DERIVED (B5 §5.2) — tune via pigment_pathway / pigment_expression /
 # ph_tolerance, never by authoring the bucket directly.
 
-# ──  trees / shrubs  ───────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════
+# INDIVIDUAL TRACK
+# ══════════════════════════════════════════════════════════════════════
+
+# ──  Fagales order (tree.oak) — temperate/boreal broadleaf  ───────────
 [[pin]]
 preset = "tree.oak"
 label = "oaks"
 name = { binomial = "Quercus", folk = "oak" }
 rank = "genus"
-radiation = 6
-axes = { height_m = 25.0, leaf_shape = "lobed", fruit_type = "nut" }
+# rad 0 + two pinned species: the genus carries robur + ilex + relatives
+axes = { height_m = 25.0, leaf_shape = "lobed", leaf_persistence = "winter_deciduous", fruit_type = "nut", shade_tolerance = 0.4, engineer_impact = 0.6 }
+flags = ["pinned"]
+note = "temp broadleaf canopy; hosts robur (temperate) + ilex (med basin, evergreen)"
+
+[[pin]]
+preset = "tree.oak"
+label = "common-oak"
+name = { binomial = "Quercus robur", folk = "common oak" }
+rank = "species"
+parent_pin = "oaks"
+axes = { height_m = 25.0, leaf_shape = "lobed", leaf_persistence = "winter_deciduous", fruit_type = "nut" }
+flags = ["pinned"]
+note = "temp broadleaf canopy anchor (Fagaceae)"
+
+[[pin]]
+preset = "tree.oak"
+label = "holly-oak"
+name = { binomial = "Quercus ilex", folk = "holly oak" }
+rank = "species"
+parent_pin = "oaks"
+axes = { height_m = 12.0, leaf_shape = "elliptical", leaf_persistence = "evergreen", leaf_sla = 4.0, fruit_type = "nut", drought_tolerance = 0.7, waterlogging_tolerance = 0.3 }
+flags = ["pinned"]
+note = "med basin evergreen Fagaceae sclerophyll (maquis canopy)"
+
+[[pin]]
+preset = "tree.oak"
+label = "beeches"
+name = { binomial = "Fagus", folk = "beech" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 28.0, leaf_shape = "ovate", leaf_margin = "entire", shade_tolerance = 0.7, fruit_type = "nut", engineer_impact = 0.6 }
 flags = ["pinned"]
 
+[[pin]]
+preset = "tree.oak"
+label = "birches"
+name = { binomial = "Betula", folk = "birch" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 20.0, pioneer_climax = 0.15, leaf_shape = "ovate", leaf_margin = "serrate", fruit_type = "samara" }
+flags = ["pinned"]
+note = "temp/boreal pioneer + alluvium hardwood"
+
+[[pin]]
+preset = "tree.oak"
+label = "alders"
+name = { binomial = "Alnus", folk = "alder" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 18.0, waterlogging_tolerance = 0.8, leaf_shape = "ovate", fruit_type = "cone", n_fixation = "frankia" }
+flags = ["pinned"]
+note = "riparian alluvium nitrogen-fixer (Betulaceae)"
+
+# ──  Pinales order (tree.conifer) — temperate + boreal + tropical conifer ──
 [[pin]]
 preset = "tree.conifer"
 label = "pines"
 name = { binomial = "Pinus", folk = "pine" }
 rank = "genus"
-radiation = 5
-axes = { height_m = 30.0, leaf_shape = "needle", fruit_type = "cone", fire_strategy = "seeder" }
+radiation = 1
+axes = { height_m = 30.0, leaf_shape = "needle", fruit_type = "cone", fire_strategy = "seeder", drought_tolerance = 0.6, growing_season_req = 5.0 }
 flags = ["pinned"]
+note = "temp + boreal conifer canopy; N-hemisphere tropical pine-oak (tropical conifer biome)"
 
 [[pin]]
-preset = "tree.birch"
-label = "birches"
-name = { binomial = "Betula", folk = "birch" }
+preset = "tree.conifer"
+label = "spruces"
+name = { binomial = "Picea", folk = "spruce" }
 rank = "genus"
-radiation = 4
-axes = { height_m = 20.0, pioneer_climax = 0.15, fruit_type = "samara" }
+radiation = 1
+axes = { height_m = 28.0, leaf_shape = "needle", snow_adaptation = "conical_shed", shade_tolerance = 0.6 }
 flags = ["pinned"]
+note = "boreal taiga climax canopy"
 
+[[pin]]
+preset = "tree.conifer"
+label = "larches"
+name = { binomial = "Larix", folk = "larch" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 25.0, leaf_shape = "needle", leaf_persistence = "winter_deciduous", deciduous_trigger = "winter", pioneer_climax = 0.5 }
+flags = ["pinned"]
+note = "boreal deciduous conifer (permafrost/low-litter grade)"
+
+# ──  Salicaceae order (tree.willow) — riparian  ────────────────────────
 [[pin]]
 preset = "tree.willow"
 label = "willows"
 name = { binomial = "Salix", folk = "willow" }
 rank = "genus"
-radiation = 5
-axes = { height_m = 15.0, leaf_shape = "linear", waterlogging_tolerance = 0.8 }
+radiation = 1
+axes = { height_m = 15.0, leaf_shape = "linear", waterlogging_tolerance = 0.8, snow_adaptation = "flexible" }
 flags = ["pinned"]
+note = "riparian alluvium + flooded-margin canopy (Salicaceae)"
+
+# ──  Arecales order (tree.palm)  ───────────────────────────────────────
+[[pin]]
+preset = "tree.palm"
+label = "palms"
+name = { binomial = "Cocos", folk = "palm" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 20.0, leaf_shape = "frond", fruit_type = "drupe", growing_season_req = 12.0 }
+flags = ["pinned"]
+note = "tropical moist subcanopy/emergent monocot (Arecaceae)"
+
+# ──  tropical woody order (tree.tropical) — moist + dry  ───────────────
+[[pin]]
+preset = "tree.tropical"
+label = "dipterocarps"
+name = { binomial = "Shorea", folk = "dipterocarp" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 45.0, leaf_shape = "elliptical", root_special = "buttress", root_depth_m = 1.9, growing_season_req = 12.0, engineer_impact = 0.8 }
+flags = ["pinned"]
+note = "tropical moist emergent canopy (Dipterocarpaceae)"
+
 
 [[pin]]
-preset = "shrub.bramble"
-label = "brambles"
-name = { binomial = "Rubus", folk = "bramble" }
+preset = "tree.tropical"
+label = "bombax"
+name = { binomial = "Ceiba", folk = "bombax" }
 rank = "genus"
-radiation = 6
-axes = { mechanical_defense = "prickle", fruit_type = "aggregate", clonal_spread_m = 3.0 }
+radiation = 1
+axes = { height_m = 35.0, leaf_persistence = "drought_deciduous", deciduous_trigger = "drought", leaf_shape = "lanceolate", leaf_compoundness = "palmate", growing_season_req = 12.0 }
 flags = ["pinned"]
+note = "tropical dry forest deciduous canopy (Malvaceae)"
 
+[[pin]]
+preset = "tree.tropical"
+label = "acacias"
+name = { binomial = "Acacia", folk = "acacia" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 12.0, leaf_shape = "linear", leaf_compoundness = "bipinnate", n_fixation = "rhizobium", drought_tolerance = 0.75, growing_season_req = 8.0 }
+flags = ["pinned"]
+note = "savanna scattered trees + tropical dry (Fabaceae; the savanna tree component)"
+
+[[pin]]
+preset = "tree.tropical"
+label = "mesquites"
+name = { binomial = "Prosopis", folk = "mesquite" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 10.0, leaf_shape = "linear", leaf_compoundness = "bipinnate", root_type = "tap", root_depth_m = 6.0, drought_tolerance = 0.9, salinity_tolerance = 0.3 }
+flags = ["pinned"]
+note = "hot desert phreatophyte tree (Fabaceae)"
+
+# ──  mangrove order (tree.mangrove) — tidal forest  ────────────────────
+[[pin]]
+preset = "tree.mangrove"
+label = "mangroves"
+name = { binomial = "Rhizophora", folk = "mangrove" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 18.0, root_special = "stilt", salinity_tolerance = 0.85, waterlogging_tolerance = 0.8, engineer_impact = 0.8 }
+flags = ["pinned"]
+note = "tropical tidal holdfast/stilt-root forest (Rhizophoraceae)"
+
+[[pin]]
+preset = "tree.mangrove"
+label = "avicennias"
+name = { binomial = "Avicennia", folk = "avicennia" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 15.0, root_special = "pneumatophores", salinity_tolerance = 0.9, waterlogging_tolerance = 0.8 }
+flags = ["pinned"]
+note = "tropical tidal pneumatophore forest (Acanthaceae)"
+
+# ──  ericoid order (shrub.heath) — taiga/tundra/bog/heath  ─────────────
 [[pin]]
 preset = "shrub.heath"
 label = "heathers"
 name = { binomial = "Calluna", folk = "heather" }
 rank = "genus"
-radiation = 3
-axes = { leaf_shape = "scale", mycorrhizal = "ericoid" }
+radiation = 1
+axes = { height_m = 0.5, leaf_shape = "scale", mycorrhizal = "ericoid", ph_tolerance = 0.15 }
 flags = ["pinned"]
+note = "heathland mat-former (Ericaceae, calcifuge)"
 
-# ──  sward / wetland  ──────────────────────────────────────────────────
+[[pin]]
+preset = "shrub.heath"
+label = "blueberries"
+name = { binomial = "Vaccinium", folk = "blueberry" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 0.4, leaf_shape = "ovate", mycorrhizal = "ericoid", waterlogging_tolerance = 0.5 }
+flags = ["pinned"]
+note = "taiga/tundra dwarf shrub + bog cranberry (Ericaceae)"
+
+
+[[pin]]
+preset = "shrub.xeric"
+label = "cistus"
+name = { binomial = "Cistus", folk = "rock-rose" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 1.0, leaf_shape = "ovate", leaf_persistence = "drought_deciduous", drought_tolerance = 0.75, fire_strategy = "seeder" }
+flags = ["pinned"]
+note = "med basin maquis sclerophyll (Cistaceae)"
+
+[[pin]]
+preset = "shrub.xeric"
+label = "lavenders"
+name = { binomial = "Salvia", folk = "sage" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 0.8, leaf_shape = "lanceolate", chemical_defense = "essential_oil", drought_tolerance = 0.7, pollination_syndrome = "bee" }
+flags = ["pinned"]
+note = "med basin maquis (Lamiaceae)"
+
+[[pin]]
+preset = "shrub.xeric"
+label = "phillyreas"
+name = { binomial = "Phillyrea", folk = "phillyrea" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 3.0, leaf_shape = "elliptical", leaf_persistence = "evergreen", drought_tolerance = 0.65 }
+flags = ["pinned"]
+note = "med basin maquis small-tree (Oleaceae)"
+
+[[pin]]
+preset = "shrub.xeric"
+label = "creosote-bushes"
+name = { binomial = "Larrea", folk = "creosote bush" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 1.5, leaf_shape = "scale", leaf_persistence = "evergreen", drought_tolerance = 0.95, salinity_tolerance = 0.4 }
+flags = ["pinned"]
+note = "hot desert shrubland (Zygophyllaceae)"
+
+[[pin]]
+preset = "shrub.xeric"
+label = "sagebrushes"
+name = { binomial = "Artemisia", folk = "sagebrush" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 1.0, leaf_shape = "linear", pubescence = 0.6, drought_tolerance = 0.8 }
+flags = ["pinned"]
+note = "cold desert / steppe shrub (Asteraceae)"
+
+[[pin]]
+preset = "shrub.xeric"
+label = "saltbushes"
+name = { binomial = "Salsola", folk = "saltbush" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 0.8, leaf_shape = "linear", succulence = 0.2, salinity_tolerance = 0.8, drought_tolerance = 0.85 }
+flags = ["pinned"]
+note = "cold desert + solonchak halophytic shrub (Amaranthaceae)"
+
+# ──  Fagales dwarf-shrub order (shrub.betulaceae)  ─────────────────────
+[[pin]]
+preset = "shrub.betulaceae"
+label = "dwarf-birches"
+name = { binomial = "Betula nana", folk = "dwarf birch" }
+rank = "species"
+axes = { height_m = 0.6, leaf_shape = "ovate", leaf_margin = "toothed", snow_adaptation = "flexible", waterlogging_tolerance = 0.6, sexuality = "monoecious" }
+flags = ["pinned"]
+note = "tundra scrub (Betulaceae); species-rank under its own Betula genus — the tree birches pin (order tree.oak) is a separate clade, the schema cannot share a genus across plans"
+
+# ──  Rosaceae order (shrub.bramble)  ────────────────────────────────────
+[[pin]]
+preset = "shrub.bramble"
+label = "brambles"
+name = { binomial = "Rubus", folk = "bramble" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 2.0, mechanical_defense = "prickle", fruit_type = "aggregate", clonal_spread_m = 3.0 }
+flags = ["pinned"]
+note = "temperate scrub/hedgerow + med margin (Rosaceae)"
+
+# ──  Poaceae swards (grass_sward.tussock)  ──────────────────────────────
 [[pin]]
 preset = "grass_sward.tussock"
-label = "meadow-grasses"
+label = "fescues"
 name = { binomial = "Festuca", folk = "fescue" }
 rank = "genus"
-radiation = 5
+radiation = 1
 axes = { height_m = 0.8, photosynthesis = "C4", drought_tolerance = 0.6 }
 flags = ["pinned"]
+note = "temperate grassland sward-former (Poaceae)"
 
+[[pin]]
+preset = "grass_sward.tussock"
+label = "marram"
+name = { binomial = "Ammophila", folk = "marram grass" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 1.0, root_spread_m = 4.0, salinity_tolerance = 0.5, drought_tolerance = 0.7, engineer_impact = 0.7 }
+flags = ["pinned"]
+note = "coastal foredune-former (coastal-sand substrate, Poaceae)"
+
+[[pin]]
+preset = "grass_sward.tussock"
+label = "savanna-grasses"
+name = { binomial = "Andropogon", folk = "savanna grass" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 1.5, photosynthesis = "C4", drought_tolerance = 0.7, growing_season_req = 8.0 }
+flags = ["pinned"]
+note = "tropical grassland/savanna sward-former (Poaceae)"
+
+[[pin]]
+preset = "grass_sward.tussock"
+label = "cordgrasses"
+name = { binomial = "Spartina", folk = "cordgrass" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 1.2, salinity_tolerance = 0.9, waterlogging_tolerance = 0.95, clonal_spread_m = 2.0 }
+flags = ["pinned"]
+note = "salt-marsh tidal-flat sward-former (Poaceae)"
+
+# ──  reed order (grass_sward.reed)  ────────────────────────────────────
 [[pin]]
 preset = "grass_sward.reed"
 label = "reeds"
 name = { binomial = "Phragmites", folk = "reed" }
 rank = "genus"
-radiation = 3
-axes = { height_m = 2.5, waterlogging_tolerance = 0.9, clonal_spread_m = 2.0 }
+radiation = 1
+axes = { height_m = 2.5, waterlogging_tolerance = 0.9, clonal_spread_m = 2.0, engineer_impact = 0.6 }
 flags = ["pinned"]
+note = "flooded grassland + riparian reed belt (Poaceae)"
 
+# ──  sedge order (grass_sward.sedge)  ──────────────────────────────────
 [[pin]]
 preset = "grass_sward.sedge"
 label = "sedges"
 name = { binomial = "Carex", folk = "sedge" }
 rank = "genus"
-radiation = 6
+radiation = 1
 axes = { height_m = 0.6, waterlogging_tolerance = 0.85 }
 flags = ["pinned"]
+note = "tundra + wetland + littoral tussock-former (Cyperaceae)"
 
+# ──  bulrush order (grass_sward.bulrush)  ──────────────────────────────
+[[pin]]
+preset = "grass_sward.bulrush"
+label = "bulrushes"
+name = { binomial = "Typha", folk = "bulrush" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 1.8, waterlogging_tolerance = 0.95, clonal_spread_m = 1.5 }
+flags = ["pinned"]
+note = "freshwater marsh reed-belt (Typhaceae)"
+
+# ──  rosette order (rosette_mat.stonecrop) — rock/alpine  ──────────────
+[[pin]]
+preset = "rosette_mat.stonecrop"
+label = "saxifrages"
+name = { binomial = "Saxifraga", folk = "saxifrage" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 0.05, growing_season_req = 1.5, drought_tolerance = 0.7 }
+flags = ["pinned"]
+note = "scree/bedrock-outcrop chasmophyte (Saxifragaceae)"
+
+[[pin]]
+preset = "rosette_mat.stonecrop"
+label = "stonecrops"
+name = { binomial = "Sedum", folk = "stonecrop" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 0.1, succulence = 0.8, drought_tolerance = 0.9 }
+flags = ["pinned"]
+note = "dry-rock / bedrock-outcrop succulent rosette (Crassulaceae)"
+
+[[pin]]
+preset = "rosette_mat.stonecrop"
+label = "moss-campions"
+name = { binomial = "Silene", folk = "moss campion" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 0.05, snow_adaptation = "cushion_mat", growing_season_req = 1.5, drought_tolerance = 0.6 }
+flags = ["pinned"]
+note = "alpine cushion + glacier-margin snow-adaptation form (Caryophyllaceae)"
+
+# ──  succulent order (succulent.cactus)  ────────────────────────────────
+[[pin]]
+preset = "succulent.cactus"
+label = "saguaros"
+name = { binomial = "Carnegiea", folk = "saguaro" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 5.0, succulence = 0.95, drought_tolerance = 0.95, fruit_type = "berry" }
+flags = ["pinned"]
+note = "hot desert columnar cactus (Cactaceae)"
+
+[[pin]]
+preset = "succulent.cactus"
+label = "agaves"
+name = { binomial = "Agave", folk = "agave" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 1.5, leaf_shape = "lanceolate", succulence = 0.9, drought_tolerance = 0.9, fruit_type = "capsule" }
+flags = ["pinned"]
+note = "hot desert rosette monocarpic succulent (Asparagaceae)"
+
+[[pin]]
+preset = "succulent.cactus"
+label = "saltworts"
+name = { binomial = "Salicornia", folk = "samphire" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 0.4, layer = "ground", succulence = 0.7, mechanical_defense = "none", salinity_tolerance = 1.0, waterlogging_tolerance = 0.9, drought_tolerance = 0.3 }
+flags = ["pinned"]
+note = "solonchak/tidal-flat succulent halophyte (Amaranthaceae)"
+
+# ──  fern order (fern_grade.bracken)  ──────────────────────────────────
 [[pin]]
 preset = "fern_grade.bracken"
 label = "brackens"
 name = { binomial = "Pteridium", folk = "bracken" }
 rank = "genus"
-radiation = 3
-axes = { height_m = 1.5, leaf_shape = "frond", clonal_spread_m = 1.5 }
+radiation = 1
+axes = { height_m = 1.5, leaf_shape = "frond", clonal_spread_m = 1.5, engineer_impact = 0.5 }
 flags = ["pinned"]
+note = "mat-former of disturbed/edge ground (Dennstaedtiaceae)"
 
+# ──  moss order (moss_grade.sphagnum)  ─────────────────────────────────
 [[pin]]
 preset = "moss_grade.sphagnum"
 label = "sphagna"
 name = { binomial = "Sphagnum", folk = "sphagnum" }
 rank = "genus"
-radiation = 4
-axes = { engineer_impact = 0.9, waterlogging_tolerance = 0.9 }
+radiation = 1
+axes = { engineer_impact = 0.9, waterlogging_tolerance = 0.9, ph_tolerance = 0.1 }
 flags = ["pinned"]
+note = "bog/fen peat-former (Sphagnaceae); the bog substrate anchor"
 
-# ──  aquatic  ──────────────────────────────────────────────────────────
+# ──  marine holdfast (macroalgae_holdfast.kelp)  ───────────────────────
+[[pin]]
+preset = "macroalgae_holdfast.kelp"
+label = "kelps"
+name = { binomial = "Macrocystis", folk = "kelp" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 30.0, engineer_impact = 0.9, salinity_tolerance = 0.95, growing_season_req = 8.0 }
+flags = ["pinned"]
+note = "kelp-forest canopy (Laminariales); marine holdfast anchor"
+
+# ──  submerged meadow (runner_meadow.seagrass)  ────────────────────────
+[[pin]]
+preset = "runner_meadow.seagrass"
+label = "seagrasses"
+name = { binomial = "Zostera", folk = "seagrass" }
+rank = "genus"
+radiation = 1
+axes = { height_m = 0.5, salinity_tolerance = 0.9, engineer_impact = 0.7 }
+flags = ["pinned"]
+note = "marine meadow-former (Zosteraceae)"
+
+# ──  floating-leaf (floating_leaf.waterlily)  ──────────────────────────
 [[pin]]
 preset = "floating_leaf.waterlily"
 label = "water-lilies"
 name = { binomial = "Nymphaea", folk = "water-lily" }
 rank = "genus"
-radiation = 4
-axes = { leaf_shape = "cordate", flower_size_mm = 120.0, pollination_syndrome = "beetle" }
+radiation = 1
+axes = { leaf_shape = "cordate", flower_size_mm = 120.0, pollination_syndrome = "beetle", engineer_impact = 0.5 }
 flags = ["pinned"]
+note = "freshwater floating-leaf cover (Nymphaeaceae)"
 
-[[pin]]
-preset = "floating_leaf.ludwigia"
-label = "ludwigias"
-name = { binomial = "Ludwigia", folk = "ludwigia" }
-rank = "genus"
-radiation = 3
-axes = { clonal_spread_m = 1.5 }
-flags = ["pinned"]
-
-[[pin]]
-preset = "floating_leaf.ludwigia"
-label = "sword-plants"
-name = { binomial = "Sagittaria", folk = "sword-plant" }
-rank = "genus"
-radiation = 3
-# sword-plants (Sagittaria): white flowers — anthocyanin at ~zero
-# expression (overrides the ludwigia preset's carotenoid yellow).
-axes = { leaf_shape = "lanceolate", pigment_pathway = "anthocyanin", pigment_expression = 0.1 }
-flags = ["pinned"]
-
-[[pin]]
-preset = "floater.duckweed"
-label = "duckweeds"
-name = { binomial = "Lemna", folk = "duckweed" }
-rank = "genus"
-radiation = 4
-axes = { height_m = 0.005, clonal_spread_m = 1.0 }
-flags = ["pinned"]
-
-# ──  fungi  ────────────────────────────────────────────────────────────
+# ──  fungi (fungus.agaric)  ────────────────────────────────────────────
 [[pin]]
 preset = "fungus.agaric"
-label = "field agarics"
+label = "field-agarics"
 name = { binomial = "Agaricus", folk = "field mushroom" }
 rank = "genus"
-radiation = 5
+radiation = 1
 axes = { saprotrophy = "litter" }
 flags = ["pinned"]
+note = "grassland litter saprotroph token (Agaricaceae)"
 
 [[pin]]
-preset = "fungus.bracket"
+preset = "fungus.agaric"
 label = "brackets"
 name = { binomial = "Trametes", folk = "bracket fungus" }
 rank = "genus"
-radiation = 4
-axes = { saprotrophy = "white_rot" }
-generics = { signal = "mushroom_fruiting_body" }
+radiation = 1
+axes = { saprotrophy = "white_rot", engineer_impact = 0.7 }
 flags = ["pinned"]
+note = "wood decomposer token (Polyporaceae)"
 
-# ──  landmark species (rank = species; sit under their binomial genus) ──
+# ──  lichen (lichen.crust)  ────────────────────────────────────────────
 [[pin]]
-preset = "herb_forb.yarrow"
-label = "yarrow"
-name = { binomial = "Achillea millefolium", folk = "yarrow" }
-rank = "species"
-axes = { flower_symmetry = "composite_head" }
+preset = "lichen.crust"
+label = "crust-lichens"
+name = { binomial = "Lecanora", folk = "crust lichen" }
+rank = "genus"
+radiation = 1
+axes = { support = "crustose", drought_tolerance = 0.9 }
 flags = ["pinned"]
+note = "bedrock-outcrop first colonist (Lecanoraceae)"
 
+# ──  reef tokens  ──────────────────────────────────────────────────────
 [[pin]]
-preset = "herb_forb.carrot"
-label = "wild carrot"
-name = { binomial = "Daucus carota", folk = "wild carrot" }
-rank = "species"
-axes = { inflorescence = "umbel", root_type = "tap" }
-flags = ["pinned"]
-
-[[pin]]
-preset = "herb_forb.iris"
-label = "sword-iris"
-name = { binomial = "Iris laevigata", folk = "sword-iris" }
-rank = "species"
-# sword-iris (Iris laevigata): blue — anthocyanin high-expression,
-# alkaline-leaning (B5 §5.2: iris blue -> the hydrangea zone).
-axes = { pigment_pathway = "anthocyanin", pigment_expression = 0.9, ph_tolerance = 0.8, leaf_shape = "linear" }
+preset = "coral_grade.branching_coral"
+label = "branching-corals"
+name = { binomial = "Acropora", folk = "branching coral" }
+rank = "genus"
+radiation = 1
+axes = { engineer_impact = 0.95 }
 flags = ["pinned"]
 
 [[pin]]
-preset = "herb_forb.chive"
-label = "thread-leaf chive"
-name = { binomial = "Allium filifolium", folk = "thread-leaf chive" }
-rank = "species"
-axes = { leaf_size_cm = 20.0, storage_organ = "bulb", inflorescence = "umbel" }
+preset = "sponge_grade.barrel_sponge"
+label = "barrel-sponges"
+name = { binomial = "Xestospongia", folk = "barrel sponge" }
+rank = "genus"
+radiation = 1
+axes = { engineer_impact = 0.6 }
 flags = ["pinned"]
 
+# ──  rare archetype (species pin, herb_forb.forb)  ─────────────────────
 [[pin]]
-preset = "rosette_mat.ice_crown"
-label = "ice-crown"
-name = { binomial = "Saxifraga glacialis", folk = "ice-crown" }
+preset = "herb_forb.forb"
+label = "grave-flowers"
+name = { binomial = "Monotropa uniflora", folk = "grave-flower" }
 rank = "species"
-axes = { growing_season_req = 1.5 }
+axes = { photosynthesis = "none", mycoheterotrophy = "yes", pigment_pathway = "none", pigment_expression = 0.0, pollination_syndrome = "self" }
 flags = ["pinned"]
+note = "rare mycoheterotroph (Ericaceae); deep-shade pine forest floor — the RFC §6 Tier-1 rarity"
+
+# ══════════════════════════════════════════════════════════════════════
+# BUNDLE TRACK — archetype superset generalists (region x physiology)
+# ══════════════════════════════════════════════════════════════════════
+# Construction per bundle: ONE (plan, layer); wider tolerance breadths;
+# central optima in the biome core; archetypal enums (never averaged);
+# generous propagule_count (guild seed rain). Viability envelope must
+# CONTAIN the design-space region its future (0027) daughter species
+# will occupy. Co-window bundles are clade-spread (see CENSUS.md).
+
+# ── temperate ──────────────────────────────────────────────────────────
+[[pin]]
+preset = "herb_forb.asterid"
+label = "temperate-flowers"
+name = { binomial = "Senecio vulgaris", folk = "temperate flowers" }
+rank = "species"
+bundle = true
+covered_region = "temperate broadleaf + grassland understory; loamy soils"
+flags = ["pinned"]
+axes = { height_m = 0.4, leaf_shape = "lobed", leaf_persistence = "winter_deciduous", flower_symmetry = "composite_head", inflorescence = "head", pollination_syndrome = "bee", pigment_pathway = "carotenoid", pigment_expression = 0.5, fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.6, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 200000.0, drought_tolerance = 0.5, salinity_tolerance = 0.1, waterlogging_tolerance = 0.3, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, layer = "sward" }
+
+[[pin]]
+preset = "herb_forb.forb"
+label = "temperate-woodland-herbs"
+name = { binomial = "Convallaria majalis", folk = "temperate woodland herbs" }
+rank = "species"
+bundle = true
+covered_region = "temperate broadleaf forest floor; rich humus, shaded"
+flags = ["pinned"]
+axes = { height_m = 0.3, leaf_shape = "elliptical", leaf_persistence = "winter_deciduous", shade_tolerance = 0.8, flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "berry", dispersal_channels = { local = 0.4, wind = 0.0, water = 0.0, animal = 0.5, jump = 0.1 }, propagule_count = 10000.0, drought_tolerance = 0.3, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.55, fertility_requirement = 0.6, growing_season_req = 4.0, layer = "ground" }
+
+
+[[pin]]
+preset = "shrub.bramble"
+label = "temperate-forest-shrubs"
+name = { binomial = "Rosa canina", folk = "temperate forest shrubs" }
+rank = "species"
+bundle = true
+covered_region = "temperate woodland/scrub margins; any well-drained soil"
+flags = ["pinned"]
+axes = { height_m = 2.0, woodiness = 0.7, leaf_shape = "ovate", leaf_margin = "serrate", leaf_persistence = "winter_deciduous", mechanical_defense = "prickle", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "aggregate", dispersal_channels = { local = 0.3, wind = 0.0, water = 0.0, animal = 0.6, jump = 0.1 }, propagule_count = 20000.0, drought_tolerance = 0.5, salinity_tolerance = 0.15, waterlogging_tolerance = 0.3, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, layer = "shrub" }
+
+[[pin]]
+preset = "fern_grade.bracken"
+label = "temperate-forest-ferns"
+name = { binomial = "Dryopteris filix-mas", folk = "temperate forest ferns" }
+rank = "species"
+bundle = true
+covered_region = "temperate broadleaf forest floor; moist humus"
+flags = ["pinned"]
+axes = { height_m = 0.6, layer = "ground", leaf_shape = "frond", leaf_size_cm = 35.0, leaf_persistence = "winter_deciduous", shade_tolerance = 0.7, fruit_type = "sorus", dispersal_channels = { local = 0.2, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.3, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, engineer_impact = 0.3 }
+
+
+[[pin]]
+preset = "herb_forb.forb"
+label = "wet-meadow-herbs"
+name = { binomial = "Ranunculus acris", folk = "wet meadow herbs" }
+rank = "species"
+bundle = true
+covered_region = "riparian alluvium + wet meadows; seasonally saturated loam"
+flags = ["pinned"]
+axes = { height_m = 0.6, leaf_shape = "lobed", leaf_persistence = "winter_deciduous", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "achene", dispersal_channels = { local = 0.5, wind = 0.1, water = 0.3, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.15, salinity_tolerance = 0.15, waterlogging_tolerance = 0.75, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, layer = "sward" }
+
+[[pin]]
+preset = "grass_sward.tussock"
+label = "floodplain-grasses"
+name = { binomial = "Echinochloa crus-galli", folk = "floodplain grasses" }
+rank = "species"
+bundle = true
+covered_region = "flooded grassland margins + alluvium; wet silt"
+flags = ["pinned"]
+axes = { height_m = 1.0, leaf_shape = "linear", photosynthesis = "C4", fruit_type = "caryopsis", dispersal_channels = { local = 0.3, wind = 0.2, water = 0.4, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.45, salinity_tolerance = 0.2, waterlogging_tolerance = 0.8, ph_tolerance = 0.55, fertility_requirement = 0.5, growing_season_req = 5.0, layer = "sward" }
+
+[[pin]]
+preset = "floating_leaf.waterlily"
+label = "marsh-marginals"
+name = { binomial = "Sagittaria sagittifolia", folk = "marsh marginals" }
+rank = "species"
+bundle = true
+covered_region = "freshwater marsh/lake margins; saturated silt"
+flags = ["pinned"]
+axes = { height_m = 0.35, leaf_shape = "lanceolate", leaf_persistence = "winter_deciduous", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.0, water = 0.6, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.05, salinity_tolerance = 0.2, waterlogging_tolerance = 1.0, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 5.0, layer = "aquatic_surface" }
+
+[[pin]]
+preset = "floater.duckweed"
+label = "free-floating-aquatics"
+name = { binomial = "Lemna minor", folk = "free-floating aquatics" }
+rank = "species"
+bundle = true
+covered_region = "lentic freshwater surface; nutrient-rich water"
+flags = ["pinned"]
+axes = { height_m = 0.005, leaf_shape = "thalloid", leaf_persistence = "evergreen", flower_symmetry = "none", fruit_type = "achene", dispersal_channels = { local = 0.4, wind = 0.05, water = 0.4, animal = 0.05, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.05, salinity_tolerance = 0.1, waterlogging_tolerance = 1.0, ph_tolerance = 0.5, fertility_requirement = 0.6, growing_season_req = 3.0, layer = "aquatic_surface" }
+
+[[pin]]
+preset = "runner_meadow.seagrass"
+label = "freshwater-submerged-meadows"
+name = { binomial = "Potamogeton natans", folk = "freshwater submerged meadows" }
+rank = "species"
+bundle = true
+covered_region = "freshwater lakes/rivers; submerged silt"
+flags = ["pinned"]
+axes = { height_m = 0.6, leaf_shape = "linear", leaf_persistence = "winter_deciduous", fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.0, water = 0.6, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.05, salinity_tolerance = 0.2, waterlogging_tolerance = 1.0, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, layer = "aquatic_benthic" }
+
+[[pin]]
+preset = "grass_sward.sedge"
+label = "flooded-grasses"
+name = { binomial = "Cyperus papyrus", folk = "flooded grasses" }
+rank = "species"
+bundle = true
+covered_region = "tropical flooded grassland; standing water margins"
+flags = ["pinned"]
+axes = { height_m = 2.0, leaf_shape = "linear", fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.3, water = 0.3, animal = 0.0, jump = 0.1 }, propagule_count = 200000.0, drought_tolerance = 0.1, salinity_tolerance = 0.15, waterlogging_tolerance = 0.95, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 12.0, layer = "sward" }
+
+# ── temperate grassland / steppe ───────────────────────────────────────
+[[pin]]
+preset = "herb_forb.forb"
+label = "steppe-herbs"
+name = { binomial = "Astragalus onobrychis", folk = "steppe herbs" }
+rank = "species"
+bundle = true
+covered_region = "temperate steppe/prairie; deep well-drained loess"
+flags = ["pinned"]
+axes = { height_m = 0.5, leaf_shape = "ovate", leaf_compoundness = "pinnate", leaf_persistence = "winter_deciduous", n_fixation = "rhizobium", flower_symmetry = "zygomorphic", pollination_syndrome = "bee", fruit_type = "legume", dispersal_channels = { local = 0.6, wind = 0.05, water = 0.0, animal = 0.15, jump = 0.2 }, propagule_count = 50000.0, drought_tolerance = 0.75, salinity_tolerance = 0.2, waterlogging_tolerance = 0.2, ph_tolerance = 0.55, fertility_requirement = 0.3, growing_season_req = 4.0, layer = "sward" }
+
+# ── montane (alpine meadow) ────────────────────────────────────────────
+[[pin]]
+preset = "herb_forb.asterid"
+label = "alpine-meadow-flowers"
+name = { binomial = "Senecio alpinus", folk = "alpine meadow flowers" }
+rank = "species"
+bundle = true
+covered_region = "montane grassland (alpine meadow); thin rocky loam"
+flags = ["pinned"]
+axes = { height_m = 0.3, leaf_shape = "lobed", leaf_persistence = "winter_deciduous", flower_symmetry = "composite_head", inflorescence = "head", pollination_syndrome = "bee", pigment_pathway = "carotenoid", pigment_expression = 0.6, fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.6, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 100000.0, drought_tolerance = 0.5, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.5, fertility_requirement = 0.3, growing_season_req = 2.5, layer = "sward" }
+
+[[pin]]
+preset = "grass_sward.tussock"
+label = "alpine-grasses"
+name = { binomial = "Calamagrostis varia", folk = "alpine grasses" }
+rank = "species"
+bundle = true
+covered_region = "montane grassland (alpine meadow) tussocks; thin loam"
+flags = ["pinned"]
+axes = { height_m = 0.5, leaf_shape = "linear", photosynthesis = "C3", fruit_type = "caryopsis", dispersal_channels = { local = 0.4, wind = 0.4, water = 0.0, animal = 0.05, jump = 0.15 }, propagule_count = 200000.0, drought_tolerance = 0.5, salinity_tolerance = 0.05, waterlogging_tolerance = 0.5, ph_tolerance = 0.5, fertility_requirement = 0.3, growing_season_req = 2.0, layer = "sward" }
 
 [[pin]]
 preset = "rosette_mat.stonecrop"
-label = "stonecrop"
-name = { binomial = "Sedum acre", folk = "stonecrop" }
+label = "alpine-cushions"
+name = { binomial = "Arenaria ciliata", folk = "alpine cushions" }
 rank = "species"
-axes = { photosynthesis = "C3", succulence = 0.8 }
+bundle = true
+covered_region = "alpine fell-field + glacier-margin rubble; gravelly substrate"
 flags = ["pinned"]
+axes = { height_m = 0.03, leaf_shape = "scale", leaf_persistence = "evergreen", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.8, wind = 0.1, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.7, salinity_tolerance = 0.05, waterlogging_tolerance = 0.3, ph_tolerance = 0.5, fertility_requirement = 0.15, growing_season_req = 1.5, layer = "ground", snow_adaptation = "cushion_mat" }
+
+# ── boreal / taiga ─────────────────────────────────────────────────────
+[[pin]]
+preset = "herb_forb.forb"
+label = "boreal-forest-herbs"
+name = { binomial = "Pyrola rotundifolia", folk = "boreal forest herbs" }
+rank = "species"
+bundle = true
+covered_region = "boreal taiga forest floor; acid litter"
+flags = ["pinned"]
+axes = { height_m = 0.2, leaf_shape = "ovate", leaf_persistence = "evergreen", deciduous_trigger = "none", shade_tolerance = 0.6, mycorrhizal = "ericoid", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.3, water = 0.0, animal = 0.0, jump = 0.2 }, propagule_count = 50000.0, drought_tolerance = 0.4, salinity_tolerance = 0.05, waterlogging_tolerance = 0.5, ph_tolerance = 0.2, fertility_requirement = 0.2, growing_season_req = 3.0, layer = "ground" }
 
 [[pin]]
-preset = "herb_forb.grave_flower"
-label = "grave-flower"
-name = { binomial = "Monotropa uniflora", folk = "grave-flower" }
+preset = "moss_grade.sphagnum"
+label = "taiga-moss-mats"
+name = { binomial = "Pleurozium schreberi", folk = "taiga moss mats" }
 rank = "species"
-axes = { photosynthesis = "none", mycoheterotrophy = "yes" }
+bundle = true
+covered_region = "boreal taiga + tundra ground; acid moist litter"
 flags = ["pinned"]
+axes = { height_m = 0.05, leaf_shape = "scale", leaf_persistence = "evergreen", fruit_type = "sporangium", dispersal_channels = { local = 0.5, wind = 0.4, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 1000000.0, drought_tolerance = 0.5, salinity_tolerance = 0.05, waterlogging_tolerance = 0.6, ph_tolerance = 0.2, fertility_requirement = 0.2, growing_season_req = 3.0, layer = "ground" }
+
+# ── tundra ─────────────────────────────────────────────────────────────
+[[pin]]
+preset = "herb_forb.forb"
+label = "tundra-herbs"
+name = { binomial = "Draba alpina", folk = "tundra herbs" }
+rank = "species"
+bundle = true
+covered_region = "tundra + fell-field + dry scree; skeletal soils"
+flags = ["pinned"]
+axes = { height_m = 0.15, leaf_shape = "lanceolate", leaf_persistence = "evergreen", deciduous_trigger = "none", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.6, wind = 0.3, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 100000.0, drought_tolerance = 0.6, salinity_tolerance = 0.1, waterlogging_tolerance = 0.3, ph_tolerance = 0.5, fertility_requirement = 0.2, growing_season_req = 1.5, layer = "ground" }
+
+[[pin]]
+preset = "lichen.crust"
+label = "tundra-lichen-mats"
+name = { binomial = "Cladonia rangiferina", folk = "tundra lichen mats" }
+rank = "species"
+bundle = true
+covered_region = "tundra + taiga ground; dry acid soil and rock"
+flags = ["pinned"]
+axes = { height_m = 0.015, leaf_shape = "thalloid", leaf_persistence = "evergreen", support = "fruticose", fruit_type = "sporangium", dispersal_channels = { local = 0.4, wind = 0.5, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.8, salinity_tolerance = 0.1, waterlogging_tolerance = 0.2, ph_tolerance = 0.4, fertility_requirement = 0.1, growing_season_req = 1.5, layer = "ground" }
+
+# ── bog / fen (substrate floor) ────────────────────────────────────────
+[[pin]]
+preset = "shrub.heath"
+label = "bog-heath"
+name = { binomial = "Andromeda polifolia", folk = "bog heath" }
+rank = "species"
+bundle = true
+covered_region = "bog/fen peat + heath; waterlogged acid substrate"
+flags = ["pinned"]
+axes = { height_m = 0.3, leaf_shape = "linear", leaf_persistence = "evergreen", mycorrhizal = "ericoid", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.3, water = 0.1, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.3, salinity_tolerance = 0.05, waterlogging_tolerance = 0.9, ph_tolerance = 0.1, fertility_requirement = 0.1, growing_season_req = 3.0, layer = "ground" }
+
+[[pin]]
+preset = "grass_sward.sedge"
+label = "fen-sedges"
+name = { binomial = "Eriophorum vaginatum", folk = "fen sedges" }
+rank = "species"
+bundle = true
+covered_region = "bog/fen tussocks; waterlogged peat"
+flags = ["pinned"]
+axes = { height_m = 0.4, leaf_shape = "linear", fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.4, water = 0.2, animal = 0.0, jump = 0.1 }, propagule_count = 200000.0, drought_tolerance = 0.2, salinity_tolerance = 0.05, waterlogging_tolerance = 0.95, ph_tolerance = 0.15, fertility_requirement = 0.1, growing_season_req = 2.0, layer = "sward" }
+
+[[pin]]
+preset = "rosette_mat.stonecrop"
+label = "bog-carnivores"
+name = { binomial = "Drosera rotundifolia", folk = "bog carnivores" }
+rank = "species"
+bundle = true
+covered_region = "bog/fen + wet heath; nutrient-poor saturated substrate"
+flags = ["pinned"]
+axes = { height_m = 0.03, leaf_shape = "ovate", leaf_persistence = "evergreen", nutrient_package = "carnivore", leaf_trap = "flypaper", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.4, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.3, salinity_tolerance = 0.05, waterlogging_tolerance = 0.9, ph_tolerance = 0.15, fertility_requirement = 0.1, growing_season_req = 2.0, layer = "ground" }
+
+# ── mediterranean basin / maquis ───────────────────────────────────────
+[[pin]]
+preset = "herb_forb.forb"
+label = "mediterranean-forbs"
+name = { binomial = "Erysimum cheiri", folk = "mediterranean forbs" }
+rank = "species"
+bundle = true
+covered_region = "med basin (maquis/garrigue) understory; dry shallow soils"
+flags = ["pinned"]
+axes = { height_m = 0.4, leaf_shape = "lanceolate", leaf_persistence = "drought_deciduous", deciduous_trigger = "drought", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.4, wind = 0.4, water = 0.0, animal = 0.0, jump = 0.2 }, propagule_count = 100000.0, drought_tolerance = 0.75, salinity_tolerance = 0.2, waterlogging_tolerance = 0.15, ph_tolerance = 0.55, fertility_requirement = 0.3, growing_season_req = 3.0, layer = "sward" }
+
+# ── desert ─────────────────────────────────────────────────────────────
+[[pin]]
+preset = "herb_forb.forb"
+label = "desert-annuals"
+name = { binomial = "Camissonia bistorta", folk = "desert annuals" }
+rank = "species"
+bundle = true
+covered_region = "hot desert ephemeral washes; sandy/gravel substrate"
+flags = ["pinned"]
+axes = { height_m = 0.3, leaf_shape = "lanceolate", leaf_persistence = "drought_deciduous", deciduous_trigger = "drought", flower_symmetry = "radial", pollination_syndrome = "moth", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.3, water = 0.0, animal = 0.0, jump = 0.2 }, propagule_count = 200000.0, drought_tolerance = 0.85, salinity_tolerance = 0.15, waterlogging_tolerance = 0.1, ph_tolerance = 0.55, fertility_requirement = 0.2, growing_season_req = 2.0, layer = "ground" }
+
+[[pin]]
+preset = "grass_sward.tussock"
+label = "cold-desert-grasses"
+name = { binomial = "Oryzopsis hymenoides", folk = "cold desert grasses" }
+rank = "species"
+bundle = true
+covered_region = "cold desert + steppe margin bunchgrasses; sandy loam"
+flags = ["pinned"]
+axes = { height_m = 0.6, leaf_shape = "linear", photosynthesis = "C3", fruit_type = "caryopsis", dispersal_channels = { local = 0.5, wind = 0.4, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 200000.0, drought_tolerance = 0.8, salinity_tolerance = 0.25, waterlogging_tolerance = 0.15, ph_tolerance = 0.55, fertility_requirement = 0.15, growing_season_req = 3.0, layer = "sward" }
+
+# ── saline coast (solonchak / tidal flat / coastal sand) ───────────────
+[[pin]]
+preset = "herb_forb.forb"
+label = "coastal-herbs"
+name = { binomial = "Limonium vulgare", folk = "coastal herbs" }
+rank = "species"
+bundle = true
+covered_region = "salt marsh + tidal-flat forbs; saline mud"
+flags = ["pinned"]
+axes = { height_m = 0.4, leaf_shape = "elliptical", leaf_persistence = "evergreen", deciduous_trigger = "none", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.3, water = 0.1, animal = 0.0, jump = 0.1 }, propagule_count = 100000.0, drought_tolerance = 0.5, salinity_tolerance = 0.9, waterlogging_tolerance = 0.8, ph_tolerance = 0.6, fertility_requirement = 0.3, growing_season_req = 4.0, layer = "ground" }
+
+
+[[pin]]
+preset = "macroalgae_holdfast.kelp"
+label = "intertidal-algae"
+name = { binomial = "Fucus vesiculosus", folk = "intertidal algae" }
+rank = "species"
+bundle = true
+covered_region = "temperate rocky intertidal; hard substrate"
+flags = ["pinned"]
+axes = { height_m = 3.0, leaf_shape = "blade", leaf_persistence = "evergreen", fruit_type = "sorus", dispersal_channels = { local = 0.2, wind = 0.0, water = 0.7, animal = 0.0, jump = 0.1 }, propagule_count = 5000000.0, drought_tolerance = 0.1, salinity_tolerance = 0.95, waterlogging_tolerance = 1.0, ph_tolerance = 0.78, fertility_requirement = 0.4, growing_season_req = 6.0, layer = "aquatic_benthic" }
+
+# ── tropical ───────────────────────────────────────────────────────────
+[[pin]]
+preset = "herb_forb.forb"
+label = "tropical-forest-floor-herbs"
+name = { binomial = "Zingiber officinale", folk = "tropical forest floor herbs" }
+rank = "species"
+bundle = true
+covered_region = "tropical moist forest floor; deep humus, shaded"
+flags = ["pinned"]
+axes = { height_m = 1.0, leaf_shape = "lanceolate", leaf_persistence = "evergreen", deciduous_trigger = "none", shade_tolerance = 0.8, flower_symmetry = "zygomorphic", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.0, water = 0.0, animal = 0.4, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.2, salinity_tolerance = 0.05, waterlogging_tolerance = 0.5, ph_tolerance = 0.55, fertility_requirement = 0.6, growing_season_req = 12.0, layer = "ground" }
+
+[[pin]]
+preset = "shrub.tropical"
+label = "tropical-understory-shrubs"
+name = { binomial = "Psychotria elata", folk = "tropical understory shrubs" }
+rank = "species"
+bundle = true
+covered_region = "tropical moist understory; shaded humus"
+flags = ["pinned"]
+axes = { height_m = 1.5, woodiness = 0.5, leaf_shape = "elliptical", leaf_persistence = "evergreen", shade_tolerance = 0.85, flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "berry", dispersal_channels = { local = 0.3, wind = 0.0, water = 0.0, animal = 0.6, jump = 0.1 }, propagule_count = 10000.0, drought_tolerance = 0.2, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.55, fertility_requirement = 0.5, growing_season_req = 12.0, layer = "subcanopy" }
+
+[[pin]]
+preset = "herb_forb.forb"
+label = "tropical-vines"
+name = { binomial = "Ipomoea batatas", folk = "tropical vines" }
+rank = "species"
+bundle = true
+covered_region = "tropical forest edges + clearings; well-drained loam"
+flags = ["pinned"]
+axes = { height_m = 1.6, woodiness = 0.1, leaf_shape = "cordate", leaf_persistence = "drought_deciduous", deciduous_trigger = "drought", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.2, wind = 0.0, water = 0.0, animal = 0.5, jump = 0.3 }, propagule_count = 50000.0, drought_tolerance = 0.4, salinity_tolerance = 0.15, waterlogging_tolerance = 0.3, ph_tolerance = 0.55, fertility_requirement = 0.4, growing_season_req = 12.0, layer = "sward" }
+
+[[pin]]
+preset = "herb_forb.forb"
+label = "tropical-epiphytes"
+name = { binomial = "Dendrobium nobile", folk = "tropical epiphytes" }
+rank = "species"
+bundle = true
+covered_region = "tropical moist forest canopy perches (epiphyte layer flag)"
+flags = ["pinned"]
+axes = { height_m = 0.4, leaf_shape = "lanceolate", leaf_persistence = "evergreen", deciduous_trigger = "none", shade_tolerance = 0.5, root_special = "none", flower_symmetry = "zygomorphic", pollination_syndrome = "moth", fruit_type = "capsule", dispersal_channels = { local = 0.1, wind = 0.8, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.5, salinity_tolerance = 0.05, waterlogging_tolerance = 0.2, ph_tolerance = 0.55, fertility_requirement = 0.2, growing_season_req = 12.0, layer = "epiphyte" }
+
+# ── tropical coast (mangrove associates) ───────────────────────────────
+[[pin]]
+preset = "tree.mangrove"
+label = "mangrove-associates"
+name = { binomial = "Lumnitzera racemosa", folk = "mangrove associates" }
+rank = "species"
+bundle = true
+covered_region = "tropical coast mangrove fringe; tidal mud (upper marsh)"
+flags = ["pinned"]
+axes = { height_m = 12.0, leaf_shape = "elliptical", leaf_persistence = "evergreen", salinity_tolerance = 0.75, waterlogging_tolerance = 0.8, fruit_type = "drupe", dispersal_channels = { local = 0.1, wind = 0.0, water = 0.8, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.3, ph_tolerance = 0.7, fertility_requirement = 0.4, growing_season_req = 12.0, layer = "canopy" }
+
+[[pin]]
+preset = "tree.palm"
+label = "mangrove-palms"
+name = { binomial = "Nypa fruticans", folk = "mangrove palms" }
+rank = "species"
+bundle = true
+covered_region = "tropical coast tidal estuaries; brackish mud"
+flags = ["pinned"]
+axes = { height_m = 8.0, leaf_shape = "frond", leaf_persistence = "evergreen", salinity_tolerance = 0.7, waterlogging_tolerance = 0.8, fruit_type = "drupe", dispersal_channels = { local = 0.2, wind = 0.0, water = 0.7, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.2, ph_tolerance = 0.7, fertility_requirement = 0.4, growing_season_req = 12.0, layer = "canopy" }
+
+# ── rock (scree / bedrock outcrop) ─────────────────────────────────────
+[[pin]]
+preset = "fern_grade.bracken"
+label = "rock-ferns"
+name = { binomial = "Asplenium trichomanes", folk = "rock ferns" }
+rank = "species"
+bundle = true
+covered_region = "scree + bedrock-outcrop crevices; bare rock"
+flags = ["pinned"]
+axes = { height_m = 0.4, leaf_shape = "frond", leaf_size_cm = 12.0, leaf_persistence = "evergreen", fruit_type = "sorus", dispersal_channels = { local = 0.2, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.55, salinity_tolerance = 0.1, waterlogging_tolerance = 0.15, ph_tolerance = 0.5, fertility_requirement = 0.1, growing_season_req = 3.0, layer = "ground" }
+
+# ── fungal guilds ──────────────────────────────────────────────────────
+[[pin]]
+preset = "fungus.agaric"
+label = "forest-mycorrhizal-fungi"
+name = { binomial = "Amanita muscaria", folk = "forest mycorrhizal fungi" }
+rank = "species"
+bundle = true
+covered_region = "temperate + boreal forests; ectomycorrhizal oak/pine partners"
+flags = ["pinned"]
+axes = { height_m = 0.15, leaf_shape = "none", leaf_persistence = "evergreen", feeding_organ = "mycoheterotroph", fruit_type = "sporangium", dispersal_channels = { local = 0.3, wind = 0.5, water = 0.0, animal = 0.1, jump = 0.1 }, propagule_count = 2000000.0, drought_tolerance = 0.4, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.5, fertility_requirement = 0.4, growing_season_req = 4.0, layer = "ground" }
