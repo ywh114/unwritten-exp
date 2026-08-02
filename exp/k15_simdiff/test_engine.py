@@ -644,7 +644,14 @@ def test_drift_retained_across_commits():
     envelope landscape gives it a real habitat — tussock's 16
     near-breakeven cells do not survive 4 rounds), the marginal cell is
     cold-stressed, the contrast cell is required to be genuinely viable
-    (s_env < -0.1) so the second instance does not die mid-test."""
+    (s_env < -0.1) so the second instance does not die mid-test.
+    v1.2 re-pin (ticket 0010): the two reeds are spatially separate, so
+    the isolation wiring (option B) boosts their Δg and their divergence
+    can now cross the SUB_D cluster edge and BRANCH the pair into two
+    lineages mid-window — that is the point of the ticket, and the
+    ratchet measurement below is unaffected because WIP retention
+    survives the re-key (a divide is one branch per lineage; the pair
+    never collapses back into one instance)."""
     from exp.k15_simdiff import authority as auth
     eng = _engine()
     c1 = _marginal_cell(eng, "grass_sward.reed")
@@ -671,20 +678,71 @@ def test_drift_retained_across_commits():
     for t in range(8):                    # r8 stays inside the survival
         eng.round(t)                      # window (the marginal reed
         assert a in eng.instances and b in eng.instances  # dies ~r9)
-        assert eng.instances[a].x.species_id == \
-            eng.instances[b].x.species_id == sid
+        # the pair starts as one lineage; under ticket 0010 it may
+        # branch (distinct sids) or the stem may promote (same new sid)
+        # — either is legal; a merge is not (they diverge, never
+        # collapse back into one instance)
         ds.append(auth.genes_distance(eng.instances[a].x.traits,
                                       eng.instances[b].x.traits))
     # the first rounds are g-frozen (steady gate); the ratchet is
-    # strictly increasing from the gate-open round onward and clears
-    # the 1.5x bar over the window
+    # non-decreasing from the gate-open round onward and clears the
+    # 1.5x bar over the window. v1.2: the isolation-boosted tempo can
+    # promote the lineage inside the window — the promotion's g reset
+    # re-freezes the steady tier until the new lineage's g re-opens it,
+    # a temporary PLATEAU (never a decrease; the ratchet resumes once
+    # the new clock re-opens the gate).
     assert all(ds[i] >= ds[i - 1] for i in range(1, len(ds))), \
         f"ratchet not non-decreasing: {ds}"
     nz = next((i for i, v in enumerate(ds) if v > 0.0), None)
     assert nz is not None, f"no ratchet at all: {ds}"
-    assert all(ds[i] > ds[i - 1] for i in range(nz + 1, len(ds))), \
-        f"ratchet not monotone after gate open: {ds}"
+    assert all(ds[i] >= ds[i - 1] for i in range(nz + 1, len(ds))), \
+        f"ratchet not non-decreasing after gate open: {ds}"
     assert ds[-1] > 1.5 * ds[nz], f"no ratchet: {ds}"
+
+
+# ── ticket 0010: isolation wiring (option B) ──────────────────────────
+
+
+def test_isolation_wiring_accrues_g_faster():
+    """The isolation Condition input is finally wired into Δg: an
+    instance that has NOT touched any same-lineage sibling for
+    ISO_RAMP_ROUNDS+1 rounds is fully isolated and accrues g at
+    ~(1 + ISO_G_GAIN) x the connected sibling's rate (fauna RFC §1's
+    pairwise 2x divergence — d(A,B) = (g_A − g0) + (g_B − g0); island
+    lineages speciate first). The commit records the gene-flow signal:
+    a touching/overlapping pair refreshes _last_contact."""
+    from exp.k15_simdiff.engine import ISO_G_GAIN
+    # both instances planted on the SAME viable cell: identical stress,
+    # so the only difference in Δg is the isolation input (we control
+    # _last_contact directly — it is the gene-flow signal)
+    eng = _engine()
+    c1, _c2 = _two_good_cells(eng, "grass_sward.reed", far=False)
+    a = _plant(eng, "grass_sward.reed", [c1])
+    b = _plant(eng, "grass_sward.reed", [c1])
+    eng._last_contact[a] = -100          # fully isolated for the ramp
+    eng._last_contact[b] = -100
+    eng._verdict_feed(5, {})
+    g_iso = eng._g_since_split[a]
+    # connected variant: identical fixture, gene flow last round
+    # (iso ramps back to ~0 at feed 5)
+    eng2 = _engine()
+    c3, _c4 = _two_good_cells(eng2, "grass_sward.reed", far=False)
+    a2 = _plant(eng2, "grass_sward.reed", [c3])
+    b2 = _plant(eng2, "grass_sward.reed", [c3])
+    eng2._last_contact[a2] = 4
+    eng2._last_contact[b2] = 4
+    eng2._verdict_feed(5, {})
+    g_touch = eng2._g_since_split[a2]
+    assert g_iso > (1.0 + 0.3 * ISO_G_GAIN) * g_touch, \
+        f"isolated g {g_iso:.1f} not boosted vs connected {g_touch:.1f}"
+    # the commit's contact gate records the signal (stacked pair)
+    eng3 = _engine()
+    cc = _two_good_cells(eng3, "grass_sward.reed", far=False)[0]
+    a3 = _plant(eng3, "grass_sward.reed", [cc])
+    b3 = _plant(eng3, "grass_sward.reed", [cc])   # overlap: contact
+    eng3.round(0)
+    assert eng3._last_contact[a3] == 0 and \
+        eng3._last_contact[b3] == 0, "contact not recorded at commit"
 
 
 # ── §9 consolidation (v0.4.2) ─────────────────────────────────────────
@@ -939,25 +997,72 @@ def test_full_run_acceptance():
 
 @pytest.mark.slow
 def test_genesis_partition_diverges():
-    """§12.3 divide half: genesis clone pairs of one lineage (minted
-    under the radiated SPECIES sids since ticket 0004 — the 35 ORDER
-    nodes are ancestors, never seeded) register subspecies-or-split
-    divides within R rounds — the v0.7 g currency makes this real: instances accumulate
-    g_since_split per round (generation-time clock) and the commit
-    promotes fragments whose g crossed the lineage's seeded g* to new
-    SPECIES nodes (fauna RFC §1), so the fast lineages divide within a
-    few rounds (duckweed/lichen-grade) and the grass-grade ones by
-    round ~9-15 — the emergent tempo split. The pre-v0.7 engine never
-    divided (measured max pairwise same-lineage d = 0.0387 after 20
-    rounds, projecting the first divide at ~40-60 rounds — the §12.3
-    half was carried as a ratchet milestone)."""
+    """§12.3 divide half (v1.2 re-pin, ticket 0010): genesis clone
+    pairs of one lineage (minted under the radiated SPECIES sids since
+    ticket 0004 — the 35 ORDER nodes are ancestors, never seeded)
+    register REAL divides within R rounds. The v1.2 machinery: isolated
+    clones accrue g faster (the forces.py Condition isolation input is
+    wired into Δg — option B), their trait cluster separates at the
+    scalar-only SUB_D 0.08 edge, and once it has persisted
+    (CLUSTER_PERSIST_ROUNDS) as a multi-member component
+    (CLUSTER_MIN_SIZE) it branches as a SPECIES daughter beyond the
+    lineage's g* (the tree gains WIDTH) or divides as SUBSPECIES below
+    it. Ticket done-means: (1) the living lineage count GROWS at some
+    point (a branch is not a relabel), (2) subspecies fires at least
+    once, (3) divides/round stay bounded (no v0.7-disease churn)."""
     eng = Engine(SEED)
     eng.genesis()
-    divides = 0
+    n0 = len({d.x.species_id for d in eng.instances.values()})
+    prev_sid = {d.x.instance_id: d.x.species_id
+                for d in eng.instances.values()}
+    branches = 0
+    subspecies = 0
+    max_round_divides = 0
+    lin_hist = [n0]
     for t in range(R_SLOW):
         log = eng.round(t)
-        divides += sum(1 for d in log.instances
-                       if d.outcome in (Outcome.SUBSPECIES,
-                                        Outcome.SPLIT))
-    assert divides >= 1, \
-        f"no genesis-lineage divide within {R_SLOW} rounds"
+        by_src: dict[str, dict[str, int]] = {}
+        absorbed: dict[str, int] = {}
+        for d in log.instances:
+            src = prev_sid.get(d.instance_id, "")
+            if d.outcome is Outcome.SPLIT and d.target:
+                tgt_map = by_src.setdefault(src, {})
+                tgt_map[d.target] = tgt_map.get(d.target, 0) + 1
+            elif d.outcome is Outcome.MERGE:
+                absorbed[src] = absorbed.get(src, 0) + 1
+        for src, tgts in by_src.items():
+            n_before = sum(1 for iid, s in prev_sid.items()
+                           if s == src)
+            for _tgt, c in tgts.items():
+                if c != n_before - absorbed.get(src, 0):
+                    branches += 1    # a subset re-keyed: real daughter
+        subspecies += sum(1 for d in log.instances
+                          if d.outcome is Outcome.SUBSPECIES)
+        max_round_divides = max(
+            max_round_divides,
+            sum(1 for d in log.instances
+                if d.outcome in (Outcome.SUBSPECIES, Outcome.SPLIT)))
+        prev_sid = {d.x.instance_id: d.x.species_id
+                    for d in eng.instances.values()}
+        lin_hist.append(len({d.x.species_id
+                             for d in eng.instances.values()}))
+    print(f"genesis-partition divides: branches {branches}, subspecies "
+          f"{subspecies}; lineage count {n0} -> {lin_hist[-1]} "
+          f"(max {max(lin_hist)}, min {min(lin_hist)}); max divides/round "
+          f"{max_round_divides}")
+    assert branches >= 1, \
+        f"no real daughter species (branching) within {R_SLOW} rounds"
+    # the early rounds are the physical extinction wave (unseeded +
+    # maladapted lineages die off — the baseline count fell 102 -> 91
+    # monotonically); the ticket's growth shows as the count RECOVERING
+    # above its trough as branches outpace die-outs (a promotion-only
+    # world never recovers — a relabeling never grows the count)
+    assert lin_hist[-1] > min(lin_hist), \
+        "living lineage count never recovered above its trough"
+    assert subspecies >= 1, "subspecies rank never fired on seed 1"
+    # the v0.7 disease was SUSTAINED spurious per-instance splits
+    # (100s every round); the measured max here is a one-off promotion
+    # wave (464 at r13, mostly 0-160 elsewhere) — the bound is loose
+    # enough to admit waves, tight enough to catch sustained churn
+    assert max_round_divides < 700, \
+        f"churn: {max_round_divides} divides in one round"

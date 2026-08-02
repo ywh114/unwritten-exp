@@ -1,6 +1,23 @@
-# K15 sim-diff engine (flora rounds) — build spec v1.1
+# K15 sim-diff engine (flora rounds) — build spec v1.2
 
-2026-08-01. v1.1 (ticket 0020, DESIGN PIVOT) makes genesis seeding
+2026-08-01. v1.2 (ticket 0010, real cladogenesis) replaces the
+wholesale g-promotion with CLUSTER-LEVEL divides: non-orthodox trait
+clusters tracked across commits (member-overlap continuity) divide off
+as real daughters once stable (CLUSTER_PERSIST_ROUNDS) and
+multi-member (CLUSTER_MIN_SIZE) — beyond the lineage's g* as SPECIES
+(branching: the tree gains WIDTH), below as SUBSPECIES (first-class
+since genesis); the wholesale promotion is narrowed to the stem's own
+commit (re-keys the REMAINDER). The cluster graph moves to the
+SCALAR-ONLY metric at SUB_D 0.08 (enum flips are same-blob noise at
+the lower edge); the isolation Condition input is wired into Δg
+(option B: rounds since the instance last touched a same-lineage
+sibling, ramped over ISO_RAMP_ROUNDS, fully isolated lineages accrue
+g at (1 + ISO_G_GAIN)× — island clones speciate first); clusters are
+merge-exempt by construction (scalar d >= SUB_D > MERGE_D), so the
+CONSOL governor never resets a persistence clock; `seed_clusters`
+makes a pre-seeded round-0 cluster geometry (ticket 0018's pre-genesis
+descent) a first-class input. Measured seed-1 30-round run: see §15.
+v1.1 (ticket 0020, DESIGN PIVOT) makes genesis seeding
 capacity-aware with SPARSE founders and PARTIAL range coverage: §10
 replaces the flat GENESIS_N0 = 0.2 founder density with the
 capacity-relative demand D = GENESIS_F0 · K_L(c, L) (settled 0.1) plus
@@ -143,14 +160,22 @@ Per round t, in order:
    gen_time = 2·sqrt(height_m) (the backbone formula) — a duckweed
    drifts per generation, an oak barely per round (interface ruling:
    gen_time decides call frequency).
-   **g accumulation (v0.7, fauna RFC §1):** each instance carries
-   `g_since_split` — genetic distance in generations from its
-   lineage's split ancestor. Per round the feed accrues
-   `Δg = n_gen · rate_mult · (drift baseline + stress-descent share ·
+   **g accumulation (v0.7, fauna RFC §1; isolation v1.2, ticket
+   0010):** each instance carries `g_since_split` — genetic distance
+   in generations from its lineage's split ancestor. Per round the
+   feed accrues `Δg = n_gen · rate_mult · (drift baseline ×
+   (1 + ISO_G_GAIN·isolation) + stress-descent share ×
    (1 + STRESS_G_BOOST·stress) + runaway share · ornament fraction +
-   enum share)`, where the shares are forces.py's Condition table
-   (isolation 0 — the rounds have no isolate input; the dressed
-   partition is the rounds' vicariance and g* decides the rank).
+   enum share)`, where the shares are forces.py's Condition table with
+   the ISOLATION input finally wired (v1.2): per instance, rounds
+   since the instance last touched/overlapped any same-lineage
+   instance (the engine's spatial contact gate, §9), ramped to full
+   isolation over ISO_RAMP_ROUNDS; a fully isolated lineage accrues g
+   at (1 + ISO_G_GAIN)× the plain clock — the fauna RFC §1 pairwise
+   rate (d(A,B) = (g_A − g0) + (g_B − g0): two isolated subpopulations
+   diverge at 2× the single-lineage rate). A single-instance lineage
+   is never isolated (it IS the whole gene pool). Island clones
+   speciate first; the mainland stays cohesive — allopatric tempo.
    `rate_mult` is the lineage's lognormal rate multiplier and the
    ornament fraction is the runaway-consumer axes' share of the
    mutable registry (flower display, fauna RFC §1), both drawn once
@@ -491,31 +516,61 @@ instance id, generations) and `g_star` (per lineage sid).
   interface rule, cited verbatim).
 - **Distance**: salience-weighted L1 over mutable scalar axes
   (normalized by axis span) + mismatch indicator over enums, averaged
-  — computed pairwise on instance gene views. Clusters = connected
-  components of the pairwise graph at SUB_D. (Cluster/orthodox
-  bookkeeping only — see the divide below.)
-- **Subspecies / Split**: the divide decision is the g currency
-  (v0.7, fauna RFC §1). The rounds' divide trigger is the
-  g-PROMOTION: the LINEAGE's g — the orthodox instance's
-  g_since_split (the record's representative, "per lineage, scalar
-  g") — crossing the lineage's seeded g* promotes the WHOLE gene pool
-  to ONE new SPECIES node (a dense lineage is a continuous trait
-  cloud that never splits at SUB_D — measured on seed 1 — so the
-  trait clusters cannot fire the divide). One-shot: a SPECIES node is
-  born promoted and never re-promotes (its g keeps accumulating and
-  classify stays "species"). A divergent trait cluster (the SUB_D
-  graph) whose representative is BELOW the lineage's g* divides as a
-  SUBSPECIES node (the RFC's "fragment below g* = subspecies");
-  a cluster beyond g* is NOT divided individually (that would churn a
-  species per extreme-mutant fragment — measured hundreds of spurious
-  SPLITs per round at seed 1) — it rides the wholesale promotion. On
-  re-key the instances' g_since_split resets to 0 (the split ancestor
-  — fauna RFC §1's d(A,B) = (g_A − g0) + (g_B − g0)) and the new
-  lineage draws fresh g* / rate multiplier. SPECIATION_D is no longer
-  a rounds currency (kept only as the g-less fallback for direct
-  authority unit tests). Cluster formation itself stays trait-distance
-  at SUB_D — g never converges, so it can gate RANKS and the
-  promotion, not cluster edges.
+  — computed pairwise on instance gene views. The CLUSTER graph and
+  the orthodox-cluster bookkeeping read the SCALAR-ONLY metric
+  (v1.2, ticket 0010 — the full metric's enum contribution is
+  same-blob noise (ticket 0008: 15% enum mismatch at equal pressure)
+  and would spuriously separate same-blob pairs at the lower edge,
+  corrupting the cluster geometry the persistence tracker reasons
+  about). The full metric stays for distance-to-record (orthodox) and
+  the g-less SPECIATION_D fallback band. Clusters = connected
+  components of the scalar-only pairwise graph at SUB_D.
+- **Subspecies / Split — real cladogenesis (v1.2, ticket 0010):** the
+  divide machinery is CLUSTER-LEVEL and replaces the wholesale sweep.
+  Every non-orthodox cluster is tracked across commits
+  (`_cluster_state`, member-overlap continuity — a cluster continues
+  the lineage's state with the largest member intersection, so rep
+  changes and member churn do not reset it) and must be a STABLE
+  COMPONENT for CLUSTER_PERSIST_ROUNDS commits with at least
+  CLUSTER_MIN_SIZE members before it may divide — the churn floors
+  (the v0.7 disease was per-instance g crossings churning hundreds of
+  spurious splits per round; a wobble never accumulates the
+  persistence). An ELIGIBLE cluster divides off as a real daughter;
+  the RANK is the g currency (fauna RFC §1): the cluster
+  representative's g_since_split vs the LINEAGE's seeded g* — BELOW
+  g* divides as a SUBSPECIES node (the RFC's "fragment below g* =
+  subspecies"); BEYOND g* BRANCHES as its own SPECIES node (real
+  cladogenesis: the tree gains WIDTH, the remainder stays in the
+  parent). Ineligible clusters incubate (KEEP) with their clock
+  running. On re-key the instances' g_since_split resets to 0 (the
+  split ancestor — fauna RFC §1's d(A,B) = (g_A − g0) + (g_B − g0))
+  and the new lineage draws fresh g* / rate multiplier. SPECIATION_D
+  is no longer a rounds currency (kept only as the g-less fallback
+  for direct authority unit tests; the floors apply there too —
+  pre-seeded via `seed_clusters`).
+  **Stem promotion (v0.7, narrowed by v1.2):** the LINEAGE's g — the
+  orthodox instance's g_since_split (the record's representative,
+  "per lineage, scalar g") — crossing the lineage's seeded g*
+  re-keys the REMAINDER (instances not already divided off as
+  daughters this commit) to ONE new SPECIES node: a dense lineage is
+  a continuous trait cloud that never splits at SUB_D (measured on
+  seed 1), so the stem still needs its own commit — otherwise its g
+  (and the mutation-magnitude ramp) would accumulate without bound.
+  One-shot: a SPECIES node is born promoted and never re-promotes
+  (its g keeps accumulating and classify stays "species"). Cluster
+  divides run BEFORE the promotion, so a fragment crossing g* in the
+  same commit branches as a daughter instead of riding it.
+  **Pre-seeded geometry (ticket 0018 synergy):** `seed_clusters(sid,
+  [...])` registers clusters that were stably diverged BEFORE the sim
+  (genesis clones diverged at round 0 by pre-genesis descent — 0018
+  design-only today). Seeded clusters are born with full persistence
+  credit and divide at the first commit: the round-0 cluster geometry
+  is a first-class input, not just sim-emergent structure.
+  **CONSOL reconciliation (decided):** clusters are merge-exempt BY
+  CONSTRUCTION — a cluster member pair has scalar d >= SUB_D >
+  MERGE_D and the merge gate requires both members in the orthodox
+  cluster, so the periodic consolidation sweep never touches a
+  persisting cluster and can never reset its clock.
 - **Extinct**: no living instances → record marked extinct (reflog
   entry), branch terminated. Genesis zero-range species (ticket 0004):
   never minted, but the engine registers them with the authority
@@ -692,10 +747,13 @@ counts are small).
 1. **Determinism**: two full runs (R = 20 rounds) byte-identical JSON.
 2. **Range tracking**: occupied cells' mean s_env < unoccupied cells'
    for every lineage alive at R (reported per lineage).
-3. **Genesis partition diverges**: ≥ 1 clone pair of one species
-   registers subspecies-or-split within R rounds (island vs mainland
-   isolation; MERGE_GRACE honored; the clones are minted under the
-   radiated SPECIES sids — ticket 0004).
+3. **Genesis partition diverges / real cladogenesis**: ≥ 1 clone pair
+   of one species registers subspecies-or-split within R rounds, and
+   at least one SPLIT is a BRANCH (a subset of the lineage re-keyed —
+   a real daughter) so the living lineage count GROWS at some point
+   over the run (the v0.8 wholesale promotion never grew it; v1.2's
+   cluster-level divide does). Subspecies fires at least once
+   (reported with sid, round, cluster size, persistence).
 4. **Extinction**: a fixture lineage boxed into a lethal refugium
    (planted at s_env ≈ 1 by the test, not genesis) is extinct within
    5 rounds — possible because bscale → 0 (critic finding 1).
@@ -744,11 +802,13 @@ counts are small).
 | RE_EVAL_D | 5.1 | 0.15 | cache invalidation distance |
 | DIFF_D / MOB_K | 7.3 | **0.2 (cal)** / 1.0 | verdict-gate base / mobility gain |
 | DIFF_MIN_CELLS | 8 | **32 (cal)** | divergent sub-range split floor |
-| SUB_D / MERGE_D / MERGE_GRACE | 9 | 0.1 / **0.045 (v0.7)** / 5 | commit cluster edge / scalar-only merge gate / grace |
+| SUB_D / MERGE_D / MERGE_GRACE | 9 | **0.08 (v1.2, scalar-only)** / **0.045 (v0.7)** / 5 | commit cluster edge on the scalar-only metric / scalar-only merge gate / grace |
+| CLUSTER_PERSIST_ROUNDS / CLUSTER_MIN_SIZE | 9 | **3 (ticket 0010)** / **2 (ticket 0010)** | cluster stability floor (consecutive commits, member-overlap continuity) / min members for a divide-eligible cluster — the v0.7-disease churn control |
 | SPECIATION_D | 9 | 0.35 | g-less FALLBACK divide rank (authority unit tests only; NOT a rounds currency since v0.7) |
 | CONSOL_EVERY | 9 | 5 | full-lineage consolidation period (rounds) |
 | DG_DRIFT_BASE | 4 | 1.0 | g drift baseline (generation-distance per generation) |
 | DG_ENUM_SHARE | 4 | 0.05 | g contribution of enum redraws (per generation) |
+| ISO_G_GAIN / ISO_RAMP_ROUNDS | 4 | **1.0 / 2 (ticket 0010)** | Δg base multiplier at full isolation (1.0 = 2× at iso 1 — the RFC §1 pairwise 2× divergence rate) / rounds without gene flow to full isolation |
 | G_STEP_REF | 4 | 100 | species-edge dg scale: rounds' novel-tail rate = p_novel·n_gen/G_STEP_REF per axis |
 | STRESS_G_BOOST / G_STEADY_ONSET / G_STEADY_RAMP / G_REF / G_NOVEL / P_NOVEL_MAX / NOVELTY_MULT | 4 | forces.py | the g-clock and f(g) ramp constants (referenced, never duplicated) |
 | TAKEOVER_RATIO | 12 | 0.8 | acceptance 5 |
@@ -782,6 +842,48 @@ counts are small).
 
 ## 15. Changelog
 
+- **v1.2** (2026-08-01, ticket 0010, real cladogenesis): the divide
+  machinery moves from the wholesale g-promotion to CLUSTER-LEVEL
+  divides. §9: (a) the cluster graph reads the SCALAR-ONLY metric at
+  SUB_D 0.08 (the full metric's enum contribution would spuriously
+  separate same-blob pairs at the lower edge; the full metric stays
+  for distance-to-record and the g-less SPECIATION_D fallback);
+  (b) every non-orthodox cluster is tracked across commits
+  (member-overlap continuity — rep changes and member churn don't
+  reset it) and must be a stable component for CLUSTER_PERSIST_ROUNDS
+  (3) with ≥ CLUSTER_MIN_SIZE (2) members before it may divide — the
+  v0.7-disease churn control (per-instance g crossings churned
+  hundreds of spurious splits/round); (c) an eligible cluster divides
+  off as a real daughter: below the lineage's g* as SUBSPECIES,
+  beyond g* BRANCHES as its own SPECIES node (the old rule — beyond-g*
+  fragments rode the wholesale promotion, a relabeling that never grew
+  the lineage count — is gone); (d) the wholesale promotion is
+  narrowed to the STEM's own commit: the orthodox crossing g* re-keys
+  the REMAINDER (cluster divides run first, so a same-commit crossing
+  fragment branches instead of riding it); (e) clusters are
+  merge-exempt BY CONSTRUCTION (scalar d ≥ SUB_D > MERGE_D and the
+  in-orthodox gate), so the CONSOL governor can never reset a
+  persistence clock; (f) `seed_clusters` registers a pre-seeded
+  round-0 cluster geometry with full persistence credit (ticket 0018
+  synergy — pre-genesis per-clone descent, design-only today).
+  §4: the forces.py Condition ISOLATION input is wired into Δg —
+  rounds since the instance last touched a same-lineage sibling
+  (the engine's spatial contact gate), ramped over ISO_RAMP_ROUNDS;
+  a fully isolated lineage accrues g at (1 + ISO_G_GAIN)× (ISO_G_GAIN
+  = 1.0: the fauna RFC §1 pairwise 2× divergence rate); single-instance
+  lineages are never isolated. Island clones speciate first (allopatric
+  tempo); the genesis partition clones are their natural first
+  subspecies (option E falls out). Measured seed-1 30-round run (see
+  tmp/k15_clado scratch): baseline — lineage count 100 → 91 (0
+  subspecies ever, ~118 divides all wholesale promotions, tree SPECIES
+  nodes 150 → 219 depth-only); v1.2 — lineage count 102 → 99 with a
+  back-half RECOVERY 92 → 99 (branches outpacing die-outs; ~97 real
+  daughter species over the run, promotions down to ~31 — fragments
+  branch instead of riding), subspecies fires 74× (rounds 19/23/27,
+  all from one slow lineage's clones — below-g* clusters), splits/round
+  max 464 (one-off promotion waves, not sustained churn; the v0.7
+  disease was 100s of spurious splits EVERY round), merges 11674
+  (sane), tree SPECIES nodes 150 → 229 (width AND depth).
 - **v1.1** (2026-08-01, ticket 0020, DESIGN PIVOT): sparse founders +
   partial coverage, NO density budget. The v1.0 budget gate (batch
   rain with a world-level cumulative density field, streaming

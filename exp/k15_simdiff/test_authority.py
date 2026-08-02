@@ -18,6 +18,8 @@ from exp.k13_treegen.interface import InstanceView, Outcome
 from exp.k13_treegen.model import Node, Rank, Tree
 from exp.k15_simdiff.authority import (
     AXIS_METRIC,
+    CLUSTER_MIN_SIZE,
+    CLUSTER_PERSIST_ROUNDS,
     GENERIC_SALIENCE,
     MERGE_D,
     MERGE_GRACE,
@@ -147,11 +149,17 @@ def test_subspecies_in_band():
     b = _traits(moisture=0.9)      # 0.4/3 ≈ 0.133 ∈ [SUB_D, SPECIATION_D)
     d = genes_distance(RECORD, b, _METRIC)
     assert SUB_D <= d < SPECIATION_D
+    # ticket 0010 floors: a divide needs a stable >=2-member cluster —
+    # pre-seed the geometry (persistence credit + the member floor;
+    # the seed_clusters API is the 0018 pre-seeded-geometry hook)
+    auth.seed_clusters({SID1: [("iB", frozenset({"iB", "iC"}))]})
     log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
-                       _view(SID1, "iB", b, mass=9.0)], _rng())
+                       _view(SID1, "iB", b, mass=9.0),
+                       _view(SID1, "iC", b, mass=1.0)], _rng())
     by = {d.instance_id: d for d in log.instances}
     assert by["iA"].outcome is Outcome.KEEP and by["iA"].orthodox
     assert by["iB"].outcome is Outcome.SUBSPECIES
+    assert by["iB"].target == by["iC"].target          # one node for both
     assert by["iB"].target and len(by["iB"].target) == 16
     new = auth.tree.nodes["1.ss0"]
     assert new.rank is Rank.SUBSPECIES
@@ -159,18 +167,21 @@ def test_subspecies_in_band():
     assert new.axes == b                              # representative's genes
     (ss,) = [e for e in auth.reflog if e["event"] == "subspecies"]
     assert ss["sid"] == new.sid and ss["parent_sid"] == SID1
-    assert ss["instances"] == ["iB"] and ss["genes"] == b
+    assert ss["instances"] == ["iB", "iC"] and ss["genes"] == b
 
 
 def test_split_above_speciation_d():
     auth = _auth(_species("1", SID1, RECORD))
     b = _traits(temp=30.0, moisture=0.6)    # (1.0 + 0.1)/3 = 0.367
     assert genes_distance(RECORD, b, _METRIC) >= SPECIATION_D
+    auth.seed_clusters({SID1: [("iB", frozenset({"iB", "iC"}))]})
     log = auth.update([_view(SID1, "iA", RECORD, mass=1.0),
-                       _view(SID1, "iB", b, mass=1.0)], _rng())
+                       _view(SID1, "iB", b, mass=1.0),
+                       _view(SID1, "iC", b, mass=1.0)], _rng())
     by = {d.instance_id: d for d in log.instances}
     assert by["iA"].outcome is Outcome.KEEP and by["iA"].orthodox
     assert by["iB"].outcome is Outcome.SPLIT
+    assert by["iB"].target == by["iC"].target
     new = auth.tree.nodes["1.s0"]
     assert new.rank is Rank.SPECIES and new.parent == "1"
     assert new.sid == by["iB"].target and new.axes == b
@@ -181,9 +192,14 @@ def test_split_above_speciation_d():
 def test_split_cluster_all_members_rekey_to_one_node():
     auth = _auth(_species("1", SID1, RECORD))
     b1 = _traits(temp=30.0, moisture=0.6)
-    b2 = _traits(temp=28.0, moisture=0.7)
-    assert genes_distance(b1, b2, _METRIC) < SUB_D          # one cluster
+    # v1.2 re-pin: the cluster graph is the SCALAR-ONLY metric at
+    # SUB_D 0.08 (ticket 0010 — enum flips are same-blob noise), so the
+    # two extreme mutants must be scalar-connected to stay one cluster
+    # (b2 = temp 28.5/moisture 0.65 gives scalar d(b1, b2) = 0.0625)
+    b2 = _traits(temp=28.5, moisture=0.65)
+    assert genes_distance(b1, b2, _METRIC) < SPECIATION_D
     assert genes_distance(RECORD, b1, _METRIC) >= SPECIATION_D
+    auth.seed_clusters({SID1: [("iB", frozenset({"iB", "iC"}))]})
     log = auth.update([_view(SID1, "iA", RECORD, mass=1.0),
                        _view(SID1, "iB", b1, mass=2.0),
                        _view(SID1, "iC", b2, mass=1.0)], _rng())
@@ -207,44 +223,56 @@ def test_divide_rank_by_g_below_star_is_subspecies():
     auth = _auth(_species("1", SID1, RECORD))
     b = _traits(temp=30.0, moisture=0.6)       # 0.367 >= SPECIATION_D
     assert genes_distance(RECORD, b, _METRIC) >= SPECIATION_D
-    gs = {"iA": 120.0, "iB": 220.0}            # below the lineage g*
+    gs = {"iA": 120.0, "iB": 220.0, "iC": 220.0}   # below the lineage g*
+    auth.seed_clusters({SID1: [("iB", frozenset({"iB", "iC"}))]})
     log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
-                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                       _view(SID1, "iB", b, mass=1.0),
+                       _view(SID1, "iC", b, mass=1.0)], _rng(),
                       g_since_split=gs, g_star={SID1: 500.0})
     by = {d.instance_id: d for d in log.instances}
     assert by["iB"].outcome is Outcome.SUBSPECIES
+    assert by["iB"].target == by["iC"].target
     assert by["iB"].target and len(by["iB"].target) == 16
     assert auth.tree.nodes["1.ss0"].rank is Rank.SUBSPECIES
 
 
-def test_divide_beyond_g_star_waits_for_the_promotion():
-    """A trait-separated cluster whose rep is BEYOND the lineage's g*
-    is NOT divided individually (that would churn a species per
-    extreme-mutant fragment — measured hundreds of spurious SPLITs per
-    round at seed 1); it stays with the lineage until the wholesale
-    g-promotion re-keys the whole gene pool when the ORTHODOX crosses
-    g*."""
+def test_beyond_g_star_cluster_branches_as_daughter():
+    """Ticket 0010 option A: a trait-separated cluster whose rep is
+    BEYOND the lineage's g* BRANCHES as its own SPECIES node (real
+    cladogenesis — the tree gains width) while the orthodox remainder
+    stays in the parent; the old rule (fragment rides the wholesale
+    promotion) is gone. The persistence + min-size floors still apply:
+    the same beyond-g* fragment without a stable multi-member cluster
+    incubates (KEEP) instead of churning a species per mutant."""
     auth = _auth(_species("1", SID1, RECORD))
-    b = _traits(moisture=0.9)                  # 0.133: separated cluster
+    b = _traits(moisture=0.9)                  # separated cluster
     assert SUB_D <= genes_distance(RECORD, b, _METRIC) < SPECIATION_D
-    # orthodox below g*, fragment beyond: no divide at all
-    gs = {"iA": 120.0, "iB": 700.0}
+    auth.seed_clusters({SID1: [("iB", frozenset({"iB", "iC"}))]})
+    # orthodox below g*, fragment beyond: the fragment branches as a
+    # daughter SPECIES, the parent keeps the orthodox
+    gs = {"iA": 120.0, "iB": 700.0, "iC": 700.0}
     log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
-                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                       _view(SID1, "iB", b, mass=1.0),
+                       _view(SID1, "iC", b, mass=1.0)], _rng(),
                       g_since_split=gs, g_star={SID1: 500.0})
     by = {d.instance_id: d for d in log.instances}
-    assert by["iA"].outcome is Outcome.KEEP
-    assert by["iB"].outcome is Outcome.KEEP
-    assert len(auth.tree.nodes) == 1
-    # once the orthodox crosses, the whole lineage promotes as ONE
-    gs2 = {"iA": 700.0, "iB": 720.0}
-    log2 = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
-                        _view(SID1, "iB", b, mass=1.0)], _rng(),
-                       g_since_split=gs2, g_star={SID1: 500.0})
-    by2 = {d.instance_id: d for d in log2.instances}
-    assert by2["iA"].outcome is Outcome.SPLIT
-    assert by2["iA"].target == by2["iB"].target
+    assert by["iA"].outcome is Outcome.KEEP and by["iA"].orthodox
+    assert by["iB"].outcome is Outcome.SPLIT
+    assert by["iB"].target == by["iC"].target
     assert auth.tree.nodes["1.s0"].rank is Rank.SPECIES
+    # the fragment that crossed is born promoted (a SPECIES node never
+    # re-promotes) and its members re-keyed
+    assert auth.redraw("iB").species_id == by["iB"].target
+    # floor gate: an UNSEEDED single-round-old cluster never branches
+    auth2 = _auth(_species("1", SID1, RECORD))
+    log2 = auth2.update([_view(SID1, "iA", RECORD, mass=5.0),
+                         _view(SID1, "iB", b, mass=1.0),
+                         _view(SID1, "iC", b, mass=1.0)], _rng(),
+                        g_since_split=gs, g_star={SID1: 500.0})
+    by2 = {d.instance_id: d for d in log2.instances}
+    assert by2["iA"].outcome is Outcome.KEEP
+    assert by2["iB"].outcome is Outcome.KEEP
+    assert len(auth2.tree.nodes) == 1
 
 
 def test_g_crossing_promotes_whole_lineage():
@@ -274,38 +302,50 @@ def test_g_crossing_promotes_whole_lineage():
 
 def test_g_crossing_promotion_is_one_shot_and_trait_clusters_rank():
     """Below the orthodox's crossing the lineage does NOT promote —
-    the trait-cluster path ranks the divides by classify(rep g,
-    g_star): a trait-separated cluster is SUBSPECIES below g*, SPLIT
-    beyond. And the promotion is one-shot: a second commit with the
-    same post-crossing g values does not re-promote (the species node
-    is born promoted)."""
+    the cluster path ranks the divides by classify(rep g, g_star): a
+    trait-separated cluster is SUBSPECIES below g*, and beyond g* it
+    BRANCHES as its own SPECIES node (ticket 0010) while the orthodox
+    remainder promotes separately when IT crosses. Both one-shots:
+    second commits with the same post-crossing g values do not re-fire
+    (a SPECIES node is born promoted)."""
     auth = _auth(_species("1", SID1, RECORD))
-    b = _traits(moisture=0.9)      # 0.133: trait-separated cluster
+    b = _traits(moisture=0.9)      # separated cluster
     assert SUB_D <= genes_distance(RECORD, b, _METRIC) < SPECIATION_D
-    gs = {"iA": 120.0, "iB": 220.0}            # orthodox below g*
+    auth.seed_clusters({SID1: [("iB", frozenset({"iB", "iC"}))]})
+    gs = {"iA": 120.0, "iB": 220.0, "iC": 220.0}   # orthodox below g*
     log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
-                       _view(SID1, "iB", b, mass=1.0)], _rng(),
+                       _view(SID1, "iB", b, mass=1.0),
+                       _view(SID1, "iC", b, mass=1.0)], _rng(),
                       g_since_split=gs, g_star={SID1: 500.0})
     by = {d.instance_id: d for d in log.instances}
     assert by["iA"].outcome is Outcome.KEEP and by["iA"].orthodox
     assert by["iB"].outcome is Outcome.SUBSPECIES    # below g*
-    # the orthodox later crosses g*: the whole lineage promotes once
-    gs2 = {"iA": 700.0, "iB": 740.0}
+    # both beyond g*: the fragment branches as its own SPECIES daughter
+    # and the orthodox remainder promotes as a SEPARATE node
+    gs2 = {"iA": 700.0, "iB": 740.0, "iC": 740.0}
     log2 = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
-                        _view(SID1, "iB", b, mass=1.0)], _rng(),
+                        _view(SID1, "iB", b, mass=1.0),
+                        _view(SID1, "iC", b, mass=1.0)], _rng(),
                        g_since_split=gs2, g_star={SID1: 500.0})
     by2 = {d.instance_id: d for d in log2.instances}
     assert by2["iA"].outcome is Outcome.SPLIT
     assert by2["iB"].outcome is Outcome.SPLIT
-    promoted = by2["iA"].target
-    # one-shot: the same g values again do not re-promote the species
-    # node — the orthodox stays under it; the beyond-g* separated
-    # fragment waits for the promotion too (no trait-cluster SPLITs)
+    assert by2["iA"].target != by2["iB"].target     # branch != promotion
+    assert by2["iB"].target == by2["iC"].target
+    promoted, daughter = by2["iA"].target, by2["iB"].target
+    # one-shot: the same g values again do not re-fire either the
+    # promotion or the daughter branching (born promoted)
     log3 = auth.update([_view(promoted, "iA", RECORD, mass=5.0),
-                        _view(promoted, "iB", b, mass=1.0)], _rng(),
+                        _view(promoted, "iB", b, mass=1.0),
+                        _view(promoted, "iC", b, mass=1.0)], _rng(),
                        g_since_split=gs2, g_star={promoted: 500.0})
     by3 = {d.instance_id: d for d in log3.instances}
     assert all(d.outcome is Outcome.KEEP for d in by3.values())
+    log4 = auth.update([_view(daughter, "iB", b, mass=1.0),
+                        _view(daughter, "iC", b, mass=1.0)], _rng(),
+                       g_since_split=gs2, g_star={daughter: 500.0})
+    by4 = {d.instance_id: d for d in log4.instances}
+    assert all(d.outcome is Outcome.KEEP for d in by4.values())
 
 
 def test_merge_gate_uses_scalar_only_metric():
@@ -336,8 +376,14 @@ def test_merge_gate_uses_scalar_only_metric():
     assert by["iB"].outcome is Outcome.MERGE
     # scalar divergence still refuses: temp 12.8 -> scalar d = 0.07
     auth2 = _auth(_species("1", SID1, RECORD), metric=low)
-    far = _traits(temp=12.8, leaf="lobed")     # full d < SUB_D: one cluster
-    assert genes_distance(RECORD, far, low) < SUB_D
+    far = _traits(temp=12.8, leaf="lobed")
+    # one cluster on the SCALAR-ONLY graph (v1.2, ticket 0010: the
+    # cluster edge reads the scalar axes — enum flips are same-blob
+    # noise), so the pair never even forms a divergent cluster
+    scalar = {k: e for k, e in low.items()
+              if e.value_type in ("scalar", "int")}
+    assert genes_distance(RECORD, far, scalar,
+                          include_generics=False) < SUB_D
     pair2 = frozenset({"iA", "iB"})
     for _ in range(MERGE_GRACE + 1):
         log2 = auth2.update([_view(SID1, "iA", RECORD, mass=5.0),
@@ -345,6 +391,138 @@ def test_merge_gate_uses_scalar_only_metric():
                             merge_candidates={pair2})
     by2 = {d.instance_id: d for d in log2.instances}
     assert by2["iB"].outcome is Outcome.KEEP
+
+
+# ── ticket 0010: real-cladogenesis floors and pre-seeded geometry ─────
+
+
+def test_cluster_divide_requires_persistence():
+    """A non-orthodox cluster must be continuously present for
+    CLUSTER_PERSIST_ROUNDS commits before it may divide — a wobble (the
+    v0.7 disease: per-instance g crossings churned hundreds of spurious
+    splits per round) never accumulates the persistence."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(moisture=0.9)     # separated cluster {iB, iC}
+    gs = {"iA": 120.0, "iB": 700.0, "iC": 700.0}
+    views = [_view(SID1, "iA", RECORD, mass=5.0),
+             _view(SID1, "iB", b, mass=1.0),
+             _view(SID1, "iC", b, mass=1.0)]
+    for r in range(1, CLUSTER_PERSIST_ROUNDS):
+        log = auth.update(views, _rng(), g_since_split=gs,
+                          g_star={SID1: 500.0})
+        by = {d.instance_id: d for d in log.instances}
+        assert by["iB"].outcome is Outcome.KEEP, \
+            f"divided at round {r} < {CLUSTER_PERSIST_ROUNDS}"
+        assert len(auth.tree.nodes) == 1
+    log = auth.update(views, _rng(), g_since_split=gs,
+                      g_star={SID1: 500.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iB"].outcome is Outcome.SPLIT, "never became eligible"
+    assert by["iB"].target == by["iC"].target
+
+
+def test_cluster_vanishes_resets_persistence():
+    """A cluster that dissolves (its members rejoin the orthodox cloud)
+    and later reforms restarts its clock — continuity is per-cluster,
+    not per-membership-history."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(moisture=0.9)
+    gs = {"iA": 120.0, "iB": 700.0, "iC": 700.0}
+    views = [_view(SID1, "iA", RECORD, mass=5.0),
+             _view(SID1, "iB", b, mass=1.0),
+             _view(SID1, "iC", b, mass=1.0)]
+    for _ in range(CLUSTER_PERSIST_ROUNDS - 1):
+        auth.update(views, _rng(), g_since_split=gs,
+                    g_star={SID1: 500.0})
+    # one commit where the fragment is NOT separated (back within SUB_D)
+    close = [_view(SID1, "iA", RECORD, mass=5.0),
+             _view(SID1, "iB", _traits(moisture=0.53), mass=1.0),
+             _view(SID1, "iC", _traits(moisture=0.53), mass=1.0)]
+    auth.update(close, _rng(), g_since_split=gs, g_star={SID1: 500.0})
+    # the reformed cluster starts its clock over: still KEEP
+    log = auth.update(views, _rng(), g_since_split=gs,
+                      g_star={SID1: 500.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iB"].outcome is Outcome.KEEP
+    assert len(auth.tree.nodes) == 1
+
+
+def test_persistence_survives_rep_change():
+    """Continuity is member-overlap anchored, not rep-anchored: the
+    most-established member may change between commits without resetting
+    the persistence clock."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(moisture=0.9)
+    gs = {"iA": 120.0, "iB": 700.0, "iC": 700.0}
+    # iB leads (mass 2); from the third commit iC leads (mass 3)
+    for r in range(CLUSTER_PERSIST_ROUNDS - 1):
+        log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                           _view(SID1, "iB", b, mass=2.0),
+                           _view(SID1, "iC", b, mass=1.0)], _rng(),
+                          g_since_split=gs, g_star={SID1: 500.0})
+        by = {d.instance_id: d for d in log.instances}
+        assert by["iB"].outcome is Outcome.KEEP
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0),
+                       _view(SID1, "iC", b, mass=3.0)], _rng(),
+                      g_since_split=gs, g_star={SID1: 500.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iB"].outcome is Outcome.SPLIT, "rep change reset the clock"
+    assert by["iB"].target == by["iC"].target
+
+
+def test_seeded_clusters_divide_at_first_commit():
+    """seed_clusters (the ticket-0018 pre-seeded-geometry hook): a
+    cluster that was stably diverged BEFORE the sim is born with full
+    persistence credit and divides at the first commit — the round-0
+    cluster geometry (genesis clones diverged by pre-genesis descent)
+    is a first-class input, not just sim-emergent structure."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(moisture=0.9)
+    auth.seed_clusters({SID1: [("iB", frozenset({"iB", "iC"}))]})
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0),
+                       _view(SID1, "iC", b, mass=1.0)], _rng(),
+                      g_since_split={"iA": 120.0, "iB": 700.0,
+                                     "iC": 700.0},
+                      g_star={SID1: 500.0})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iB"].outcome is Outcome.SPLIT
+    # a seeded cluster whose geometry does NOT match the found graph
+    # (members still within SUB_D) is pruned and never divides
+    auth2 = _auth(_species("1", SID1, RECORD))
+    auth2.seed_clusters({SID1: [("iB", frozenset({"iB"}))]})
+    log2 = auth2.update([_view(SID1, "iA", RECORD, mass=5.0),
+                         _view(SID1, "iB", _traits(temp=10.5),
+                               mass=1.0)], _rng(),
+                        g_since_split={"iA": 700.0, "iB": 720.0},
+                        g_star={SID1: 500.0})
+    by2 = {d.instance_id: d for d in log2.instances}
+    assert by2["iA"].outcome is Outcome.SPLIT   # dense lineage promotes
+    assert len(auth2._cluster_state) == 0       # stale seed pruned
+
+
+def test_persisting_cluster_merge_exempt():
+    """Clusters are merge-exempt by construction: a cluster member pair
+    has scalar d >= SUB_D > MERGE_D and the merge gate requires both
+    members in the orthodox cluster — so even a CONSOL-style full
+    candidate set never absorbs a persisting cluster (the consolidation
+    governor can never reset a persistence clock)."""
+    auth = _auth(_species("1", SID1, RECORD))
+    b = _traits(moisture=0.9)
+    auth.seed_clusters({SID1: [("iB", frozenset({"iB", "iC"}))]})
+    pair = frozenset({"iA", "iB"})     # cross-cluster candidate
+    log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
+                       _view(SID1, "iB", b, mass=1.0),
+                       _view(SID1, "iC", b, mass=1.0)], _rng(),
+                      g_since_split={"iA": 120.0, "iB": 700.0,
+                                     "iC": 700.0},
+                      g_star={SID1: 500.0},
+                      merge_candidates={pair})
+    by = {d.instance_id: d for d in log.instances}
+    assert by["iB"].outcome is Outcome.SPLIT, "cluster was absorbed"
+    assert by["iA"].outcome is Outcome.KEEP
+    assert not [e for e in auth.reflog if e["event"] == "merge"]
 
 
 # ── merges (engine-gated) ────────────────────────────────────────────
@@ -391,8 +569,11 @@ def test_merge_requires_engine_gate():
 def test_merge_refused_when_distance_too_large():
     auth = _auth(_species("1", SID1, RECORD))
     far = _traits(temp=13.6)              # (3.6/20)/3 = 0.06 in
-    d = genes_distance(RECORD, far, _METRIC)   # [MERGE_D, SUB_D): same
-    assert MERGE_D <= d < SUB_D                # cluster (KEEP), no merge
+    d = genes_distance(RECORD, far, _METRIC)   # [MERGE_D, SUB_D): no merge
+    assert MERGE_D <= d < SUB_D
+    # scalar-only d = 0.09: above MERGE_D and above the cluster edge —
+    # a separate (incubating, below the persistence floor) cluster, so
+    # KEEP either way
     pair = frozenset({"iA", "iB"})
     log = auth.update([_view(SID1, "iA", RECORD, mass=5.0),
                        _view(SID1, "iB", far, mass=1.0)], _rng(),

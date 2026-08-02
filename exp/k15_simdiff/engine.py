@@ -26,8 +26,10 @@ functions (spec §5.0 wording covers both).
 from __future__ import annotations
 
 import math
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Mapping
 
 import numpy as np
 
@@ -77,23 +79,38 @@ CONSOL_EVERY = 5      # full-lineage consolidation period (spec v0.4.2
                       # pass" run periodically — the instance-count
                       # governor (owner ruling 2026-08-01)
 
-# ── g currency (ticket 0008 — fauna RFC §1: generation-time clock,
-#    three forces, per-clade seeded g*; forces.py constants referenced,
-#    never duplicated) ────────────────────────────────────────────────
+# ── g currency (tickets 0008/0010 — fauna RFC §1: generation-time
+#    clock, three forces, per-clade seeded g*; forces.py constants
+#    referenced, never duplicated) ────────────────────────────────────
 # The per-round Δg formula (ticket 0008 item a), per generation:
-#   Δg_gen = rate_mult × (drift baseline + stress-descent share ×
-#            (1 + STRESS_G_BOOST·stress) + runaway share × ornament
-#            fraction + enum share)
-# with the shares from forces.py's Condition table (isolation 0 — the
-# rounds have no isolate input; the dressed partition is the rounds'
-# vicariance and g* decides the rank). At benign stress the shares
-# normalize so Δg ≈ n_gen (the anchor: g_star median 500 generations ≈
-# 9 rounds for a fast grass, ~50 for a slow tree at ROUND_YEARS=100).
+#   Δg_gen = rate_mult × (drift baseline × (1 + ISO_G_GAIN·isolation)
+#            + stress-descent share × (1 + STRESS_G_BOOST·stress)
+#            + runaway share × ornament fraction + enum share)
+# with the shares from forces.py's Condition table — isolation wired
+# in since ticket 0010 (option B): rounds since the instance last
+# touched a same-lineage sibling (the engine's spatial contact gate),
+# so isolated clusters accrue g faster and island lineages speciate
+# first. At benign stress and zero isolation the shares normalize so
+# Δg ≈ n_gen (the anchor: g_star median 500 generations ≈ 9 rounds
+# for a fast grass, ~50 for a slow tree at ROUND_YEARS=100).
 DG_DRIFT_BASE = 1.0     # the drift baseline (~1 generation-distance
                         # per generation; the plain generation clock)
 DG_ENUM_SHARE = 0.05    # enum redraws' g contribution per generation
                         # (forces.py ENUM_RATE is small; a redraw is a
                         # discrete jump worth a few % of a generation)
+# ticket 0010 option B (allopatric tempo): the isolation Condition
+# input wired into Δg. forces.py's share table already carries the
+# isolation share (SHARE_DRIFT_PER_ISOLATION — imported via
+# share_ratios, never duplicated); the rounds pinned it to 0. Here the
+# per-instance isolation (rounds since the instance last touched ANY
+# same-lineage instance — the engine's own spatial contact gate, the
+# ticket's "merge contact") ramps to full isolation over
+# ISO_RAMP_ROUNDS, and a fully isolated lineage accrues g at
+# (1 + ISO_G_GAIN) x the plain clock — ISO_G_GAIN = 1.0 mirrors the
+# fauna RFC §1 pairwise rate: two isolated subpopulations diverge at
+# 2 x the single-lineage rate, d(A,B) = (g_A − g0) + (g_B − g0).
+ISO_G_GAIN = 1.0        # Δg base multiplier at full isolation
+ISO_RAMP_ROUNDS = 2     # rounds without gene flow to full isolation
 G_STEP_REF = 100.0      # the species-edge dg scale (flora backbone
                         # DG_* medians 300/150/60): forces.py's p_novel
                         # is a per-EDGE rate, so the rounds' per-round
@@ -377,6 +394,13 @@ class Engine:
         # divide re-key (the g-currency tempo evidence; the clock
         # resets on re-key, so the post-commit value is 0)
         self._divide_g: dict[str, float] = {}
+        # ticket 0010 option B: per-instance last gene-flow round — the
+        # last commit at which the instance touched/overlapped ANY
+        # same-lineage instance (the engine's spatial contact gate,
+        # _merge_candidates). Genesis clones / minted foundlings are
+        # initialized to their birth round (a fresh foundling still
+        # shares the founder's genes). Draw-free bookkeeping.
+        self._last_contact: dict[str, int] = {}
         reg = self.pack.registry.axes
         mut_axes = [n for n, s in reg.items() if s.mutable]
         # runaway's ornament fraction of the mutable registry axes (the
@@ -437,6 +461,24 @@ class Engine:
         if sid not in self._rate_mult:
             self._seed_lineage(sid)
         return self._rate_mult[sid], self._g_star[sid]
+
+    def _isolation(self, iid: str, t: int,
+                   lin_counts: Mapping[str, int]) -> float:
+        """The isolation Condition input for *iid* at round *t* (ticket
+        0010 option B): 0 connected .. 1 total isolate, from the
+        engine's own spatial-contact gate — rounds since the instance
+        last touched/overlapped ANY same-lineage instance
+        (``_merge_candidates``, recorded in ``_last_contact`` at each
+        commit), ramped linearly to full isolation over
+        ISO_RAMP_ROUNDS. A lineage with a single instance is never
+        isolated (it IS the whole gene pool — internally connected).
+        Draw-free and deterministic: pure bookkeeping over the pinned
+        contact gate, no streams."""
+        d = self.instances.get(iid)
+        if d is None or lin_counts.get(d.x.species_id, 1) <= 1:
+            return 0.0
+        last = self._last_contact.get(iid, 0)
+        return min(1.0, max(0.0, (t - 1 - last) / ISO_RAMP_ROUNDS))
 
     # ── §5.1 cache ───────────────────────────────────────────────────
 
@@ -544,6 +586,9 @@ class Engine:
             for i, clone in enumerate(clones):
                 iid = self._new_instance_id(rng)
                 self._g_since_split[iid] = 0.0
+                # ticket 0010: born at round 0; contact history empty —
+                # the isolation ramp decides how fast siblings isolate
+                self._last_contact[iid] = 0
                 x = self.authority.mint(node.sid, iid, rng.child(str(i)))
                 if shared is None:
                     view = self.sim.derive(x.traits, self.pack)
@@ -653,6 +698,9 @@ class Engine:
 
     def _verdict_feed(self, t: int,
                       light: dict[str, np.ndarray]) -> None:
+        # ticket 0010: per-lineage instance counts for the isolation
+        # gate — a lone blob IS the whole gene pool, never "isolated"
+        lin_counts = Counter(d.x.species_id for d in self.instances.values())
         for iid in sorted(self.instances):
             d = self.instances[iid]
             total = d.mass
@@ -679,20 +727,24 @@ class Engine:
             gen_time = 2.0 * math.sqrt(max(height, 1e-6))
             n_gen = int(min(N_GEN_CAP,
                             max(1, math.ceil(ROUND_YEARS / gen_time))))
-            # ── g accumulation (ticket 0008, fauna RFC §1) ──────────
-            # Δg this round = n_gen × rate_mult × (drift baseline +
-            # stress-descent share × (1 + STRESS_G_BOOST·stress) +
-            # runaway share × ornament fraction + enum share), the
-            # forces.py Condition share table adapted to flora
-            # (isolation 0 — the rounds have no isolate input; the
-            # dressed partition is the rounds' vicariance and g*
-            # decides the rank). n_gen is the flora gen_time clock
-            # (gen_time = 2·sqrt(height_m) — spec §4 step 1).
+            # ── g accumulation (tickets 0008/0010, fauna RFC §1) ────
+            # Δg this round = n_gen × rate_mult × (drift baseline ×
+            # (1 + ISO_G_GAIN·isolation) + stress-descent share ×
+            # (1 + STRESS_G_BOOST·stress) + runaway share × ornament
+            # fraction + enum share), the forces.py Condition share
+            # table adapted to flora — isolation now wired in (ticket
+            # 0010 option B: rounds since the instance last touched a
+            # same-lineage sibling; isolated clusters accrue g faster —
+            # island lineages speciate first). n_gen is the flora
+            # gen_time clock (gen_time = 2·sqrt(height_m) — spec §4
+            # step 1).
             rate_mult, _star = self._lineage(d.x.species_id)
             stress = min(max(res.s, 0.0), 1.0)
-            shares = share_ratios(Condition(stress=stress))
+            iso = self._isolation(iid, t, lin_counts)
+            shares = share_ratios(Condition(stress=stress,
+                                            isolation=iso))
             dg = n_gen * rate_mult * (
-                DG_DRIFT_BASE
+                DG_DRIFT_BASE * (1.0 + ISO_G_GAIN * iso)
                 + shares.descent * (1.0 + STRESS_G_BOOST * stress)
                 + shares.runaway * self._ornament_frac
                 + DG_ENUM_SHARE)
@@ -1034,6 +1086,9 @@ class Engine:
                     # shared) — ticket 0008
                     self._g_since_split[nid] = \
                         self._g_since_split.get(iid, 0.0)
+                    # ticket 0010: born at this round (a fresh foundling
+                    # shares the founder's genes — not yet isolated)
+                    self._last_contact[nid] = t
                     fx = Instance(species_id=d.x.species_id,
                                   instance_id=nid,
                                   traits=dict(d.x.traits))
@@ -1196,6 +1251,8 @@ class Engine:
                             self._stream("divsplit", f"{t}:{iid}"))
                         self._g_since_split[nid] = \
                             self._g_since_split.get(iid, 0.0)
+                        # ticket 0010: born at this round
+                        self._last_contact[nid] = t
                         fx = Instance(species_id=d.x.species_id,
                                       instance_id=nid,
                                       traits=dict(d.x.traits))
@@ -1245,6 +1302,8 @@ class Engine:
                     self._stream("split", f"{t}:{iid}"))
                 self._g_since_split[nid] = \
                     self._g_since_split.get(iid, 0.0)
+                # ticket 0010: born at this round
+                self._last_contact[nid] = t
                 fx = Instance(species_id=d.x.species_id,
                               instance_id=nid,
                               traits=dict(d.x.traits))
@@ -1339,6 +1398,15 @@ class Engine:
                  for iid in sorted(self.instances)]
         rng = self._stream("commit", str(t))
         candidates = self._merge_candidates()
+        # ticket 0010 option B: the gene-flow signal for the isolation
+        # ramp — every touching/overlapping same-lineage pair refreshes
+        # its members' last-contact round. The CONSOL pairs added below
+        # are NOT contact (a periodic consolidation sweep is not gene
+        # flow) — recorded before they join the candidate set.
+        for pair in candidates:
+            a, b = tuple(pair)
+            self._last_contact[a] = t
+            self._last_contact[b] = t
         if (t + 1) % CONSOL_EVERY == 0:
             # full-lineage consolidation (spec v0.4.2 §9, the "final
             # pass" run periodically): every same-lineage pair is a
