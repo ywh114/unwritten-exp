@@ -9,7 +9,7 @@ it does not override the files.
 individual-track pins; built-tree species **105 / 107 / 109** on seeds
 1/2/3 — all well under 200. k13 fast tier green (272 tests).
 
-## 0. Interim status — bundle-track and scaffold REMOVED, rework pending
+## 0. Interim status — bundle records RE-AUTHORED; stub scaffold pending
 
 Task A's first pass (commit `0d0e0d6`) authored 34 bundle-track pins as
 species-rank tree nodes under single authored genera (e.g.
@@ -17,12 +17,17 @@ species-rank tree nodes under single authored genera (e.g.
 owner rulings 9–14 the bundle is a SIM-SIDE entity that stands in for
 an aggregate of similar species pulled from MANY genera/families/orders
 — it is not a tree node, and the tree is taxonomy-only (individual
-track + stub scaffold). The misinterpreted bundle pins, their
-`is_bundle()`/`bundle_region()` accessors, and their validation were
-removed 2026-08-02. The rework (ticket 0012 Tasks A–D) re-adds:
-bundle records as envelope + anchor-clade set (no tree node), the stub
-scaffold (authored stubs at any rank + radiated empty nodes, report §6
-sizing), and the sim-side frozen machinery (Task B).
+track + stub scaffold). The misinterpreted bundle pins were removed
+(`3dbae1c`) and **re-authored 2026-08-02 as `content/flora/bundles.toml`**:
+33 `[[bundle]]` records, each an ENVELOPE (superset generalist: body
+plan/layer + defining traits + stress tolerance profile, in the shared
+sim/tree axes) + a POLYPHYLETIC ANCHOR-CLADE SET (anchor_families +
+anchor_genera — the many real clades its members fall under, grounded
+in `tmp/flora-composition-report.md` + targeted lookups). Bundles are
+content only (not seeded lineages, not tree nodes); the sim-side frozen
+niche-dweller is Task B, and 0027 uses the anchor clades to place
+daughters post-sim. STILL PENDING: the stub scaffold (authored stubs at
+any rank + radiated empty nodes).
 
 **Sandalwood (Santalales) added 2026-08-02:** removing the bundles
 tripped the `frozen_axis` metrics gate on seed 2 (tree plan:

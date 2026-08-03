@@ -1,10 +1,12 @@
-"""Census validation — 0012 interim (individual-track only).
+"""Census validation — 0012 interim (individual-track + bundles).
 
-The bundle-track pins and their validation were REMOVED 2026-08-02:
-bundles were misimplemented as species-rank tree pins (the definition,
-per rulings 9-14, is a SIM-SIDE envelope + anchor-clade entity, NOT a
-tree node). The rework re-adds bundle + stub-scaffold validation; the
-checks here enforce the individual-track census that remains.
+The bundle-track pins were REMOVED 2026-08-02: bundles were
+misimplemented as species-rank tree pins (the definition, per rulings
+9-14, is a SIM-SIDE envelope + anchor-clade entity, NOT a tree node).
+The rework re-adds bundles as CONTENT records (bundles.toml: envelope +
+polyphyletic anchor clades) with their own validation; the checks here
+enforce the individual-track census that remains plus the bundle
+records.
 
 Run: uv run pytest -q exp/k13_treegen/flora/test_census.py
 """
@@ -120,6 +122,71 @@ def violations_from_axes(pack, axes, pin):
     n = Node(path="x", rank=Rank.SPECIES, parent="p", sid="0" * 16,
              plan=pack.presets[pin["preset"]]["preset"]["plan"], axes=dict(axes))
     return violations(n, pack)
+
+
+# ── bundles (region x physiology archetype records) ────────────────────
+
+
+@pytest.fixture(scope="module")
+def bundles(pack):
+    """The bundle records: envelope + polyphyletic anchor-clade content."""
+    return pack.bundles
+
+
+def test_bundles_load_in_sane_range(bundles):
+    """33 authored bundles (34 researched minus the merged mangrove-palms)."""
+    assert 25 <= len(bundles) <= 40, len(bundles)
+
+
+def test_bundle_plans_and_layers_legal(bundles, pack):
+    """Every bundle names a real plan and a legal layer-axis state."""
+    for b in bundles:
+        assert b["plan"] in pack.registry.plans, b["label"]
+        assert b["layer"] in pack.registry.axes["layer"].states, \
+            f"{b['label']}: layer {b['layer']!r}"
+
+
+def test_bundle_anchor_clades_nonempty(bundles):
+    """Every bundle carries a non-empty list-of-strings for both clade
+    anchors (0027 places daughters into these)."""
+    for b in bundles:
+        assert b["anchor_families"], b["label"]
+        assert b["anchor_genera"], b["label"]
+        assert all(isinstance(f, str) and f for f in b["anchor_families"])
+        assert all(isinstance(g, str) and g for g in b["anchor_genera"])
+
+
+def test_bundle_envelope_axes_legal(bundles, pack):
+    """Every envelope axis that is a known registry axis has a legal
+    value (enums are registry states — with the pre-existing spore/
+    decomposer "none" idiom — tolerances numeric in range, weighted sets
+    a pmf). Unknown axes are carried verbatim (not part of the schema)."""
+    for b in bundles:
+        for ax, v in b["envelope"].items():
+            spec = pack.registry.axes.get(ax)
+            if spec is None:
+                continue
+            if spec.value_type is ValueType.ENUM:
+                if str(v) == "none" and "none" not in spec.states:
+                    continue  # the pre-existing spore/decomposer idiom
+                assert str(v) in spec.states, \
+                    f"{b['label']}: {ax}={v!r} not in registry states"
+            elif spec.value_type in (ValueType.SCALAR, ValueType.INT):
+                assert isinstance(v, (int, float)), \
+                    f"{b['label']}: {ax}={v!r} not numeric"
+                lo, hi = spec.bounds
+                assert lo <= float(v) <= hi, \
+                    f"{b['label']}: {ax}={v!r} out of bounds [{lo}, {hi}]"
+            elif spec.value_type is ValueType.WEIGHTED_SET:
+                total = sum(float(w) for w in v.values())
+                assert abs(total - 1.0) <= 1e-6, \
+                    f"{b['label']}: {ax} must sum to 1.0 (got {total:.4f})"
+
+
+def test_bundle_labels_unique(bundles):
+    """Bundle labels are the key 0027 looks up daughters by — no dupes."""
+    labels = [b["label"] for b in bundles]
+    assert len(labels) == len(set(labels)), labels
 
 
 # ── seeded substrate floor (content-level proxy) ───────────────────────

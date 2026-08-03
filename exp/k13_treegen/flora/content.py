@@ -13,7 +13,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from exp.k13_treegen.registry import Registry
+from exp.k13_treegen.registry import Registry, ValueType
 
 
 @dataclass
@@ -23,6 +23,7 @@ class ContentPack:
     registry: Registry
     presets: dict[str, dict] = field(default_factory=dict)  # preset_id -> toml
     pins: list[dict] = field(default_factory=list)          # [[pin]] tables
+    bundles: list[dict] = field(default_factory=list)       # [[bundle]] tables
     classes: list[dict] = field(default_factory=list)       # [[class]] tables
     palettes: dict[str, list[str]] = field(default_factory=dict)  # plan -> colors
     constraints: list = field(default_factory=list)         # Rule records
@@ -95,6 +96,55 @@ def load_content(content_dir: str | Path) -> ContentPack:
     pins_toml = _load_toml(d / "pins.toml")
     pins = pins_toml.get("pin", [])
     budget = pins_toml.get("budget", {})
+    bundles = _load_toml(d / "bundles.toml").get("bundle", [])
+    # bundle-table validation: each bundle is a region x physiology
+    # archetype — a real plan, a legal layer, non-empty anchor-clade
+    # lists, and an envelope whose known axes are legal (enums are
+    # registry states, tolerances numeric in range; unknown axes are
+    # carried verbatim — they are not part of the schema).
+    seen_bundle_labels: set[str] = set()
+    for b in bundles:
+        for key in ("label", "covered_region", "plan", "layer", "envelope",
+                    "anchor_families", "anchor_genera"):
+            assert b.get(key), f"bundles.toml: bundle missing {key!r}: {b!r}"
+        assert b["plan"] in registry.plans, \
+            f"bundles.toml: {b['label']}: plan {b['plan']!r} not in registry"
+        assert b["layer"] in registry.axes["layer"].states, \
+            f"bundles.toml: {b['label']}: layer {b['layer']!r} not legal"
+        assert isinstance(b["anchor_families"], list) and \
+            b["anchor_families"] and \
+            all(isinstance(f, str) and f for f in b["anchor_families"]), \
+            f"bundles.toml: {b['label']}: anchor_families must be a " \
+            f"non-empty list of strings"
+        assert isinstance(b["anchor_genera"], list) and b["anchor_genera"] \
+            and all(isinstance(g, str) and g for g in b["anchor_genera"]), \
+            f"bundles.toml: {b['label']}: anchor_genera must be a " \
+            f"non-empty list of strings"
+        assert b["label"] not in seen_bundle_labels, \
+            f"bundles.toml: duplicate bundle label {b['label']!r}"
+        seen_bundle_labels.add(b["label"])
+        for ax, v in b["envelope"].items():
+            spec = registry.axes.get(ax)
+            if spec is None:
+                continue  # non-registry axis: carried verbatim
+            if spec.value_type is ValueType.ENUM:
+                if str(v) == "none" and "none" not in spec.states:
+                    continue  # the pre-existing spore/decomposer idiom
+                assert str(v) in spec.states, \
+                    f"bundles.toml: {b['label']}: {ax}={v!r} not in " \
+                    f"registry states"
+            elif spec.value_type in (ValueType.SCALAR, ValueType.INT):
+                assert isinstance(v, (int, float)), \
+                    f"bundles.toml: {b['label']}: {ax}={v!r} not numeric"
+                lo, hi = spec.bounds
+                assert lo <= float(v) <= hi, \
+                    f"bundles.toml: {b['label']}: {ax}={v!r} out of " \
+                    f"bounds [{lo}, {hi}]"
+            elif spec.value_type is ValueType.WEIGHTED_SET:
+                total = sum(float(w) for w in v.values())
+                assert abs(total - 1.0) <= 1e-6, \
+                    f"bundles.toml: {b['label']}: {ax} is a pmf and must " \
+                    f"sum to 1.0 (got {total:.4f})"
     classes = _load_toml(d / "classes.toml").get("class", [])
     # class-table validation (open-catalog gate): every plan in the
     # registry appears in exactly one class; every class names real
@@ -128,6 +178,6 @@ def load_content(content_dir: str | Path) -> ContentPack:
                                         tbl.get("responders", [])]
 
     return ContentPack(registry=registry, presets=presets, pins=pins,
-                       classes=classes, palettes=palettes,
+                       bundles=bundles, classes=classes, palettes=palettes,
                        constraints=constraints, stems=stems, budget=budget,
                        stress_response=stress_response)

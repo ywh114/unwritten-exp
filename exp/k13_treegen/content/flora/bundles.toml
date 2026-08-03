@@ -1,0 +1,332 @@
+# bundles.toml — K14 flora bundle records (region x physiology archetypes).
+#
+# A bundle is a superset-generalist envelope standing in for MANY similar
+# real species. It is CONTENT — NOT a tree node, NOT a seeded lineage:
+#   - envelope: the trait profile (defining traits + the sim's stress-
+#     interface tolerance axes). Same axes the species pins use. Carried
+#     VERBATIM from the removed bundle-track pins (commit 3dbae1c).
+#   - plan / layer: body plan (preset prefix before the dot) and the
+#     layer axis value, from the removed bundle's preset + axes.layer.
+#   - covered_region: region x physiology window note (a coverage-audit
+#     note; the ENGINE reads neither).
+#   - anchor_families / anchor_genera: the POLYPHYLETIC clade set the
+#     bundle's members fall under — what the 0027 daughter-placement
+#     step drops generated species into (researched sets,
+#     tmp/bundle-anchor-sets.md).
+#
+# Curation notes (from the anchor-set research):
+#   - mangrove-palms (Nypa) was effectively monogeneric and is MERGED
+#     into mangrove-associates (Nypa + Arecaceae added below); no
+#     separate mangrove-palms bundle exists.
+#   - alpine-meadow-flowers excludes Espeletia (páramo-specific; the
+#     researched genera list carries no páramo analog).
+
+# ── temperate ──────────────────────────────────────────────────────────
+[[bundle]]
+label = "temperate-flowers"
+covered_region = "temperate broadleaf + grassland understory; loamy soils"
+plan = "herb_forb"
+layer = "sward"
+envelope = { height_m = 0.4, leaf_shape = "lobed", leaf_persistence = "winter_deciduous", flower_symmetry = "composite_head", inflorescence = "head", pollination_syndrome = "bee", pigment_pathway = "carotenoid", pigment_expression = 0.5, fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.6, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 200000.0, drought_tolerance = 0.5, salinity_tolerance = 0.1, waterlogging_tolerance = 0.3, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, layer = "sward" }
+anchor_families = ["Asteraceae", "Fabaceae", "Ranunculaceae", "Lamiaceae", "Caryophyllaceae", "Boraginaceae", "Rosaceae", "Apiaceae", "Brassicaceae", "Campanulaceae", "Violaceae", "Geraniaceae"]
+anchor_genera = ["Senecio", "Hieracium", "Trifolium", "Ranunculus", "Viola", "Campanula", "Myosotis", "Geranium"]
+
+[[bundle]]
+label = "temperate-woodland-herbs"
+covered_region = "temperate broadleaf forest floor; rich humus, shaded"
+plan = "herb_forb"
+layer = "ground"
+envelope = { height_m = 0.3, leaf_shape = "elliptical", leaf_persistence = "winter_deciduous", shade_tolerance = 0.8, flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "berry", dispersal_channels = { local = 0.4, wind = 0.0, water = 0.0, animal = 0.5, jump = 0.1 }, propagule_count = 10000.0, drought_tolerance = 0.3, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.55, fertility_requirement = 0.6, growing_season_req = 4.0, layer = "ground" }
+anchor_families = ["Ranunculaceae", "Violaceae", "Primulaceae", "Rubiaceae", "Orchidaceae", "Rosaceae", "Boraginaceae", "Polygonaceae", "Melanthiaceae", "Asparagaceae", "Iridaceae", "Amaryllidaceae"]
+anchor_genera = ["Anemone", "Ranunculus", "Viola", "Primula", "Galium", "Trillium", "Thalictrum", "Orchis", "Polygonatum", "Maianthemum", "Iris", "Allium"]
+
+[[bundle]]
+label = "temperate-forest-shrubs"
+covered_region = "temperate woodland/scrub margins; any well-drained soil"
+plan = "shrub"
+layer = "shrub"
+envelope = { height_m = 2.0, woodiness = 0.7, leaf_shape = "ovate", leaf_margin = "serrate", leaf_persistence = "winter_deciduous", mechanical_defense = "prickle", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "aggregate", dispersal_channels = { local = 0.3, wind = 0.0, water = 0.0, animal = 0.6, jump = 0.1 }, propagule_count = 20000.0, drought_tolerance = 0.5, salinity_tolerance = 0.15, waterlogging_tolerance = 0.3, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, layer = "shrub" }
+anchor_families = ["Rosaceae", "Ericaceae", "Betulaceae", "Salicaceae", "Caprifoliaceae", "Cornaceae", "Aquifoliaceae", "Rhamnaceae"]
+anchor_genera = ["Rosa", "Rubus", "Sorbus", "Corylus", "Vaccinium", "Rhododendron", "Kalmia", "Cornus", "Ilex", "Lonicera", "Viburnum", "Sambucus", "Rhamnus", "Salix"]
+
+[[bundle]]
+label = "temperate-forest-ferns"
+covered_region = "temperate broadleaf forest floor; moist humus"
+plan = "fern_grade"
+layer = "ground"
+envelope = { height_m = 0.6, layer = "ground", leaf_shape = "frond", leaf_size_cm = 35.0, leaf_persistence = "winter_deciduous", shade_tolerance = 0.7, fruit_type = "sorus", dispersal_channels = { local = 0.2, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.3, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, engineer_impact = 0.3 }
+anchor_families = ["Dryopteridaceae", "Athyriaceae", "Aspleniaceae", "Polypodiaceae", "Thelypteridaceae", "Dennstaedtiaceae", "Osmundaceae", "Equisetaceae"]
+anchor_genera = ["Dryopteris", "Polystichum", "Athyrium", "Asplenium", "Polypodium", "Thelypteris", "Pteridium", "Osmunda", "Equisetum"]
+
+[[bundle]]
+label = "wet-meadow-herbs"
+covered_region = "riparian alluvium + wet meadows; seasonally saturated loam"
+plan = "herb_forb"
+layer = "sward"
+envelope = { height_m = 0.6, leaf_shape = "lobed", leaf_persistence = "winter_deciduous", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "achene", dispersal_channels = { local = 0.5, wind = 0.1, water = 0.3, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.15, salinity_tolerance = 0.15, waterlogging_tolerance = 0.75, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, layer = "sward" }
+anchor_families = ["Cyperaceae", "Juncaceae", "Poaceae", "Asteraceae", "Ranunculaceae", "Alismataceae", "Polygonaceae", "Onagraceae", "Orchidaceae", "Campanulaceae", "Melastomataceae", "Celastraceae", "Iridaceae"]
+anchor_genera = ["Carex", "Juncus", "Glyceria", "Phragmites", "Ranunculus", "Alisma", "Sagittaria", "Rumex", "Epilobium", "Iris", "Lobelia", "Parnassia", "Rhexia", "Calopogon", "Spiranthes"]
+
+[[bundle]]
+label = "floodplain-grasses"
+covered_region = "flooded grassland margins + alluvium; wet silt"
+plan = "grass_sward"
+layer = "sward"
+envelope = { height_m = 1.0, leaf_shape = "linear", photosynthesis = "C4", fruit_type = "caryopsis", dispersal_channels = { local = 0.3, wind = 0.2, water = 0.4, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.45, salinity_tolerance = 0.2, waterlogging_tolerance = 0.8, ph_tolerance = 0.55, fertility_requirement = 0.5, growing_season_req = 5.0, layer = "sward" }
+anchor_families = ["Poaceae", "Cyperaceae", "Typhaceae", "Juncaceae"]
+anchor_genera = ["Phragmites", "Paspalum", "Echinochloa", "Glyceria", "Cyperus", "Eleocharis", "Schoenoplectus", "Bolboschoenus", "Typha", "Juncus"]
+
+[[bundle]]
+label = "marsh-marginals"
+covered_region = "freshwater marsh/lake margins; saturated silt"
+plan = "floating_leaf"
+layer = "aquatic_surface"
+envelope = { height_m = 0.35, leaf_shape = "lanceolate", leaf_persistence = "winter_deciduous", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.0, water = 0.6, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.05, salinity_tolerance = 0.2, waterlogging_tolerance = 1.0, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 5.0, layer = "aquatic_surface" }
+anchor_families = ["Typhaceae", "Alismataceae", "Araceae", "Cyperaceae", "Juncaceae", "Nymphaeaceae"]
+anchor_genera = ["Typha", "Alisma", "Sagittaria", "Acorus", "Calla", "Eleocharis", "Schoenoplectus", "Bolboschoenus", "Carex", "Juncus", "Nymphaea", "Nuphar"]
+
+[[bundle]]
+label = "free-floating-aquatics"
+covered_region = "lentic freshwater surface; nutrient-rich water"
+plan = "floater"
+layer = "aquatic_surface"
+envelope = { height_m = 0.005, leaf_shape = "thalloid", leaf_persistence = "evergreen", flower_symmetry = "none", fruit_type = "achene", dispersal_channels = { local = 0.4, wind = 0.05, water = 0.4, animal = 0.05, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.05, salinity_tolerance = 0.1, waterlogging_tolerance = 1.0, ph_tolerance = 0.5, fertility_requirement = 0.6, growing_season_req = 3.0, layer = "aquatic_surface" }
+anchor_families = ["Araceae", "Pontederiaceae", "Salviniaceae", "Hydrocharitaceae"]
+anchor_genera = ["Lemna", "Spirodela", "Wolffia", "Pistia", "Eichhornia", "Azolla"]
+
+[[bundle]]
+label = "freshwater-submerged-meadows"
+covered_region = "freshwater lakes/rivers; submerged silt"
+plan = "runner_meadow"
+layer = "aquatic_benthic"
+envelope = { height_m = 0.6, leaf_shape = "linear", leaf_persistence = "winter_deciduous", fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.0, water = 0.6, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.05, salinity_tolerance = 0.2, waterlogging_tolerance = 1.0, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 4.0, layer = "aquatic_benthic" }
+anchor_families = ["Potamogetonaceae", "Hydrocharitaceae", "Ceratophyllaceae", "Haloragaceae", "Ranunculaceae", "Isoetaceae"]
+anchor_genera = ["Potamogeton", "Ruppia", "Zannichellia", "Hydrilla", "Vallisneria", "Ceratophyllum", "Myriophyllum", "Isoetes"]
+
+[[bundle]]
+label = "flooded-grasses"
+covered_region = "tropical flooded grassland; standing water margins"
+plan = "grass_sward"
+layer = "sward"
+envelope = { height_m = 2.0, leaf_shape = "linear", fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.3, water = 0.3, animal = 0.0, jump = 0.1 }, propagule_count = 200000.0, drought_tolerance = 0.1, salinity_tolerance = 0.15, waterlogging_tolerance = 0.95, ph_tolerance = 0.5, fertility_requirement = 0.5, growing_season_req = 12.0, layer = "sward" }
+anchor_families = ["Poaceae", "Cyperaceae", "Typhaceae", "Juncaceae", "Pontederiaceae", "Araceae", "Hydrocharitaceae", "Nymphaeaceae"]
+anchor_genera = ["Phragmites", "Paspalum", "Echinochloa", "Cyperus", "Eleocharis", "Schoenoplectus", "Typha", "Eichhornia", "Pistia", "Nymphaea"]
+
+# ── temperate grassland / steppe ───────────────────────────────────────
+[[bundle]]
+label = "steppe-herbs"
+covered_region = "temperate steppe/prairie; deep well-drained loess"
+plan = "herb_forb"
+layer = "sward"
+envelope = { height_m = 0.5, leaf_shape = "ovate", leaf_compoundness = "pinnate", leaf_persistence = "winter_deciduous", n_fixation = "rhizobium", flower_symmetry = "zygomorphic", pollination_syndrome = "bee", fruit_type = "legume", dispersal_channels = { local = 0.6, wind = 0.05, water = 0.0, animal = 0.15, jump = 0.2 }, propagule_count = 50000.0, drought_tolerance = 0.75, salinity_tolerance = 0.2, waterlogging_tolerance = 0.2, ph_tolerance = 0.55, fertility_requirement = 0.3, growing_season_req = 4.0, layer = "sward" }
+anchor_families = ["Poaceae", "Asteraceae", "Fabaceae", "Amaranthaceae", "Brassicaceae", "Zygophyllaceae", "Apiaceae", "Rosaceae"]
+anchor_genera = ["Stipa", "Festuca", "Poa", "Bouteloua", "Leymus", "Artemisia", "Astragalus", "Atriplex", "Salsola", "Bassia", "Acaena"]
+
+# ── montane (alpine meadow) ────────────────────────────────────────────
+[[bundle]]
+label = "alpine-meadow-flowers"
+covered_region = "montane grassland (alpine meadow); thin rocky loam"
+plan = "herb_forb"
+layer = "sward"
+envelope = { height_m = 0.3, leaf_shape = "lobed", leaf_persistence = "winter_deciduous", flower_symmetry = "composite_head", inflorescence = "head", pollination_syndrome = "bee", pigment_pathway = "carotenoid", pigment_expression = 0.6, fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.6, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 100000.0, drought_tolerance = 0.5, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.5, fertility_requirement = 0.3, growing_season_req = 2.5, layer = "sward" }
+anchor_families = ["Asteraceae", "Ericaceae", "Apiaceae", "Brassicaceae", "Rosaceae", "Gentianaceae", "Ranunculaceae", "Primulaceae", "Campanulaceae", "Gunneraceae", "Saxifragaceae"]
+anchor_genera = ["Senecio", "Gentiana", "Ranunculus", "Primula", "Campanula", "Draba", "Saxifraga", "Gaultheria", "Dryas"]
+
+[[bundle]]
+label = "alpine-grasses"
+covered_region = "montane grassland (alpine meadow) tussocks; thin loam"
+plan = "grass_sward"
+layer = "sward"
+envelope = { height_m = 0.5, leaf_shape = "linear", photosynthesis = "C3", fruit_type = "caryopsis", dispersal_channels = { local = 0.4, wind = 0.4, water = 0.0, animal = 0.05, jump = 0.15 }, propagule_count = 200000.0, drought_tolerance = 0.5, salinity_tolerance = 0.05, waterlogging_tolerance = 0.5, ph_tolerance = 0.5, fertility_requirement = 0.3, growing_season_req = 2.0, layer = "sward" }
+anchor_families = ["Poaceae", "Cyperaceae", "Juncaceae"]
+anchor_genera = ["Poa", "Festuca", "Calamagrostis", "Stipa", "Carex", "Juncus"]
+
+[[bundle]]
+label = "alpine-cushions"
+covered_region = "alpine fell-field + glacier-margin rubble; gravelly substrate"
+plan = "rosette_mat"
+layer = "ground"
+envelope = { height_m = 0.03, leaf_shape = "scale", leaf_persistence = "evergreen", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.8, wind = 0.1, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.7, salinity_tolerance = 0.05, waterlogging_tolerance = 0.3, ph_tolerance = 0.5, fertility_requirement = 0.15, growing_season_req = 1.5, layer = "ground", snow_adaptation = "cushion_mat" }
+anchor_families = ["Caryophyllaceae", "Plumbaginaceae", "Apiaceae", "Brassicaceae", "Asteraceae", "Ericaceae", "Rosaceae"]
+anchor_genera = ["Acantholimon", "Thylacospermum", "Bolax", "Mulinum", "Draba", "Silene", "Dryas", "Empetrum"]
+
+# ── boreal / taiga ─────────────────────────────────────────────────────
+[[bundle]]
+label = "boreal-forest-herbs"
+covered_region = "boreal taiga forest floor; acid litter"
+plan = "herb_forb"
+layer = "ground"
+envelope = { height_m = 0.2, leaf_shape = "ovate", leaf_persistence = "evergreen", deciduous_trigger = "none", shade_tolerance = 0.6, mycorrhizal = "ericoid", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.3, water = 0.0, animal = 0.0, jump = 0.2 }, propagule_count = 50000.0, drought_tolerance = 0.4, salinity_tolerance = 0.05, waterlogging_tolerance = 0.5, ph_tolerance = 0.2, fertility_requirement = 0.2, growing_season_req = 3.0, layer = "ground" }
+anchor_families = ["Ericaceae", "Asparagaceae", "Caprifoliaceae", "Rosaceae", "Rubiaceae", "Cornaceae", "Onagraceae", "Fabaceae", "Amaryllidaceae"]
+anchor_genera = ["Vaccinium", "Rhododendron", "Monotropa", "Maianthemum", "Linnaea", "Cornus", "Rubus", "Fragaria", "Mitchella", "Epilobium", "Allium", "Pyrola"]
+
+[[bundle]]
+label = "taiga-moss-mats"
+covered_region = "boreal taiga + tundra ground; acid moist litter"
+plan = "moss_grade"
+layer = "ground"
+envelope = { height_m = 0.05, leaf_shape = "scale", leaf_persistence = "evergreen", fruit_type = "sporangium", dispersal_channels = { local = 0.5, wind = 0.4, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 1000000.0, drought_tolerance = 0.5, salinity_tolerance = 0.05, waterlogging_tolerance = 0.6, ph_tolerance = 0.2, fertility_requirement = 0.2, growing_season_req = 3.0, layer = "ground" }
+anchor_families = ["Sphagnaceae", "Polytrichaceae", "Hylocomiaceae", "Dicranaceae", "Grimmiaceae", "Aulacomniaceae", "Amblystegiaceae", "Leucobryaceae", "Bryaceae", "Funariaceae"]
+anchor_genera = ["Sphagnum", "Hylocomium", "Pleurozium", "Dicranum", "Polytrichum", "Racomitrium", "Aulacomnium", "Tomentypnum", "Bryum", "Ptilium"]
+
+# ── tundra ─────────────────────────────────────────────────────────────
+[[bundle]]
+label = "tundra-herbs"
+covered_region = "tundra + fell-field + dry scree; skeletal soils"
+plan = "herb_forb"
+layer = "ground"
+envelope = { height_m = 0.15, leaf_shape = "lanceolate", leaf_persistence = "evergreen", deciduous_trigger = "none", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.6, wind = 0.3, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 100000.0, drought_tolerance = 0.6, salinity_tolerance = 0.1, waterlogging_tolerance = 0.3, ph_tolerance = 0.5, fertility_requirement = 0.2, growing_season_req = 1.5, layer = "ground" }
+anchor_families = ["Cyperaceae", "Ericaceae", "Salicaceae", "Betulaceae", "Rosaceae", "Poaceae", "Saxifragaceae", "Brassicaceae", "Asteraceae", "Orobanchaceae"]
+anchor_genera = ["Carex", "Eriophorum", "Vaccinium", "Empetrum", "Cassiope", "Arctostaphylos", "Salix", "Dryas", "Saxifraga", "Pedicularis", "Poa", "Draba"]
+
+[[bundle]]
+label = "tundra-lichen-mats"
+covered_region = "tundra + taiga ground; dry acid soil and rock"
+plan = "lichen"
+layer = "ground"
+envelope = { height_m = 0.015, leaf_shape = "thalloid", leaf_persistence = "evergreen", support = "fruticose", fruit_type = "sporangium", dispersal_channels = { local = 0.4, wind = 0.5, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.8, salinity_tolerance = 0.1, waterlogging_tolerance = 0.2, ph_tolerance = 0.4, fertility_requirement = 0.1, growing_season_req = 1.5, layer = "ground" }
+anchor_families = ["Cladoniaceae", "Parmeliaceae", "Stereocaulaceae", "Teloschistaceae", "Peltigeraceae", "Lecanoraceae"]
+anchor_genera = ["Cladonia", "Cetraria", "Stereocaulon", "Peltigera", "Usnea", "Parmelia", "Lecanora", "Xanthoria"]
+
+# ── bog / fen (substrate floor) ────────────────────────────────────────
+[[bundle]]
+label = "bog-heath"
+covered_region = "bog/fen peat + heath; waterlogged acid substrate"
+plan = "shrub"
+layer = "ground"
+envelope = { height_m = 0.3, leaf_shape = "linear", leaf_persistence = "evergreen", mycorrhizal = "ericoid", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.3, water = 0.1, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.3, salinity_tolerance = 0.05, waterlogging_tolerance = 0.9, ph_tolerance = 0.1, fertility_requirement = 0.1, growing_season_req = 3.0, layer = "ground" }
+anchor_families = ["Ericaceae", "Cyperaceae", "Myricaceae", "Droseraceae", "Sphagnaceae", "Orchidaceae"]
+anchor_genera = ["Calluna", "Erica", "Vaccinium", "Andromeda", "Rhododendron", "Kalmia", "Empetrum", "Eriophorum", "Carex", "Myrica", "Sphagnum"]
+
+[[bundle]]
+label = "fen-sedges"
+covered_region = "bog/fen tussocks; waterlogged peat"
+plan = "grass_sward"
+layer = "sward"
+envelope = { height_m = 0.4, leaf_shape = "linear", fruit_type = "achene", dispersal_channels = { local = 0.3, wind = 0.4, water = 0.2, animal = 0.0, jump = 0.1 }, propagule_count = 200000.0, drought_tolerance = 0.2, salinity_tolerance = 0.05, waterlogging_tolerance = 0.95, ph_tolerance = 0.15, fertility_requirement = 0.1, growing_season_req = 2.0, layer = "sward" }
+anchor_families = ["Cyperaceae", "Juncaceae", "Poaceae"]
+anchor_genera = ["Carex", "Eriophorum", "Schoenoplectus", "Eleocharis", "Bolboschoenus", "Cyperus", "Cladium"]
+
+[[bundle]]
+label = "bog-carnivores"
+covered_region = "bog/fen + wet heath; nutrient-poor saturated substrate"
+plan = "rosette_mat"
+layer = "ground"
+envelope = { height_m = 0.03, leaf_shape = "ovate", leaf_persistence = "evergreen", nutrient_package = "carnivore", leaf_trap = "flypaper", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.4, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.3, salinity_tolerance = 0.05, waterlogging_tolerance = 0.9, ph_tolerance = 0.15, fertility_requirement = 0.1, growing_season_req = 2.0, layer = "ground" }
+anchor_families = ["Droseraceae", "Lentibulariaceae", "Sarraceniaceae"]
+anchor_genera = ["Drosera", "Utricularia", "Pinguicula", "Sarracenia"]
+
+# ── mediterranean basin / maquis ───────────────────────────────────────
+[[bundle]]
+label = "mediterranean-forbs"
+covered_region = "med basin (maquis/garrigue) understory; dry shallow soils"
+plan = "herb_forb"
+layer = "sward"
+envelope = { height_m = 0.4, leaf_shape = "lanceolate", leaf_persistence = "drought_deciduous", deciduous_trigger = "drought", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.4, wind = 0.4, water = 0.0, animal = 0.0, jump = 0.2 }, propagule_count = 100000.0, drought_tolerance = 0.75, salinity_tolerance = 0.2, waterlogging_tolerance = 0.15, ph_tolerance = 0.55, fertility_requirement = 0.3, growing_season_req = 3.0, layer = "sward" }
+anchor_families = ["Lamiaceae", "Cistaceae", "Asteraceae", "Fabaceae", "Orchidaceae", "Brassicaceae", "Boraginaceae", "Amaryllidaceae", "Apiaceae"]
+anchor_genera = ["Thymus", "Salvia", "Lavandula", "Teucrium", "Nepeta", "Cistus", "Helianthemum", "Ulex", "Genista", "Orchis", "Allium"]
+
+# ── desert ─────────────────────────────────────────────────────────────
+[[bundle]]
+label = "desert-annuals"
+covered_region = "hot desert ephemeral washes; sandy/gravel substrate"
+plan = "herb_forb"
+layer = "ground"
+envelope = { height_m = 0.3, leaf_shape = "lanceolate", leaf_persistence = "drought_deciduous", deciduous_trigger = "drought", flower_symmetry = "radial", pollination_syndrome = "moth", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.3, water = 0.0, animal = 0.0, jump = 0.2 }, propagule_count = 200000.0, drought_tolerance = 0.85, salinity_tolerance = 0.15, waterlogging_tolerance = 0.1, ph_tolerance = 0.55, fertility_requirement = 0.2, growing_season_req = 2.0, layer = "ground" }
+anchor_families = ["Asteraceae", "Boraginaceae", "Papaveraceae", "Brassicaceae", "Fabaceae", "Nyctaginaceae", "Onagraceae", "Loasaceae", "Orobanchaceae", "Asparagaceae", "Polygonaceae"]
+anchor_genera = ["Encelia", "Eschscholzia", "Phacelia", "Plagiobothrys", "Abronia", "Camissonia", "Mentzelia", "Caulanthus", "Streptanthus", "Layia", "Lupinus", "Eriogonum"]
+
+[[bundle]]
+label = "cold-desert-grasses"
+covered_region = "cold desert + steppe margin bunchgrasses; sandy loam"
+plan = "grass_sward"
+layer = "sward"
+envelope = { height_m = 0.6, leaf_shape = "linear", photosynthesis = "C3", fruit_type = "caryopsis", dispersal_channels = { local = 0.5, wind = 0.4, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 200000.0, drought_tolerance = 0.8, salinity_tolerance = 0.25, waterlogging_tolerance = 0.15, ph_tolerance = 0.55, fertility_requirement = 0.15, growing_season_req = 3.0, layer = "sward" }
+anchor_families = ["Poaceae", "Asteraceae", "Amaranthaceae", "Ephedraceae", "Brassicaceae", "Fabaceae", "Zygophyllaceae", "Plumbaginaceae", "Caryophyllaceae"]
+anchor_genera = ["Artemisia", "Salsola", "Ephedra", "Stipa", "Festuca", "Acantholimon", "Astragalus", "Atriplex"]
+
+# ── saline coast (solonchak / tidal flat / coastal sand) ───────────────
+[[bundle]]
+label = "coastal-herbs"
+covered_region = "salt marsh + tidal-flat forbs; saline mud"
+plan = "herb_forb"
+layer = "ground"
+envelope = { height_m = 0.4, leaf_shape = "elliptical", leaf_persistence = "evergreen", deciduous_trigger = "none", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.3, water = 0.1, animal = 0.0, jump = 0.1 }, propagule_count = 100000.0, drought_tolerance = 0.5, salinity_tolerance = 0.9, waterlogging_tolerance = 0.8, ph_tolerance = 0.6, fertility_requirement = 0.3, growing_season_req = 4.0, layer = "ground" }
+anchor_families = ["Amaranthaceae", "Poaceae", "Plumbaginaceae", "Juncaceae", "Cyperaceae", "Asteraceae", "Plantaginaceae", "Typhaceae"]
+anchor_genera = ["Salicornia", "Sarcocornia", "Suaeda", "Spartina", "Limonium", "Juncus", "Plantago", "Iva", "Bolboschoenus", "Phragmites"]
+
+[[bundle]]
+label = "intertidal-algae"
+covered_region = "temperate rocky intertidal; hard substrate"
+plan = "macroalgae_holdfast"
+layer = "aquatic_benthic"
+envelope = { height_m = 3.0, leaf_shape = "blade", leaf_persistence = "evergreen", fruit_type = "sorus", dispersal_channels = { local = 0.2, wind = 0.0, water = 0.7, animal = 0.0, jump = 0.1 }, propagule_count = 5000000.0, drought_tolerance = 0.1, salinity_tolerance = 0.95, waterlogging_tolerance = 1.0, ph_tolerance = 0.78, fertility_requirement = 0.4, growing_season_req = 6.0, layer = "aquatic_benthic" }
+anchor_families = ["Laminariaceae", "Alariaceae", "Lessoniaceae", "Fucaceae", "Ulvaceae"]
+anchor_genera = ["Macrocystis", "Nereocystis", "Laminaria", "Saccharina", "Alaria", "Ecklonia", "Fucus", "Ascophyllum", "Cystoseira", "Ulva"]
+
+# ── tropical ───────────────────────────────────────────────────────────
+[[bundle]]
+label = "tropical-forest-floor-herbs"
+covered_region = "tropical moist forest floor; deep humus, shaded"
+plan = "herb_forb"
+layer = "ground"
+envelope = { height_m = 1.0, leaf_shape = "lanceolate", leaf_persistence = "evergreen", deciduous_trigger = "none", shade_tolerance = 0.8, flower_symmetry = "zygomorphic", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.5, wind = 0.0, water = 0.0, animal = 0.4, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.2, salinity_tolerance = 0.05, waterlogging_tolerance = 0.5, ph_tolerance = 0.55, fertility_requirement = 0.6, growing_season_req = 12.0, layer = "ground" }
+anchor_families = ["Piperaceae", "Melastomataceae", "Rubiaceae", "Pteridaceae", "Begoniaceae", "Marantaceae", "Zingiberaceae", "Costaceae", "Gesneriaceae", "Araceae"]
+anchor_genera = ["Piper", "Peperomia", "Melastoma", "Selaginella", "Adiantum", "Begonia", "Maranta", "Zingiber", "Costus"]
+
+[[bundle]]
+label = "tropical-understory-shrubs"
+covered_region = "tropical moist understory; shaded humus"
+plan = "shrub"
+layer = "subcanopy"
+envelope = { height_m = 1.5, woodiness = 0.5, leaf_shape = "elliptical", leaf_persistence = "evergreen", shade_tolerance = 0.85, flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "berry", dispersal_channels = { local = 0.3, wind = 0.0, water = 0.0, animal = 0.6, jump = 0.1 }, propagule_count = 10000.0, drought_tolerance = 0.2, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.55, fertility_requirement = 0.5, growing_season_req = 12.0, layer = "subcanopy" }
+anchor_families = ["Rubiaceae", "Melastomataceae", "Acanthaceae", "Piperaceae", "Solanaceae", "Euphorbiaceae"]
+anchor_genera = ["Piper", "Melastoma", "Thunbergia", "Solanum", "Psychotria", "Miconia"]
+
+[[bundle]]
+label = "tropical-vines"
+covered_region = "tropical forest edges + clearings; well-drained loam"
+plan = "herb_forb"
+layer = "sward"
+envelope = { height_m = 1.6, woodiness = 0.1, leaf_shape = "cordate", leaf_persistence = "drought_deciduous", deciduous_trigger = "drought", flower_symmetry = "radial", pollination_syndrome = "bee", fruit_type = "capsule", dispersal_channels = { local = 0.2, wind = 0.0, water = 0.0, animal = 0.5, jump = 0.3 }, propagule_count = 50000.0, drought_tolerance = 0.4, salinity_tolerance = 0.15, waterlogging_tolerance = 0.3, ph_tolerance = 0.55, fertility_requirement = 0.4, growing_season_req = 12.0, layer = "sward" }
+anchor_families = ["Fabaceae", "Bignoniaceae", "Convolvulaceae", "Passifloraceae", "Cucurbitaceae", "Vitaceae", "Sapindaceae", "Apocynaceae", "Smilacaceae", "Dioscoreaceae", "Araceae", "Arecaceae", "Nyctaginaceae", "Rubiaceae"]
+anchor_genera = ["Entada", "Mucuna", "Bauhinia", "Derris", "Wisteria", "Ipomoea", "Passiflora", "Cissus", "Tetrastigma", "Smilax", "Dioscorea", "Calamus", "Bougainvillea", "Pothos"]
+
+[[bundle]]
+label = "tropical-epiphytes"
+covered_region = "tropical moist forest canopy perches (epiphyte layer flag)"
+plan = "herb_forb"
+layer = "epiphyte"
+envelope = { height_m = 0.4, leaf_shape = "lanceolate", leaf_persistence = "evergreen", deciduous_trigger = "none", shade_tolerance = 0.5, root_special = "none", flower_symmetry = "zygomorphic", pollination_syndrome = "moth", fruit_type = "capsule", dispersal_channels = { local = 0.1, wind = 0.8, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.5, salinity_tolerance = 0.05, waterlogging_tolerance = 0.2, ph_tolerance = 0.55, fertility_requirement = 0.2, growing_season_req = 12.0, layer = "epiphyte" }
+anchor_families = ["Orchidaceae", "Bromeliaceae", "Polypodiaceae", "Araceae", "Cactaceae", "Apocynaceae", "Piperaceae"]
+anchor_genera = ["Tillandsia", "Aechmea", "Neoregelia", "Rhipsalis", "Epiphyllum", "Hoya", "Dischidia", "Polypodium", "Bulbophyllum", "Epidendrum", "Anthurium", "Philodendron", "Platycerium"]
+
+# ── tropical coast (mangrove associates; mangrove-palms merged in) ─────
+[[bundle]]
+label = "mangrove-associates"
+covered_region = "tropical coast mangrove fringe + estuarine palm stands; tidal mud (upper marsh), brackish"
+plan = "tree"
+layer = "canopy"
+envelope = { height_m = 12.0, leaf_shape = "elliptical", leaf_persistence = "evergreen", salinity_tolerance = 0.75, waterlogging_tolerance = 0.8, fruit_type = "drupe", dispersal_channels = { local = 0.1, wind = 0.0, water = 0.8, animal = 0.0, jump = 0.1 }, propagule_count = 50000.0, drought_tolerance = 0.3, ph_tolerance = 0.7, fertility_requirement = 0.4, growing_season_req = 12.0, layer = "canopy" }
+anchor_families = ["Euphorbiaceae", "Meliaceae", "Primulaceae", "Plumbaginaceae", "Pteridaceae", "Rubiaceae", "Lythraceae", "Myrtaceae", "Malvaceae", "Combretaceae", "Arecaceae"]
+anchor_genera = ["Excoecaria", "Xylocarpus", "Aegiceras", "Aegialitis", "Acrostichum", "Scyphiphora", "Terminalia", "Acanthus", "Hibiscus", "Nypa"]
+
+# ── rock (scree / bedrock outcrop) ─────────────────────────────────────
+[[bundle]]
+label = "rock-ferns"
+covered_region = "scree + bedrock-outcrop crevices; bare rock"
+plan = "fern_grade"
+layer = "ground"
+envelope = { height_m = 0.4, leaf_shape = "frond", leaf_size_cm = 12.0, leaf_persistence = "evergreen", fruit_type = "sorus", dispersal_channels = { local = 0.2, wind = 0.7, water = 0.0, animal = 0.0, jump = 0.1 }, propagule_count = 500000.0, drought_tolerance = 0.55, salinity_tolerance = 0.1, waterlogging_tolerance = 0.15, ph_tolerance = 0.5, fertility_requirement = 0.1, growing_season_req = 3.0, layer = "ground" }
+anchor_families = ["Aspleniaceae", "Pteridaceae", "Woodsiaceae", "Polypodiaceae", "Dryopteridaceae", "Selaginellaceae"]
+anchor_genera = ["Asplenium", "Cheilanthes", "Woodsia", "Polypodium", "Polystichum", "Selaginella", "Pellaea"]
+
+# ── fungal guilds ──────────────────────────────────────────────────────
+[[bundle]]
+label = "forest-mycorrhizal-fungi"
+covered_region = "temperate + boreal forests; ectomycorrhizal oak/pine partners"
+plan = "fungus"
+layer = "ground"
+envelope = { height_m = 0.15, leaf_shape = "none", leaf_persistence = "evergreen", feeding_organ = "mycoheterotroph", fruit_type = "sporangium", dispersal_channels = { local = 0.3, wind = 0.5, water = 0.0, animal = 0.1, jump = 0.1 }, propagule_count = 2000000.0, drought_tolerance = 0.4, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.5, fertility_requirement = 0.4, growing_season_req = 4.0, layer = "ground" }
+anchor_families = ["Amanitaceae", "Boletaceae", "Russulaceae", "Cortinariaceae", "Glomeraceae", "Tuberaceae", "Cantharellaceae"]
+anchor_genera = ["Amanita", "Boletus", "Russula", "Lactarius", "Cortinarius", "Rhizophagus", "Tuber", "Morchella", "Cantharellus", "Suillus"]
