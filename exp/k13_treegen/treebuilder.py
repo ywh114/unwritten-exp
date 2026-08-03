@@ -47,9 +47,21 @@ DG_ORDER_MEDIAN = 300.0
 DG_FAMILY_MEDIAN = 150.0
 DG_GENUS_MEDIAN = 60.0
 DG_SIGMA = 0.3
-# radiation counts scatter around their authored target.
-RADIATION_SIGMA = 0.3
-# generated sibling species per species-rank pin (no orphan pins).
+# radiation factor (0032, owner-settled): each node's child count comes
+# from a CONTINUOUS factor — the "around X children" expectation. The
+# draw is HEAVY-TAILED (sibling clades vary wildly — radiation spans
+# orders of magnitude across orders and families), with a SOFT CAP at the
+# far tail that clamps harder than a log (bounded tanh squash) so no
+# clade explodes. Generated children DECODE their own factor from the
+# parent's (wild, seed-derived): the "my children can carry from few to
+# very many grandchildren" expressiveness.
+RADIATION_TAIL_SIGMA = 1.0      # heavy tail: exp(1.0 * z) spans ~0.05x..20x
+CAP_ONSET = 100.0               # below: linear; above: squashed
+CAP_HEADROOM = 400.0            # squash range; asymptote CAP_ONSET+HEADROOM
+DECODE_MEDIAN = 4.0             # a generated child's own factor: "few to
+                                # very many" — median a few, tail to hundreds
+# the small DEFAULT variety factor for a species-pin genus that authors
+# no explicit radiation (the old "relatives" — now the default factor).
 RELATIVES_LO = 1
 RELATIVES_HI = 2
 # pin wiggle (K13 ruling): pinned records commit authored values plus a
@@ -69,8 +81,6 @@ class TreeBuilder:
     GENERATOR: str | None = None   # meta["generator"]; None = model default
     STAMP_COMMIT: bool = False     # stamp meta["commit"] = current_commit()
     KINGDOM_FLAGS = ("animalia",)
-    BG_RADIATION_LO = 2
-    BG_RADIATION_HI = 4
 
     def stage_stream(self, seed, *path):
         raise NotImplementedError
@@ -138,9 +148,34 @@ class TreeBuilder:
     def _dg(self, stream, median: float, clock: int = 1) -> float:
         return median * math.exp(DG_SIGMA * stream.normal(clock))
 
-    def _radiation_count(self, stream, target: int) -> int:
-        return max(1, round(target * math.exp(RADIATION_SIGMA
-                                              * stream.normal(0))))
+    def _soft_cap(self, x: float) -> float:
+        """Far-tail soft cap: values above CAP_ONSET are compressed
+        harder than a log would (bounded tanh squash toward the
+        asymptote CAP_ONSET + CAP_HEADROOM)."""
+        if x <= CAP_ONSET:
+            return x
+        return CAP_ONSET + CAP_HEADROOM * math.tanh(
+            (x - CAP_ONSET) / CAP_HEADROOM)
+
+    def _radiate_count(self, stream, factor: float) -> int:
+        """Draw a node's child count from its CONTINUOUS radiation factor
+        (0032): heavy-tailed lognormal-ish around the factor, far-tail
+        soft-capped. factor is the 'around X children' expectation."""
+        if factor <= 0:
+            return 0
+        z = stream.normal(0)
+        return max(1, round(self._soft_cap(
+            factor * math.exp(RADIATION_TAIL_SIGMA * z))))
+
+    def _decode_factor(self, stream) -> float:
+        """Decode a GENERATED child's own radiation factor (0032): the
+        child can carry from FEW to VERY MANY of its own children — an
+        INDEPENDENT seed draw on a heavy-tailed log scale (median
+        DECODE_MEDIAN, not scaled from the parent — the expressiveness
+        is the range, not the parent's magnitude), soft-capped."""
+        z = stream.normal(0)
+        return self._soft_cap(
+            DECODE_MEDIAN * math.exp(RADIATION_TAIL_SIGMA * z))
 
     def _apply_pin(self, node, pack, pin, stream=None) -> None:
         """Commit the pin's authored record onto an anchored node, plus
@@ -360,46 +395,41 @@ class TreeBuilder:
         tree.add(family)
         # genera: PINNED genera (genus pins + binomial-anchored groups +
         # the default g1 hosting loose species pins) are authored and
-        # always created; the GENERATED spread genera (radiation shares
-        # + background) exist only if the family pre-radiates to genus.
+        # always created; the GENERATED spread genera exist only if the
+        # family pre-radiates to genus — the family's radiation FACTOR
+        # is its child count, and each spread genus DECODES its own
+        # factor (wild) from it (0032).
         pre_genus = self._is_pre(family.radiate) \
             and family.radiate_to is not None \
             and family.radiate_to >= Rank.GENUS
-        if pre_genus and radiation:
-            count = self._radiation_count(fam_stream.child("rad"),
-                                          radiation)
-            n_spread = max(1, round(math.sqrt(count)))
-            per_genus = [count // n_spread] * n_spread
-            for i in range(count % n_spread):
-                per_genus[i] += 1
+        if pre_genus and radiation > 0:
+            n_spread = self._radiate_count(fam_stream.child("rad"),
+                                           radiation)
+            spread = [self._decode_factor(fam_stream.child(f"gx{i}"))
+                      for i in range(n_spread)]
         else:
-            n_spread, per_genus = 0, []
+            n_spread, spread = 0, []
 
-        genera: list[tuple[dict | None, int, str | None, list]] = []
-        if loose or per_genus:
-            genera.append((None, per_genus[0] if per_genus else 0,
+        genera: list[tuple[dict | None, float, str | None, list]] = []
+        if loose or spread:
+            genera.append((None, spread[0] if spread else 0.0,
                            None, loose))
-        genera += [(p, p.get("radiation", 0), None,
+        genera += [(p, float(p.get("radiation", 0)), None,
                     hosted.get(p["label"], [])) for p in genus_pins]
-        genera += [(None, 0, gname, grp) for gname, grp in pin_genera]
+        genera += [(None, 0.0, gname, grp) for gname, grp in pin_genera]
         if pre_genus:
-            genera += [(None, per_genus[i], None, [])
+            genera += [(None, spread[i], None, [])
                        for i in range(1, n_spread)]
 
-        bg = (self.BG_RADIATION_LO + fam_stream.child("bg").randrange(
-            self.BG_RADIATION_HI - self.BG_RADIATION_LO + 1, 0)) \
-            if (fi == 1 and pre_genus) else 0
-
-        for gi, (gen_pin, gen_radiation, gname, gspecies) in \
+        for gi, (gen_pin, gen_factor, gname, gspecies) in \
                 enumerate(genera, 1):
             self._build_genus(tree, fam_stream, pack, family, gi, gen_pin,
-                              gen_radiation, rate, rdir, gspecies,
-                              bg if gi == 1 else 0, name_hint=gname,
-                              parent_rt=family.radiate_to)
+                              gen_factor, rate, rdir, gspecies,
+                              name_hint=gname, parent_rt=family.radiate_to)
 
     def _build_genus(self, tree, fam_stream, pack, family: Node, gi: int,
-                     gen_pin, radiation: int, rate: float, rdir: float,
-                     species_pins: list, background: int,
+                     gen_pin, factor: float, rate: float, rdir: float,
+                     species_pins: list,
                      name_hint: str | None = None,
                      parent_rt: Rank | None = None) -> None:
         gen_stream = fam_stream.child(f"g{gi}")
@@ -441,9 +471,10 @@ class TreeBuilder:
         tree.add(genus)
 
         # species: pinned species are byte-exact commits and exist
-        # regardless of radiation; GENERATED species (radiation +
-        # relatives + background) happen only if the genus pre-radiates
-        # to species.
+        # regardless of radiation; GENERATED species come from the
+        # genus's radiation FACTOR (the 'around X children' expectation;
+        # species-pin genera with no authored factor get the small
+        # default RELATIVES factor), drawn heavy-tailed + soft-capped.
         si = 0
         for pin in species_pins:  # pinned species: byte-exact commits
             si += 1
@@ -463,15 +494,15 @@ class TreeBuilder:
                 or genus.radiate_to < Rank.SPECIES:
             return
 
-        n_species = background
-        if radiation:
-            n_species += self._radiation_count(gen_stream.child("rad"),
-                                               radiation)
-        n_rel = 0
-        if species_pins:
-            n_rel = (RELATIVES_LO + gen_stream.child("rel").randrange(
+        if factor > 0:
+            n_species = self._radiate_count(gen_stream.child("rad"),
+                                            factor)
+        elif species_pins:
+            n_species = (RELATIVES_LO + gen_stream.child("rel").randrange(
                 RELATIVES_HI - RELATIVES_LO + 1, 0))
-        for _ in range(n_species + n_rel):  # generated radiation + relatives
+        else:
+            n_species = 0
+        for _ in range(n_species):  # generated species (the factor draw)
             si += 1
             spath = f"{gpath}.s{si}"
             sstream = gen_stream.child(f"s{si}")

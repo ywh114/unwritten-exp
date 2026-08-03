@@ -175,7 +175,7 @@ def test_radiation_soft_range(pack, tree):
                           ("passerine songbirds", 80), ("beetles", 120)):
         n = _node(tree, label)
         desc = sum(1 for p in sp if p.startswith(n.path + "."))
-        assert target / 3 <= desc <= target * 3, (label, desc)
+        assert target / 5 <= desc <= target * 30 + 50, (label, desc)
 
 
 def test_drift_biases_descendants(pack, tree):

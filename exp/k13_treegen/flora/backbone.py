@@ -63,8 +63,6 @@ class _PlantaeBuilder(TreeBuilder):
     GENERATOR = "k13_flora"
     STAMP_COMMIT = True
     KINGDOM_FLAGS = ("plantae",)
-    BG_RADIATION_LO = 1
-    BG_RADIATION_HI = 2
 
     def stage_stream(self, seed, *path):
         return stage_stream(seed, *path)

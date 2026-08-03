@@ -289,7 +289,7 @@ def check_pin_integration(tree: Tree, pack: ContentPack) -> list[str]:
         if radiation and pre_to_species:
             desc = sum(1 for sp in species_paths
                        if sp.startswith(n.path + "."))
-            if not (radiation / 3 <= desc <= radiation * 3):
+            if not (radiation / 5 <= desc <= radiation * 30 + 50):
                 errs.append(f"pin {label!r}: radiation target "
                             f"{radiation}, got {desc} descendants")
     return errs

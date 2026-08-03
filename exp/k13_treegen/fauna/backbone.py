@@ -25,8 +25,6 @@ class _AnimaliaBuilder(TreeBuilder):
     GENERATOR = None            # model default is k13_treegen
     STAMP_COMMIT = False
     KINGDOM_FLAGS = ("animalia",)
-    BG_RADIATION_LO = 2
-    BG_RADIATION_HI = 4
 
     def stage_stream(self, seed, *path):
         return stage_stream(seed, *path)
