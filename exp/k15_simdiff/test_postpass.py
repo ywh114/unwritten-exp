@@ -4,11 +4,17 @@ The post pass runs AFTER the sim: the default completion fills the
 post-eligible nodes (stub genera, generated genera) per the decoded
 factor, and each bundle issues a demand (envelope + magnitude + anchor
 clades). It returns a STAGING set the caller commits into k15's store.
+RANK-AWARE creation (0034): a post-eligible FAMILY fills with genera +
+species (the rank being filled is GENUS); a GENUS still fills with
+species — byte-identical to the pre-0034 genus-host shape (pinned
+digest below).
 """
 
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 from pathlib import Path
 
 from kernel.hashrng import Stream
@@ -22,6 +28,23 @@ from exp.k15_simdiff.demand import demand, decode_factor, soft_cap
 from exp.k15_simdiff.postpass import run_post
 
 FLORA = Path("exp/k13_treegen/content/flora")
+
+
+def _digest(nodes) -> str:
+    """SHA-256 over (path, sid, sorted axes) — the byte-compat pin."""
+    h = hashlib.sha256()
+    for n in sorted(nodes, key=lambda n: n.path):
+        h.update(json.dumps([n.path, n.sid, sorted(n.axes.items())],
+                            sort_keys=True).encode())
+    return h.hexdigest()
+
+
+# the pre-0034 genus-host contract, captured from HEAD (see
+# tmp/0034_head/digest_probe.py): species under PRE-EXISTING genera —
+# the family-fill species (parents = demand-created genera) and the
+# old family-attached species (the 0034 bug being fixed) are excluded.
+GENUS_HOST_DIGEST = (
+    "a3909e272e72c0ee014bd718dc98f53f68bcb50de5a085204ade703585468088")
 
 
 @pytest.fixture(scope="module")
@@ -83,11 +106,14 @@ def test_bundle_demand_creates_anchored_daughters(post_tree, pack):
 
 
 def test_determinism(tree, pack):
-    """Same seed ⇒ byte-stable staging set (paths + sids identical)."""
+    """Same seed ⇒ byte-stable staging set (paths, sids, ranks, and the
+    0034 composed genus names all identical)."""
     a = run_post(tree, pack, 1)
     b = run_post(tree, pack, 1)
     assert [n.path for n in a] == [n.path for n in b]
     assert [n.sid for n in a] == [n.sid for n in b]
+    assert [n.rank for n in a] == [n.rank for n in b]
+    assert [n.name.binomial for n in a] == [n.name.binomial for n in b]
 
 
 def test_staging_not_committed(tree, pack):
@@ -127,3 +153,112 @@ def test_soft_cap_and_decode():
     assert soft_cap(50.0) == 50.0
     assert soft_cap(1e6) <= 500.0          # the asymptote CAP_ONSET+HEADROOM
     assert 0 < decode_factor(Stream(7, "k15.demand.test")) <= 500.0
+
+
+# ── 0034 rank-aware creation: families fill with genera + species ────────
+
+
+def test_genus_host_demand_byte_identical(tree, pack):
+    """Genus-host (bundle + genus default-completion) demands are
+    byte-identical to the pre-0034 implementation — pinned digest over
+    (path, sid, sorted axes) of the species staged under PRE-EXISTING
+    genera (captured from HEAD via tmp/0034_head/digest_probe.py)."""
+    staging = run_post(tree, pack, 1)
+    genus_host = [n for n in staging
+                  if n.rank is Rank.SPECIES
+                  and n.parent in tree.nodes
+                  and tree.nodes[n.parent].rank is Rank.GENUS]
+    assert genus_host, "expected genus-host species in the staging set"
+    assert _digest(genus_host) == GENUS_HOST_DIGEST
+
+
+def test_family_fill_shape(tree, pack):
+    """A post-eligible family host fills with genera (rank GENUS,
+    parent = family path, named, g sane, radiate never), each carrying
+    >= 1 species (rank SPECIES, parent = genus path)."""
+    staging = run_post(tree, pack, 1)
+    created = [n for n in staging if n.rank is Rank.GENUS]
+    assert created, "expected demand-created genera (family fill)"
+    fam_paths = {n.path for n in tree.nodes.values()
+                 if n.rank is Rank.FAMILY}
+    assert all(n.parent in fam_paths for n in created)
+    assert all(n.radiate == "never" for n in created)   # the fill is terminal
+    assert all(n.name.binomial for n in created)        # k13-composed names
+    fam_g = {n.path: n.g for n in tree.nodes.values()
+             if n.rank is Rank.FAMILY}
+    assert all(n.g > fam_g[n.parent] for n in created)
+    species = [n for n in staging
+               if n.rank is Rank.SPECIES
+               and n.parent in {c.path for c in created}]
+    assert {s.parent for s in species} == {c.path for c in created}
+    assert all(s.radiate == "never" for s in species)
+    assert all(s.g > 0.0 for s in species)
+
+
+def test_family_demand_magnitude_is_genus_count(tree, pack):
+    """Magnitude = the count AT the filled rank: a family host with
+    magnitude G yields exactly G genera, each with its own decoded
+    species count (>= 1, the radiation-factor idiom)."""
+    host = next(n for n in tree.nodes.values() if n.rank is Rank.FAMILY)
+    spec = dict(host.axes)
+    spec.update({"plan": host.plan, "layer": host.axes.get("layer")})
+    out = demand(pack, spec, 5.0, [host], Stream(1, "k15.demand.test"),
+                 tree.nodes)
+    genera = [n for n in out if n.rank is Rank.GENUS]
+    assert len(genera) == 5
+    assert all(n.parent == host.path for n in genera)
+    assert len({n.path for n in genera}) == 5        # distinct indices
+    for g in genera:
+        kids = [n for n in out
+                if n.rank is Rank.SPECIES and n.parent == g.path]
+        assert kids, f"created genus {g.path} carries no species"
+
+
+def test_next_idx_family_collision(tree, pack):
+    """Two demands on the same family (shared next_idx) never collide —
+    the per-family genus index advances across calls."""
+    host = next(n for n in tree.nodes.values() if n.rank is Rank.FAMILY)
+    spec = dict(host.axes)
+    spec.update({"plan": host.plan, "layer": host.axes.get("layer")})
+    next_idx: dict = {}
+    a = demand(pack, spec, 3.0, [host], Stream(1, "k15.demand.test"),
+               tree.nodes, next_idx)
+    b = demand(pack, spec, 3.0, [host], Stream(2, "k15.demand.test"),
+               tree.nodes, next_idx)
+    paths = [n.path for n in a + b]
+    assert len(paths) == len(set(paths)), "duplicate staging paths"
+    genera = [n for n in a + b if n.rank is Rank.GENUS]
+    assert len(genera) == 6                          # 3 + 3, all distinct
+
+
+def test_next_idx_family_and_genus(tree, pack):
+    """A family demand and a demand on one of its PRE-EXISTING genera
+    share the next_idx map without colliding (a family path tracks the
+    genus index; a genus path the species index)."""
+    fam = next(n for n in tree.nodes.values() if n.rank is Rank.FAMILY)
+    genus_host = next((c for c in tree.nodes.values()
+                       if c.parent == fam.path
+                       and c.rank is Rank.GENUS), None)
+    if genus_host is None:
+        pytest.skip("no pre-existing genus under the first family")
+    spec = dict(fam.axes)
+    spec.update({"plan": fam.plan, "layer": fam.axes.get("layer")})
+    next_idx: dict = {}
+    a = demand(pack, spec, 3.0, [fam], Stream(1, "k15.demand.test"),
+               tree.nodes, next_idx)
+    b = demand(pack, spec, 5.0, [genus_host],
+               Stream(2, "k15.demand.test"), tree.nodes, next_idx)
+    paths = [n.path for n in a + b]
+    assert len(paths) == len(set(paths)), "duplicate staging paths"
+    assert all(n.rank is Rank.SPECIES for n in b)
+
+
+def test_order_host_refused(tree, pack):
+    """Demand NEVER creates orders or anything higher: an ORDER host
+    asserts ('up to families, not orders' — 0032)."""
+    order = next(n for n in tree.nodes.values() if n.rank is Rank.ORDER)
+    spec = dict(order.axes)
+    spec.update({"plan": order.plan, "layer": order.axes.get("layer")})
+    with pytest.raises(AssertionError):
+        demand(pack, spec, 5.0, [order], Stream(1, "k15.demand.test"),
+               tree.nodes)
