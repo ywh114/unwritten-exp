@@ -1,0 +1,55 @@
+# Flora class table (0032): the authored class-level taxonomy. The
+# tree's third rank (kingdom -> phylum -> class) is a REAL taxonomic
+# class, not a growth-form plan: each row groups the body plans that
+# fall under it, and the builder creates ONE class node per row (the
+# class node's `plan` field carries the group's anchor plan; the name is
+# pre-committed here, so nomenclature skips it).
+#
+# Row order = class-node order within a phylum; phylum order = first
+# class per phylum (seed -> spore -> decomposer). Research: agent-12
+# (Wikipedia-sourced class assignments), 2026-08-02.
+
+[[class]]
+name = "Magnoliopsida"
+phylum = "seed"
+plans = ["tree", "shrub", "herb_forb", "rosette_mat", "succulent", "floating_leaf"]
+
+[[class]]
+name = "Liliopsida"
+phylum = "seed"
+plans = ["grass_sward", "runner_meadow", "floater"]
+
+[[class]]
+name = "Bryopsida"
+phylum = "spore"
+plans = ["moss_grade"]
+
+[[class]]
+name = "Polypodiopsida"
+phylum = "spore"
+plans = ["fern_grade"]
+
+[[class]]
+name = "Phaeophyceae"
+phylum = "spore"
+plans = ["macroalgae_holdfast"]
+
+[[class]]
+name = "Anthozoa"
+phylum = "spore"
+plans = ["coral_grade"]
+
+[[class]]
+name = "Demospongiae"
+phylum = "spore"
+plans = ["sponge_grade"]
+
+[[class]]
+name = "Lecanoromycetes"
+phylum = "decomposer"
+plans = ["lichen"]
+
+[[class]]
+name = "Agaricomycetes"
+phylum = "decomposer"
+plans = ["fungus"]

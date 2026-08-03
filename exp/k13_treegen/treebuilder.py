@@ -3,7 +3,7 @@
 Consolidated 2026-08-02 (0032 prereq, absorbed from 0006): the fauna
 backbone (exp/k13_treegen/fauna/backbone.py) and the flora backbone
 (exp/k13_treegen/flora/backbone.py) were near-identical copies of the
-same build — same spine (kingdom -> phylum -> one class per plan -> one
+same build — same spine (kingdom -> phylum -> one class per plan (flora: real
 order per preset -> families/genera/species), same pin/radiation/
 relative machinery — differing only in per-kingdom constants and hooks
 (content module, evolve kwargs, height-vs-mass gen_time, phylum
@@ -98,6 +98,17 @@ class TreeBuilder:
 
     def phylum_binomial(self, phylum):
         return None
+
+    def class_groups(self, pack) -> dict[str, list[tuple[str, list[str]]]]:
+        """phylum -> [(class_name, [plan_ids])] in tree order. Default
+        (fauna): one class per plan, named from plan.class_name. Flora
+        overrides with the authored classes.toml table (real classes
+        grouping several plans)."""
+        groups: dict[str, list[tuple[str, list[str]]]] = {}
+        for plan in pack.registry.plans.values():
+            groups.setdefault(plan.phylum, []).append(
+                (plan.class_name or plan.id, [plan.id]))
+        return groups
 
     # -- radiate model (0032) ----------------------------------------------
 
@@ -204,35 +215,38 @@ class TreeBuilder:
         kingdom.radiate = RADIATE_DEFAULT.get(Rank.KINGDOM, RADIATE_NEVER)
         tree.add(kingdom)
 
-        # phyla in first-seen plan order (content order is authored)
-        phyla: dict[str, list] = {}
-        for plan in pack.registry.plans.values():
-            phyla.setdefault(plan.phylum, []).append(plan)
-
+        # phyla in class-table order (content order is authored); each
+        # phylum carries one class node per authored class (real classes
+        # group several plans — flora classes.toml; fauna stays one
+        # class per plan).
+        groups = self.class_groups(pack)
         pins_by_preset: dict[str, list] = {}
         for pin in pack.pins:
             pins_by_preset.setdefault(pin.get("preset"), []).append(pin)
 
-        for pi, (phylum, plans) in enumerate(phyla.items(), 1):
+        for pi, (phylum, classes) in enumerate(groups.items(), 1):
             ppath = f"k1.p{pi}"
+            phylum_plans = [pack.registry.plans[pid]
+                            for _, plans in classes for pid in plans]
             pnode = Node(path=ppath, rank=Rank.PHYLUM, parent="k1",
                          sid=self._sid(root_stream.child(ppath)),
-                         flags=self.phylum_flags(plans))
+                         flags=self.phylum_flags(phylum_plans))
             pnode.radiate = RADIATE_DEFAULT.get(Rank.PHYLUM, RADIATE_NEVER)
             binomial = self.phylum_binomial(phylum)
             if binomial is not None:
                 pnode.name.binomial = binomial
             tree.add(pnode)
-            for ci, plan in enumerate(plans, 1):
+            for ci, (class_name, plans) in enumerate(classes, 1):
                 cpath = f"{ppath}.c{ci}"
                 cnode = Node(path=cpath, rank=Rank.CLASS, parent=ppath,
                              sid=self._sid(root_stream.child(cpath)),
-                             plan=plan.id)
+                             plan=plans[0])
+                cnode.name.binomial = class_name  # pre-committed (nomenclature skips)
                 cnode.radiate = RADIATE_DEFAULT.get(Rank.CLASS, RADIATE_NEVER)
                 cnode.radiate_to = RADIATE_TO_DEFAULT.get(Rank.CLASS)
                 tree.add(cnode)
                 presets = sorted(pid for pid, p in pack.presets.items()
-                                 if p["preset"]["plan"] == plan.id)
+                                 if p["preset"]["plan"] in plans)
                 for oi, pid in enumerate(presets, 1):
                     self._build_order(tree, root_stream, pack, cpath, oi,
                                       pid, pins_by_preset.get(pid, []))

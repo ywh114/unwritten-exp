@@ -83,7 +83,10 @@ def test_structure(tree1):
     assert len(phyla) == 3
     assert all(n.name.binomial for n in phyla)
     classes = [n for n in tree1.nodes.values() if n.rank is Rank.CLASS]
-    assert len(classes) == 16
+    assert len(classes) == 9     # real classes from classes.toml (0032)
+    assert {n.name.binomial for n in classes} >= {
+        "Magnoliopsida", "Liliopsida", "Bryopsida", "Polypodiopsida",
+        "Agaricomycetes"}
     species = [n for n in tree1.nodes.values() if n.rank is Rank.SPECIES]
     assert len(species) >= 50   # pinned important species + pre-radiated variety
     # radiate-model: an order that pre-radiates TO species must have

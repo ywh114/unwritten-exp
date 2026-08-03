@@ -23,6 +23,7 @@ class ContentPack:
     registry: Registry
     presets: dict[str, dict] = field(default_factory=dict)  # preset_id -> toml
     pins: list[dict] = field(default_factory=list)          # [[pin]] tables
+    classes: list[dict] = field(default_factory=list)       # [[class]] tables
     palettes: dict[str, list[str]] = field(default_factory=dict)  # plan -> colors
     constraints: list = field(default_factory=list)         # Rule records
     stems: dict = field(default_factory=dict)  # stems_flora.toml, raw tables
@@ -94,6 +95,23 @@ def load_content(content_dir: str | Path) -> ContentPack:
     pins_toml = _load_toml(d / "pins.toml")
     pins = pins_toml.get("pin", [])
     budget = pins_toml.get("budget", {})
+    classes = _load_toml(d / "classes.toml").get("class", [])
+    # class-table validation (open-catalog gate): every plan in the
+    # registry appears in exactly one class; every class names real
+    # plans; a class carries a phylum + name.
+    seen: set[str] = set()
+    for cls in classes:
+        assert cls.get("name") and cls.get("phylum") and cls.get("plans"), \
+            f"classes.toml: {cls!r} needs name/phylum/plans"
+        for pid in cls["plans"]:
+            assert pid in registry.plans, \
+                f"classes.toml: plan {pid!r} not in the registry"
+            assert pid not in seen, \
+                f"classes.toml: plan {pid!r} in more than one class"
+            seen.add(pid)
+    for pid in registry.plans:
+        assert pid in seen, \
+            f"classes.toml: plan {pid!r} has no class"
     palettes = {plan: list(tbl.get("colors", []))
                 for plan, tbl in _load_toml(d / "palettes.toml")
                 .get("palette", {}).items()}
@@ -110,6 +128,6 @@ def load_content(content_dir: str | Path) -> ContentPack:
                                         tbl.get("responders", [])]
 
     return ContentPack(registry=registry, presets=presets, pins=pins,
-                       palettes=palettes, constraints=constraints,
-                       stems=stems, budget=budget,
+                       classes=classes, palettes=palettes,
+                       constraints=constraints, stems=stems, budget=budget,
                        stress_response=stress_response)

@@ -17,7 +17,7 @@ _PlantaeBuilder hooks below:
 
 Assembles the committed Tree from the content pack: kingdom root plantae
 -> phyla (the seed / spore / decomposer lines, grouped by plan.phylum)
--> one class per growth-form plan -> one order per preset ->
+-> real classes (classes.toml; 0032) -> one order per preset ->
 families/genera/species evolved with the K13 evolve engine (flora
 rebind tables, no fauna couplings) + the flora constraint gate + the
 height envelope. Pins placed at authored ranks, byte-exact; radiations
@@ -112,6 +112,16 @@ class _PlantaeBuilder(TreeBuilder):
 
     def phylum_binomial(self, phylum):
         return PHYLUM_BINOMIAL.get(phylum, phylum.capitalize())
+
+    def class_groups(self, pack):
+        """Real classes from the authored classes.toml table (0032): one
+        class node per row, grouping the body plans that fall under it,
+        in table order (seed -> spore -> decomposer)."""
+        groups: dict[str, list[tuple[str, list[str]]]] = {}
+        for cls in pack.classes:
+            groups.setdefault(cls["phylum"], []).append(
+                (cls["name"], list(cls["plans"])))
+        return groups
 
 
 _BUILDER = _PlantaeBuilder()
