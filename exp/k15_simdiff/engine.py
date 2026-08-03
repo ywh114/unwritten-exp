@@ -610,12 +610,13 @@ class Engine:
         view/vital/percap and the cache are evaluated ONCE per species
         and shared by reference (the bbox optimization; _refresh
         replaces rather than mutates, so sharing is copy-on-drift safe).
-        Species with no mintable cells (zero range or every component
-        below GENESIS_MIN_CELLS) are NEVER minted: registered with the
-        authority (register_unseeded) so the normal update() extinction
-        pass marks them extinct at the first commit — reflog entry,
-        branch terminated (ticket 0004; measured 48/150 unseeded on
-        seed 1: 4 zero-range + 41 all-sub-floor + 3 all-below-K_EPS).
+        Species with no mintable cells (zero range or every proximity
+        blob below GENESIS_MIN_CELLS) are NEVER minted: registered with
+        the authority (register_unseeded) so the normal update()
+        extinction pass marks them extinct at the first commit — reflog
+        entry, branch terminated (ticket 0004; measured on seed 1 after
+        the 0033 §1 relaxation: 22/123 unseeded — 8 zero-range + 14
+        all-sub-floor, 101 minted).
         Deterministic: species processed in sorted sid order, every
         draw from pinned k15 streams. Ticket 0012 (ruling 13): after the
         species mint, ``_seed_bundles`` mints ONE frozen generic
@@ -729,8 +730,10 @@ class Engine:
         ONE frozen generic niche-dweller, minted OUTSIDE the taxonomy
         with sid ``bundle.<label>`` — the SAME viability evaluation the
         species rain uses (F_worst >= GENESIS_F ∩ medium-valid ∩
-        K_L > K_EPS, the K_L-gate when live), the same
-        GENESIS_MIN_CELLS floor, and a per-component coverage draw from
+        K_L > K_EPS, the K_L-gate when live), the same proximity blob
+        stage (gen.proximity_components — ticket 0033 §1: the bundle
+        path inherits the species relaxation) with the same
+        GENESIS_MIN_CELLS floor, and a per-blob coverage draw from
         ``Stream(seed, "k15.genesis", sid)`` (content-addressed by the
         bundle sid, so the processing order never matters). NO clone
         partition (the partition is the headstart-speciation device;
@@ -739,10 +742,10 @@ class Engine:
         authority's mint/redraw/_alive never see bundles. FROZEN by
         construction: the verdict feed skips bundle iids — no
         select()/mutate()/Δg/_refresh, they participate only via
-        population, dispersal, and stress. An unseeded bundle (no
-        component at/above GENESIS_MIN_CELLS) counts as unseeded and
-        never registers with the authority. Deterministic: every draw
-        from pinned k15 streams; same seed → byte-identical."""
+        population, dispersal, and stress. An unseeded bundle (no blob
+        at/above GENESIS_MIN_CELLS) counts as unseeded and never
+        registers with the authority. Deterministic: every draw from
+        pinned k15 streams; same seed → byte-identical."""
         full = (0, self.ctx.H, 0, self.ctx.W)
         order = sorted(self.pack.bundles, key=lambda b: b["label"])
         n = len(order)
@@ -776,7 +779,7 @@ class Engine:
                   & (K_L > pop.K_EPS))
             if gen.GENESIS_K_L_GATE:
                 ok &= K_L >= pop.N_FLOOR * percap
-            big = [c for c in gen.connected_components(ok)
+            big = [c for c in gen.proximity_components(ok)
                    if int(c.sum()) >= gen.GENESIS_MIN_CELLS]
             if not big:
                 unseeded += 1

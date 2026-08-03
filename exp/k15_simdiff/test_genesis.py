@@ -33,11 +33,15 @@ from exp.k15_simdiff.genesis import (
     GENESIS_F,
     GENESIS_F0,
     GENESIS_MIN_CELLS,
+    GENESIS_PROX_R,
     CloneSeed,
+    _clone_units,
     _partition,
+    _partition_range,
     connected_components,
     genesis_rain,
     partition_k,
+    proximity_components,
     reduced,
     valid_mask,
 )
@@ -133,6 +137,99 @@ def test_partition_synthetic_determinism():
         assert ca.tobytes() == cb.tobytes()
 
 
+# ── ticket 0033 §1: proximity grouping + clone-unit partition ───────────
+
+
+def _islands(pts, canvas: int = 40) -> np.ndarray:
+    m = np.zeros((canvas, canvas), dtype=bool)
+    for y, x in pts:
+        m[y, x] = True
+    return m
+
+
+def test_proximity_components():
+    """Ticket 0033 §1: the blob-stage grouping — connected components of
+    dilate(mask, r) intersected back with the mask, so pixels that are
+    NOT 8-connected but still close to each other merge into ONE blob
+    (the strip-habitat fix: mangrove coast edges, kelp, waterlily,
+    willow, sedge). The Chebyshev ring dilation (reused from the §7
+    kernel) merges two pixels at Chebyshev distance ≤ 2r + 1: r = 2
+    (GENESIS_PROX_R) merges within distance 5, separates beyond."""
+    # two 1-pixel islands within r of each other -> ONE blob, both cells
+    assert len(proximity_components(_islands([(10, 10), (14, 14)]))) == 1
+    assert len(proximity_components(_islands([(10, 10), (15, 15)]))) == 1
+    merged = proximity_components(_islands([(10, 10), (15, 15)]))[0]
+    assert int(merged.sum()) == 2
+    # ...and the merged blob is NOT 8-connected (that's the whole point)
+    assert len(connected_components(merged)) == 2
+    # beyond r: islands stay separate blobs
+    assert len(proximity_components(_islands([(10, 10), (16, 16)]))) == 2
+    # union of blobs == the input mask, parts disjoint
+    m = _islands([(10, 10), (13, 13), (30, 5)])
+    blobs = proximity_components(m)
+    assert [int(b.sum()) for b in blobs] == [2, 1]
+    assert np.array_equal(np.logical_or.reduce(blobs), m)
+    assert sum(int(b.sum()) for b in blobs) == int(m.sum())
+    # a blob of a single isolated pixel is still a blob (r > 0 strips the
+    # ring's center exclusion — the mask union in the helper)
+    assert proximity_components(_islands([(10, 10)]))[0].sum() == 1
+    # deterministic: same input -> byte-identical blob masks
+    a = proximity_components(m)
+    b = proximity_components(m)
+    assert len(a) == len(b)
+    for ba, bb in zip(a, b):
+        assert ba.tobytes() == bb.tobytes()
+
+
+def test_partition_range_disconnected_retained():
+    """Ticket 0033 §1: the partition of a proximity-merged retained set
+    splits over CLONE UNITS (_clone_units): fat 8-components (>= 32)
+    split into contiguous pieces; STRIP units (sub-32 material regrouped
+    by proximity, >= 12 cells) are ONE clone each — the owner's
+    merge-into-one-instance ruling — and may be DISCONNECTED; sub-floor
+    islands inside a kept blob are dropped (never minted)."""
+    # a kept strip blob (>= 12) whose 8-components are all sub-12: ONE
+    # disconnected clone (the mangrove/kelp case)
+    seeded = np.zeros((40, 40), dtype=bool)
+    seeded[10, 10:18] = True                        # 8-cell chain
+    seeded[14, 14:20] = True                        # 6-cell chain, Cheb 4 away
+    assert [int(b.sum()) for b in proximity_components(seeded)] == [14]
+    chunks = _partition_range(seeded, 1, Stream(1, "k15.genesis", "syn"))
+    assert len(chunks) == 1
+    assert np.array_equal(chunks[0], seeded)
+    assert len(connected_components(chunks[0])) == 2   # disconnected clone
+    # far-apart blobs: one clone per blob (never merged into one)
+    seeded = np.zeros((40, 40), dtype=bool)
+    seeded[10, 10:25] = True                        # 15 cells
+    seeded[30, 5:20] = True                         # 15 cells, > 5 away
+    chunks = _partition_range(seeded, 1, Stream(1, "k15.genesis", "syn"))
+    assert len(chunks) == 2
+    assert all(int(c.sum()) == 15 for c in chunks)
+    _assert_partition_valid(chunks, seeded, 2)
+    # fat + strip in one blob: the fat splits, the strip stays single;
+    # count = max(K, #units) = 3 (K = partition_k(812) = 3, units 2)
+    seeded = np.zeros((64, 64), dtype=bool)
+    seeded[5:25, 5:45] = True                       # 20x40 = 800 fat
+    seeded[28, 28:40] = True                        # 12-cell strip, Cheb 4 away
+    assert int(proximity_components(seeded)[0].sum()) == 812
+    chunks = _partition_range(seeded, 3, Stream(1, "k15.genesis", "syn"))
+    assert len(chunks) == 3
+    sizes = sorted(int(c.sum()) for c in chunks)
+    assert sizes[0] == 12                           # the strip stays single
+    assert sizes[1] + sizes[2] == 800               # the fat split in 2
+    for c in chunks:
+        assert c.sum() >= 1
+    # a sub-12 island inside a kept blob is DROPPED (union shrinks)
+    seeded = np.zeros((64, 64), dtype=bool)
+    seeded[5:25, 5:45] = True                       # 800 fat
+    seeded[28, 28:36] = True                        # 8-cell island, Cheb 4 away
+    assert int(proximity_components(seeded)[0].sum()) == 808
+    chunks = _partition_range(seeded, 1, Stream(1, "k15.genesis", "syn"))
+    assert len(chunks) == 1
+    assert int(chunks[0].sum()) == 800              # island dropped
+    assert not chunks[0][28, 28:36].any()
+
+
 # ── world-dependent genesis (slow: 35 adapter evaluations per call) ────
 
 
@@ -165,13 +262,14 @@ def _expected_demand(view: dict, ctx, K: np.ndarray
 def _expected_retained(seeded: np.ndarray, key: str, seed: int = 1
                        ) -> tuple[np.ndarray | None, int]:
     """The ticket 0020 covered retained mask, recomputed independently:
-    pre-floor components → mint floor (ticket 0009) → per-component
+    PROXIMITY blobs (ticket 0033 §1 — proximity_components, the blob
+    stage's grouping unit) → mint floor (ticket 0009) → per-blob
     keep/drop draws (``rng.child(f"cover:{i}")``, pinned emission
-    order, keep probability GENESIS_COVER) with the largest-component
-    retry (the coverage draw never causes extinction). Returns
-    (covered mask, pre-coverage retained cell count)."""
+    order, keep probability GENESIS_COVER) with the largest-blob retry
+    (the coverage draw never causes extinction). Returns (covered mask,
+    pre-coverage retained cell count)."""
     rng = Stream(seed, "k15.genesis", key)
-    big = [c for c in connected_components(seeded)
+    big = [c for c in proximity_components(seeded)
            if int(c.sum()) >= GENESIS_MIN_CELLS]
     if not big:
         return None, 0
@@ -199,27 +297,27 @@ def _check_clone_field(clone: CloneSeed, seeded: np.ndarray,
 def test_genesis_partition_structure(world, pack_sim, capacity):
     """Every preset: clone count, contiguity, disjointness, union and N
     fields against an independent recomputation of the seeded range.
-    v0.9 re-pin (ticket 0009, the genesis mint floor): seeded
-    components below GENESIS_MIN_CELLS are DROPPED — a preset whose
-    every component is sub-floor yields () (never minted), and the
-    partition's K targets the RETAINED range. v1.1 re-pin (ticket
-    0020, DESIGN PIVOT): per-component coverage draws
-    (``_expected_retained``) keep ~GENESIS_COVER of the retained blobs
-    (whole blobs, never speckle), and the partition's K targets the
-    COVERED range — the clone union equals the covered mask, not the
-    full retained range. Re-pinned on seed 1 (2026-08-01): yarrow
-    retained 3267 cells (partition_k 5) → covered 2736 (partition_k
-    4, 7 clones); seagrass retained 1722 (4) → covered 466 (2, 6
-    clones). v1.4 re-pin (2026-08-03, ticket 0012 Task D slow tier):
-    the curated census PRUNED herb_forb.yarrow (no seed-1 range — its
-    asserts died with a KeyError). Replacement picked
-    deterministically: the first preset in sorted preset-id order
-    with retained ≥ 1500, partition_k(retained) ≥ 3 AND a coverage
-    draw that actually drops something (covered < retained) —
-    fungus.agaric: retained 1775 (partition_k 4) → covered 948
-    (partition_k 3, 13 clones). Seagrass re-verified UNCHANGED (its
-    draws key by preset id): retained 1722 (4) → covered 466 (2, 6
-    clones)."""
+    v0.9 re-pin (ticket 0009, the genesis mint floor): seeded blobs
+    below GENESIS_MIN_CELLS are DROPPED — a preset whose every blob is
+    sub-floor yields () (never minted), and the partition's K targets
+    the RETAINED range. v1.1 re-pin (ticket 0020, DESIGN PIVOT):
+    per-blob coverage draws (``_expected_retained``) keep ~GENESIS_COVER
+    of the retained blobs (whole blobs, never speckle), and the
+    partition's K targets the COVERED range. v1.5 re-pin (ticket 0033
+    §1, owner's strip-habitat ruling 2026-08-03): the blob stage groups
+    by PROXIMITY (proximity_components — disconnected-but-close pixels
+    merge into one blob) and GENESIS_MIN_CELLS drops 32 → 12. The
+    partition decomposes the covered set into CLONE UNITS
+    (_clone_units): fat 8-components (>= 32) — contiguous, splittable —
+    and STRIP units (sub-32 material regrouped by proximity, >= 12) —
+    ONE clone each, possibly DISCONNECTED (the contiguity invariant's
+    documented exception, the owner's merge-into-one-instance ruling);
+    sub-floor islands inside a kept blob are dropped, so the clone
+    union is the covered set MINUS the dropped specks. Count =
+    max(K, #units) when the surplus is absorbable. Re-pinned on seed 1
+    at the 0033 landing: fungus.agaric retained 2477 (partition_k 4) →
+    covered 1884 (partition_k 4); runner_meadow.seagrass retained 2030
+    (4) → covered 515 (2)."""
     pack, sim = pack_sim
     rain = genesis_rain(pack, sim, world, capacity, seed=1)
     assert set(rain) == set(pack.presets)
@@ -234,7 +332,7 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
         retained[pid] = n_ret
         clones = rain[pid]
         if covered is None:
-            # every component below the floor — dropped entirely
+            # every blob below the floor — dropped entirely
             # (ticket 0009 option (a); §7 dispersal re-finds the cells)
             assert clones == ()
             continue
@@ -242,34 +340,39 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
         K = partition_k(int(covered.sum()))
         if K > 1:
             k_gt1.append(pid)
-        # count: K clones TOTAL over the covered components, unless the
-        # one-clone-per-component floor wins — K ≤ component count keeps
-        # one clone per covered component (spec §10; every covered
-        # component is ≥ GENESIS_MIN_CELLS ≥ PART_MIN_CELLS, so all may
-        # split — the synthetic tests cover the count == K path).
-        assert len(clones) == max(K, len(connected_components(covered)))
+        # units: fat 8-components + strip proximity blobs; the clone
+        # count is max(K, #units) — one clone per unit minimum, the
+        # surplus K - #units to the largest FAT units (absorbable: K ≥ 2
+        # ⟺ range ≥ 400 cells ⟹ the top unit is fat with enough cells).
+        fat, strips, _dropped = _clone_units(covered)
+        units = fat + strips
+        assert len(clones) == max(K, len(units))
+        # union == the units' union (covered minus the dropped sub-floor
+        # islands inside kept blobs), disjoint
         cells = [c.cells for c in clones]
-        assert np.array_equal(np.logical_or.reduce(cells), covered)
-        assert sum(int(c.sum()) for c in cells) == int(covered.sum())
+        unit_union = np.logical_or.reduce(units)
+        assert np.array_equal(np.logical_or.reduce(cells), unit_union)
+        assert sum(int(c.sum()) for c in cells) == int(unit_union.sum())
         for clone in clones:
             assert clone.cells.shape == seeded.shape
-            assert len(connected_components(clone.cells)) == 1
+            # contiguity with the strip exception: every clone is ONE
+            # 8-connected component OR a whole strip unit (disconnected
+            # by design — the owner's merge-into-one-instance ruling)
+            assert (len(connected_components(clone.cells)) == 1
+                    or any(np.array_equal(clone.cells, s) for s in strips))
             _check_clone_field(clone, seeded, D, percap)
-    # re-pinned empirically on seed 1 (2026-08-03, ticket 0012 Task D
-    # slow tier): the curated census PRUNED herb_forb.yarrow — its
-    # asserts are pinned to fungus.agaric, the first preset (sorted
-    # preset-id) with retained ≥ 1500, partition_k(retained) ≥ 3 and
-    # a coverage draw that actually drops something (covered <
-    # retained). PRE-coverage retained ranges (1775 agaric / 1722
-    # seagrass ≥ floor — unchanged by coverage) and the COVERED
-    # ranges the partition actually targets (948 / 466 cells — ticket
-    # 0020).
+    # re-pinned empirically on seed 1 at the 0033 §1 landing (2026-08-03):
+    # the proximity blob stage + 12-cell floor admit the strip-shaped
+    # ranges, so fungus.agaric retained 2477 (pk 4) → covered 1884
+    # (pk 4) and runner_meadow.seagrass retained 2030 (4) → covered 515
+    # (2) — agaric's COVERED partition_k rose 3 → 4 (its covered range
+    # grew from 948 to 1884 cells with the admitted strips).
     assert partition_k(retained["fungus.agaric"]) == 4
-    assert retained["fungus.agaric"] >= 1700
+    assert retained["fungus.agaric"] >= 2400
     assert partition_k(retained["runner_meadow.seagrass"]) == 4
-    assert retained["runner_meadow.seagrass"] >= 1600
-    assert partition_k(minted["fungus.agaric"]) == 3
-    assert minted["fungus.agaric"] >= 900
+    assert retained["runner_meadow.seagrass"] >= 1900
+    assert partition_k(minted["fungus.agaric"]) == 4
+    assert minted["fungus.agaric"] >= 1800
     assert partition_k(minted["runner_meadow.seagrass"]) == 2
     assert 100 <= minted["runner_meadow.seagrass"] <= 1000
     assert k_gt1, "expected at least one preset with partition_k > 1 on seed 1"
@@ -300,34 +403,39 @@ def test_genesis_species_sparse_founders(pack_sim, world, k15_world):
     """Ticket 0020 (DESIGN PIVOT) done-means on seed 1 through the
     ENGINE (the species rain — sparse founders + partial coverage, NO
     density budget): every species with a mintable blob mints (the
-    coverage draw's largest-component retry means the draw never causes
+    coverage draw's largest-blob retry means the draw never causes
     extinction — no occupancy lockout), each minted clone stays ≥
-    GENESIS_MIN_CELLS (no speckle), the per-lineage partition is
-    disjoint, and the realized coverage (minted/viable cells per
-    species, median) is a proper fraction of the viable range —
-    unseeded habitat stays empty for §7 colonization. The utilization
-    u = D/K_L is REPORTED, not asserted: sparse founders deliberately
-    leave density competition to the rounds (measured u p50 1.22 /
-    frac u>1 0.58 at F0=0.1 — the old done-means u targets are
-    unreachable without a density gate; see the v1.1 changelog).
+    DESCENT_MIN_BLOB_CELLS // 2 cells (no speckle; the descent can
+    shrink parents below the original mint floor), the per-lineage
+    partition is disjoint, and the realized coverage (minted/viable
+    cells per species, median) is a proper fraction of the viable
+    range — unseeded habitat stays empty for §7 colonization. The
+    utilization u = D/K_L is REPORTED, not asserted: sparse founders
+    deliberately leave density competition to the rounds (measured u
+    p50 1.22 / frac u>1 0.58 at F0=0.1 — the old done-means u targets
+    are unreachable without a density gate; see the v1.1 changelog).
     v1.3 re-pin (ticket 0018, pre-genesis descent): the no-speckle
     floor moves from the GENESIS_MIN_CELLS mint floor to
     DESCENT_MIN_BLOB_CELLS // 2 — the descent legitimately mints
     fringe instances at the 8-cell blob floor AND shrinks parents
     below the original mint floor when a marginal blob breaks off (a
-    broken-off fringe is not speckle; the 32-cell floor still governs
-    the ORIGINAL clone seeding — pre-descent). A true speckle
-    instance (1-3 cells) still trips the bound (realized post-descent
-    minimum on seed 1: 7). v1.4 re-pin (2026-08-03, ticket 0012 Task
-    D slow tier): the curated census surfaced a 1-cell seeded-part
-    fragment (sid 382a2efdb06ea061 — a harsh blob whose seeded part
-    was a single cell slipped past the ``seeded.any()`` check and
-    minted a 1-cell adapted instance at birth_g 159.67). The engine
-    now skips any break-off whose seeded part is below
-    DESCENT_MIN_BLOB_CELLS // 2 (the ``skipped_speckle`` counter: the
-    seeded part of a broken-off blob must itself clear the speckle
-    floor). RE-MEASURED realized post-descent minimum instance size
-    on seed 1 after the fix: 8 cells."""
+    broken-off fringe is not speckle; the 12-cell floor (0033 §1)
+    still governs the ORIGINAL clone seeding — pre-descent). A true
+    speckle instance (1-3 cells) still trips the bound (realized
+    post-descent minimum on seed 1: 7). v1.4 re-pin (2026-08-03,
+    ticket 0012 Task D slow tier): the curated census surfaced a
+    1-cell seeded-part fragment (sid 382a2efdb06ea061 — a harsh blob
+    whose seeded part was a single cell slipped past the
+    ``seeded.any()`` check and minted a 1-cell adapted instance at
+    birth_g 159.67). The engine now skips any break-off whose seeded
+    part is below DESCENT_MIN_BLOB_CELLS // 2 (the ``skipped_speckle``
+    counter: the seeded part of a broken-off blob must itself clear
+    the speckle floor). RE-MEASURED realized post-descent minimum
+    instance size on seed 1 after the fix: 8 cells. v1.5 (ticket 0033
+    §1): the proximity blob stage + 12-cell floor admit the
+    strip-habitat lineages — lineage survival re-measured at the 0033
+    landing: 101/123 seeded (pre-0033 the un-pruned 150-species tree
+    seeded 102)."""
     from exp.k15_simdiff.engine import Engine
 
     eng = Engine(1, pack=pack_sim[0], ctx=k15_world)

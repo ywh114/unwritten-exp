@@ -34,11 +34,17 @@ coverage draw can never cause extinction (only the ticket-0004/0009
 paths do: zero range and all-sub-floor ranges).
 
 Blobs below GENESIS_MIN_CELLS are dropped (ticket 0009: the genesis
-mint floor — no speckle instances). Each retained range is partitioned
-into K = partition_k(range) contiguous clones by recursive rng-chosen
-axis cuts — the headstart speciation (clones are sibling lineages from
-round 0, merge-exempt for MERGE_GRACE rounds, free to diverge
-independently).
+mint floor — no speckle instances). Since ticket 0033 §1 the blob stage
+groups by PROXIMITY (proximity_components: connected components of the
+r-dilated range — disconnected-but-close pixels merge into one blob,
+the owner's strip-habitat ruling) with a lowered 12-cell floor. Each
+retained range is partitioned into K = partition_k(range) clones over
+its clone units (_partition_range / _clone_units): FAT 8-connected
+components (>= 32, the dressing scale) split into contiguous clones by
+recursive rng-chosen axis cuts, while STRIP units (sub-32 material
+regrouped by proximity) stay ONE clone each — possibly disconnected,
+single-instance by design (g-promotion-only speciation; the headstart
+speciation's contiguous clones are the fat material).
 
 Two entry points share one seed+partition core (``_rain_for_view``):
 ``genesis_preset`` (an AUTHORED preset's record view — the pre-ticket-
@@ -84,6 +90,7 @@ import numpy as np
 
 from exp.k15_simdiff import population as pop
 from exp.k15_simdiff import stress_adapter as sa
+from exp.k15_simdiff.dispersal import _cheb_dilate
 from kernel.hashrng import Stream
 
 K14_OUT = Path(__file__).resolve().parent.parent / "k14_worldprod" / "out"
@@ -112,14 +119,38 @@ GENESIS_COVER = 0.5
 PART_AREA_REF = 200     # partition: reference range area (cells)
 PART_K_MAX = 8          # partition: clone-count cap per preset
 PART_MIN_CELLS = 20     # partition: components below this stay single
-# genesis mint floor (ticket 0009): connected components of a seeded
-# range below this are DROPPED at genesis — never minted as established
-# instances (option (a): §7 dispersal can re-find those cells later).
-# 32 = the existing DIFF_MIN_CELLS sliver-suppression scale; measured
-# seed-1 anatomy (ticket 0009): 91% of 14,751 components are < 32 cells
-# (median 3), so the floor cuts genesis to the ~9% fat blobs the owner's
-# fat-blobs ruling wants (1-10 instances per lineage).
-GENESIS_MIN_CELLS = 32
+# genesis mint floor (ticket 0009): PROXIMITY blobs (see
+# proximity_components) of a seeded range below this are DROPPED at
+# genesis — never minted as established instances (option (a): §7
+# dispersal can re-find those cells later). 12 = the owner's
+# strip-habitat ruling (ticket 0033 §1, 2026-08-03): narrow-niche
+# habitat-formers are viable but their strict 8-connected components
+# sat below the old 32-cell floor (mangrove coast edges are single
+# pixels, kelp 132 cells with largest component ≤ 15, waterlily ≤ 11,
+# willow ≤ 9, sedge 9) — with proximity grouping (GENESIS_PROX_R) the
+# disconnected-but-close pixels merge into one instance, and 12 admits
+# those strip-shaped ranges. The 32-cell DIFF_MIN_CELLS sliver scale
+# stays for DRESSING; instances minted at 12-31 cells are permanently
+# single-instance by design (below the dressing scale — g-promotion-
+# only speciation, owner-approved consequence). Exact value is tuning.
+GENESIS_MIN_CELLS = 12
+# ticket 0033 §1 (owner ruling 2026-08-03): the proximity grouping
+# radius of the genesis blob stage. Blobs are the 8-connected
+# components of dilate(mask, r) intersected back with the mask — pixels
+# that are NOT 8-connected but still close to each other merge into ONE
+# proximity blob (the grouping unit for the mint floor and the coverage
+# draws, species rain AND bundle seeding). Radius is tuning; 2 cells
+# settled for the seed-1 strip anchors (merges pixels within Chebyshev
+# distance 5).
+GENESIS_PROX_R = 2
+# ticket 0033 §1: the strip scale of the clone decomposition — clone
+# units (8-connected components) BELOW this cell count are STRIP
+# material: one instance each by the owner's ruling ("instances minted
+# at 12-31 cells are permanently single-instance by design"), never
+# split; units AT this scale (32 = the engine's DIFF_MIN_CELLS dressing
+# sliver floor, engine.py — can't be imported here, circular) are FAT:
+# splittable, contiguous, the pre-0033 headstart material.
+GENESIS_STRIP_MAX = 32
 # ticket 0018 (spec §10.1): the eligibility gate — seed a cell only
 # where K_L >= N_FLOOR * percap, i.e. where the N_FLOOR clamp does NOT
 # bind (a clamp-bound cell is born at u = N_FLOOR·percap/K_L > 1 —
@@ -141,9 +172,12 @@ _CUT_REJECT_MAX = 32
 
 @dataclass(frozen=True)
 class CloneSeed:
-    """One genesis clone: the contiguous range and its density field.
+    """One genesis clone: its seeded range and the density field.
 
-    ``cells``: (H,W) bool — the clone's 8-connected seeded range.
+    ``cells``: (H,W) bool — the clone's seeded range. 8-connected for
+    FAT clones (the headstart-speciation material); a STRIP clone
+    (ticket 0033 §1, sub-32 proximity material) may be DISCONNECTED —
+    the owner's merge-into-one-instance ruling.
     ``N``:     (H,W) float32 — the founder abundance field: N = D/percap
     with D = max(GENESIS_F0 · K_L(c), N_FLOOR · percap) on the cells,
     0 elsewhere (ticket 0020: capacity-relative sparse founders, never
@@ -299,6 +333,40 @@ def connected_components(mask: np.ndarray) -> list[np.ndarray]:
     return [label == k for k in range(len(comp_id))]
 
 
+def proximity_components(mask: np.ndarray, r: int = GENESIS_PROX_R
+                         ) -> list[np.ndarray]:
+    """Ticket 0033 §1 (owner ruling 2026-08-03): the genesis blob-stage
+    grouping — 8-connected components of dilate(mask, r), each
+    intersected back with *mask*. A "proximity blob" merges pixels that
+    are NOT 8-connected but still close to each other into ONE instance
+    — the strip-habitat fix: mangroves (single-pixel coast edges), kelp
+    (132 viable cells, largest 8-component ≤ 15), waterlily, willow and
+    sedge are viable but their strict components sat below the 32-cell
+    floor, so they were never minted. The proximity blob is the grouping
+    unit for the mint floor (≥ GENESIS_MIN_CELLS) and the coverage
+    keep/drop draws (_covered_components) in BOTH seeding paths (the
+    species rain and the engine's bundle seeding).
+
+    Dilation REUSED from the §7 kernel (dispersal._cheb_dilate — the
+    engine's ``_dilate`` is its radius-1 specialization): Chebyshev
+    (8-connectivity) ring dilation, UNION the mask itself (the ring
+    excludes the source cells, and the blob must contain them to
+    intersect back). Two pixels land in one blob when their Chebyshev
+    distance ≤ 2r + 1 (r = 2: within 5 — verified by
+    test_proximity_components). Draw-free, deterministic: emitted in
+    connected_components' sorted top-left order of the DILATED
+    components, a pinned emission order that also addresses the
+    coverage draws' ``cover:{i}`` indexing."""
+    mask = np.asarray(mask, dtype=bool)
+    dilated = mask | _cheb_dilate(mask, r)
+    out = []
+    for c in connected_components(dilated):
+        part = c & mask
+        if part.any():
+            out.append(part)
+    return out
+
+
 def _cut(chunk: np.ndarray, rng: Stream, cut: int) -> list[np.ndarray] | None:
     """One rng axis cut of a contiguous chunk: draw (axis, position)
     from *rng*, split the chunk by the half-plane, and return the pieces
@@ -385,6 +453,102 @@ def _partition(seeded: np.ndarray, K: int, rng: Stream) -> list[np.ndarray]:
     return [chunk for chunk, _cid, _can in pieces]
 
 
+def _clone_units(retained: np.ndarray
+                 ) -> tuple[list[np.ndarray], list[np.ndarray], int]:
+    """Ticket 0033 §1: decompose a retained (post-coverage) range into
+    clone units — the partition's atoms:
+
+    - FAT units: 8-connected components >= GENESIS_STRIP_MAX (32, the
+      engine's DIFF_MIN_CELLS dressing scale). Splittable, contiguous —
+      the pre-0033 headstart material, unchanged.
+    - STRIP units: the residual sub-32 material, regrouped by proximity
+      (proximity_components of the residual): pixels that are NOT
+      8-connected but within GENESIS_PROX_R of each other merge into ONE
+      instance — the owner's strip-habitat ruling (kelp, mangroves,
+      willow...). ONE clone each, NEVER split (single-instance by
+      design — below the dressing sliver scale; g-promotion-only
+      speciation), possibly disconnected (the contiguity invariant's
+      documented exception).
+    - The residual islands below GENESIS_MIN_CELLS (sub-12 specks inside
+      a KEPT blob — the r-dilation bridges them into the blob) are
+      DROPPED: the mint floor's no-speckle rule applies inside the blob
+      too; §7 dispersal re-finds those cells (ticket 0009 option (a)).
+
+    Deterministic: fat units in connected_components' pinned order, then
+    strip units in proximity_components' pinned order of the residual.
+    Returns (fat, strips, dropped_cells)."""
+    fat = [c for c in connected_components(retained)
+           if int(c.sum()) >= GENESIS_STRIP_MAX]
+    residual = retained.copy()
+    for f in fat:
+        residual &= ~f
+    strips = []
+    dropped = 0
+    for b in proximity_components(residual):
+        if int(b.sum()) >= GENESIS_MIN_CELLS:
+            strips.append(b)
+        else:
+            dropped += int(b.sum())
+    return fat, strips, dropped
+
+
+def _partition_range(retained: np.ndarray, K: int, rng: Stream
+                     ) -> list[np.ndarray]:
+    """Ticket 0033 §1: partition the retained range into K clones TOTAL
+    over its clone units (_clone_units: fat 8-components + strip
+    proximity blobs; the sub-floor residual islands are dropped).
+
+    One clone per unit minimum — the owner's strip ruling: a strip unit
+    (12-31 cells, possibly disconnected) is ONE instance, permanently
+    single (never split; below the DIFF_MIN_CELLS dressing scale). The
+    surplus K - #units goes to the LARGEST FAT units first (pinned-order
+    ties — the "split the biggest first" idiom), each split by _partition
+    into contiguous pieces (fat units are 8-connected by construction).
+    A strip clone may therefore be DISCONNECTED (the contiguity
+    invariant's documented exception); a fat clone is contiguous.
+
+    Count semantics: max(K, #units) exactly when the surplus is
+    absorbable (K ≥ 2 ⟺ range ≥ 400 cells ⇒ the largest unit is a fat
+    unit of ≥ ~57 cells that can take the ≤ 7 surplus); a species whose
+    units are ALL strips can leave surplus unabsorbed (count < K) — the
+    strip single-instance ruling wins over the K target.
+
+    Union semantics: the clone union is the retained range MINUS the
+    dropped sub-floor islands (_clone_units' dropped_cells — sub-12
+    specks inside a kept blob, never minted; §7 dispersal re-finds
+    them). Pairwise disjoint always.
+
+    Draws: unit i's splits draw from ``rng.child(f"comp:{i}")``
+    (content-addressed; the per-unit _partition recursion re-derives its
+    own comp:0 inside it). Same seed → byte-identical."""
+    fat, strips, _dropped = _clone_units(retained)
+    units = fat + strips
+    n = len(units)
+    if n == 0 or K <= 0:
+        return []
+    n_fat = len(fat)
+    if K <= n:
+        return units                          # one clone per unit
+    sizes = [int(u.sum()) for u in units]
+    extra = K - n
+    targets = [1] * n
+    for i in sorted(range(n), key=lambda i: (-sizes[i], i)):
+        if extra <= 0:
+            break
+        if i >= n_fat:
+            continue                          # strips never split
+        take = min(extra, sizes[i] - 1)       # cap: can't cut past cells
+        targets[i] += take
+        extra -= take
+    chunks: list[np.ndarray] = []
+    for i, u in enumerate(units):
+        if targets[i] <= 1:
+            chunks.append(u)
+        else:
+            chunks.extend(_partition(u, targets[i], rng.child(f"comp:{i}")))
+    return chunks
+
+
 # ── ticket 0020: capacity-relative founder demand + partial coverage ──
 
 
@@ -421,15 +585,16 @@ def _n_field(cells: np.ndarray, K_L: np.ndarray, percap: float,
 
 def _covered_components(comps: list[np.ndarray], rng: Stream,
                         cover: float = GENESIS_COVER) -> list[np.ndarray]:
-    """Ticket 0020 partial coverage: per connected component (in the
-    pinned emission order — connected_components' sorted top-left), an
+    """Ticket 0020 partial coverage: per blob (in the pinned emission
+    order — since ticket 0033 §1 the call sites pass PROXIMITY blobs,
+    proximity_components' sorted top-left of the dilated components), an
     independent keep/drop draw from ``rng.child("cover:{i}")`` with keep
     probability *cover*. WHOLE blobs are kept or dropped (never
     speckled cells); a run where every draw drops is RETRIED by keeping
-    the single largest component unconditionally (ties → first emission
+    the single largest blob unconditionally (ties → first emission
     order), so the coverage draw can never wipe out a lineage that has
     a mintable blob. Deterministic: child streams are content-addressed
-    by the component index."""
+    by the blob index."""
     if not comps:
         return []
     sel = [c for i, c in enumerate(comps)
@@ -452,22 +617,25 @@ def _rain_for_view(view: dict, ctx: sa.WorldContext, seed: int,
     plans that includes the habitat term, B5 §4.5), then partition the
     seeded range into K = partition_k(range) clones. Returns
     (clones, range_cells). No mintable cells -> ((), 0) — the caller's
-    extinction path (ticket 0004). Ticket 0009: connected components of
-    the seeded range below GENESIS_MIN_CELLS are DROPPED (never
+    extinction path (ticket 0004). Ticket 0009: proximity blobs of the
+    seeded range below GENESIS_MIN_CELLS are DROPPED (never
     minted; §7 dispersal can re-find those cells), and the partition's
     K (spec §10 step 3) targets the RETAINED range — the range_cells
-    returned is the minted extent. Ticket 0020: partial coverage — a
-    per-component keep/drop draw (``_covered_components``) then keeps
-    ~GENESIS_COVER of the retained blobs (whole blobs, never speckle),
-    leaving the drawn-away viable cells unseeded for §7 colonization;
-    a lineage whose every component is drawn away keeps its largest
-    blob, so the draw never causes extinction. Draws from
-    ``Stream(seed, "k15.genesis", key)`` (key = preset id or species
-    sid — content-addressed, so draw order never matters)."""
+    returned is the minted extent. Ticket 0033 §1: the blob stage
+    groups by proximity (proximity_components — disconnected pixels
+    within GENESIS_PROX_R merge into one blob) and the floor is 12.
+    Ticket 0020: partial coverage — a per-blob keep/drop draw
+    (``_covered_components``) then keeps ~GENESIS_COVER of the retained
+    blobs (whole blobs, never speckle), leaving the drawn-away viable
+    cells unseeded for §7 colonization; a lineage whose every blob is
+    drawn away keeps its largest blob, so the draw never causes
+    extinction. Draws from ``Stream(seed, "k15.genesis", key)`` (key =
+    preset id or species sid — content-addressed, so draw order never
+    matters)."""
     _names, _m_star, F_worst, _prov = reduced(factors)
     valid = valid_mask(view, ctx)
     seeded = (F_worst >= GENESIS_F) & valid
-    kept = [c for c in connected_components(seeded)
+    kept = [c for c in proximity_components(seeded)
             if int(c.sum()) >= GENESIS_MIN_CELLS]
     if not kept:
         return (), 0
@@ -481,7 +649,7 @@ def _rain_for_view(view: dict, ctx: sa.WorldContext, seed: int,
     U = factors["substrate_share"]
     K_L = lineage_capacity(K, U)
     percap = pop.percap_demand(view)
-    chunks = _partition(retained, K_n, rng)
+    chunks = _partition_range(retained, K_n, rng)
     return tuple(CloneSeed(cells=ch, N=_n_field(ch, K_L, percap))
                  for ch in chunks), range_cells
 
@@ -562,33 +730,40 @@ def genesis_rain_species(pack, ctx: sa.WorldContext, seed: int,
        heavy stacking stays near (and the density term stays inside)
        the cap WITHOUT any mint-time budget — competition is left to
        the rounds.
-    3. **Mint floor** (ticket 0009): connected components below
+    3. **Mint floor** (ticket 0009, as amended by 0033 §1): PROXIMITY
+       blobs (proximity_components — connected components of the
+       r-dilated range, disconnected-but-close pixels merged) below
        GENESIS_MIN_CELLS are dropped (never minted; §7 dispersal can
        re-find those cells).
-    4. **Partial coverage** (ticket 0020): per retained component, a
+    4. **Partial coverage** (ticket 0020): per retained blob, a
        keep/drop draw from ``Stream(seed, "k15.genesis", sid)``
        (``rng.child("cover:{i}")``, pinned emission order) with keep
        probability GENESIS_COVER — whole blobs kept or dropped, never
-       speckled cells; a species whose every drawn component is dropped
-       keeps its single largest component unconditionally (the draw
-       never causes extinction). Unseeded viable cells stay empty for
-       §7 colonization.
+       speckled cells; a species whose every drawn blob is dropped
+       keeps its single largest blob unconditionally (the draw never
+       causes extinction). Unseeded viable cells stay empty for §7
+       colonization.
     5. **Partition** (spec §10 step 3): per species, K =
-       partition_k(range_cells) clones TOTAL over the retained
-       components by recursive rng-chosen axis cuts — the headstart
-       speciation. Draws from ``rng.child("comp:{i}")`` — content-
-       addressed, so the coverage draws' order never matters for the
-       partition draws.
+       partition_k(range_cells) clones TOTAL over the retained blobs,
+       decomposed into clone units (_partition_range / _clone_units):
+       FAT 8-connected components (≥ 32, the dressing scale) split into
+       contiguous clones by recursive rng-chosen axis cuts; STRIP units
+       (sub-32 material regrouped by proximity) stay ONE clone each —
+       single-instance by design, possibly disconnected (the headstart
+       speciation's contiguous clones are the fat material). Sub-floor
+       islands inside a kept blob are dropped (dispersal recolonizes).
+       Draws from ``rng.child("comp:{i}")`` — content-addressed, so the
+       coverage draws' order never matters for the partition draws.
 
     Returns {sid: (clones, range_cells, bundle)} — *bundle* is the
     compact §5.1 reduced set (``_reduced_bundle``) the engine's
     per-instance cache is built from. A species with no mintable cells
-    (zero range, or every component below the floor) maps to ((), 0,
+    (zero range, or every blob below the floor) maps to ((), 0,
     bundle): it is never minted and goes extinct at genesis (the
     authority's normal extinction path — ticket 0004; measured on seed
-    1: 4 zero-range + 41 all-sub-floor + 3 all-below-K_EPS = 48
-    unseeded, 102 minted). Same seed → byte-identical masks and N
-    fields."""
+    1 after the 0033 §1 relaxation: 22/123 unseeded — 8 zero-range +
+    14 all-sub-floor, 101 minted — see tmp/0033_probe.py). Same seed →
+    byte-identical masks and N fields."""
     order = sorted(nodes, key=lambda n: n.sid)
     evals: dict[str, dict] = {}
     n = len(order)
@@ -617,7 +792,7 @@ def genesis_rain_species(pack, ctx: sa.WorldContext, seed: int,
     # ── 2-5: seed, floor, coverage, partition — per species ─────────
     out: dict[str, tuple[tuple[CloneSeed, ...], int, dict]] = {}
     for sid, ev in evals.items():
-        big = [c for c in connected_components(ev["ok"])
+        big = [c for c in proximity_components(ev["ok"])
                if int(c.sum()) >= GENESIS_MIN_CELLS]
         if not big:
             out[sid] = ((), 0, ev["bundle"])
@@ -630,7 +805,7 @@ def genesis_rain_species(pack, ctx: sa.WorldContext, seed: int,
         if K_n == 0:
             out[sid] = ((), 0, ev["bundle"])
             continue
-        chunks = _partition(retained, K_n, rng)
+        chunks = _partition_range(retained, K_n, rng)
         clones = tuple(CloneSeed(cells=ch,
                                  N=_n_field(ch, ev["K_L"], ev["percap"]))
                        for ch in chunks)
