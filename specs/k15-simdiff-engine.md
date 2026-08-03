@@ -1,6 +1,39 @@
-# K15 sim-diff engine (flora rounds) — build spec v1.7
+# K15 sim-diff engine (flora rounds) — build spec v1.8
 
-2026-08-01. v1.7 (ticket 0013, the delivery pass, 2026-08-02)
+2026-08-01. v1.8 (ticket 0012, the curated two-track census,
+2026-08-03) supersedes v1.7: genesis seeds the CURATED tree (52
+individual-track pins → 134 radiated species; the ad-hoc test list is
+gone) PLUS the sim-side FROZEN-BUNDLE REGISTRY — one generic
+niche-dweller per authored bundle record (k13 content bundles.toml:
+ENVELOPE + polyphyletic ANCHOR-CLADE SET; a bundle is a region ×
+physiology archetype standing in for an aggregate of species, NOT a
+tree node). §10: after the species mint, each bundle (sorted-label
+order) is evaluated once and seeded through the SAME gates (F_worst ≥
+GENESIS_F ∩ medium-valid ∩ the K_L gates, GENESIS_MIN_CELLS floor,
+GENESIS_COVER per-component draws from `k15.genesis` keyed by the
+bundle sid) — ONE instance per bundle (no clone partition: frozen
+lineages cannot diverge), minted OUTSIDE the taxonomy (sid
+`bundle.<label>`, never authority.mint). FROZEN BY CONSTRUCTION: the
+§4 verdict feed skips bundle instances (no select/mutate/Δg/_refresh),
+the §9 commit excludes their iids from the views, the g map, and the
+merge candidates (iid-based — dispersal foundlings inherit the bundle
+sid), and §10.1's descent never sees them (tree-node iteration); the
+authority never tracks them (reflog/tree/_alive stay bundle-free);
+they participate in population/dispersal/stress only. Post-sim, 0027
+dissolves each into daughters across its anchor clades. §10.1 gains
+the SPECKLE SKIP: a broken-off blob whose SEEDED part is below
+DESCENT_MIN_BLOB_CELLS // 2 is skipped (ticket 0009 suppression — the
+curated census surfaced a 1-cell seeded-part fragment the old
+`seeded.any()` check admitted). Measured seed 1: 30/38 bundles seeded
+(22 673 cells); genesis 402 species instances (89/134 lineages) + 30
+bundles; 20 rounds → 86 lineages + 30 bundles alive, 4 909 instances,
+cell richness median 5/max 23, 52 new tree nodes (2 subspecies).
+Coverage audit (0012 Task C) findings queued as ticket 0033 — the
+headline: narrow-niche habitat-formers (mangrove/kelp/seagrass/
+sphagnum/willow) are viable-but-sub-floor, so the sim currently has no
+mangrove/kelp/seagrass/bog habitat physics. Fixture re-pins documented
+in the tests' v1.4 paragraphs. Fast 155 + slow 5 green.
+v1.7 (ticket 0013, the delivery pass, 2026-08-02)
 supersedes v1.6; v1.6 (ticket 0018 REBUILD, 2026-08-02, pre-genesis
 descent with the earned-g first-commit rank) supersedes the v1.3
 design note below it: the adapted fringe returns, but the fragments
