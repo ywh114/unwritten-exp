@@ -135,9 +135,13 @@ def test_effective_climate(pack, tree):
     reptile = next(n for n in sp if n.preset == "tetrapod.reptile")
     er = effective_climate(reptile, pack)
     assert er["temp_breadth_c"] < ec["temp_breadth_c"]
-    # penguin blubber 0.6 shifts further than bear 0.25
-    peng = next(n for n in sp if n.preset == "winged_biped.penguin")
-    ep = effective_climate(peng, pack)
+    # a thicker-blubber species shifts further than the bear (the
+    # blubber dial is 4 deg per unit; the penguin preset is no longer
+    # generated under the radiate model — use any fatter species)
+    fatter = max(sp, key=lambda n: n.axes.get("blubber_thickness", 0.0))
+    assert fatter.axes.get("blubber_thickness", 0.0) > \
+        bear.axes["blubber_thickness"]
+    ef = effective_climate(fatter, pack)
     meta_bear = pack.presets["tetrapod.bear"]["niche"]["temp_opt_c"]
-    meta_peng = pack.presets["winged_biped.penguin"]["niche"]["temp_opt_c"]
-    assert (meta_peng - ep["temp_opt_c"]) > (meta_bear - ec["temp_opt_c"])
+    meta_fat = pack.presets[fatter.preset]["niche"]["temp_opt_c"]
+    assert (meta_fat - ef["temp_opt_c"]) > (meta_bear - ec["temp_opt_c"])

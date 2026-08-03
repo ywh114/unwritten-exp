@@ -142,6 +142,7 @@ def test_plant_empty_order(pack):
                 flags=["animalia"])
     order = Node(path="k1.p1.c1.o1", rank=Rank.ORDER, parent="k1.p1.c1",
                  sid="0" * 16, plan="tetrapod", preset="tetrapod.cat")
+    order.radiate_to = Rank.SPECIES   # pre-radiates to species: must have some
     rep = run_checks(tree_of(root, order), pack)
     assert any("empty order" in v for v in rep.violations["backbone"])
 
@@ -175,4 +176,8 @@ def test_plant_orphan_pin(pack):
     tiger = sp("k1.p1.c1.o1.f1.g1.s1", "tetrapod.cat", label="tiger",
                flags=("pinned",), **axes)   # byte-exact but alone
     rep = run_checks(tree_of(tiger), pack)
-    assert any("orphan" in v for v in rep.violations["pin_integration"])
+    # radiate model (0032): a lone pinned species is a legitimate
+    # singleton — siblings come from the genus's pre-radiation if
+    # declared, else the post fill.
+    assert not any("orphan" in v
+                   for v in rep.violations["pin_integration"])

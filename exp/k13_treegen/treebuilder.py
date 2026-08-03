@@ -1,7 +1,7 @@
 """TreeBuilder — the shared blind tree-build (M7), serving both kingdoms.
 
 Consolidated 2026-08-02 (0032 prereq, absorbed from 0006): the fauna
-backbone (exp/k13_treegen/backbone.py) and the flora backbone
+backbone (exp/k13_treegen/fauna/backbone.py) and the flora backbone
 (exp/k13_treegen/flora/backbone.py) were near-identical copies of the
 same build — same spine (kingdom -> phylum -> one class per plan -> one
 order per preset -> families/genera/species), same pin/radiation/
@@ -9,12 +9,25 @@ relative machinery — differing only in per-kingdom constants and hooks
 (content module, evolve kwargs, height-vs-mass gen_time, phylum
 binomials, background radiation, meta stamping).
 
-One parameterized TreeBuilder + one subclass per kingdom replaces both;
-behavior is byte-identical to the two prior backbones (verified against
-the committed flora_seed / k13_seed artifacts, meta.commit aside).
+One parameterized TreeBuilder + one subclass per kingdom replaces both.
 
-Assembles the committed Tree from the content pack. Pins placed at
-authored ranks, byte-exact; radiations seeded around authored targets.
+RADIATE MODEL (0032, owner-settled 2026-08-02): every node carries a
+radiate permission (never / pre / post / pre-and-post) — WHEN radiation
+may create children below it — and a radiate_to level (the DEEPEST rank
+pre-radiation may create; PRE only — post creation handles its own
+depth via the demand function). Defaults per rank (model.RADIATE_DEFAULT
+/ RADIATE_TO_DEFAULT), overridable per node via the pin record
+(``radiate`` / ``radiate_to`` keys).
+
+The pre pass ("add pinned things, radiate allowed"):
+- pinned nodes at every rank are created regardless of radiation;
+- a node with radiate in (pre, both) creates its children down to its
+  radiate_to, respecting pins (a pinned child slot is not radiated
+  over);
+- children created AT the radiate_to depth are marked post (they
+  complete after the sim); intermediates propagate the chain target;
+- species never radiates (terminal; subspecies are sim-side 0010).
+
 World-blind: benign Condition throughout.
 """
 
@@ -23,7 +36,9 @@ from __future__ import annotations
 import math
 
 from exp.k13_treegen.forces import Condition, evolve, rate_multiplier
-from exp.k13_treegen.model import Node, Rank, Tree
+from exp.k13_treegen.model import (
+    RADIATE_BOTH, RADIATE_DEFAULT, RADIATE_NEVER, RADIATE_POST,
+    RADIATE_PRE, RADIATE_TO_DEFAULT, Node, Rank, Tree)
 from exp.k13_treegen.registry import MutationKind, ValueType
 
 # dg budgets per rank step (generations, lognormal median): deep splits
@@ -83,6 +98,26 @@ class TreeBuilder:
 
     def phylum_binomial(self, phylum):
         return None
+
+    # -- radiate model (0032) ----------------------------------------------
+
+    def _radiate_flag(self, node, pin=None, propagated=None) -> str:
+        """Resolve a node's radiate permission: pin override > propagated
+        chain target > rank default."""
+        if pin is not None and pin.get("radiate"):
+            return str(pin["radiate"])
+        if propagated is not None:
+            return propagated
+        return RADIATE_DEFAULT.get(node.rank, RADIATE_NEVER)
+
+    def _radiate_to(self, node, pin=None, propagated=None) -> Rank:
+        """Resolve radiate_to (deepest rank PRE may create below a node):
+        pin override > propagated chain target > rank default."""
+        if pin is not None and pin.get("radiate_to"):
+            return Rank[str(pin["radiate_to"]).upper()]
+        if propagated is not None:
+            return propagated
+        return RADIATE_TO_DEFAULT.get(node.rank)
 
     # -- shared machinery -------------------------------------------------
 
@@ -150,8 +185,12 @@ class TreeBuilder:
                     ax, {"drift": 0.0, "descent": 0.0, "runaway": 0.0})
                 d["pin_drift"] = d.get("pin_drift", 0.0) + z
 
+    def _is_pre(self, radiate: str) -> bool:
+        return radiate in (RADIATE_PRE, RADIATE_BOTH)
+
     def build(self, seed: int, pack) -> Tree:
-        """Build the committed tree for *seed*."""
+        """Build the committed tree for *seed* (the PRE pass: pinned
+        things + pre-radiation to each node's radiate_to)."""
         root_stream = self.stage_stream(seed, "backbone")
         tree = Tree(seed=seed)
         if self.GENERATOR is not None:
@@ -159,9 +198,11 @@ class TreeBuilder:
         if self.STAMP_COMMIT:
             from exp.artifacts import current_commit
             tree.meta["commit"] = current_commit()  # provenance stamp
-        tree.add(Node(path="k1", rank=Rank.KINGDOM, parent=None,
-                      sid=self._sid(root_stream.child("k1")),
-                      flags=list(self.KINGDOM_FLAGS)))
+        kingdom = Node(path="k1", rank=Rank.KINGDOM, parent=None,
+                       sid=self._sid(root_stream.child("k1")),
+                       flags=list(self.KINGDOM_FLAGS))
+        kingdom.radiate = RADIATE_DEFAULT.get(Rank.KINGDOM, RADIATE_NEVER)
+        tree.add(kingdom)
 
         # phyla in first-seen plan order (content order is authored)
         phyla: dict[str, list] = {}
@@ -177,15 +218,19 @@ class TreeBuilder:
             pnode = Node(path=ppath, rank=Rank.PHYLUM, parent="k1",
                          sid=self._sid(root_stream.child(ppath)),
                          flags=self.phylum_flags(plans))
+            pnode.radiate = RADIATE_DEFAULT.get(Rank.PHYLUM, RADIATE_NEVER)
             binomial = self.phylum_binomial(phylum)
             if binomial is not None:
                 pnode.name.binomial = binomial
             tree.add(pnode)
             for ci, plan in enumerate(plans, 1):
                 cpath = f"{ppath}.c{ci}"
-                tree.add(Node(path=cpath, rank=Rank.CLASS, parent=ppath,
-                              sid=self._sid(root_stream.child(cpath)),
-                              plan=plan.id))
+                cnode = Node(path=cpath, rank=Rank.CLASS, parent=ppath,
+                             sid=self._sid(root_stream.child(cpath)),
+                             plan=plan.id)
+                cnode.radiate = RADIATE_DEFAULT.get(Rank.CLASS, RADIATE_NEVER)
+                cnode.radiate_to = RADIATE_TO_DEFAULT.get(Rank.CLASS)
+                tree.add(cnode)
                 presets = sorted(pid for pid, p in pack.presets.items()
                                  if p["preset"]["plan"] == plan.id)
                 for oi, pid in enumerate(presets, 1):
@@ -213,6 +258,8 @@ class TreeBuilder:
         if order_pin:
             self._apply_pin(order, pack, order_pin, ostream)
             order_radiation = order_pin.get("radiation", 0)
+        order.radiate = self._radiate_flag(order, order_pin)
+        order.radiate_to = self._radiate_to(order, order_pin)
         tree.add(order)
         fam_pins = [p for p in pins if p.get("rank") == "family"]
         genus_pins = [p for p in pins if p.get("rank") == "genus"]
@@ -241,17 +288,22 @@ class TreeBuilder:
                 hosted.setdefault(gp["label"], []).extend(by_genus.pop(gb))
 
         # families: default f1 (background + genus/species pins + order
-        # radiation), then one per family pin.
+        # radiation), then one per family pin. Created only if the order
+        # pre-radiates (the skeleton); the family's own radiate decides
+        # whether genera follow pre or post.
         families: list[tuple[str, dict | None]] = [(None, None)]
         families += [(p["label"], p) for p in fam_pins]
 
+        if not self._is_pre(order.radiate):
+            return
         for fi, (_, fam_pin) in enumerate(families, 1):
             self._build_family(tree, ostream, pack, order, fi, fam_pin,
                                genus_pins if fi == 1 else [],
                                loose if fi == 1 else [],
                                list(by_genus.items()) if fi == 1 else [],
                                order_radiation if fi == 1 else 0,
-                               hosted if fi == 1 else {})
+                               hosted if fi == 1 else {},
+                               parent_rt=order.radiate_to)
 
     def _family_streams(self, ostream, fi: int):
         fam_stream = ostream.child(f"f{fi}")
@@ -261,7 +313,8 @@ class TreeBuilder:
 
     def _build_family(self, tree, ostream, pack, order: Node, fi: int,
                       fam_pin, genus_pins, loose, pin_genera,
-                      order_radiation: int, hosted) -> None:
+                      order_radiation: int, hosted,
+                      parent_rt: Rank | None = None) -> None:
         fam_stream, rate, rdir = self._family_streams(ostream, fi)
         fpath = f"{order.path}.f{fi}"
         # drift-and-commit (user ruling): children drift from the
@@ -277,13 +330,28 @@ class TreeBuilder:
             radiation = fam_pin.get("radiation", 0)
         if fi == 1:
             radiation = order_radiation
+        # generated families (children of the order's pre pass): terminal
+        # at the order's radiate_to -> post; intermediate -> pre with the
+        # propagated chain target.
+        if fam_pin is None:
+            if parent_rt is not None and parent_rt > Rank.FAMILY:
+                family.radiate = RADIATE_PRE
+                family.radiate_to = parent_rt
+            else:
+                family.radiate = RADIATE_POST
+                family.radiate_to = None
+        else:
+            family.radiate = self._radiate_flag(family, fam_pin)
+            family.radiate_to = self._radiate_to(family, fam_pin)
         tree.add(family)
-
-        # genera: the default genus g1 takes the first radiation share
-        # (never left empty) plus loose species pins; genus pins anchor
-        # their own; each binomial-genus group anchors its own genus
-        # (named after the authored binomial); then spread genera.
-        if radiation:
+        # genera: PINNED genera (genus pins + binomial-anchored groups +
+        # the default g1 hosting loose species pins) are authored and
+        # always created; the GENERATED spread genera (radiation shares
+        # + background) exist only if the family pre-radiates to genus.
+        pre_genus = self._is_pre(family.radiate) \
+            and family.radiate_to is not None \
+            and family.radiate_to >= Rank.GENUS
+        if pre_genus and radiation:
             count = self._radiation_count(fam_stream.child("rad"),
                                           radiation)
             n_spread = max(1, round(math.sqrt(count)))
@@ -293,28 +361,33 @@ class TreeBuilder:
         else:
             n_spread, per_genus = 0, []
 
-        genera: list[tuple[dict | None, int, str | None, list]] = [
-            (None, per_genus[0] if per_genus else 0, None, loose)]
+        genera: list[tuple[dict | None, int, str | None, list]] = []
+        if loose or per_genus:
+            genera.append((None, per_genus[0] if per_genus else 0,
+                           None, loose))
         genera += [(p, p.get("radiation", 0), None,
                     hosted.get(p["label"], [])) for p in genus_pins]
         genera += [(None, 0, gname, grp) for gname, grp in pin_genera]
-        genera += [(None, per_genus[i], None, [])
-                   for i in range(1, n_spread)]
+        if pre_genus:
+            genera += [(None, per_genus[i], None, [])
+                       for i in range(1, n_spread)]
 
         bg = (self.BG_RADIATION_LO + fam_stream.child("bg").randrange(
             self.BG_RADIATION_HI - self.BG_RADIATION_LO + 1, 0)) \
-            if fi == 1 else 0
+            if (fi == 1 and pre_genus) else 0
 
         for gi, (gen_pin, gen_radiation, gname, gspecies) in \
                 enumerate(genera, 1):
             self._build_genus(tree, fam_stream, pack, family, gi, gen_pin,
                               gen_radiation, rate, rdir, gspecies,
-                              bg if gi == 1 else 0, name_hint=gname)
+                              bg if gi == 1 else 0, name_hint=gname,
+                              parent_rt=family.radiate_to)
 
     def _build_genus(self, tree, fam_stream, pack, family: Node, gi: int,
                      gen_pin, radiation: int, rate: float, rdir: float,
                      species_pins: list, background: int,
-                     name_hint: str | None = None) -> None:
+                     name_hint: str | None = None,
+                     parent_rt: Rank | None = None) -> None:
         gen_stream = fam_stream.child(f"g{gi}")
         gpath = f"{family.path}.g{gi}"
         genus = self._evolve_edge(family, pack, gen_stream.child("node"),
@@ -339,17 +412,24 @@ class TreeBuilder:
                 genus.axes = dict(axes)
                 genus.generics = dict(generics)
                 self.gen_time(genus, rate)
+        # generated genera (children of a family pre pass): terminal at
+        # the family's radiate_to -> post; intermediate -> pre.
+        if gen_pin is None:
+            if parent_rt is not None and parent_rt > Rank.GENUS:
+                genus.radiate = RADIATE_PRE
+                genus.radiate_to = parent_rt
+            else:
+                genus.radiate = RADIATE_POST
+                genus.radiate_to = None
+        else:
+            genus.radiate = self._radiate_flag(genus, gen_pin)
+            genus.radiate_to = self._radiate_to(genus, gen_pin)
         tree.add(genus)
 
-        n_species = background
-        if radiation:
-            n_species += self._radiation_count(gen_stream.child("rad"),
-                                               radiation)
-        n_rel = 0
-        if species_pins:
-            n_rel = (RELATIVES_LO + gen_stream.child("rel").randrange(
-                RELATIVES_HI - RELATIVES_LO + 1, 0))
-
+        # species: pinned species are byte-exact commits and exist
+        # regardless of radiation; GENERATED species (radiation +
+        # relatives + background) happen only if the genus pre-radiates
+        # to species.
         si = 0
         for pin in species_pins:  # pinned species: byte-exact commits
             si += 1
@@ -360,8 +440,23 @@ class TreeBuilder:
                            preset=genus.preset, g=genus.g +
                            self._dg(sstream, DG_GENUS_MEDIAN))
             self._apply_pin(species, pack, pin, sstream)
+            species.radiate = RADIATE_DEFAULT.get(Rank.SPECIES,
+                                                  RADIATE_NEVER)
             self.gen_time(species, rate)
             tree.add(species)
+        if not self._is_pre(genus.radiate) \
+                or genus.radiate_to is None \
+                or genus.radiate_to < Rank.SPECIES:
+            return
+
+        n_species = background
+        if radiation:
+            n_species += self._radiation_count(gen_stream.child("rad"),
+                                               radiation)
+        n_rel = 0
+        if species_pins:
+            n_rel = (RELATIVES_LO + gen_stream.child("rel").randrange(
+                RELATIVES_HI - RELATIVES_LO + 1, 0))
         for _ in range(n_species + n_rel):  # generated radiation + relatives
             si += 1
             spath = f"{gpath}.s{si}"
@@ -369,6 +464,8 @@ class TreeBuilder:
             species = self._evolve_edge(genus, pack, sstream,
                                         self._dg(sstream, DG_GENUS_MEDIAN),
                                         spath, rate, rdir, Rank.SPECIES)
+            species.radiate = RADIATE_DEFAULT.get(Rank.SPECIES,
+                                                  RADIATE_NEVER)
             if drift:
                 self._apply_drift(species, pack, drift)
             tree.add(species)

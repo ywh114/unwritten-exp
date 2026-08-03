@@ -63,7 +63,7 @@ def test_census(pack, tree):
     assert counts[Rank.PHYLUM] == 2
     assert counts[Rank.CLASS] == 3
     assert counts[Rank.ORDER] == 24
-    assert counts[Rank.SPECIES] > 300
+    assert counts[Rank.SPECIES] > 200   # pinned + pre-radiated variety (0032)
 
 
 def test_metrics_gate_clean(pack, tree):
@@ -91,9 +91,12 @@ def test_frame_map(pack, tree):
 
 
 def test_no_empty_orders(pack, tree):
+    """Orders that pre-radiate TO species must have species; orders that
+    stop above species fill post (empty pre is legitimate, 0032)."""
     sp = [n.path for n in species(tree)]
     for n in tree.nodes.values():
-        if n.rank is Rank.ORDER:
+        if n.rank is Rank.ORDER and n.radiate_to is not None \
+                and n.radiate_to >= Rank.SPECIES:
             assert any(p.startswith(n.path + ".") for p in sp), n.path
 
 
@@ -149,14 +152,21 @@ def test_pins_within_jitter(pack, tree):
 
 
 def test_species_pins_have_relatives(pack, tree):
+    """A species pin hosted under a genus that pre-radiates to species
+    gets relatives; singleton pins are legitimate under the radiate
+    model (0032, siblings come from the post fill otherwise)."""
     sp = species(tree)
     for pin in pack.pins:
         if pin.get("rank", "species") != "species":
             continue
         n = _node(tree, pin["label"])
-        genus = n.path.rsplit(".s", 1)[0]
-        assert any(s.path != n.path and s.path.startswith(genus + ".")
-                   for s in sp), pin["label"]
+        host = tree.nodes[n.parent]
+        if host.radiate in ("pre", "pre-and-post") \
+                and host.radiate_to is not None \
+                and host.radiate_to >= Rank.SPECIES:
+            assert any(s.path != n.path
+                       and s.path.startswith(host.path + ".")
+                       for s in sp), pin["label"]
 
 
 def test_radiation_soft_range(pack, tree):
@@ -176,8 +186,8 @@ def test_drift_biases_descendants(pack, tree):
     assert len(eq_sp) >= 2
     deer_order = eq.path.rsplit(".f", 1)[0]
     bg_sp = [n for n in species(tree)
-             if n.path.startswith(deer_order + ".f1.g1.")
-             and n.label is None]
+             if n.path.startswith(deer_order + ".")
+             and not n.path.startswith(eq.path + ".")]
     assert bg_sp
     eq_mean = statistics.mean(n.axes["limb_length_to_trunk"]
                               for n in eq_sp)

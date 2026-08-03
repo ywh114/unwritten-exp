@@ -23,6 +23,7 @@ preset = "tree.oak"
 label = "oaks"
 name = { binomial = "Quercus", folk = "oak" }
 rank = "genus"
+radiate = "pre"
 # rad 0 + two pinned species: the genus carries robur + ilex + relatives
 axes = { height_m = 25.0, leaf_shape = "lobed", leaf_persistence = "winter_deciduous", fruit_type = "nut", shade_tolerance = 0.4, engineer_impact = 0.6 }
 flags = ["pinned"]
@@ -53,6 +54,7 @@ preset = "tree.oak"
 label = "beeches"
 name = { binomial = "Fagus", folk = "beech" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 28.0, leaf_shape = "ovate", leaf_margin = "entire", shade_tolerance = 0.7, fruit_type = "nut", engineer_impact = 0.6 }
 flags = ["pinned"]
@@ -62,6 +64,7 @@ preset = "tree.oak"
 label = "birches"
 name = { binomial = "Betula", folk = "birch" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 20.0, pioneer_climax = 0.15, leaf_shape = "ovate", leaf_margin = "serrate", fruit_type = "samara" }
 flags = ["pinned"]
@@ -72,6 +75,7 @@ preset = "tree.oak"
 label = "alders"
 name = { binomial = "Alnus", folk = "alder" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 18.0, waterlogging_tolerance = 0.8, leaf_shape = "ovate", fruit_type = "cone", n_fixation = "frankia" }
 flags = ["pinned"]
@@ -83,6 +87,7 @@ preset = "tree.conifer"
 label = "pines"
 name = { binomial = "Pinus", folk = "pine" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 30.0, leaf_shape = "needle", fruit_type = "cone", fire_strategy = "seeder", drought_tolerance = 0.6, growing_season_req = 5.0 }
 flags = ["pinned"]
@@ -93,6 +98,7 @@ preset = "tree.conifer"
 label = "spruces"
 name = { binomial = "Picea", folk = "spruce" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 28.0, leaf_shape = "needle", snow_adaptation = "conical_shed", shade_tolerance = 0.6 }
 flags = ["pinned"]
@@ -103,6 +109,7 @@ preset = "tree.conifer"
 label = "larches"
 name = { binomial = "Larix", folk = "larch" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 25.0, leaf_shape = "needle", leaf_persistence = "winter_deciduous", deciduous_trigger = "winter", pioneer_climax = 0.5 }
 flags = ["pinned"]
@@ -114,6 +121,7 @@ preset = "tree.willow"
 label = "willows"
 name = { binomial = "Salix", folk = "willow" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 15.0, leaf_shape = "linear", waterlogging_tolerance = 0.8, snow_adaptation = "flexible" }
 flags = ["pinned"]
@@ -125,6 +133,7 @@ preset = "tree.palm"
 label = "palms"
 name = { binomial = "Cocos", folk = "palm" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 20.0, leaf_shape = "frond", fruit_type = "drupe", growing_season_req = 12.0 }
 flags = ["pinned"]
@@ -136,6 +145,7 @@ preset = "tree.tropical"
 label = "dipterocarps"
 name = { binomial = "Shorea", folk = "dipterocarp" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 45.0, leaf_shape = "elliptical", root_special = "buttress", root_depth_m = 1.9, growing_season_req = 12.0, engineer_impact = 0.8 }
 flags = ["pinned"]
@@ -147,6 +157,7 @@ preset = "tree.tropical"
 label = "bombax"
 name = { binomial = "Ceiba", folk = "bombax" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 35.0, leaf_persistence = "drought_deciduous", deciduous_trigger = "drought", leaf_shape = "lanceolate", leaf_compoundness = "palmate", growing_season_req = 12.0 }
 flags = ["pinned"]
@@ -157,6 +168,7 @@ preset = "tree.tropical"
 label = "acacias"
 name = { binomial = "Acacia", folk = "acacia" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 12.0, leaf_shape = "linear", leaf_compoundness = "bipinnate", n_fixation = "rhizobium", drought_tolerance = 0.75, growing_season_req = 8.0 }
 flags = ["pinned"]
@@ -167,6 +179,7 @@ preset = "tree.tropical"
 label = "mesquites"
 name = { binomial = "Prosopis", folk = "mesquite" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 10.0, leaf_shape = "linear", leaf_compoundness = "bipinnate", root_type = "tap", root_depth_m = 6.0, drought_tolerance = 0.9, salinity_tolerance = 0.3 }
 flags = ["pinned"]
@@ -178,6 +191,7 @@ preset = "tree.mangrove"
 label = "mangroves"
 name = { binomial = "Rhizophora", folk = "mangrove" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 18.0, root_special = "stilt", salinity_tolerance = 0.85, waterlogging_tolerance = 0.8, engineer_impact = 0.8 }
 flags = ["pinned"]
@@ -188,6 +202,7 @@ preset = "tree.mangrove"
 label = "avicennias"
 name = { binomial = "Avicennia", folk = "avicennia" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 15.0, root_special = "pneumatophores", salinity_tolerance = 0.9, waterlogging_tolerance = 0.8 }
 flags = ["pinned"]
@@ -199,6 +214,7 @@ preset = "tree.sandalwood"
 label = "sandalwoods"
 name = { binomial = "Santalum", folk = "sandalwood" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 12.0, parasitism = "hemi", root_special = "haustoria", fruit_type = "drupe", dispersal_channels = { local = 0.3, wind = 0.0, water = 0.0, animal = 0.65, jump = 0.05 } }
 flags = ["pinned"]
@@ -210,6 +226,7 @@ preset = "shrub.heath"
 label = "heathers"
 name = { binomial = "Calluna", folk = "heather" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.5, leaf_shape = "scale", mycorrhizal = "ericoid", ph_tolerance = 0.15 }
 flags = ["pinned"]
@@ -220,6 +237,7 @@ preset = "shrub.heath"
 label = "blueberries"
 name = { binomial = "Vaccinium", folk = "blueberry" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.4, leaf_shape = "ovate", mycorrhizal = "ericoid", waterlogging_tolerance = 0.5 }
 flags = ["pinned"]
@@ -231,6 +249,7 @@ preset = "shrub.xeric"
 label = "cistus"
 name = { binomial = "Cistus", folk = "rock-rose" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 1.0, leaf_shape = "ovate", leaf_persistence = "drought_deciduous", drought_tolerance = 0.75, fire_strategy = "seeder" }
 flags = ["pinned"]
@@ -241,6 +260,7 @@ preset = "shrub.xeric"
 label = "lavenders"
 name = { binomial = "Salvia", folk = "sage" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.8, leaf_shape = "lanceolate", chemical_defense = "essential_oil", drought_tolerance = 0.7, pollination_syndrome = "bee" }
 flags = ["pinned"]
@@ -251,6 +271,7 @@ preset = "shrub.xeric"
 label = "phillyreas"
 name = { binomial = "Phillyrea", folk = "phillyrea" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 3.0, leaf_shape = "elliptical", leaf_persistence = "evergreen", drought_tolerance = 0.65 }
 flags = ["pinned"]
@@ -261,6 +282,7 @@ preset = "shrub.xeric"
 label = "creosote-bushes"
 name = { binomial = "Larrea", folk = "creosote bush" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 1.5, leaf_shape = "scale", leaf_persistence = "evergreen", drought_tolerance = 0.95, salinity_tolerance = 0.4 }
 flags = ["pinned"]
@@ -271,6 +293,7 @@ preset = "shrub.xeric"
 label = "sagebrushes"
 name = { binomial = "Artemisia", folk = "sagebrush" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 1.0, leaf_shape = "linear", pubescence = 0.6, drought_tolerance = 0.8 }
 flags = ["pinned"]
@@ -281,6 +304,7 @@ preset = "shrub.xeric"
 label = "saltbushes"
 name = { binomial = "Salsola", folk = "saltbush" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.8, leaf_shape = "linear", succulence = 0.2, salinity_tolerance = 0.8, drought_tolerance = 0.85 }
 flags = ["pinned"]
@@ -302,6 +326,7 @@ preset = "shrub.bramble"
 label = "brambles"
 name = { binomial = "Rubus", folk = "bramble" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 2.0, mechanical_defense = "prickle", fruit_type = "aggregate", clonal_spread_m = 3.0 }
 flags = ["pinned"]
@@ -313,6 +338,7 @@ preset = "grass_sward.tussock"
 label = "fescues"
 name = { binomial = "Festuca", folk = "fescue" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.8, photosynthesis = "C4", drought_tolerance = 0.6 }
 flags = ["pinned"]
@@ -323,6 +349,7 @@ preset = "grass_sward.tussock"
 label = "marram"
 name = { binomial = "Ammophila", folk = "marram grass" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 1.0, root_spread_m = 4.0, salinity_tolerance = 0.5, drought_tolerance = 0.7, engineer_impact = 0.7 }
 flags = ["pinned"]
@@ -333,6 +360,7 @@ preset = "grass_sward.tussock"
 label = "savanna-grasses"
 name = { binomial = "Andropogon", folk = "savanna grass" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 1.5, photosynthesis = "C4", drought_tolerance = 0.7, growing_season_req = 8.0 }
 flags = ["pinned"]
@@ -343,6 +371,7 @@ preset = "grass_sward.tussock"
 label = "cordgrasses"
 name = { binomial = "Spartina", folk = "cordgrass" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 1.2, salinity_tolerance = 0.9, waterlogging_tolerance = 0.95, clonal_spread_m = 2.0 }
 flags = ["pinned"]
@@ -354,6 +383,7 @@ preset = "grass_sward.reed"
 label = "reeds"
 name = { binomial = "Phragmites", folk = "reed" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 2.5, waterlogging_tolerance = 0.9, clonal_spread_m = 2.0, engineer_impact = 0.6 }
 flags = ["pinned"]
@@ -365,6 +395,7 @@ preset = "grass_sward.sedge"
 label = "sedges"
 name = { binomial = "Carex", folk = "sedge" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.6, waterlogging_tolerance = 0.85 }
 flags = ["pinned"]
@@ -376,6 +407,7 @@ preset = "grass_sward.bulrush"
 label = "bulrushes"
 name = { binomial = "Typha", folk = "bulrush" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 1.8, waterlogging_tolerance = 0.95, clonal_spread_m = 1.5 }
 flags = ["pinned"]
@@ -387,6 +419,7 @@ preset = "rosette_mat.stonecrop"
 label = "saxifrages"
 name = { binomial = "Saxifraga", folk = "saxifrage" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.05, growing_season_req = 1.5, drought_tolerance = 0.7 }
 flags = ["pinned"]
@@ -397,6 +430,7 @@ preset = "rosette_mat.stonecrop"
 label = "stonecrops"
 name = { binomial = "Sedum", folk = "stonecrop" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.1, succulence = 0.8, drought_tolerance = 0.9 }
 flags = ["pinned"]
@@ -407,6 +441,7 @@ preset = "rosette_mat.stonecrop"
 label = "moss-campions"
 name = { binomial = "Silene", folk = "moss campion" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.05, snow_adaptation = "cushion_mat", growing_season_req = 1.5, drought_tolerance = 0.6 }
 flags = ["pinned"]
@@ -418,6 +453,7 @@ preset = "succulent.cactus"
 label = "saguaros"
 name = { binomial = "Carnegiea", folk = "saguaro" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 5.0, succulence = 0.95, drought_tolerance = 0.95, fruit_type = "berry" }
 flags = ["pinned"]
@@ -428,6 +464,7 @@ preset = "succulent.cactus"
 label = "agaves"
 name = { binomial = "Agave", folk = "agave" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 1.5, leaf_shape = "lanceolate", succulence = 0.9, drought_tolerance = 0.9, fruit_type = "capsule" }
 flags = ["pinned"]
@@ -438,6 +475,7 @@ preset = "succulent.cactus"
 label = "saltworts"
 name = { binomial = "Salicornia", folk = "samphire" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.4, layer = "ground", succulence = 0.7, mechanical_defense = "none", salinity_tolerance = 1.0, waterlogging_tolerance = 0.9, drought_tolerance = 0.3 }
 flags = ["pinned"]
@@ -449,6 +487,7 @@ preset = "fern_grade.bracken"
 label = "brackens"
 name = { binomial = "Pteridium", folk = "bracken" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 1.5, leaf_shape = "frond", clonal_spread_m = 1.5, engineer_impact = 0.5 }
 flags = ["pinned"]
@@ -460,6 +499,7 @@ preset = "moss_grade.sphagnum"
 label = "sphagna"
 name = { binomial = "Sphagnum", folk = "sphagnum" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { engineer_impact = 0.9, waterlogging_tolerance = 0.9, ph_tolerance = 0.1 }
 flags = ["pinned"]
@@ -471,6 +511,7 @@ preset = "macroalgae_holdfast.kelp"
 label = "kelps"
 name = { binomial = "Macrocystis", folk = "kelp" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 30.0, engineer_impact = 0.9, salinity_tolerance = 0.95, growing_season_req = 8.0 }
 flags = ["pinned"]
@@ -482,6 +523,7 @@ preset = "runner_meadow.seagrass"
 label = "seagrasses"
 name = { binomial = "Zostera", folk = "seagrass" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { height_m = 0.5, salinity_tolerance = 0.9, engineer_impact = 0.7 }
 flags = ["pinned"]
@@ -493,6 +535,7 @@ preset = "floating_leaf.waterlily"
 label = "water-lilies"
 name = { binomial = "Nymphaea", folk = "water-lily" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { leaf_shape = "cordate", flower_size_mm = 120.0, pollination_syndrome = "beetle", engineer_impact = 0.5 }
 flags = ["pinned"]
@@ -504,6 +547,7 @@ preset = "fungus.agaric"
 label = "field-agarics"
 name = { binomial = "Agaricus", folk = "field mushroom" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { saprotrophy = "litter" }
 flags = ["pinned"]
@@ -514,6 +558,7 @@ preset = "fungus.agaric"
 label = "brackets"
 name = { binomial = "Trametes", folk = "bracket fungus" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { saprotrophy = "white_rot", engineer_impact = 0.7 }
 flags = ["pinned"]
@@ -525,6 +570,7 @@ preset = "lichen.crust"
 label = "crust-lichens"
 name = { binomial = "Lecanora", folk = "crust lichen" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { support = "crustose", drought_tolerance = 0.9 }
 flags = ["pinned"]
@@ -536,6 +582,7 @@ preset = "coral_grade.branching_coral"
 label = "branching-corals"
 name = { binomial = "Acropora", folk = "branching coral" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { engineer_impact = 0.95 }
 flags = ["pinned"]
@@ -545,6 +592,7 @@ preset = "sponge_grade.barrel_sponge"
 label = "barrel-sponges"
 name = { binomial = "Xestospongia", folk = "barrel sponge" }
 rank = "genus"
+radiate = "pre"
 radiation = 1
 axes = { engineer_impact = 0.6 }
 flags = ["pinned"]

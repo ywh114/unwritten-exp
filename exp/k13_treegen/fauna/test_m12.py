@@ -117,4 +117,4 @@ def test_every_slot_traces(pack, tree):
                 # the source must be committed on the node/preset
                 assert src.startswith(("axes.", "generics.", "preset.")), src
         checked += 1
-    assert checked > 300
+    assert checked > 150

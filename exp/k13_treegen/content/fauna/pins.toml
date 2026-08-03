@@ -158,6 +158,8 @@ label = "murid rodents"
 name = { binomial = "Muridae" }
 rank = "family"
 radiation = 60
+radiate = "pre"
+radiate_to = "species"
 axes = { body_mass = 0.05, diet_spectrum = { granivore = 1.0 }, fecundity = 40.0 }
 flags = ["pinned", "texture"]
 
@@ -167,6 +169,8 @@ label = "passerine songbirds"
 name = { binomial = "Passeridae" }
 rank = "family"
 radiation = 80
+radiate = "pre"
+radiate_to = "species"
 axes = { diet_spectrum = { insectivore = 1.0 }, social_system = "flock", group_size = 20.0 }
 generics = { feeding_organ = "beak_generalist" }
 flags = ["pinned", "texture"]
@@ -177,6 +181,8 @@ label = "beetles"
 name = { binomial = "Coleoptera" }
 rank = "order"
 radiation = 120
+radiate = "pre"
+radiate_to = "species"
 axes = { diet_spectrum = { detritivore = 1.0 } }
 flags = ["pinned", "texture"]
 
@@ -188,6 +194,7 @@ preset = "tetrapod.deer"
 label = "equines"
 name = { binomial = "Equus" }
 rank = "genus"
+radiate = "pre"
 radiation = 3
 drift = { limb_length_to_trunk = 1.0, neck_length_ratio = 0.5 }
 axes = { body_mass = 300.0, diet_spectrum = { grazer = 1.0 }, social_system = "herd", group_size = 12.0 }
@@ -199,6 +206,7 @@ preset = "tetrapod.squirrel"
 label = "coal-rat"
 name = { binomial = "Carbonomys", folk = "coal-rat" }
 rank = "genus"
+radiate = "pre"
 radiation = 4
 axes = { body_mass = 0.3, diet_spectrum = { omnivore = 1.0 }, activity_period = "nocturnal", fecundity = 24.0, base_color = "black", belly_color = "gray" }
 flags = ["pinned", "invented"]

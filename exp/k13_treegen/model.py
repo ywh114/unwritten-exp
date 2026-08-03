@@ -45,6 +45,43 @@ RANK_PREFIX = {
 }
 
 
+# ──  radiate model (0032: the WHEN + DEPTH of radiation)  ───────────────
+# Every node carries a radiate permission (never / pre / post /
+# pre-and-post) — when radiation may create children below it — and a
+# radiate_to level (the DEEPEST rank pre-radiation may create; PRE only,
+# post creation handles its own depth via the demand function). Defaults
+# per rank, overridable per node (pins carry the override).
+RADIATE_NEVER = "never"
+RADIATE_PRE = "pre"
+RADIATE_POST = "post"
+RADIATE_BOTH = "pre-and-post"
+
+# Per-rank defaults (owner-settled 2026-08-02, 0032): the top ranks are
+# authored keys; pre builds the auditable skeleton; genus/family are
+# where post filling happens; species never radiates (subspecies are
+# sim-side 0010 cladogenesis, not radiation).
+RADIATE_DEFAULT: dict[Rank, str] = {
+    Rank.KINGDOM: RADIATE_NEVER,
+    Rank.PHYLUM: RADIATE_NEVER,
+    Rank.CLASS: RADIATE_PRE,
+    Rank.ORDER: RADIATE_PRE,
+    Rank.FAMILY: RADIATE_BOTH,
+    Rank.GENUS: RADIATE_POST,
+    Rank.SPECIES: RADIATE_NEVER,
+    Rank.SUBSPECIES: RADIATE_NEVER,
+}
+
+# radiate_to defaults: the deepest rank pre-radiation may create below a
+# node. PRE only. class reaches family (orders + families, no genera);
+# order reaches family; family reaches genus; genus reaches species.
+RADIATE_TO_DEFAULT: dict[Rank, Rank] = {
+    Rank.CLASS: Rank.FAMILY,
+    Rank.ORDER: Rank.FAMILY,
+    Rank.FAMILY: Rank.GENUS,
+    Rank.GENUS: Rank.SPECIES,
+}
+
+
 # ──  quantity-layer store (RFC §11)  ──────────────────────────────────────
 
 
@@ -208,6 +245,10 @@ class Node:
     plan: str | None = None         # body plan, committed at CLASS
     preset: str | None = None       # preset id, committed at ORDER
     label: str | None = None        # curated label; pins only
+    radiate: str | None = None      # 0032: never/pre/post/pre-and-post;
+                                    # None = the rank default (RADIATE_DEFAULT)
+    radiate_to: Rank | None = None  # 0032: deepest rank PRE may create
+                                    # below this node; None = rank default
     g: float = 0.0                  # genetic distance from founder (generations)
     gen_time: float = 0.0           # years per generation (g-clock rate)
     axes: dict = field(default_factory=dict)
@@ -228,6 +269,9 @@ class Node:
             "plan": self.plan,
             "preset": self.preset,
             "label": self.label,
+            "radiate": self.radiate,
+            "radiate_to": self.radiate_to.name.lower()
+            if self.radiate_to is not None else None,
             "g": self.g,
             "gen_time": self.gen_time,
             "axes": self.axes,
@@ -245,7 +289,11 @@ class Node:
         return cls(
             path=d["path"], rank=Rank[d["rank"].upper()], parent=d["parent"],
             sid=d["sid"], plan=d.get("plan"), preset=d.get("preset"),
-            label=d.get("label"), g=d.get("g", 0.0),
+            label=d.get("label"),
+            radiate=d.get("radiate"),
+            radiate_to=Rank[d["radiate_to"].upper()]
+            if d.get("radiate_to") else None,
+            g=d.get("g", 0.0),
             gen_time=d.get("gen_time", 0.0), axes=dict(d.get("axes", {})),
             generics=dict(d.get("generics", {})),
             flags=list(d.get("flags", [])),

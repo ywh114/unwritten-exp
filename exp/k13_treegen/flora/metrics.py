@@ -121,6 +121,14 @@ def check_frozen_axis(tree: Tree, pack: ContentPack) -> list[str]:
             if spec.value_type is ValueType.INT and \
                     STEP_Z_TYPICAL * spec.sigma < 0.5:
                 continue
+            # single-key weighted sets (e.g. diet_spectrum = {detritivore:
+            # 1.0}) renormalize to the same value on every mutation —
+            # structurally unmovable, not the freeze bug (0032 caught
+            # the beetles order pin tripping this).
+            if spec.value_type is ValueType.WEIGHTED_SET \
+                    and isinstance(nodes[0].axes.get(ax), dict) \
+                    and len(nodes[0].axes[ax]) <= 1:
+                continue
             vals = {str(n.axes[ax]) for n in nodes}
             if len(vals) > 1:
                 continue
@@ -214,7 +222,12 @@ def check_backbone(tree: Tree, pack: ContentPack) -> list[str]:
                 errs.append(f"{n.path}: plan {n.plan} under phylum "
                             f"lacking frame {plan.frame!r}")
         if n.rank is Rank.ORDER:
-            if not any(sp.startswith(n.path + ".") for sp in species_paths):
+            # radiate-model aware (0032): an order that pre-radiates TO
+            # SPECIES must have species pre; an order that stops above
+            # species fills post (empty pre is legitimate).
+            if n.radiate_to is not None and n.radiate_to >= Rank.SPECIES \
+                    and not any(sp.startswith(n.path + ".")
+                                for sp in species_paths):
                 errs.append(f"{n.path}: empty order (no species)")
     return errs
 
@@ -263,15 +276,17 @@ def check_pin_integration(tree: Tree, pack: ContentPack) -> list[str]:
         if bad:
             errs.append(f"pin {label!r}: axes drifted from authored "
                         f"record (beyond pin jitter)")
-        if n.rank is Rank.SPECIES:
-            siblings = [sp for sp in species_paths
-                        if sp.rsplit(".s", 1)[0] ==
-                        n.path.rsplit(".s", 1)[0] and sp != n.path]
-            if not siblings:
-                errs.append(f"pin {label!r}: orphan species (no sibling "
-                            f"in its genus)")
+        # orphan/radiation coherence is RADIATE-MODEL aware (0032): a
+        # pinned species may be a singleton (siblings come from the
+        # genus's pre-radiation if declared, else the post fill), and a
+        # radiation knob only produces pre descendants when the pin
+        # pre-radiates to species.
         radiation = pin.get("radiation", 0)
-        if radiation:
+        pre_to_species = pin.get("radiate", "never") in ("pre",
+                                                         "pre-and-post") \
+            and str(pin.get("radiate_to", "species")).lower() in (
+                "species", "subspecies")
+        if radiation and pre_to_species:
             desc = sum(1 for sp in species_paths
                        if sp.startswith(n.path + "."))
             if not (radiation / 3 <= desc <= radiation * 3):

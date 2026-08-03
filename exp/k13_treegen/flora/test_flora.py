@@ -85,11 +85,14 @@ def test_structure(tree1):
     classes = [n for n in tree1.nodes.values() if n.rank is Rank.CLASS]
     assert len(classes) == 16
     species = [n for n in tree1.nodes.values() if n.rank is Rank.SPECIES]
-    assert len(species) >= 100
-    # no empty orders
+    assert len(species) >= 50   # pinned important species + pre-radiated variety
+    # radiate-model: an order that pre-radiates TO species must have
+    # species pre; orders that stop above species fill post (empty pre is
+    # legitimate under 0032).
     spaths = [n.path for n in species]
     for n in tree1.nodes.values():
-        if n.rank is Rank.ORDER:
+        if n.rank is Rank.ORDER and n.radiate_to is not None \
+                and n.radiate_to >= Rank.SPECIES:
             assert any(s.startswith(n.path + ".") for s in spaths), n.path
 
 
