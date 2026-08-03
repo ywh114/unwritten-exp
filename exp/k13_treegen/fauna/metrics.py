@@ -78,6 +78,18 @@ def check_frozen_axis(tree: Tree, pack: ContentPack) -> list[str]:
                     and len(nodes[0].axes[ax]) <= 1:
                 continue
             vals = {str(n.axes[ax]) for n in nodes}
+            # a value pinned AT an axis bound is content-intended and the
+            # mutation is one-sided there (outward draws clip back) — the
+            # bound-sit is not the v1 freeze bug (0032, same rule as the
+            # flora gate).
+            if len(vals) == 1 and spec.bounds:
+                lo, hi = spec.bounds
+                try:
+                    f0 = float(next(iter(vals)))
+                except (TypeError, ValueError):
+                    f0 = None
+                if f0 is not None and (f0 == lo or f0 == hi):
+                    continue
             if len(vals) <= 1:
                 errs.append(f"plan {plan}: axis {ax} frozen at "
                             f"{next(iter(vals))!r} across {len(nodes)} "

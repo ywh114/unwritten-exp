@@ -330,3 +330,49 @@ layer = "ground"
 envelope = { height_m = 0.15, leaf_shape = "none", leaf_persistence = "evergreen", feeding_organ = "mycoheterotroph", fruit_type = "sporangium", dispersal_channels = { local = 0.3, wind = 0.5, water = 0.0, animal = 0.1, jump = 0.1 }, propagule_count = 2000000.0, drought_tolerance = 0.4, salinity_tolerance = 0.05, waterlogging_tolerance = 0.4, ph_tolerance = 0.5, fertility_requirement = 0.4, growing_season_req = 4.0, layer = "ground" }
 anchor_families = ["Amanitaceae", "Boletaceae", "Russulaceae", "Cortinariaceae", "Glomeraceae", "Tuberaceae", "Cantharellaceae"]
 anchor_genera = ["Amanita", "Boletus", "Russula", "Lactarius", "Cortinarius", "Rhizophagus", "Tuber", "Morchella", "Cantharellus", "Suillus"]
+
+# ── marine (2026-08-02, research agent-15) ──────────────────────────────
+[[bundle]]
+label = "reef-stony-corals"
+covered_region = "tropical/subtropical reef hardground (fore-reef, reef flat); clear oligotrophic water"
+plan = "coral_grade"
+layer = "aquatic_benthic"
+envelope = { height_m = 1.0, growth_rate = 0.05, longevity_yr = 300.0, leaf_shape = "none", leaf_persistence = "evergreen", flower_symmetry = "none", inflorescence = "none", pollination_syndrome = "none", fruit_type = "none", dispersal_channels = { local = 0.0, wind = 0.0, water = 0.8, animal = 0.0, jump = 0.2 }, propagule_count = 500000.0, salinity_tolerance = 0.95, waterlogging_tolerance = 1.0, ph_tolerance = 0.78, fertility_requirement = 0.3, growing_season_req = 12.0, engineer_impact = 0.95, coloniality = 1.0, support = "skeleton_massive" }
+anchor_families = ["Acroporidae", "Poritidae", "Pocilloporidae", "Merulinidae", "Mussidae", "Montastraeidae", "Agariciidae", "Siderastreidae", "Fungiidae", "Dendrophylliidae", "Lobophylliidae"]
+anchor_genera = ["Acropora", "Montipora", "Porites", "Pocillopora", "Diploria", "Favia", "Fungia", "Siderastrea"]
+
+[[bundle]]
+label = "reef-soft-corals"
+covered_region = "tropical reef slopes/lagoons + gorgonian beds; slightly nutrient-richer, lower light"
+plan = "coral_grade"
+layer = "aquatic_benthic"
+envelope = { height_m = 0.5, growth_rate = 0.3, longevity_yr = 50.0, leaf_shape = "none", leaf_persistence = "evergreen", flower_symmetry = "none", inflorescence = "none", pollination_syndrome = "none", fruit_type = "none", dispersal_channels = { local = 0.1, wind = 0.0, water = 0.8, animal = 0.0, jump = 0.1 }, propagule_count = 200000.0, salinity_tolerance = 0.95, waterlogging_tolerance = 1.0, ph_tolerance = 0.75, fertility_requirement = 0.35, growing_season_req = 12.0, engineer_impact = 0.6, coloniality = 1.0, clonal_spread_m = 0.5, support = "soft_body" }
+anchor_families = ["Gorgoniidae", "Plexauridae", "Alcyoniidae", "Xeniidae", "Nephtheidae", "Melithaeidae", "Briareidae"]
+anchor_genera = ["Gorgonia", "Muricea", "Leptogorgia", "Plexaura", "Alcyonium", "Sinularia", "Sarcophyton", "Xenia"]
+
+[[bundle]]
+label = "reef-sponges"
+covered_region = "tropical reef hardground + rubble slopes, framework interstices and overhangs"
+plan = "sponge_grade"
+layer = "aquatic_benthic"
+envelope = { height_m = 1.0, growth_rate = 0.05, longevity_yr = 200.0, leaf_shape = "none", leaf_persistence = "evergreen", flower_symmetry = "none", inflorescence = "none", pollination_syndrome = "none", fruit_type = "none", dispersal_channels = { local = 0.0, wind = 0.0, water = 0.8, animal = 0.0, jump = 0.2 }, propagule_count = 100000.0, salinity_tolerance = 0.95, waterlogging_tolerance = 1.0, ph_tolerance = 0.75, fertility_requirement = 0.4, growing_season_req = 12.0, engineer_impact = 0.8, coloniality = 1.0 }
+anchor_families = ["Petrosiidae", "Aplysinidae", "Callyspongiidae", "Clionaidae", "Irciniidae", "Halichondriidae", "Tedaniidae", "Agelasidae", "Chalinidae", "Axinellidae", "Geodiidae"]
+anchor_genera = ["Xestospongia", "Aplysina", "Callyspongia", "Cliona", "Ircinia", "Halichondria", "Tedania", "Agelas"]
+
+[[bundle]]
+label = "subtidal-algae"
+covered_region = "subtidal rocky seafloor, kelp-forest understory (temperate) + tropical Sargassum zone"
+plan = "macroalgae_holdfast"
+layer = "aquatic_benthic"
+envelope = { height_m = 3.0, growth_rate = 0.4, longevity_yr = 5.0, leaf_shape = "blade", leaf_persistence = "evergreen", flower_symmetry = "none", inflorescence = "none", pollination_syndrome = "none", fruit_type = "sorus", dispersal_channels = { local = 0.1, wind = 0.0, water = 0.85, animal = 0.0, jump = 0.05 }, propagule_count = 5000000.0, salinity_tolerance = 0.95, waterlogging_tolerance = 1.0, ph_tolerance = 0.78, fertility_requirement = 0.4, growing_season_req = 8.0, engineer_impact = 0.6 }
+anchor_families = ["Sargassaceae", "Laminariaceae", "Alariaceae", "Fucaceae", "Corallinaceae", "Lithothamniaceae", "Gracilariaceae", "Gigartinaceae"]
+anchor_genera = ["Sargassum", "Laminaria", "Saccharina", "Alaria", "Lithothamnion", "Corallina", "Gracilaria", "Chondrus"]
+
+[[bundle]]
+label = "seagrass-meadows"
+covered_region = "tropical + temperate soft-sediment shallow seafloor; sand/mud"
+plan = "runner_meadow"
+layer = "aquatic_benthic"
+envelope = { height_m = 0.4, growth_rate = 0.5, longevity_yr = 20.0, leaf_shape = "linear", leaf_persistence = "evergreen", flower_symmetry = "none", inflorescence = "none", pollination_syndrome = "water", fruit_type = "achene", dispersal_channels = { local = 0.4, wind = 0.0, water = 0.6, animal = 0.0, jump = 0.0 }, propagule_count = 500.0, salinity_tolerance = 0.9, waterlogging_tolerance = 1.0, ph_tolerance = 0.78, fertility_requirement = 0.4, growing_season_req = 6.0, engineer_impact = 0.6 }
+anchor_families = ["Zosteraceae", "Posidoniaceae", "Cymodoceaceae", "Hydrocharitaceae"]
+anchor_genera = ["Zostera", "Posidonia", "Halodule", "Cymodocea", "Syringodium", "Thalassia", "Halophila", "Enhalus"]

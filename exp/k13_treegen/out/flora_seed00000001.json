@@ -1,14 +1,14 @@
 {
  "meta": {
-  "commit": "9b38f94de6ff72daf35b9a5181be9415efbc3c47",
+  "commit": "0b4aa1c4b6d709799b442c5bcad23de2822f5438",
   "counts": {
    "class": 9,
-   "family": 31,
+   "family": 34,
    "genus": 50,
    "kingdom": 1,
-   "order": 31,
+   "order": 34,
    "phylum": 3,
-   "species": 119
+   "species": 134
   },
   "generator": "k13_flora",
   "seed": 1,
@@ -62303,6 +62303,1328 @@
    "sid": "490be355c9627095"
   },
   {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.22885532389719962,
+    "bloom_start_month": 8,
+    "canopy_density": 0.6,
+    "chemical_defense": "none",
+    "clonal_spread_m": 0.4014409952636507,
+    "clonality_class": "local",
+    "coloniality": 1.0,
+    "crown_spread_m": 0.30985772035417675,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.3915145070977674,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.25788354793704044,
+     "local": 0.0,
+     "water": 0.7421164520629595,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.0,
+    "engineer_impact": 0.9161748391931664,
+    "fertility_requirement": 0.2896633297051627,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "purple",
+    "fruit_month": 8,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 11.443516405615135,
+    "growth_rate": 0.10918935822809146,
+    "height_m": 0.5983918811567298,
+    "inflorescence": "none",
+    "jump_rate": 0.20613280977186443,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "dark_green",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "blade",
+    "leaf_size_cm": 0.06347294585588709,
+    "leaf_sla": 6.300164570349381,
+    "leafout_month": 1,
+    "longevity_yr": 124.66977846006363,
+    "masting_interval_yr": 1.15544707906378,
+    "mechanical_defense": "none",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.7987248711125955,
+    "photosynthesis": "C3",
+    "pioneer_climax": 0.4037355874157349,
+    "pollination_syndrome": "none",
+    "propagule_count": 85464.93287425065,
+    "propagule_mass_mg": 0.012092649245591764,
+    "provision_browse": 0.07650912957413397,
+    "provision_graze": 0.22952738872240186,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0026763907613782255,
+    "pubescence": 0.003835495643138028,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.19915542231890954,
+    "root_type": "none",
+    "salinity_tolerance": 0.9335464712482476,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.09685989244335512,
+    "silhouette": "coral_grade",
+    "storage_organ": "none",
+    "succulence": 0.19524361664935416,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 0.9889626534830083,
+    "woodiness": 0.04472638826924909
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": 0.49643637126077556,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": -0.1877481226789338,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": -0.35726599552390703,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": 0.07602374377344077,
+     "runaway": 0.0
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": 0.1933636792408223,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": -0.41646077326874914,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": -0.2582561923083686,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.48777063408532556,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -0.07580953446957452,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": -0.6502069068317309,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": -0.2913044017619663,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": -1.0372064173572844,
+     "runaway": 0.0
+    },
+    "fruit_color": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": -0.37537445019721033,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -0.09882638146780816,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -0.760501524625287,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": 0.3456460673268947,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": 0.3010683744647707,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": 0.4345149145356887,
+     "runaway": 0.0
+    },
+    "leaf_shape": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": 0.4938153575565808,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": 0.759783674661141,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": -0.45811678555878027,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": 0.38026420998184574,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.3023431363310271,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": 0.278538334153833,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": 0.18018022118056207,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": -0.2512699714438682,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": 0.3252746867644293,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": 0.2078182879669785,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": -0.5113640429621691,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": 0.03400652518306613,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": -0.16542813035218645,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": -0.36418872665477875,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -0.1759099805678015,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": -0.1522237155412436,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": 0.45440383144884816,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 394.5072827598123,
+   "gen_time": 1.7226762989923805,
+   "generics": {
+    "covering": "none",
+    "defense": "none",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "synchronous_mass",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "skeleton_branching"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Acropora excelsus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c4.o1.f1.g1",
+   "path": "k1.p2.c4.o1.f1.g1.s2",
+   "plan": "coral_grade",
+   "preset": "coral_grade.branching_coral",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "84699d640fb3c95c"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.2,
+    "bloom_start_month": 9,
+    "canopy_density": 0.0,
+    "chemical_defense": "none",
+    "clonal_spread_m": 0.5404255156679266,
+    "clonality_class": "patch",
+    "coloniality": 0.9419387245108803,
+    "crown_spread_m": 0.2857818272107428,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.39491618884151264,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.3031567519463835,
+     "local": 0.0,
+     "water": 0.6968432480536165,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.0,
+    "engineer_impact": 0.9517769716003281,
+    "fertility_requirement": 0.2975451128896605,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 8,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 11.626377199761121,
+    "growth_rate": 0.0810235516129872,
+    "height_m": 0.47845390567653334,
+    "inflorescence": "none",
+    "jump_rate": 0.20327042530041609,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "distichous",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.051598819916036466,
+    "leaf_sla": 5.181399558237172,
+    "leafout_month": 1,
+    "longevity_yr": 90.85374067462638,
+    "masting_interval_yr": 1.0246679357461372,
+    "mechanical_defense": "none",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.7799209334812823,
+    "photosynthesis": "C3",
+    "pioneer_climax": 0.3911413348023957,
+    "pollination_syndrome": "none",
+    "propagule_count": 93572.43035343771,
+    "propagule_mass_mg": 0.010199873297040815,
+    "provision_browse": 0.07630502866950925,
+    "provision_graze": 0.22891508600852772,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0,
+    "pubescence": 0.003740406127249557,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.010667401649205032,
+    "root_special": "none",
+    "root_spread_m": 0.16767658871789703,
+    "root_type": "none",
+    "salinity_tolerance": 0.9567737566830046,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.10040437377875752,
+    "silhouette": "coral_grade",
+    "storage_organ": "none",
+    "succulence": 0.20386856812718393,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.0
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -0.2647548701022857,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": 1.6922454725955285,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": 0.2373265232448124,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": -0.5308332605940785,
+     "runaway": 0.0
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": -0.008847690096520028,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": -0.0917738674119214,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": -0.17174626902219808,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.34246551259338187,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -0.09550353010290737,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": -0.014814992264232246,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": -0.0228390324717856,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": -0.21244318685136204,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 0.030490419792885866,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -0.1737475630330132,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -0.49927181870244813,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": -0.40021326610915203,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": -0.14630359274361773,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": 0.2597220167414757,
+     "runaway": 0.0
+    },
+    "leaf_arrangement": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": 0.07958543111971626,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": 0.1081151727674293,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": -0.06976917642205493,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": -0.25257079234985164,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.002046247478649155,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": 0.04029835698377445,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": -0.1367319022488279,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": -0.10022056711056963,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": 0.04157057129620563,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": -0.04322643984597523,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 0.1564801480332939,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": -0.39611467392435973,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": 0.08033398092829831,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": -0.00478629363658424,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": 0.25636419299251684,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": 0.5529569040203032,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": -0.05333438114347794,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 373.08179395061677,
+   "gen_time": 1.5403906876265028,
+   "generics": {
+    "covering": "none",
+    "defense": "none",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "synchronous_mass",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "skeleton_branching"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Acropora halophilus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c4.o1.f1.g1",
+   "path": "k1.p2.c4.o1.f1.g1.s3",
+   "plan": "coral_grade",
+   "preset": "coral_grade.branching_coral",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "ed2e04480c94dd54"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.2,
+    "bloom_start_month": 8,
+    "canopy_density": 0.0,
+    "chemical_defense": "none",
+    "clonal_spread_m": 0.1,
+    "clonality_class": "local",
+    "coloniality": 1.0,
+    "crown_spread_m": 1.5,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.4,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.2,
+     "local": 0.0,
+     "water": 0.8,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.0,
+    "engineer_impact": 0.95,
+    "fertility_requirement": 0.3,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 8,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.03,
+    "height_m": 1.8,
+    "inflorescence": "none",
+    "jump_rate": 0.2,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 5.0,
+    "leafout_month": 1,
+    "longevity_yr": 400.0,
+    "masting_interval_yr": 1.0,
+    "mechanical_defense": "none",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.78,
+    "photosynthesis": "C3",
+    "pioneer_climax": 0.4,
+    "pollination_syndrome": "none",
+    "propagule_count": 100000.0,
+    "propagule_mass_mg": 0.01,
+    "provision_browse": 0.07600000000000001,
+    "provision_graze": 0.22799999999999998,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.2,
+    "root_type": "none",
+    "salinity_tolerance": 0.95,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.1,
+    "silhouette": "coral_grade",
+    "storage_organ": "none",
+    "succulence": 0.2,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.0
+   },
+   "description": "",
+   "edge_delta": {},
+   "flags": [],
+   "g": 0.0,
+   "gen_time": 2.6832815729997477,
+   "generics": {
+    "covering": "none",
+    "defense": "none",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "synchronous_mass",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "skeleton_massive"
+   },
+   "label": null,
+   "name": {
+    "binomial": null,
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c4",
+   "path": "k1.p2.c4.o2",
+   "plan": "coral_grade",
+   "preset": "coral_grade.massive_coral",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "pre",
+   "radiate_to": "family",
+   "rank": "order",
+   "sid": "a57f80bc814258b7"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.2,
+    "bloom_start_month": 8,
+    "canopy_density": 0.0,
+    "chemical_defense": "none",
+    "clonal_spread_m": 0.1,
+    "clonality_class": "local",
+    "coloniality": 1.0,
+    "crown_spread_m": 1.5,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.4,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.2,
+     "local": 0.0,
+     "water": 0.8,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.0,
+    "engineer_impact": 0.95,
+    "fertility_requirement": 0.3,
+    "flower_color": "brown",
+    "flower_size_mm": 0.41119572379648645,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 8,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.03,
+    "height_m": 1.8,
+    "inflorescence": "none",
+    "jump_rate": 0.2,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 5.0,
+    "leafout_month": 1,
+    "longevity_yr": 400.0,
+    "masting_interval_yr": 1.0,
+    "mechanical_defense": "none",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.78,
+    "photosynthesis": "C3",
+    "pioneer_climax": 0.4,
+    "pollination_syndrome": "none",
+    "propagule_count": 100000.0,
+    "propagule_mass_mg": 0.01,
+    "provision_browse": 0.07600000000000001,
+    "provision_graze": 0.22799999999999998,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.2,
+    "root_type": "none",
+    "salinity_tolerance": 0.95,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.1,
+    "silhouette": "coral_grade",
+    "storage_organ": "none",
+    "succulence": 0.2,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.0
+   },
+   "description": "",
+   "edge_delta": {
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": 0.6305736802061404,
+     "runaway": 0.0
+    },
+    "generic_rebind": {
+     "support": [
+      "skeleton_massive",
+      "skeleton_branching"
+     ]
+    }
+   },
+   "flags": [],
+   "g": 205.69805515530172,
+   "gen_time": 3.7752555270033845,
+   "generics": {
+    "covering": "none",
+    "defense": "none",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "synchronous_mass",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "skeleton_branching"
+   },
+   "label": null,
+   "name": {
+    "binomial": null,
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c4.o2",
+   "path": "k1.p2.c4.o2.f1",
+   "plan": "coral_grade",
+   "preset": "coral_grade.massive_coral",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "post",
+   "radiate_to": null,
+   "rank": "family",
+   "sid": "c1238ee5af9715cc"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.2,
+    "bloom_start_month": 8,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.3,
+    "clonality_class": "local",
+    "coloniality": 1.0,
+    "crown_spread_m": 0.9,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.6,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.2,
+     "local": 0.0,
+     "water": 0.8,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.0,
+    "engineer_impact": 0.7,
+    "fertility_requirement": 0.3,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 8,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.15,
+    "height_m": 1.2,
+    "inflorescence": "none",
+    "jump_rate": 0.2,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 5.0,
+    "leafout_month": 1,
+    "longevity_yr": 80.0,
+    "masting_interval_yr": 1.0,
+    "mechanical_defense": "none",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.78,
+    "photosynthesis": "C3",
+    "pioneer_climax": 0.4,
+    "pollination_syndrome": "none",
+    "propagule_count": 100000.0,
+    "propagule_mass_mg": 0.01,
+    "provision_browse": 0.032,
+    "provision_graze": 0.096,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.2,
+    "root_type": "none",
+    "salinity_tolerance": 0.95,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.1,
+    "silhouette": "coral_grade",
+    "storage_organ": "none",
+    "succulence": 0.2,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.0
+   },
+   "description": "",
+   "edge_delta": {},
+   "flags": [],
+   "g": 0.0,
+   "gen_time": 2.1908902300206643,
+   "generics": {
+    "covering": "none",
+    "defense": "none",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "synchronous_mass",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "soft_body"
+   },
+   "label": null,
+   "name": {
+    "binomial": null,
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c4",
+   "path": "k1.p2.c4.o3",
+   "plan": "coral_grade",
+   "preset": "coral_grade.sea_fan",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "pre",
+   "radiate_to": "family",
+   "rank": "order",
+   "sid": "9f47688c34d6a94d"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.2,
+    "bloom_start_month": 8,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.3,
+    "clonality_class": "local",
+    "coloniality": 1.0,
+    "crown_spread_m": 0.9,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.6,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.2,
+     "local": 0.0,
+     "water": 0.8,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.0,
+    "engineer_impact": 0.7,
+    "fertility_requirement": 0.3,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3048420469982594,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 8,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.15,
+    "height_m": 1.2,
+    "inflorescence": "none",
+    "jump_rate": 0.2,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 5.0,
+    "leafout_month": 1,
+    "longevity_yr": 80.0,
+    "masting_interval_yr": 1.0,
+    "mechanical_defense": "none",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.78,
+    "photosynthesis": "C3",
+    "pioneer_climax": 0.4,
+    "pollination_syndrome": "none",
+    "propagule_count": 100000.0,
+    "propagule_mass_mg": 0.01,
+    "provision_browse": 0.032,
+    "provision_graze": 0.096,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.2,
+    "root_type": "none",
+    "salinity_tolerance": 0.95,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.1,
+    "silhouette": "coral_grade",
+    "storage_organ": "none",
+    "succulence": 0.2,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.0
+   },
+   "description": "",
+   "edge_delta": {
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": 0.032022578222984224,
+     "runaway": 0.0
+    },
+    "generic_rebind": {
+     "feeding_organ": [
+      "carnivore_trap",
+      "C3_foliage"
+     ]
+    }
+   },
+   "flags": [],
+   "g": 282.4378505294502,
+   "gen_time": 1.4918961096737249,
+   "generics": {
+    "covering": "none",
+    "defense": "none",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "C3_foliage",
+    "phenology": "synchronous_mass",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "soft_body"
+   },
+   "label": null,
+   "name": {
+    "binomial": null,
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c4.o3",
+   "path": "k1.p2.c4.o3.f1",
+   "plan": "coral_grade",
+   "preset": "coral_grade.sea_fan",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "post",
+   "radiate_to": null,
+   "rank": "family",
+   "sid": "79260cece06f9852"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.2,
+    "bloom_start_month": 8,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.5,
+    "clonality_class": "patch",
+    "coloniality": 1.0,
+    "crown_spread_m": 0.6,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.6,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.2,
+     "local": 0.0,
+     "water": 0.8,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.0,
+    "engineer_impact": 0.55,
+    "fertility_requirement": 0.3,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 8,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.3,
+    "height_m": 0.4,
+    "inflorescence": "none",
+    "jump_rate": 0.2,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 5.0,
+    "leafout_month": 1,
+    "longevity_yr": 50.0,
+    "masting_interval_yr": 1.0,
+    "mechanical_defense": "none",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.78,
+    "photosynthesis": "C3",
+    "pioneer_climax": 0.4,
+    "pollination_syndrome": "none",
+    "propagule_count": 100000.0,
+    "propagule_mass_mg": 0.01,
+    "provision_browse": 0.032,
+    "provision_graze": 0.096,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.2,
+    "root_type": "none",
+    "salinity_tolerance": 0.95,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.1,
+    "silhouette": "coral_grade",
+    "storage_organ": "none",
+    "succulence": 0.2,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.0
+   },
+   "description": "",
+   "edge_delta": {},
+   "flags": [],
+   "g": 0.0,
+   "gen_time": 1.2649110640673518,
+   "generics": {
+    "covering": "none",
+    "defense": "none",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "synchronous_mass",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "soft_body"
+   },
+   "label": null,
+   "name": {
+    "binomial": null,
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c4",
+   "path": "k1.p2.c4.o4",
+   "plan": "coral_grade",
+   "preset": "coral_grade.soft_coral",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "pre",
+   "radiate_to": "family",
+   "rank": "order",
+   "sid": "a043b7d72d984ec0"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.2,
+    "bloom_start_month": 8,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.5,
+    "clonality_class": "patch",
+    "coloniality": 1.0,
+    "crown_spread_m": 0.6,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.6,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.2,
+     "local": 0.0,
+     "water": 0.8,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.0,
+    "engineer_impact": 0.55,
+    "fertility_requirement": 0.3,
+    "flower_color": "brown",
+    "flower_size_mm": 0.42843496911300005,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 8,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.3,
+    "height_m": 0.4,
+    "inflorescence": "none",
+    "jump_rate": 0.2,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 5.0,
+    "leafout_month": 1,
+    "longevity_yr": 50.0,
+    "masting_interval_yr": 1.0,
+    "mechanical_defense": "none",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.78,
+    "photosynthesis": "C3",
+    "pioneer_climax": 0.4,
+    "pollination_syndrome": "none",
+    "propagule_count": 100000.0,
+    "propagule_mass_mg": 0.01,
+    "provision_browse": 0.032,
+    "provision_graze": 0.096,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.2,
+    "root_type": "none",
+    "salinity_tolerance": 0.95,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.1,
+    "silhouette": "coral_grade",
+    "storage_organ": "none",
+    "succulence": 0.2,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.0
+   },
+   "description": "",
+   "edge_delta": {
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": 0.7127129756679387,
+     "runaway": 0.0
+    },
+    "generic_rebind": {
+     "storage": [
+      "none",
+      null
+     ]
+    }
+   },
+   "flags": [],
+   "g": 304.66905928329453,
+   "gen_time": 1.111190781871019,
+   "generics": {
+    "covering": "none",
+    "defense": "none",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "synchronous_mass",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "support": "soft_body"
+   },
+   "label": null,
+   "name": {
+    "binomial": null,
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c4.o4",
+   "path": "k1.p2.c4.o4.f1",
+   "plan": "coral_grade",
+   "preset": "coral_grade.soft_coral",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "post",
+   "radiate_to": null,
+   "rank": "family",
+   "sid": "e030d5b325a72ccf"
+  },
+  {
    "axes": {},
    "description": "",
    "edge_delta": {},
@@ -63204,7 +64526,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Xestospongia pumilus",
+    "binomial": "Xestospongia bulbosus",
     "folk": null,
     "history": []
    },
@@ -63220,6 +64542,2528 @@
    "radiate_to": null,
    "rank": "species",
    "sid": "b664d041ac469f0e"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 2.3510279146233364,
+    "bloom_start_month": 6,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.24080467092200056,
+    "clonality_class": "local",
+    "coloniality": 0.3301668575315374,
+    "crown_spread_m": 0.38360248589951923,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.5225001594995288,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.2564715934041035,
+     "local": 0.0,
+     "water": 0.7435284065958965,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.01060829594159755,
+    "engineer_impact": 0.58523088096321,
+    "fertility_requirement": 0.18744042379131481,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 7,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 11.651066795785981,
+    "growth_rate": 0.040555549334640235,
+    "height_m": 1.4987765434390357,
+    "inflorescence": "none",
+    "jump_rate": 0.20002094815546398,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 4.0316337544235,
+    "leafout_month": 1,
+    "longevity_yr": 236.6690331769755,
+    "masting_interval_yr": 1.1497295133008874,
+    "mechanical_defense": "trichomes",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "rhizobium",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.8396884217143905,
+    "photosynthesis": "none",
+    "pioneer_climax": 0.5329082758140719,
+    "pollination_syndrome": "none",
+    "propagule_count": 54030.243614690466,
+    "propagule_mass_mg": 0.0088781481726094,
+    "provision_browse": 0.034324995215014135,
+    "provision_graze": 0.10297498564504241,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.000807622644123488,
+    "pubescence": 0.022521682190321458,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.11314849065376037,
+    "root_type": "none",
+    "salinity_tolerance": 0.8248401942916805,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.5915937147270098,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.30043390114592233,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.0053885460621791404
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": 2.8108083969536515,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": 0.34519467264886106,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": 0.3570425810884515,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": 0.9430097106170456,
+     "runaway": 0.0
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": -0.14247511456958487,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": -1.4186808931463317,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": 0.4339188476313423,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 1.179196908135672,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": 1.586920722171643,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": -0.4176430578443715,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": -0.7282550924551056,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": -1.077847710457684,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 1.0110485623876573,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -0.6814148161303296,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -0.5893030594556304,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": -0.5406232083643615,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": 0.7529782100090395,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": -0.02183476205031194,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": -0.6466235988213564,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -0.6968768276457835,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": 0.29267129560322025,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": 0.2947031058982931,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.3328156834787864,
+     "runaway": 0.0
+    },
+    "mechanical_defense": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "n_fixation": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": 0.6723375181287269,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": 0.6155731484884589,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": -0.9722188479228381,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": -0.12380448645545065,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": 0.23028076002399514,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": -1.6510938080584805,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": -1.4810642830065948,
+     "runaway": 0.0
+    },
+    "root_type": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": -0.7973798146467337,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": 1.6442138357183078,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": 0.003401877635437217,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": 0.5646348714894962,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": 0.3621686525725222,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 555.2314729676754,
+   "gen_time": 1.6306389016470797,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia excelsus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s10",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "cb2d1e8769be81f7"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 1.1900922475099365,
+    "bloom_start_month": 6,
+    "canopy_density": 0.6,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 1.0318832659784667,
+    "clonality_class": "patch",
+    "coloniality": 0.31375685052317825,
+    "crown_spread_m": 0.5531458325124795,
+    "cuticle_thickness": 0.11313074122733911,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.4949983243725447,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.7071217037798785,
+     "local": 0.0,
+     "water": 0.29287829622012146,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.008602823142832382,
+    "engineer_impact": 0.6283054425469908,
+    "fertility_requirement": 0.195579071376525,
+    "flower_color": "brown",
+    "flower_size_mm": 0.30127377153074414,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 7,
+    "fruit_size_mm": 1.1839091349207762,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.05399031913114036,
+    "height_m": 1.2817602151608118,
+    "inflorescence": "none",
+    "jump_rate": 0.1958673746742894,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "dark_green",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "lanceolate",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 4.9353191709014865,
+    "leafout_month": 1,
+    "longevity_yr": 247.90282900562877,
+    "masting_interval_yr": 1.1309198892758474,
+    "mechanical_defense": "spine",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.8262205507830499,
+    "photosynthesis": "none",
+    "pioneer_climax": 0.5105212506142559,
+    "pollination_syndrome": "none",
+    "propagule_count": 84216.05699160964,
+    "propagule_mass_mg": 0.00961731497343547,
+    "provision_browse": 0.03515005026882367,
+    "provision_graze": 0.10545015080647098,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0006121333192706121,
+    "pubescence": 0.09722560464195731,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01029739830118992,
+    "root_special": "none",
+    "root_spread_m": 0.2269710716950982,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.8770368682928114,
+    "seed_bank": "persistent",
+    "shade_tolerance": 0.5024588131485115,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.2960227690172009,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 0.9385866137583256,
+    "woodiness": 0.004775724133345899
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": 0.5414023304100117,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": 0.2724747469830805,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": 3.2673520101254416,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": 0.43321140049393514,
+     "runaway": 0.0
+    },
+    "constraint": {
+     "flowers_seed_plans": {
+      "flower_symmetry": [
+       "composite_head",
+       "none"
+      ]
+     }
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": 0.7725620227227451,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": 1.175358397525358,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": -0.10679026881050784,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.7033607061853205,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -0.5085383698854181,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": 0.7660233425796512,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": -0.3032180956274922,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": -0.007520449142353884,
+     "runaway": 0.0
+    },
+    "flower_symmetry": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 1.0516111548242382,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": 0.29905179099590923,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": 0.5468713907484327,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": 0.17470712235925742,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": 0.44014853753061883,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": -0.28413890545714793,
+     "runaway": 0.0
+    },
+    "leaf_shape": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": -0.3031817918807073,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -0.022724648239557586,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": 0.6537570295041405,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": 0.38745144630182327,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.2915773184225467,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": 0.5106460382947804,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": 0.18640259695957478,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": -0.23248276966260853,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": 0.009482381532559366,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": 0.9773199845403537,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 0.017774445405779375,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": 0.25923956510024354,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": -0.18378614556488734,
+     "runaway": 0.0
+    },
+    "seed_bank": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": 0.01114949675767205,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -0.14451205386489313,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": -0.6784139890023962,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": -0.8451312260137501,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 481.9709644248474,
+   "gen_time": 1.5079701637853873,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia lanceus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s11",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "340c6642e39ee1a8"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.9717931107993452,
+    "bloom_start_month": 5,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.15722682875266697,
+    "clonality_class": "local",
+    "coloniality": 0.2939190827707641,
+    "crown_spread_m": 0.5799437465876791,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.5196924267054557,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.14623422176975556,
+     "local": 0.0,
+     "water": 0.8537657782302444,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.009940360786373363,
+    "engineer_impact": 0.5753768161306445,
+    "fertility_requirement": 0.19819542949087177,
+    "flower_color": "brown",
+    "flower_size_mm": 0.42885246715010156,
+    "flower_symmetry": "none",
+    "fruit_color": "pink",
+    "fruit_month": 6,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.06917167905319502,
+    "height_m": 1.0320848133224205,
+    "inflorescence": "none",
+    "jump_rate": 0.19858704636095212,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 3.253933300412485,
+    "leafout_month": 1,
+    "longevity_yr": 276.547206446861,
+    "masting_interval_yr": 1.5435366105977122,
+    "mechanical_defense": "trichomes",
+    "mycoheterotrophy": "yes",
+    "mycorrhizal": "arbuscular",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.7556385260055668,
+    "photosynthesis": "C3",
+    "pioneer_climax": 0.5083829800947601,
+    "pollination_syndrome": "none",
+    "propagule_count": 102660.65697886093,
+    "propagule_mass_mg": 0.005966565135169747,
+    "provision_browse": 0.03440922719883634,
+    "provision_graze": 0.103227681596509,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0005389843021247055,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.012057104974832018,
+    "root_special": "none",
+    "root_spread_m": 0.14483147554165862,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.9115233810825313,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.5652162641434038,
+    "silhouette": "sponge_grade",
+    "storage_organ": "endosperm",
+    "succulence": 0.30709748364354067,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.0052222869202933255
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -0.13407490020344626,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": -0.7372710993053211,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": -0.4955505768401993,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": -0.21992683709607996,
+     "runaway": 0.0
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": 0.8908356023289511,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": -0.4490658218449147,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": 0.3800374513503188,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.9621608642816849,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": 0.9365905762484383,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": -0.700664376544743,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": -0.17033002842761694,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": 0.6986666889111518,
+     "runaway": 0.0
+    },
+    "fruit_color": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": -0.41006639538680467,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -0.8931429848484164,
+     "runaway": 0.0
+    },
+    "generic_rebind": {
+     "support": [
+      "body_barrel",
+      "body_tube"
+     ]
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": 1.4267980831930438,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": 0.7941740260408473,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": 0.00684162910307234,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": -0.11176697611530743,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": -0.29954752905633764,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -1.4112340978532005,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": -0.28783762151024317,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": 0.6061408144851171,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 1.069189620984467,
+     "runaway": 0.0
+    },
+    "mechanical_defense": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "mycoheterotrophy": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "mycorrhizal": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": -0.3823402305395873,
+     "runaway": 0.0
+    },
+    "photosynthesis": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": 0.14443057261969058,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": 0.09758948532374756,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": -0.786173800712766,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": -0.7153005268739481,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 0.41218154398702733,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": -0.8638897924975885,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": 0.20189599857334306,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": 1.1880970329002984,
+     "runaway": 0.0
+    },
+    "storage_organ": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": 0.22277654373809141,
+     "runaway": 0.0
+    },
+    "synchronous_flowering": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": 0.865052311987625,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": 0.04876677290719464,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 518.8571194530571,
+   "gen_time": 1.3531534494629303,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_tube"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia siccus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s12",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "5a9fc001269822cc"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.8384958819431586,
+    "bloom_start_month": 6,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.18598562497093835,
+    "clonality_class": "local",
+    "coloniality": 0.29015544247094455,
+    "crown_spread_m": 0.361383861098464,
+    "cuticle_thickness": 0.015592271927870676,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.5361320740672045,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.47825098462257565,
+     "local": 0.0,
+     "water": 0.5217490153774242,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.00888897019758379,
+    "engineer_impact": 0.585194264189236,
+    "fertility_requirement": 0.20061150367549196,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 7,
+    "fruit_size_mm": 1.2215804880630365,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.037342154737657264,
+    "height_m": 0.6501445680818104,
+    "inflorescence": "none",
+    "jump_rate": 0.19632581549941697,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "toothed",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05900760633102623,
+    "leaf_sla": 4.305984407150786,
+    "leafout_month": 1,
+    "longevity_yr": 167.9753371151563,
+    "masting_interval_yr": 1.4771138877949972,
+    "mechanical_defense": "none",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.8046790640981474,
+    "photosynthesis": "none",
+    "pioneer_climax": 0.516539157184562,
+    "pollination_syndrome": "none",
+    "propagule_count": 76579.35008881168,
+    "propagule_mass_mg": 0.010039005604033818,
+    "provision_browse": 0.03391603777798387,
+    "provision_graze": 0.10174811333395159,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.00033592709323928464,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.011389798969701173,
+    "root_special": "none",
+    "root_spread_m": 0.15564700704334924,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.8108654879456672,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.48852401554186925,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.29225522388174036,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.005166959930625976
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -0.6258524428716641,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": 0.1788846815334078,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": -0.1595908691897053,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": -0.3488039659529444,
+     "runaway": 0.0
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": -0.2916403717991973,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": 0.1999737045306737,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": 0.691471332213805,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.7064881477998775,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -0.1813305427676821,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": -0.4186858918418438,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": -0.04916344164301326,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": -0.6911033344602436,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 0.8924982902526888,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": 0.3616992169742237,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": 0.23208690898446374,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": -0.7469976596707248,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": -0.9174411219435925,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": -0.2549159966068089,
+     "runaway": 0.0
+    },
+    "leaf_margin": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": 0.32461731276950795,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -0.47742987492083216,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": -0.17264886803830687,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": -0.39098792393351733,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.9592241814883927,
+     "runaway": 0.0
+    },
+    "mechanical_defense": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": 0.24646375102620746,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": 0.30359094138254733,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": -0.39091301026785563,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": 0.08100396321008842,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": -0.06881607037511214,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 0.26984158633837707,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": -0.6838401947804965,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": -0.9682546428804989,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": -0.2701009093498675,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -0.27260104212881653,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": 0.2878226726549835,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": -0.05774241586137807,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 482.36624258778454,
+   "gen_time": 1.073975376841718,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia nanus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s13",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "a0727ab0d9a65c05"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.8556954002949354,
+    "bloom_start_month": 6,
+    "canopy_density": 0.0,
+    "chemical_defense": "tannin",
+    "clonal_spread_m": 0.17722393970183,
+    "clonality_class": "local",
+    "coloniality": 0.28036765119134816,
+    "crown_spread_m": 0.3960299724687232,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.47398349022070907,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.04767866355535594,
+     "local": 0.0,
+     "water": 0.952321336444644,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.008037887033635963,
+    "engineer_impact": 0.6005256802050176,
+    "fertility_requirement": 0.17290655921354464,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "black",
+    "fruit_month": 7,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 11.551610234400291,
+    "growth_rate": 0.03561288287125807,
+    "height_m": 1.0901364939077334,
+    "inflorescence": "none",
+    "jump_rate": 0.20062658450943116,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "serrate",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.06847941826280392,
+    "leaf_sla": 4.353827969553547,
+    "leafout_month": 2,
+    "longevity_yr": 477.0931162352529,
+    "masting_interval_yr": 1.0831582689981514,
+    "mechanical_defense": "spine",
+    "mycoheterotrophy": "yes",
+    "mycorrhizal": "arbuscular",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "hemi",
+    "ph_tolerance": 0.8757826388407786,
+    "photosynthesis": "CAM",
+    "pioneer_climax": 0.48981393852898103,
+    "pollination_syndrome": "none",
+    "propagule_count": 126633.29234276817,
+    "propagule_mass_mg": 0.006642096485656849,
+    "provision_browse": 0.035780495293378727,
+    "provision_graze": 0.10734148588013619,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0005057344746685504,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.015065875167479348,
+    "root_special": "none",
+    "root_spread_m": 0.2745902799256882,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.9537206850475042,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.5233547211121854,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.4,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.004639184886432713
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -0.5581697695186789,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": -0.2661186340021217,
+     "runaway": 0.0
+    },
+    "chemical_defense": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": -0.2561013825513052,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": -0.6919540263983742,
+     "runaway": 0.0
+    },
+    "constraint": {
+     "cam_succulence": {
+      "succulence": [
+       0.2681997959185718,
+       0.4
+      ]
+     },
+     "flowers_seed_plans": {
+      "flower_symmetry": [
+       "radial",
+       "none"
+      ]
+     }
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": -0.06276743205158446,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": 0.012884065022187537,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": -0.5406091400756756,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.9915089276127667,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -1.1877801691134096,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": 0.01233973592419614,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": -1.5353523595891883,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": -0.036539001597019845,
+     "runaway": 0.0
+    },
+    "flower_symmetry": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "fruit_color": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 1.4814608606704103,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -0.16923883267267747,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -0.7313838614351885,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": -0.8655361384941502,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": 0.11628575917371108,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": 0.015956361437081037,
+     "runaway": 0.0
+    },
+    "leaf_margin": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": 0.6223510734541322,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -0.44059763028705534,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": 1.4443039297237714,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": 1.696801112725405,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.18370165318559123,
+     "runaway": 0.0
+    },
+    "mycoheterotrophy": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "mycorrhizal": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "parasitism": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": 1.093207862863231,
+     "runaway": 0.0
+    },
+    "photosynthesis": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": -0.22766402396613217,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": 0.4473669705879552,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": -0.6074133976058318,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": -1.1002806148113138,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 0.9691269265230696,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": 0.7353833741045435,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": 0.6544320046245109,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": 0.41860754191706695,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -1.1315536919030516,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": 0.10697812638430383,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": -1.1352005621994672,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 523.5192874815993,
+   "gen_time": 1.3906882792439395,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia halophilus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s14",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "2d5f3d5440bd0093"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.90542509706566,
+    "bloom_start_month": 6,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.19077497146758557,
+    "clonality_class": "local",
+    "coloniality": 0.2847337488642127,
+    "crown_spread_m": 0.3712619480136205,
+    "cuticle_thickness": 0.027184124040160476,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.4933956175894159,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.12274824370784068,
+     "local": 0.0,
+     "water": 0.8772517562921593,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.008315310245560554,
+    "engineer_impact": 0.5756920603456367,
+    "fertility_requirement": 0.2036131680106634,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 6,
+    "fruit_size_mm": 1.0749187270896425,
+    "fruit_type": "none",
+    "growing_season_req": 11.71167201096046,
+    "growth_rate": 0.07155152318848226,
+    "height_m": 0.871078115581931,
+    "inflorescence": "none",
+    "jump_rate": 0.20040618981888736,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.0589869850309529,
+    "leaf_sla": 4.550802671458854,
+    "leafout_month": 1,
+    "longevity_yr": 160.5087852623795,
+    "masting_interval_yr": 1.6138956419373442,
+    "mechanical_defense": "trichomes",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.7683232230314362,
+    "photosynthesis": "none",
+    "pioneer_climax": 0.5151558997191023,
+    "pollination_syndrome": "none",
+    "propagule_count": 120862.42835019568,
+    "propagule_mass_mg": 0.013258372810999132,
+    "provision_browse": 0.035198131472317526,
+    "provision_graze": 0.10559439441695256,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.00046578755559511105,
+    "pubescence": 0.06100079623021228,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01348561101680398,
+    "root_special": "none",
+    "root_spread_m": 0.21825037426175617,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.9321416209342326,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.47487797804208165,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.28095146909591756,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 0.9932369354948763,
+    "woodiness": 0.005347253561569937
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -0.3698694965457602,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": 0.23480785441939772,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": -0.10874049320758289,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": -0.5374265538828936,
+     "runaway": 0.0
+    },
+    "constraint": {
+     "pollination_seed_plans": {
+      "pollination_syndrome": [
+       "fly",
+       "none"
+      ]
+     }
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": -0.2242224911563423,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": 0.3158922256535717,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": -0.13922082346649195,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.6641796456772431,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -0.8484583529925647,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": -0.6915353478851991,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": 0.09935394085975068,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": -0.5266974652445289,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": -0.3543214503744837,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": 0.1058983243003239,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -0.502724180634948,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": 0.8787397200617026,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": -0.33236730758986915,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": 0.002217165613177105,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": 0.3239182535992443,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -0.29310370502278055,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": 0.5852561021555045,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": -0.48192489959624984,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 1.1806261855821263,
+     "runaway": 0.0
+    },
+    "mechanical_defense": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": -0.21586636752009855,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": 0.2767756865245917,
+     "runaway": 0.0
+    },
+    "pollination_syndrome": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": 0.36962946251825063,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": 0.544589291859359,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": 0.6150719004229034,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 0.6921044334138539,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": 0.16129040923701377,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": 0.4255711178641718,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": -0.5534084031395973,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -0.6670563253326667,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": -0.11247298916686338,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": 0.28524340120865727,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 477.13492478713437,
+   "gen_time": 1.243133891104959,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia humilis",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s15",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "44cbc452fbd8ea00"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.7186016340973678,
+    "bloom_start_month": 6,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.27372581624105463,
+    "clonality_class": "local",
+    "coloniality": 0.3271951901911793,
+    "crown_spread_m": 0.42435695045910937,
+    "cuticle_thickness": 0.16257249566958407,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.5151455707460424,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.22482214650846855,
+     "local": 0.0,
+     "water": 0.7751778534915315,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.009135265946642821,
+    "engineer_impact": 0.6123328857484407,
+    "fertility_requirement": 0.36801306030265607,
+    "flower_color": "brown",
+    "flower_size_mm": 0.39564276218064315,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 6,
+    "fruit_size_mm": 1.0208185197718886,
+    "fruit_type": "none",
+    "growing_season_req": 11.328701641657263,
+    "growth_rate": 0.03252964941821449,
+    "height_m": 1.1298127005082288,
+    "inflorescence": "none",
+    "jump_rate": 0.20539442744299616,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.07673282666626662,
+    "leaf_sla": 2.866117571021698,
+    "leafout_month": 1,
+    "longevity_yr": 190.4864419637736,
+    "masting_interval_yr": 1.1292088518272496,
+    "mechanical_defense": "spine",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.688981906039619,
+    "photosynthesis": "none",
+    "pioneer_climax": 0.4751584222033239,
+    "pollination_syndrome": "none",
+    "propagule_count": 46286.82993044694,
+    "propagule_mass_mg": 0.011814929813601192,
+    "provision_browse": 0.03454563287761873,
+    "provision_graze": 0.10363689863285618,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0005824982069066889,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.011654093680526709,
+    "root_special": "none",
+    "root_spread_m": 0.24331633686351367,
+    "root_type": "aerial",
+    "salinity_tolerance": 0.8907964258850455,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.4526500210411453,
+    "silhouette": "sponge_grade",
+    "storage_organ": "succulent_tissue",
+    "succulence": 0.2979641060330544,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.005155705955904559
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -1.1401941807195635,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": -0.47583754290638847,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": 0.6133242290218545,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": 0.8525972022078105,
+     "runaway": 0.0
+    },
+    "constraint": {
+     "pollination_seed_plans": {
+      "pollination_syndrome": [
+       "water",
+       "none"
+      ]
+     }
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": 0.10994524022519898,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": 1.6697759419478075,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": 0.29216118027219956,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.8926744259135616,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": 0.09198043538411062,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": 0.33685074070601323,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": 6.0183186310570465,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": 0.5374641449786289,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": -0.20810046398198598,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": 0.002617763978912363,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -1.0498247082109438,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": -1.0919248573901974,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": 0.18778366928072066,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": 0.30954105067733967,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": 0.84994380912494,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -1.8342546298961653,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": 0.3737544937685136,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": -0.13946021293457922,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.2877920522464151,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": -1.3058213520559345,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": -0.5314373524551032,
+     "runaway": 0.0
+    },
+    "pollination_syndrome": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": -1.2300296593260365,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": 0.3524804702721087,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": -0.7057202357620147,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 0.32719003531618324,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": 0.4330891216869116,
+     "runaway": 0.0
+    },
+    "root_type": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": -0.028117220252774917,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": -1.0327947660887387,
+     "runaway": 0.0
+    },
+    "storage_organ": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -0.07914549410319782,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": 1.576588058557783,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": -0.07954682046746289,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 508.1790275706959,
+   "gen_time": 1.4157695955704026,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia brunneus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s16",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "809db563c1dbd125"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 1.0138609885333567,
+    "bloom_start_month": 5,
+    "canopy_density": 0.6,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.14755770173389346,
+    "clonality_class": "local",
+    "coloniality": 0.2877016458839745,
+    "crown_spread_m": 0.3923108617270872,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.49005490793884054,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.09895218263874613,
+     "local": 0.0,
+     "water": 0.9010478173612537,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.008692947073328716,
+    "engineer_impact": 0.5655412483428588,
+    "fertility_requirement": 0.21115023654264037,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 7,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.13376636388627616,
+    "height_m": 0.826937454980121,
+    "inflorescence": "none",
+    "jump_rate": 0.19003618424593371,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "dark_green",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "lobed",
+    "leaf_size_cm": 0.05654228548269422,
+    "leaf_sla": 5.088287436488218,
+    "leafout_month": 1,
+    "longevity_yr": 230.3969225140662,
+    "masting_interval_yr": 0.5501167055388164,
+    "mechanical_defense": "spine",
+    "mycoheterotrophy": "yes",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.8073799341049318,
+    "photosynthesis": "none",
+    "pioneer_climax": 0.5258655718545889,
+    "pollination_syndrome": "none",
+    "propagule_count": 128764.55087830676,
+    "propagule_mass_mg": 0.005159453329487368,
+    "provision_browse": 0.03529835276183479,
+    "provision_graze": 0.10589505828550434,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0004230175746113829,
+    "pubescence": 0.01318101795547143,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.14829011505770545,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.8137922360633748,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.5149678507975177,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.27221613458318317,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.005115472422537107
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": 0.007185598943038665,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": -0.7779415681170938,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": -0.6224910454824528,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": -0.43373193119805675,
+     "runaway": 0.0
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": -0.086355822832051,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": -0.24522094341547784,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": -0.20715962493245688,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.7352259681959151,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -0.4043224314654547,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": -0.9880297815313288,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": 0.462833372517577,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": -0.11032680437626877,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 0.9041888637975172,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -0.6376914288335048,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": 0.06104389522094749,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": 2.4429320472651557,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": -0.43637249640824305,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": -0.6619298172044278,
+     "runaway": 0.0
+    },
+    "leaf_shape": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": 0.23926214755150096,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": 0.07902192413982553,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": -0.403607526228163,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": 0.24098488776254812,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": -1.5100631671736962,
+     "runaway": 0.0
+    },
+    "mycoheterotrophy": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": 0.2799721094291084,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": 0.4825360915594779,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": 0.47518380701793295,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": -1.028408430043761,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": 0.13687411767549487,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": -0.30735843442129457,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": -0.8048903849266659,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": -0.9322254997512907,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": 0.2570575006460558,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -0.9829121591073622,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": 0.514159741040853,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": -0.15788980637760194,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 486.06102002952315,
+   "gen_time": 1.2112273999746574,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia pumilus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s17",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "4f34d85c72a9da18"
   },
   {
    "axes": {
@@ -64135,7 +67979,7 @@
    },
    "label": null,
    "name": {
-    "binomial": "Xestospongia nanus",
+    "binomial": "Xestospongia squamatus",
     "folk": null,
     "history": []
    },
@@ -64151,6 +67995,1594 @@
    "radiate_to": null,
    "rank": "species",
    "sid": "3df87bab214485f7"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.7036693320088128,
+    "bloom_start_month": 7,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.2070799389089822,
+    "clonality_class": "local",
+    "coloniality": 0.3044962554996001,
+    "crown_spread_m": 0.4398615163735365,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.41097609926238104,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.12431451863355998,
+     "local": 0.0,
+     "water": 0.87568548136644,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.008043468520497598,
+    "engineer_impact": 0.6054072066497217,
+    "fertility_requirement": 0.23183549730851763,
+    "flower_color": "brown",
+    "flower_size_mm": 0.42574872510130735,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 7,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 11.757526636675664,
+    "growth_rate": 0.05183746586237081,
+    "height_m": 0.9296326016668458,
+    "inflorescence": "none",
+    "jump_rate": 0.2036962817851977,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "whorled",
+    "leaf_color": "none",
+    "leaf_margin": "toothed",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.0759719958287655,
+    "leaf_sla": 6.810919283884929,
+    "leafout_month": 1,
+    "longevity_yr": 133.86688751509027,
+    "masting_interval_yr": 1.2347845321764224,
+    "mechanical_defense": "spine",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "none",
+    "parasitism": "none",
+    "ph_tolerance": 0.7163198708206785,
+    "photosynthesis": "none",
+    "pioneer_climax": 0.5185762849767094,
+    "pollination_syndrome": "none",
+    "propagule_count": 68637.52893680225,
+    "propagule_mass_mg": 0.008767656347643836,
+    "provision_browse": 0.03767071702212857,
+    "provision_graze": 0.11301215106638571,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.00046579237812103364,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.02060996172540977,
+    "root_special": "none",
+    "root_spread_m": 0.28121065594352435,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.951172533755526,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.5627500957358875,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.2887121212608649,
+    "synchronous_flowering": "yes",
+    "waterlogging_tolerance": 0.9496732445997397,
+    "woodiness": 0.005010499602594193
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -1.2101895197672774,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": 0.7845594528031564,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": 0.05528015360611356,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": 0.13361605369430715,
+     "runaway": 0.0
+    },
+    "constraint": {
+     "buttress_emergent": {
+      "root_special": [
+       "buttress",
+       "none"
+      ]
+     },
+     "flowers_seed_plans": {
+      "flower_symmetry": [
+       "radial",
+       "none"
+      ]
+     },
+     "pollination_seed_plans": {
+      "pollination_syndrome": [
+       "moth",
+       "none"
+      ]
+     }
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": 0.1996576814868766,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": -1.1130068888975353,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": -1.9669834417901222,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.8693722526409486,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -1.1808386061749285,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": 0.1472713218244228,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": 1.3974149245031724,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": 0.684139418305186,
+     "runaway": 0.0
+    },
+    "flower_symmetry": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 1.1578087343772623,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -1.0082868281679425,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -0.43721757247037074,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": 0.07297815205467513,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": -0.2022517108849489,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": 0.20576483594189968,
+     "runaway": 0.0
+    },
+    "leaf_arrangement": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_margin": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": 0.8300141927377185,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": 1.0509745370727939,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": -0.07268166558078958,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": -0.8449303964705507,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.5112401287305196,
+     "runaway": 0.0
+    },
+    "nutrient_package": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": -0.916703305285473,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": 0.34295139025965793,
+     "runaway": 0.0
+    },
+    "pollination_syndrome": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": -0.5733930188067003,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": -0.14467692083234082,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": -1.1996283660509472,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 1.7524826119082313,
+     "runaway": 0.0
+    },
+    "root_special": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": 0.7949432697515009,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": 0.62767824450063,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": 1.1443692689366942,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -0.3945750765721916,
+     "runaway": 0.0
+    },
+    "synchronous_flowering": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": -0.5609856785879686,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": -0.36523104797073064,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 504.7173427022475,
+   "gen_time": 1.2842365560696585,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia marinus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s5",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "8f992c73ed9a643a"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 1.0923326365013912,
+    "bloom_start_month": 6,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.1409938113974513,
+    "clonality_class": "local",
+    "coloniality": 0.30197044954914004,
+    "crown_spread_m": 0.4347009487481394,
+    "cuticle_thickness": 0.020046827924223694,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.5299913584897007,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.06770181724347059,
+     "local": 0.0,
+     "water": 0.9322981827565294,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.008624428599073673,
+    "engineer_impact": 0.6031513358971795,
+    "fertility_requirement": 0.20544353965351717,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3704759200864356,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 6,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.04771427334294228,
+    "height_m": 1.5384066330021164,
+    "inflorescence": "none",
+    "jump_rate": 0.215168477640407,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 4.152686111780477,
+    "leafout_month": 1,
+    "longevity_yr": 165.5722644859424,
+    "masting_interval_yr": 1.1931824661401047,
+    "mechanical_defense": "trichomes",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "ericoid",
+    "n_fixation": "none",
+    "nutrient_package": "none",
+    "parasitism": "holo",
+    "ph_tolerance": 0.8361100507338154,
+    "photosynthesis": "none",
+    "pioneer_climax": 0.5211697658893082,
+    "pollination_syndrome": "none",
+    "propagule_count": 131588.3704107525,
+    "propagule_mass_mg": 0.016268272054046937,
+    "provision_browse": 0.03410025924530898,
+    "provision_graze": 0.10230077773592695,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0007341540805496838,
+    "pubescence": 0.0003003574234883453,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.18856987692927052,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.77909797237791,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.5373323725193397,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.28817220026701695,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 0.9576183657858689,
+    "woodiness": 0.004772171835459538
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": 0.25568439735564014,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": -0.004689919600117876,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": -0.7134976432044066,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": 0.05031978917236099,
+     "runaway": 0.0
+    },
+    "constraint": {
+     "fruit_seed_plans": {
+      "fruit_type": [
+       "caryopsis",
+       "none"
+      ]
+     }
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": 0.17015362816129365,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": 0.2445192644942039,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": 0.576272973387889,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.6864459559199725,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -0.4834554746069773,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": 0.08505192869235313,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": 0.18884685588696482,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": 0.4060176673929468,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 0.0976660600985089,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -1.0820537920812152,
+     "runaway": 0.0
+    },
+    "fruit_type": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -0.003373882071975984,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": -0.13422830389467927,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": 0.8051743886481212,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": 0.8906556923486417,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": -0.03911855844485502,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -0.5982645316902883,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": 0.05117157078175142,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": -0.41980676954346563,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.4255591080920581,
+     "runaway": 0.0
+    },
+    "mechanical_defense": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "mycorrhizal": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "nutrient_package": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "parasitism": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": 0.6296309937097848,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": 0.3928383081106,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": 0.5113389646159893,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": 0.8855683719315661,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": 0.008067512355664044,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": -0.7267162986392665,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": -0.20414526942016914,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": -1.3679084033244084,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": 0.6821812326681088,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -0.4132936005933438,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": -0.47767207200827355,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": -0.8525722330416267,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 479.856664458227,
+   "gen_time": 1.6520566179547473,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia palustris",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s6",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "2fdb7176b18d9e89"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.8092097123751346,
+    "bloom_start_month": 7,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.19885330562188236,
+    "clonality_class": "local",
+    "coloniality": 0.30316887492527883,
+    "crown_spread_m": 0.3672043078248836,
+    "cuticle_thickness": 0.02701624132850103,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.5278626185505205,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.12495115682831633,
+     "local": 0.0,
+     "water": 0.8750488431716836,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.008869058449015504,
+    "engineer_impact": 0.7254002918640963,
+    "fertility_requirement": 0.21899594380613974,
+    "flower_color": "brown",
+    "flower_size_mm": 0.5468292894586796,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 6,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 11.634346009811729,
+    "growth_rate": 0.07124799704520109,
+    "height_m": 0.8230820319789994,
+    "inflorescence": "none",
+    "jump_rate": 0.2132296726563684,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "alternate",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "winter_deciduous",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 5.6444921061753925,
+    "leafout_month": 1,
+    "longevity_yr": 209.09021713964628,
+    "masting_interval_yr": 0.8629456647750469,
+    "mechanical_defense": "spine",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "ecto",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.7442061617755072,
+    "photosynthesis": "chemosymbiosis",
+    "pioneer_climax": 0.4694504524064563,
+    "pollination_syndrome": "none",
+    "propagule_count": 143617.84152271514,
+    "propagule_mass_mg": 0.008776076320239884,
+    "provision_browse": 0.03416412144348439,
+    "provision_graze": 0.10249236433045315,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.00042492209909720694,
+    "pubescence": 0.01546906929161242,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.011214411538793932,
+    "root_special": "none",
+    "root_spread_m": 0.19456773273993083,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.8911246473989093,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.5142272117144044,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.3102234370850495,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 0.9144633437037478,
+    "woodiness": 0.005162572897813527
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -0.7443576507721283,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": 1.2432405783576121,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": -0.025794850015469918,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": 0.08992808744112595,
+     "runaway": 0.0
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": -0.2516961975912021,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": 0.3142133985369772,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": 0.5360265337320698,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.7763281733618695,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -0.2037561816822075,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": 3.160976800720959,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": 0.8276664382548251,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": 1.1847141054403059,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 0.6971969849534193,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -0.2334851412231,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -0.6131898965617053,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": 0.8681120022693682,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": -0.4457188830371379,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": 0.7775122170705663,
+     "runaway": 0.0
+    },
+    "leaf_arrangement": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_persistence": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": -0.3879951596187389,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": 0.4248182699977727,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": -0.02289371269675621,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": 0.046909384147646685,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": -0.38450996559285344,
+     "runaway": 0.0
+    },
+    "mycorrhizal": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": -0.5347904907489904,
+     "runaway": 0.0
+    },
+    "photosynthesis": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": -0.6522924370387921,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": 0.6571343800097009,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": -0.14307711433696874,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": 0.1597546310369048,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 0.2310455066022842,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": -0.12586600777221926,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": -0.024433313905891173,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": 0.24266490903846555,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": 0.32405223535892413,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": -0.9387915663697308,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": -0.06623657169414313,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 491.53680522244827,
+   "gen_time": 1.2084005539663458,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia xerophilus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s7",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "bae7496e0a17de8c"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.8176194530112509,
+    "bloom_start_month": 6,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.15550132931533042,
+    "clonality_class": "local",
+    "coloniality": 0.3076064750131971,
+    "crown_spread_m": 0.403723593528972,
+    "cuticle_thickness": 0.0,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.5369765175336728,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.0756037239174567,
+     "local": 0.0,
+     "water": 0.9243962760825433,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.009808708892994697,
+    "engineer_impact": 0.604260716049386,
+    "fertility_requirement": 0.2013960423686307,
+    "flower_color": "brown",
+    "flower_size_mm": 0.3,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 6,
+    "fruit_size_mm": 1.3180781157974863,
+    "fruit_type": "none",
+    "growing_season_req": 12.0,
+    "growth_rate": 0.03748278232092473,
+    "height_m": 1.7319863269880806,
+    "inflorescence": "none",
+    "jump_rate": 0.20780133038779341,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "toothed",
+    "leaf_persistence": "evergreen",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05,
+    "leaf_sla": 4.48537498103583,
+    "leafout_month": 1,
+    "longevity_yr": 236.69019547155128,
+    "masting_interval_yr": 0.5394795150357317,
+    "mechanical_defense": "spine",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "orchid",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.7199156027274808,
+    "photosynthesis": "chemosymbiosis",
+    "pioneer_climax": 0.4696294982508056,
+    "pollination_syndrome": "none",
+    "propagule_count": 111613.18285105881,
+    "propagule_mass_mg": 0.01008092800553373,
+    "provision_browse": 0.03389070447398982,
+    "provision_graze": 0.10167211342196945,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0009733047388558639,
+    "pubescence": 0.0,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.013710905623092604,
+    "root_special": "none",
+    "root_spread_m": 0.31354393618125553,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.9543440837847301,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.5367101839242334,
+    "silhouette": "sponge_grade",
+    "storage_organ": "none",
+    "succulence": 0.30453206761395174,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 0.9195076004352769,
+    "woodiness": 0.005619586735124163
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -0.7098946363522438,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": -0.5270835766571023,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": -0.5176210799690649,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": 0.23524103022803936,
+     "runaway": 0.0
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": -0.014665999723680358,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": -0.26679236496794106,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": 0.7072096022710951,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 1.0681242848368457,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": 0.8032639479944591,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": 0.11567887891482097,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": -0.010132348975842061,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": -1.1731833236571736,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": 0.33337390253277965,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": 0.5137576177900075,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": 0.11290027168675759,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": -0.7376005419201426,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": 1.0422177663549634,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": 0.45516997614193305,
+     "runaway": 0.0
+    },
+    "leaf_margin": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": -1.4051515091960916,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -0.3413754679769522,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": -1.205457349580503,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": 0.2948819324072878,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": -1.5588772519365415,
+     "runaway": 0.0
+    },
+    "mycorrhizal": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": -0.8666315797830838,
+     "runaway": 0.0
+    },
+    "photosynthesis": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": -0.6484792186564056,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": 0.23693983899783883,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": 0.08794939072858884,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": -0.05856403220331853,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": 0.7335251350079346,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": 1.067031879269888,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": 0.6609663610005672,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": 0.6705953106583635,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": 0.1388881485849825,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": -0.8837823038985134,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": 0.7819939052766135,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 536.0862250752347,
+   "gen_time": 1.752917935872452,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia nymovis",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s8",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "61981d142f4b9642"
+  },
+  {
+   "axes": {
+    "autumn_color": "none",
+    "bloom_length_months": 0.9104158053212622,
+    "bloom_start_month": 6,
+    "canopy_density": 0.0,
+    "chemical_defense": "alkaloid",
+    "clonal_spread_m": 0.2614360879483367,
+    "clonality_class": "local",
+    "coloniality": 0.37118830569158784,
+    "crown_spread_m": 0.41802049359369964,
+    "cuticle_thickness": 0.0365564811738703,
+    "deciduous_trigger": "none",
+    "defense_potency": 0.49901857618878165,
+    "dispersal_channels": {
+     "animal": 0.0,
+     "jump": 0.41899259616724427,
+     "local": 0.0,
+     "water": 0.5810074038327557,
+     "wind": 0.0
+    },
+    "drought_tolerance": 0.008539630911321438,
+    "engineer_impact": 0.5883154268439166,
+    "fertility_requirement": 0.1940198600451171,
+    "flower_color": "brown",
+    "flower_size_mm": 0.4764984768640124,
+    "flower_symmetry": "none",
+    "fruit_color": "none",
+    "fruit_month": 6,
+    "fruit_size_mm": 1.0,
+    "fruit_type": "none",
+    "growing_season_req": 11.63202630360005,
+    "growth_rate": 0.056089277753687494,
+    "height_m": 1.5524875890766867,
+    "inflorescence": "none",
+    "jump_rate": 0.195235017979175,
+    "layer": "aquatic_benthic",
+    "leaf_arrangement": "none",
+    "leaf_color": "none",
+    "leaf_margin": "entire",
+    "leaf_persistence": "drought_deciduous",
+    "leaf_shape": "none",
+    "leaf_size_cm": 0.05006523534796872,
+    "leaf_sla": 4.113715491033401,
+    "leafout_month": 1,
+    "longevity_yr": 136.81971267046652,
+    "masting_interval_yr": 1.088219414292433,
+    "mechanical_defense": "spine",
+    "mycoheterotrophy": "no",
+    "mycorrhizal": "none",
+    "n_fixation": "none",
+    "nutrient_package": "halophyte",
+    "parasitism": "none",
+    "ph_tolerance": 0.7485052275544334,
+    "photosynthesis": "none",
+    "pioneer_climax": 0.47681168635613375,
+    "pollination_syndrome": "none",
+    "propagule_count": 63498.113301823454,
+    "propagule_mass_mg": 0.005674909955113478,
+    "provision_browse": 0.03502944271433655,
+    "provision_graze": 0.10508832814300965,
+    "provision_mast": 0.0,
+    "provision_nectar": 0.0,
+    "provision_shelter": 0.0008106314422056922,
+    "pubescence": 0.06055781833052188,
+    "raunkiaer": "hydrophyte",
+    "root_depth_m": 0.01,
+    "root_special": "none",
+    "root_spread_m": 0.17102111722640911,
+    "root_type": "holdfast",
+    "salinity_tolerance": 0.924299275175056,
+    "seed_bank": "transient",
+    "shade_tolerance": 0.4558755711223617,
+    "silhouette": "sponge_grade",
+    "storage_organ": "bulb",
+    "succulence": 0.2826173343672734,
+    "synchronous_flowering": "no",
+    "waterlogging_tolerance": 1.0,
+    "woodiness": 0.00522150030640696
+   },
+   "description": "",
+   "edge_delta": {
+    "bloom_length_months": {
+     "descent": 0.0,
+     "drift": -0.35154659606307026,
+     "runaway": 0.0
+    },
+    "bloom_start_month": {
+     "descent": 0.0,
+     "drift": 0.5200129287384021,
+     "runaway": 0.0
+    },
+    "clonal_spread_m": {
+     "descent": 0.0,
+     "drift": 0.5214500557257108,
+     "runaway": 0.0
+    },
+    "coloniality": {
+     "descent": 0.0,
+     "drift": 2.11412311857114,
+     "runaway": 0.0
+    },
+    "crown_spread_m": {
+     "descent": 0.0,
+     "drift": 0.07233397448952505,
+     "runaway": 0.0
+    },
+    "cuticle_thickness": {
+     "descent": 0.0,
+     "drift": 0.40961579699066997,
+     "runaway": 0.0
+    },
+    "defense_potency": {
+     "descent": 0.0,
+     "drift": -0.025900824481981357,
+     "runaway": 0.0
+    },
+    "dispersal_channels": {
+     "descent": 0.0,
+     "drift": 0.7310245942757799,
+     "runaway": 0.0
+    },
+    "drought_tolerance": {
+     "descent": 0.0,
+     "drift": -0.5822647074907247,
+     "runaway": 0.0
+    },
+    "engineer_impact": {
+     "descent": 0.0,
+     "drift": -0.3300296146314886,
+     "runaway": 0.0
+    },
+    "fertility_requirement": {
+     "descent": 0.0,
+     "drift": -0.383260391960221,
+     "runaway": 0.0
+    },
+    "flower_size_mm": {
+     "descent": 0.0,
+     "drift": 0.9093698213456822,
+     "runaway": 0.0
+    },
+    "fruit_month": {
+     "descent": 0.0,
+     "drift": -0.18416303154534627,
+     "runaway": 0.0
+    },
+    "fruit_size_mm": {
+     "descent": 0.0,
+     "drift": -0.2252143224171124,
+     "runaway": 0.0
+    },
+    "growing_season_req": {
+     "descent": 0.0,
+     "drift": -0.6165037625783912,
+     "runaway": 0.0
+    },
+    "growth_rate": {
+     "descent": 0.0,
+     "drift": 0.2700569016916554,
+     "runaway": 0.0
+    },
+    "height_m": {
+     "descent": 0.0,
+     "drift": 0.8233970161142452,
+     "runaway": 0.0
+    },
+    "jump_rate": {
+     "descent": 0.0,
+     "drift": -0.3245603691220914,
+     "runaway": 0.0
+    },
+    "leaf_persistence": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "leaf_size_cm": {
+     "descent": 0.0,
+     "drift": -0.004061676158495045,
+     "runaway": 0.0
+    },
+    "leaf_sla": {
+     "descent": 0.0,
+     "drift": -0.6296936922292808,
+     "runaway": 0.0
+    },
+    "leafout_month": {
+     "descent": 0.0,
+     "drift": 0.5783702862056025,
+     "runaway": 0.0
+    },
+    "longevity_yr": {
+     "descent": 0.0,
+     "drift": -0.8012940688637187,
+     "runaway": 0.0
+    },
+    "masting_interval_yr": {
+     "descent": 0.0,
+     "drift": 0.1953559003916897,
+     "runaway": 0.0
+    },
+    "ph_tolerance": {
+     "descent": 0.0,
+     "drift": -0.47718956807783414,
+     "runaway": 0.0
+    },
+    "pioneer_climax": {
+     "descent": 0.0,
+     "drift": -0.49670378676739046,
+     "runaway": 0.0
+    },
+    "propagule_count": {
+     "descent": 0.0,
+     "drift": -0.7031084530046705,
+     "runaway": 0.0
+    },
+    "propagule_mass_mg": {
+     "descent": 0.0,
+     "drift": -0.8697016528470856,
+     "runaway": 0.0
+    },
+    "pubescence": {
+     "descent": 0.0,
+     "drift": 0.6106421214259994,
+     "runaway": 0.0
+    },
+    "root_depth_m": {
+     "descent": 0.0,
+     "drift": -0.3634655954136382,
+     "runaway": 0.0
+    },
+    "root_spread_m": {
+     "descent": 0.0,
+     "drift": -0.4483492610593782,
+     "runaway": 0.0
+    },
+    "salinity_tolerance": {
+     "descent": 0.0,
+     "drift": 0.34108264934989785,
+     "runaway": 0.0
+    },
+    "shade_tolerance": {
+     "descent": 0.0,
+     "drift": -0.9617882108188013,
+     "runaway": 0.0
+    },
+    "storage_organ": {
+     "descent": 0.0,
+     "drift": 1.0,
+     "runaway": 0.0
+    },
+    "succulence": {
+     "descent": 0.0,
+     "drift": -0.6079377185907002,
+     "runaway": 0.0
+    },
+    "waterlogging_tolerance": {
+     "descent": 0.0,
+     "drift": 0.266762570385433,
+     "runaway": 0.0
+    },
+    "woodiness": {
+     "descent": 0.0,
+     "drift": 0.047260396205376205,
+     "runaway": 0.0
+    }
+   },
+   "flags": [],
+   "g": 485.5138757487153,
+   "gen_time": 1.659599990492416,
+   "generics": {
+    "covering": "none",
+    "defense": "spines",
+    "dispersal": "water_buoyant",
+    "feeding_organ": "carnivore_trap",
+    "phenology": "evergreen",
+    "sensor_array": "tropism_standard",
+    "signal": "coral_spawn",
+    "storage": "none",
+    "support": "body_barrel"
+   },
+   "label": null,
+   "name": {
+    "binomial": "Xestospongia aquaticus",
+    "folk": null,
+    "history": []
+   },
+   "parent": "k1.p2.c5.o1.f1.g1",
+   "path": "k1.p2.c5.o1.f1.g1.s9",
+   "plan": "sponge_grade",
+   "preset": "sponge_grade.barrel_sponge",
+   "provenance": {
+    "kind": "regular"
+   },
+   "quantities": [],
+   "radiate": "never",
+   "radiate_to": null,
+   "rank": "species",
+   "sid": "0c97a895731f4222"
   },
   {
    "axes": {},

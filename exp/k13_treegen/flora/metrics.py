@@ -130,6 +130,19 @@ def check_frozen_axis(tree: Tree, pack: ContentPack) -> list[str]:
                     and len(nodes[0].axes[ax]) <= 1:
                 continue
             vals = {str(n.axes[ax]) for n in nodes}
+            # a value pinned AT an axis bound is content-intended and the
+            # mutation is one-sided there (outward draws clip back) — the
+            # bound-sit is not the v1 freeze bug (0032: coral bloom at
+            # its floor, sponge growing-season at its ceiling tripped
+            # this on seed 2 of a small plan).
+            if spec.bounds and len(vals) == 1:
+                lo, hi = spec.bounds
+                try:
+                    f0 = float(next(iter(vals)))
+                except (TypeError, ValueError):
+                    f0 = None
+                if f0 is not None and (f0 == lo or f0 == hi):
+                    continue
             if len(vals) > 1:
                 continue
             if spec.value_type is ValueType.ENUM:

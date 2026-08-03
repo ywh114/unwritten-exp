@@ -1,0 +1,80 @@
+# Coral Grade preset: branching_coral — the reef-builder archetype
+
+[preset]
+id = "coral_grade.sea_fan"
+plan = "coral_grade"
+grade = "sea_fan"
+status = "hand-authored"
+source = "K14 P1 archetype"
+
+[axes]
+height_m = 1.2
+woodiness = 0.0
+growth_rate = 0.15
+longevity_yr = 80.0
+shade_tolerance = 0.1
+pioneer_climax = 0.4
+layer = "aquatic_benthic"
+leaf_shape = "none"
+leaf_arrangement = "none"
+leaf_size_cm = 0.05
+leaf_persistence = "evergreen"
+leaf_margin = "entire"
+leaf_sla = 5.0
+root_type = "none"
+root_depth_m = 0.01
+root_spread_m = 0.2
+crown_spread_m = 0.9
+root_special = "none"
+mycorrhizal = "none"
+n_fixation = "none"
+flower_symmetry = "none"
+flower_size_mm = 0.3
+inflorescence = "none"
+pollination_syndrome = "none"
+fruit_type = "none"
+fruit_size_mm = 1.0
+fruit_color = "none"
+dispersal_channels = { local = 0.0, wind = 0.0, water = 0.8, animal = 0.0, jump = 0.2 }
+propagule_mass_mg = 0.01
+propagule_count = 100000.0
+seed_bank = "transient"
+masting_interval_yr = 1.0  # annual (in sampler bounds; 0.0 clipped to the floor and froze the axis)
+jump_rate = 0.2
+mechanical_defense = "none"
+chemical_defense = "alkaloid"
+defense_potency = 0.6
+storage_organ = "none"
+clonal_spread_m = 0.3
+succulence = 0.2
+cuticle_thickness = 0.0
+pubescence = 0.0
+leafout_month = 1
+deciduous_trigger = "none"
+bloom_start_month = 8
+bloom_length_months = 0.2
+fruit_month = 8
+synchronous_flowering = "yes"
+photosynthesis = "C3"
+parasitism = "none"
+mycoheterotrophy = "no"
+nutrient_package = "halophyte"
+drought_tolerance = 0.0
+salinity_tolerance = 0.95
+waterlogging_tolerance = 1.0
+ph_tolerance = 0.78   # reef water pH ~8
+fertility_requirement = 0.3
+growing_season_req = 12.0
+engineer_impact = 0.7
+coloniality = 1.0
+
+[generics]
+support = "soft_body"
+feeding_organ = "carnivore_trap"
+signal = "coral_spawn"
+dispersal = "water_buoyant"
+defense = "none"
+storage = "none"
+covering = "none"
+phenology = "synchronous_mass"
+sensor_array = "tropism_standard"
