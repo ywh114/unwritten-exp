@@ -35,7 +35,8 @@ from typing import Mapping
 import numpy as np
 
 from exp.k13_treegen.flora.backbone import build as build_backbone
-from exp.k13_treegen.flora.content import ContentPack, load_content
+from exp.k13_treegen.flora.content import (ContentPack, load_content,
+                                           merged_preset)
 from exp.k13_treegen.flora.sim import FloraSim
 from exp.k13_treegen.forces import (
     Condition, G_NOVEL, G_REF, G_STEADY_ONSET, G_STEADY_RAMP,
@@ -413,6 +414,13 @@ class Engine:
         self.instances: dict[str, Dressed] = {}
         self.retired: list[str] = []
         self._clone_counter = 0
+        # ticket 0012 (ruling 13): the sim-side bundle registry — the
+        # sids of the frozen generic niche-dwellers minted at genesis
+        # (``bundle.<label>``), OUTSIDE the taxonomy. The authority never
+        # tracks them; the verdict feed skips them (frozen by
+        # construction); _commit excludes their iids from the views, the
+        # g map, and the merge candidates.
+        self.bundle_sids: set[str] = set()
         # ticket 0008 g bookkeeping: per-instance generations since the
         # last split (the g clock's Δg accrues in _verdict_feed);
         # per-lineage (sid) lognormal rate multiplier and seeded g*
@@ -609,9 +617,13 @@ class Engine:
         branch terminated (ticket 0004; measured 48/150 unseeded on
         seed 1: 4 zero-range + 41 all-sub-floor + 3 all-below-K_EPS).
         Deterministic: species processed in sorted sid order, every
-        draw from pinned k15 streams. With ``progress`` True, the rain
+        draw from pinned k15 streams. Ticket 0012 (ruling 13): after the
+        species mint, ``_seed_bundles`` mints ONE frozen generic
+        niche-dweller per authored bundle record (sid ``bundle.<label>``,
+        OUTSIDE the taxonomy — the authority never sees them). With
+        ``progress`` True, the rain
         prints per-species progress (genesis.py) and the engine prints
-        a phase tick per stage (rain / descent / mint) as each
+        a phase tick per stage (rain / descent / mint / bundles) as each
         completes — timing and counter-only, no draws, no state."""
         t0 = time.perf_counter()
 
@@ -693,6 +705,12 @@ class Engine:
                 div=np.zeros_like(Nw, dtype=bool),
                 orphan=np.zeros_like(Nw, dtype=bool), box=box)
         tick("mint")
+        # ticket 0012 (ruling 13): the sim-side bundle registry — one
+        # frozen generic niche-dweller per authored bundle record, minted
+        # OUTSIDE the taxonomy (never the authority) after the species
+        # mint + the adapted-fringe dress
+        self._seed_bundles(progress=progress)
+        tick("bundles")
         if unseeded:
             self.authority.register_unseeded(sorted(unseeded))
         if _ds["broken"]:
@@ -701,6 +719,92 @@ class Engine:
                   f"({_ds['blobs']} harsh blobs; "
                   f"{_ds['skipped_unseeded']} break-off blobs "
                   f"skipped — no seeded cells)")
+
+    def _seed_bundles(self, *, progress: bool = False) -> None:
+        """Ticket 0012 (ruling 13): the sim-side bundle registry. Each
+        authored bundle record (processed in sorted-label order) becomes
+        ONE frozen generic niche-dweller, minted OUTSIDE the taxonomy
+        with sid ``bundle.<label>`` — the SAME viability evaluation the
+        species rain uses (F_worst >= GENESIS_F ∩ medium-valid ∩
+        K_L > K_EPS, the K_L-gate when live), the same
+        GENESIS_MIN_CELLS floor, and a per-component coverage draw from
+        ``Stream(seed, "k15.genesis", sid)`` (content-addressed by the
+        bundle sid, so the processing order never matters). NO clone
+        partition (the partition is the headstart-speciation device;
+        frozen lineages cannot diverge, so clones would just sit
+        unmergeable) and ONE direct mint — never authority.mint, so the
+        authority's mint/redraw/_alive never see bundles. FROZEN by
+        construction: the verdict feed skips bundle iids — no
+        select()/mutate()/Δg/_refresh, they participate only via
+        population, dispersal, and stress. An unseeded bundle (no
+        component at/above GENESIS_MIN_CELLS) counts as unseeded and
+        never registers with the authority. Deterministic: every draw
+        from pinned k15 streams; same seed → byte-identical."""
+        full = (0, self.ctx.H, 0, self.ctx.W)
+        order = sorted(self.pack.bundles, key=lambda b: b["label"])
+        n = len(order)
+        seeded = unseeded = cells = 0
+        for k, b in enumerate(order):
+            if progress and k % 10 == 0:
+                print(f"  bundles {k}/{n}", flush=True)
+            sid = f"bundle.{b['label']}"
+            # the base preset: the FIRST preset id (deterministic
+            # pack.presets insertion order — the same rule as
+            # postpass._bundle_base) whose plan matches the bundle; the
+            # envelope overrides the merged axes/generics (it carries
+            # the layer)
+            pid = next(pid for pid in self.pack.presets
+                       if self.pack.presets[pid]["preset"]["plan"]
+                       == b["plan"])
+            axes, generics = merged_preset(self.pack,
+                                           self.pack.presets[pid])
+            traits = {**axes, **generics, **b["envelope"],
+                      "plan": b["plan"], "preset": pid}
+            view = self.sim.derive(traits, self.pack)
+            # ONE adapter evaluation per bundle (the same reduced fields
+            # the §5.1 cache is built from — _cache_from_factors below)
+            factors = sa.evaluate(view, self.ctx)
+            _names, _m_star, F_worst, _prov = gen.reduced(factors)
+            U = factors["substrate_share"]
+            K_L = gen.lineage_capacity(self.K, U)
+            percap = pop.percap_demand(view)
+            ok = ((F_worst >= gen.GENESIS_F)
+                  & gen.valid_mask(view, self.ctx)
+                  & (K_L > pop.K_EPS))
+            if gen.GENESIS_K_L_GATE:
+                ok &= K_L >= pop.N_FLOOR * percap
+            big = [c for c in gen.connected_components(ok)
+                   if int(c.sum()) >= gen.GENESIS_MIN_CELLS]
+            if not big:
+                unseeded += 1
+                continue
+            rng = Stream(self.seed, "k15.genesis", sid)
+            kept = gen._covered_components(big, rng)
+            retained = np.logical_or.reduce(kept)
+            N = gen._n_field(retained, K_L, percap)
+            box = _mask_box(retained, full)
+            # mint DIRECTLY — never authority.mint (the authority never
+            # tracks bundles); no _seed_lineage (no g streams for
+            # bundles — Δg = 0 by construction)
+            iid = self._new_instance_id(rng.child("mint"))
+            self._g_since_split[iid] = 0.0
+            self._last_contact[iid] = 0
+            x = Instance(species_id=sid, instance_id=iid,
+                         traits=dict(traits))
+            Nw = N[np.s_[box[0]:box[1], box[2]:box[3]]].astype(np.float64)
+            self.instances[iid] = Dressed(
+                x=x, N=Nw, rain=np.zeros_like(Nw),
+                cache=self._cache_from_factors(view, traits, factors),
+                view=view, percap=percap,
+                vital=self.sim.vital(traits, self.pack),
+                div=np.zeros_like(Nw, dtype=bool),
+                orphan=np.zeros_like(Nw, dtype=bool), box=box)
+            self.bundle_sids.add(sid)
+            seeded += 1
+            cells += int(retained.sum())
+        # the summary line: unconditional (like the 0018 descent print)
+        print(f"  bundles: {seeded}/{n} seeded "
+              f"({cells} cells; {unseeded} unseeded)")
 
     # ── §10.1 pre-genesis descent (ticket 0018) ────────────────────────
 
@@ -925,6 +1029,11 @@ class Engine:
         lin_counts = Counter(d.x.species_id for d in self.instances.values())
         for iid in sorted(self.instances):
             d = self.instances[iid]
+            if d.x.species_id in self.bundle_sids:
+                # bundles are FROZEN by construction (ticket 0012 ruling
+                # 13): no select()/mutate()/Δg/_refresh — they
+                # participate only via population, dispersal, stress
+                continue
             total = d.mass
             if total <= 0.0:
                 continue
@@ -1563,6 +1672,11 @@ class Engine:
             by_lin.setdefault(d.x.species_id, []).append(d)
         out: dict[str, float] = {}
         for sid, ds in by_lin.items():
+            if sid in self.bundle_sids:
+                # bundles never reach the authority (ticket 0012 ruling
+                # 13) and carry no g streams — no lineage params, no
+                # threshold entry
+                continue
             rep = max(ds, key=lambda d: d.mass)
             rep = min((d for d in ds if d.mass == rep.mass),
                       key=lambda d: d.x.instance_id)
@@ -1643,10 +1757,21 @@ class Engine:
         return pairs
 
     def _commit(self, t: int) -> ChangeLog:
+        # bundles never reach the authority (ticket 0012 ruling 13): a
+        # bundle can gain foundling fragments via dispersal (same sid,
+        # same iid class), so the exclusion is IID-based — bundle iids
+        # leave the views, the g map, and every merge candidate
+        bundle_iids = frozenset(
+            iid for iid, d in self.instances.items()
+            if d.x.species_id in self.bundle_sids)
         views = [self.instances[iid].x.view(self.instances[iid].mass)
-                 for iid in sorted(self.instances)]
+                 for iid in sorted(self.instances)
+                 if iid not in bundle_iids]
         rng = self._stream("commit", str(t))
         candidates = self._merge_candidates()
+        if bundle_iids:
+            candidates = {p for p in candidates
+                          if not (p & bundle_iids)}
         # ticket 0010 option B: the gene-flow signal for the isolation
         # ramp — every touching/overlapping same-lineage pair refreshes
         # its members' last-contact round. The CONSOL pairs added below
@@ -1677,8 +1802,12 @@ class Engine:
                 for i in range(len(ids)):
                     for j in range(i + 1, len(ids)):
                         candidates.add(frozenset((ids[i], ids[j])))
+            if bundle_iids:
+                candidates = {p for p in candidates
+                              if not (p & bundle_iids)}
         gs = {iid: self._g_since_split.get(iid, 0.0)
-              for iid in sorted(self.instances)}
+              for iid in sorted(self.instances)
+              if iid not in bundle_iids}
         log = self.authority.update(
             views, rng, merge_candidates=candidates,
             g_since_split=gs, g_star=dict(self._g_star),
