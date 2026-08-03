@@ -330,7 +330,10 @@ locomotor = ["cursorial_limb_set", "flipper"]
 
 
 def test_no_nondeterministic_imports():
-    src = (HERE / "registry.py").read_text()
+    path = HERE / "registry.py"
+    if not path.exists():
+        path = HERE.parent / "registry.py"   # shared engine modules live at the root
+    src = path.read_text()
     for line in src.splitlines():
         stripped = line.strip()
         for bad in ("import random", "from random", "import uuid",

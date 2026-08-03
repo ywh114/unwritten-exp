@@ -12,11 +12,11 @@ import pathlib
 
 import pytest
 
-from exp.k13_treegen.content import load_content
-from exp.k13_treegen.metrics import run_checks
+from exp.k13_treegen.fauna.content import load_content
+from exp.k13_treegen.fauna.metrics import run_checks
 from exp.k13_treegen.model import Node, Rank, Tree
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")
@@ -169,7 +169,7 @@ def test_plant_pin_axes_drifted(pack):
 
 
 def test_plant_orphan_pin(pack):
-    from exp.k13_treegen.content import merged_pin
+    from exp.k13_treegen.fauna.content import merged_pin
     pin = next(p for p in pack.pins if p["label"] == "tiger")
     axes, _ = merged_pin(pack, pin)
     tiger = sp("k1.p1.c1.o1.f1.g1.s1", "tetrapod.cat", label="tiger",

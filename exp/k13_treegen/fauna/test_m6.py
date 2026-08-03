@@ -13,15 +13,15 @@ import pathlib
 
 import pytest
 
-from exp.k13_treegen.content import load_content
-from exp.k13_treegen.couplings import (
+from exp.k13_treegen.fauna.content import load_content
+from exp.k13_treegen.fauna.couplings import (
     GATE_PULL, ORNAMENT_PULL, WEAK_BIND_COUNT, apply_couplings,
     validate_couplings, weak_bindings)
 from exp.k13_treegen.forces import Condition, evolve
 from exp.k13_treegen.model import Node, Rank
-from exp.k13_treegen.seeding import stage_stream
+from exp.k13_treegen.fauna.seeding import stage_stream
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")
@@ -230,7 +230,7 @@ def test_env_gate_hook(pack):
     (world-blind backbone) and fires when the rounds populate it."""
     import copy
 
-    from exp.k13_treegen.couplings import Rule
+    from exp.k13_treegen.fauna.couplings import Rule
     rule = Rule.from_toml({
         "id": "hook_allen", "kind": "gate", "status": "active",
         "scope": ["all"], "source": "hook test",

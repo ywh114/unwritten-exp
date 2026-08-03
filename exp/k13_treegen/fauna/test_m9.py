@@ -7,10 +7,10 @@ import subprocess
 
 import pytest
 
-from exp.k13_treegen.content import load_content
+from exp.k13_treegen.fauna.content import load_content
 from exp.k13_treegen.model import Tree
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")
@@ -19,7 +19,7 @@ def pack():
 
 
 def test_json_round_trip(pack):
-    from exp.k13_treegen.__main__ import generate
+    from exp.k13_treegen.fauna.__main__ import generate
     tree, report = generate(3, pack)
     blob = tree.dumps()
     assert Tree.from_json(__import__("json").loads(blob)).dumps() == blob
@@ -29,10 +29,10 @@ def test_json_round_trip(pack):
 def test_cli(tmp_path, pack):
     out = tmp_path / "o"
     r = subprocess.run(
-        ["uv", "run", "python", "-m", "exp.k13_treegen", "5",
+        ["uv", "run", "python", "-m", "exp.k13_treegen.fauna", "5",
          "--out", str(out), "--species", "3"],
         capture_output=True, text=True, cwd=pathlib.Path(__file__)
-        .parent.parent.parent)
+        .parent.parent.parent.parent)
     assert r.returncode == 0, r.stderr
     tree_path = out / "k13_seed00000005.json"
     report_path = out / "k13_seed00000005.report"
@@ -46,9 +46,9 @@ def test_cli(tmp_path, pack):
 def test_cli_seed_in_filename(tmp_path):
     """8-digit zero-padded seeds (user convention)."""
     r = subprocess.run(
-        ["uv", "run", "python", "-m", "exp.k13_treegen", "42",
+        ["uv", "run", "python", "-m", "exp.k13_treegen.fauna", "42",
          "--out", str(tmp_path)],
         capture_output=True, text=True, cwd=pathlib.Path(__file__)
-        .parent.parent.parent)
+        .parent.parent.parent.parent)
     assert r.returncode == 0, r.stderr
     assert (tmp_path / "k13_seed00000042.json").exists()

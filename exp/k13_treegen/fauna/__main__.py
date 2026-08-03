@@ -1,6 +1,6 @@
 """M9 — persistence & CLI: TOML content in, JSON tree out.
 
-    uv run python -m exp.k13_treegen SEED [--out DIR] [--species N]
+    uv run python -m exp.k13_treegen.fauna SEED [--out DIR] [--species N]
 
 Builds the tree for SEED (8-digit zero-padded in output names), names it,
 runs the metrics gate, and writes:
@@ -15,15 +15,15 @@ from __future__ import annotations
 import argparse
 import pathlib
 
-from exp.k13_treegen.backbone import build
-from exp.k13_treegen.content import load_content
-from exp.k13_treegen.describe import describe
-from exp.k13_treegen.metrics import run_checks
+from exp.k13_treegen.fauna.backbone import build
+from exp.k13_treegen.fauna.content import load_content
+from exp.k13_treegen.fauna.describe import describe
+from exp.k13_treegen.fauna.metrics import run_checks
 from exp.k13_treegen.model import Rank
 from exp.k13_treegen.nomenclature import assign_names
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
-OUT = pathlib.Path(__file__).parent / "out"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
+OUT = pathlib.Path(__file__).parent.parent / "out"
 
 
 def generate(seed: int, pack) -> tuple:

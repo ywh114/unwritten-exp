@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import math
 
-from exp.k13_treegen.content import ContentPack
+from exp.k13_treegen.fauna.content import ContentPack
 from exp.k13_treegen.model import Node
 
 DERIVED_AXES = frozenset({

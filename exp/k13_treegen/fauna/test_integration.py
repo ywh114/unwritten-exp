@@ -22,14 +22,14 @@ import statistics
 
 import pytest
 
-from exp.k13_treegen.backbone import build
-from exp.k13_treegen.content import load_content
-from exp.k13_treegen.describe import describe
-from exp.k13_treegen.metrics import run_checks
+from exp.k13_treegen.fauna.backbone import build
+from exp.k13_treegen.fauna.content import load_content
+from exp.k13_treegen.fauna.describe import describe
+from exp.k13_treegen.fauna.metrics import run_checks
 from exp.k13_treegen.model import Rank
 from exp.k13_treegen.nomenclature import assign_names
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
 SEEDS = (1, 2, 3)
 
 
@@ -97,7 +97,7 @@ def test_no_frozen_axis_at_composition_scale(pack):
                     continue
                 if spec.value_type.value == "int" and spec.sigma < 0.5:
                     continue  # discreteness, not machinery (M7 ruling)
-                from exp.k13_treegen.derive import DERIVED_AXES
+                from exp.k13_treegen.fauna.derive import DERIVED_AXES
                 if ax in DERIVED_AXES:
                     continue  # recomputed from record, uniform is correct
                 vals = {str(m.axes[ax]) for m in members}
@@ -212,7 +212,7 @@ def test_every_species_named_and_describable(pack):
 
 def test_planted_crocodile_on_monkey_fails(pack):
     import copy
-    from exp.k13_treegen.lint import lint
+    from exp.k13_treegen.fauna.lint import lint
     p = copy.deepcopy(pack)
     for pin in p.pins:
         if pin["label"] == "crocodile":

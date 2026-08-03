@@ -15,11 +15,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from exp.k13_treegen.content import ContentPack
+from exp.k13_treegen.fauna.content import ContentPack
 from exp.k13_treegen.forces import Condition, adapt_weight, _clip
 from exp.k13_treegen.model import Node
 from exp.k13_treegen.registry import ValueType
-from exp.k13_treegen.seeding import STAGE_WEAK_BINDINGS, stage_stream
+from exp.k13_treegen.fauna.seeding import STAGE_WEAK_BINDINGS, stage_stream
 from kernel.hashrng import Stream
 
 # gate: fraction of the way to the lower bound per gated evolve step.

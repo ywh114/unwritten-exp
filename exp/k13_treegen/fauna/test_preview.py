@@ -8,11 +8,11 @@ import pathlib
 
 import pytest
 
-from exp.k13_treegen.content import load_content
+from exp.k13_treegen.fauna.content import load_content
 from exp.k13_treegen.model import Node
-from exp.k13_treegen.preview import gloss, preview_record, resolve_pin
+from exp.k13_treegen.fauna.preview import gloss, preview_record, resolve_pin
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")

@@ -14,9 +14,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from exp.k13_treegen.content import ContentPack
+from exp.k13_treegen.fauna.content import ContentPack
 from exp.k13_treegen.model import Rank, Tree
-from exp.k13_treegen.seeding import naming_stage
+from exp.k13_treegen.fauna.seeding import naming_stage
 
 # plan -> genus_suffix table grades used for mechanical composition.
 PLAN_SUFFIX_GRADE = {

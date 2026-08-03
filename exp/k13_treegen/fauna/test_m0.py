@@ -25,7 +25,7 @@ from exp.k13_treegen.model import (
     Tree,
     rebind,
 )
-from exp.k13_treegen.seeding import (
+from exp.k13_treegen.fauna.seeding import (
     naming_stage,
     root_stream,
     stage_stream,
@@ -286,7 +286,10 @@ def test_random_tree_roundtrip_property():
 
 @pytest.mark.parametrize("fname", ["model.py", "seeding.py"])
 def test_no_nondeterministic_imports(fname):
-    src = (HERE / fname).read_text()
+    path = HERE / fname
+    if not path.exists():
+        path = HERE.parent / fname   # shared engine modules live at the root
+    src = path.read_text()
     for line in src.splitlines():
         stripped = line.strip()
         for bad in ("import random", "from random", "import uuid",

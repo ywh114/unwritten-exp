@@ -65,7 +65,7 @@ GENERATORS: dict[str, GeneratorSpec] = {
         is_dir=False,
         stamp_files=(),
         version_key="version",
-        cli=("exp.k13_treegen", "{seed}")),
+        cli=("exp.k13_treegen.fauna", "{seed}")),
     "flora": GeneratorSpec(
         name="k13_flora",
         rel_path="exp/k13_treegen/out/flora_seed{seed:08d}.json",

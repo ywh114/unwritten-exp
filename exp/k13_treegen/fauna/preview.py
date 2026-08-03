@@ -6,8 +6,8 @@ anchors, so a resolved pin is the only complete organism record the system
 can present today — useful for eyeballing content and for exercising the
 Node JSON persistence shape end-to-end.
 
-Usage:  uv run python -m exp.k13_treegen.preview tiger
-        uv run python -m exp.k13_treegen.preview --list
+Usage:  uv run python -m exp.k13_treegen.fauna.preview tiger
+        uv run python -m exp.k13_treegen.fauna.preview --list
 """
 
 from __future__ import annotations
@@ -16,11 +16,11 @@ import argparse
 import json
 import pathlib
 
-from exp.k13_treegen.content import ContentPack, load_content, merged_pin
+from exp.k13_treegen.fauna.content import ContentPack, load_content, merged_pin
 from exp.k13_treegen.model import Node, Rank
-from exp.k13_treegen.seeding import STAGE_PINS, stage_stream
+from exp.k13_treegen.fauna.seeding import STAGE_PINS, stage_stream
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
 
 
 def resolve_pin(pack: ContentPack, label: str, seed: int = 0) -> Node:

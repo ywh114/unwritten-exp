@@ -13,8 +13,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from exp.k13_treegen.content import ContentPack
-from exp.k13_treegen.lint import ACTIVE_FLIGHT, PIN_MASS_FACTOR
+from exp.k13_treegen.fauna.content import ContentPack
+from exp.k13_treegen.fauna.lint import ACTIVE_FLIGHT, PIN_MASS_FACTOR
 from exp.k13_treegen.model import Rank, Tree
 from exp.k13_treegen.registry import ValueType
 
@@ -60,7 +60,7 @@ def check_frozen_axis(tree: Tree, pack: ContentPack) -> list[str]:
             # derived axes are recomputed from the record — uniform
             # output (all "none" dimorphism in a plan without display
             # organs) is correct, not a freeze
-            from exp.k13_treegen.derive import DERIVED_AXES
+            from exp.k13_treegen.fauna.derive import DERIVED_AXES
             if ax in DERIVED_AXES:
                 continue
             # sub-quantum int axes (sigma < one step) cannot move under
@@ -171,7 +171,7 @@ def check_pin_integration(tree: Tree, pack: ContentPack) -> list[str]:
     """M7/M4: every pin present at its authored rank; pinned records
     byte-exact vs merged_pin; every species pin has a sibling; radiation
     counts within soft range [N/3, 3N]."""
-    from exp.k13_treegen.content import merged_pin
+    from exp.k13_treegen.fauna.content import merged_pin
     errs: list[str] = []
     by_label = {n.label: n for n in tree.nodes.values() if n.label}
     species_paths = [n.path for n in _species(tree)]
@@ -193,7 +193,7 @@ def check_pin_integration(tree: Tree, pack: ContentPack) -> list[str]:
         axes, generics = merged_pin(pack, pin)
         # pinned record = authored + seeded PIN_JITTER_Z wiggle (scalars
         # only): enums/sets byte-exact, scalars within 6 jitter-sigmas.
-        from exp.k13_treegen.backbone import PIN_JITTER_Z
+        from exp.k13_treegen.fauna.backbone import PIN_JITTER_Z
         from exp.k13_treegen.registry import MutationKind, ValueType
         bad = False
         for ax, v0 in axes.items():

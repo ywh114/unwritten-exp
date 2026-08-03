@@ -27,7 +27,7 @@ clean). ``lint_or_raise`` raises LintError aggregating them.
 
 from __future__ import annotations
 
-from exp.k13_treegen.content import ContentPack
+from exp.k13_treegen.fauna.content import ContentPack
 from exp.k13_treegen.model import Rank
 from exp.k13_treegen.registry import ValueType
 

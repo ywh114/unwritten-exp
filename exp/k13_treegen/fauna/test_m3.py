@@ -13,10 +13,10 @@ import pathlib
 
 import pytest
 
-from exp.k13_treegen.content import ContentPack, load_content
-from exp.k13_treegen.lint import lint
+from exp.k13_treegen.fauna.content import ContentPack, load_content
+from exp.k13_treegen.fauna.lint import lint
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
 
 PATTERNATION_AXES = (
     "base_color", "belly_color", "accent_color", "pattern_motif",

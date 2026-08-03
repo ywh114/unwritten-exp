@@ -107,7 +107,7 @@ def load_content(content_dir: str | Path) -> ContentPack:
                 for plan, tbl in _load_toml(d / "palettes.toml")
                 .get("palette", {}).items()}
 
-    from exp.k13_treegen.couplings import Rule
+    from exp.k13_treegen.fauna.couplings import Rule
     couplings = [Rule.from_toml(t) for t in
                  _load_toml(d / "couplings.toml").get("rule", [])]
 

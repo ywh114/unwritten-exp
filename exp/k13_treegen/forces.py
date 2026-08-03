@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from exp.k13_treegen.content import ContentPack
+from exp.k13_treegen.fauna.content import ContentPack
 from exp.k13_treegen.model import Node, Rank
 from exp.k13_treegen.registry import AxisSpec, MutationKind, Tier, ValueType
 from kernel.hashrng import Stream
@@ -354,7 +354,7 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
     """
     condition = condition or Condition()
     if derived_axes is None:
-        from exp.k13_treegen.derive import DERIVED_AXES as derived_axes
+        from exp.k13_treegen.fauna.derive import DERIVED_AXES as derived_axes
     shares = share_ratios(condition)
     dg = dg_base * (1.0 + STRESS_G_BOOST * condition.stress)
     g_line = parent.g + dg
@@ -440,7 +440,7 @@ def evolve(parent: Node, pack: ContentPack, stream: Stream, dg_base: float,
                 child.generics[g] = new
             child.edge_delta["generic_rebind"] = {g: [cur, new]}
     if couplings:
-        from exp.k13_treegen.couplings import apply_couplings
+        from exp.k13_treegen.fauna.couplings import apply_couplings
         apply_couplings(parent, child, pack, condition,
                         stream.child("couplings"), weak=weak)
     # soft per-preset mass envelope (ENVELOPE_LOG10/DAMP): no convergence

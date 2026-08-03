@@ -8,7 +8,7 @@ import subprocess
 
 import pytest
 
-REPO = pathlib.Path(__file__).parent.parent.parent
+REPO = pathlib.Path(__file__).parent.parent.parent.parent
 VIEWER_DIR = pathlib.Path(__file__).parent / "viewer"
 
 

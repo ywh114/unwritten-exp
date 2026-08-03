@@ -11,15 +11,15 @@ import statistics
 
 import pytest
 
-from exp.k13_treegen.content import load_content
+from exp.k13_treegen.fauna.content import load_content
 from exp.k13_treegen.forces import (
     Condition, classify, evolve, g_star, gen_time_years, rate_multiplier,
     share_ratios, step_scale, _tier_gate, G_STEADY_ONSET,
     G_STEADY_RAMP, STRESS_G_BOOST)
 from exp.k13_treegen.model import Node, Rank
-from exp.k13_treegen.seeding import stage_stream
+from exp.k13_treegen.fauna.seeding import stage_stream
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")

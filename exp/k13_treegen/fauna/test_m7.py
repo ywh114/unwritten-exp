@@ -11,14 +11,14 @@ import statistics
 
 import pytest
 
-from exp.k13_treegen.backbone import build
-from exp.k13_treegen.content import load_content, merged_pin
+from exp.k13_treegen.fauna.backbone import build
+from exp.k13_treegen.fauna.content import load_content, merged_pin
 from exp.k13_treegen.forces import Condition, evolve
-from exp.k13_treegen.metrics import run_checks
+from exp.k13_treegen.fauna.metrics import run_checks
 from exp.k13_treegen.model import Rank
-from exp.k13_treegen.seeding import stage_stream
+from exp.k13_treegen.fauna.seeding import stage_stream
 
-CONTENT = pathlib.Path(__file__).parent / "content" / "fauna"
+CONTENT = pathlib.Path(__file__).parent.parent / "content" / "fauna"
 
 
 @pytest.fixture(scope="module")
@@ -117,7 +117,7 @@ def test_pins_within_jitter(pack, tree):
     """Pinned records commit authored values + the seeded PIN_JITTER_Z
     wiggle: scalars within 6 jitter-sigmas, everything else byte-exact."""
     import math as _math
-    from exp.k13_treegen.backbone import PIN_JITTER_Z
+    from exp.k13_treegen.fauna.backbone import PIN_JITTER_Z
     from exp.k13_treegen.registry import MutationKind, ValueType
     for pin in pack.pins:
         n = _node(tree, pin["label"])

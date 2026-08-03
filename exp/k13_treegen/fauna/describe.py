@@ -8,7 +8,7 @@ it. N/A is silence, values render what the record says.
 
 from __future__ import annotations
 
-from exp.k13_treegen.content import ContentPack
+from exp.k13_treegen.fauna.content import ContentPack
 from exp.k13_treegen.model import Node
 from exp.k13_treegen.registry import GrammarRole
 

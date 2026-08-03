@@ -1,6 +1,6 @@
 // ============================================================================
 // K13 Tree Viewer — Puppeteer test suite (Canvas 2D + Sidebar edition)
-// Run: node exp/k13_treegen/viewer/test_viewer.mjs
+// Run: node exp/k13_treegen/fauna/viewer/test_viewer.mjs
 // ============================================================================
 
 import puppeteer from "puppeteer";
@@ -9,7 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(__dirname, "../../..");
+const REPO = path.resolve(__dirname, "../../../..");
 
 const TREE_JSON_PATH = path.join(REPO, "exp/k13_treegen/out/k13_seed00000001.json");
 const VIEWER_PATH = path.join(__dirname, "tree.html");

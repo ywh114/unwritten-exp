@@ -13,11 +13,11 @@ throughout.
 
 from __future__ import annotations
 
-from exp.k13_treegen.content import ContentPack, merged_pin, merged_preset
-from exp.k13_treegen.derive import derive_tree
+from exp.k13_treegen.fauna.content import ContentPack, merged_pin, merged_preset
+from exp.k13_treegen.fauna.derive import derive_tree
 from exp.k13_treegen.forces import gen_time_years
 from exp.k13_treegen.model import Tree
-from exp.k13_treegen.seeding import stage_stream
+from exp.k13_treegen.fauna.seeding import stage_stream
 from exp.k13_treegen.treebuilder import PIN_JITTER_Z, TreeBuilder
 
 
