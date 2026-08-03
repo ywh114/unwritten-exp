@@ -718,7 +718,10 @@ class Engine:
                   f"across {_ds['adapted_species']} species "
                   f"({_ds['blobs']} harsh blobs; "
                   f"{_ds['skipped_unseeded']} break-off blobs "
-                  f"skipped — no seeded cells)")
+                  f"skipped — no seeded cells, "
+                  f"{_ds['skipped_speckle']} skipped — seeded part "
+                  f"below the {desc.DESCENT_MIN_BLOB_CELLS // 2}-cell "
+                  f"speckle floor)")
 
     def _seed_bundles(self, *, progress: bool = False) -> None:
         """Ticket 0012 (ruling 13): the sim-side bundle registry. Each
@@ -821,7 +824,11 @@ class Engine:
         part (blob ∩ the species' clone union; owner ruling
         2026-08-02: the descent modifies the SEEDED component ONLY —
         unseeded harsh cells stay unseeded for §7 colonization, and a
-        blob with no seeded cells is skipped entirely): that part is
+        blob with no seeded cells is skipped entirely; the SEEDED part
+        must itself clear the ``DESCENT_MIN_BLOB_CELLS // 2`` speckle
+        floor — a harsh blob whose seeded part is below it is skipped
+        too, else the fragment would be a 1-3-cell speckle (ticket
+        0009 suppression)): that part is
         carved out of the owning parent clone's range in place and
         mints the adapted instance — N at founder demand with the
         ADAPTED percap over ``seeded``, box from ``seeded``, traits
@@ -842,7 +849,8 @@ class Engine:
         stats): the adapted seeds (minted + dressed by genesis()) and
         the pass accounting (adapted species, blobs considered,
         broken instances, break-off blobs skipped for lack of seeded
-        cells); mutates the parent CloneSeed arrays in place.
+        cells or a sub-floor seeded part); mutates the parent CloneSeed
+        arrays in place.
         Deterministic: every draw rides the species' pinned k15.descent
         stream (content-addressed children: adapt / break:{i} / mint:{i}
         / rec:{i} / mutate:{iid}:{gen}), blob order pinned
@@ -852,7 +860,7 @@ class Engine:
         full = (0, self.ctx.H, 0, self.ctx.W)
         out = []
         stats = {"adapted_species": 0, "blobs": 0, "broken": 0,
-                 "skipped_unseeded": 0}
+                 "skipped_unseeded": 0, "skipped_speckle": 0}
         for node in species:
             clones, _range_cells, bundle = rain[node.sid]
             if not clones:
@@ -890,6 +898,15 @@ class Engine:
                 seeded = blob & union
                 if not seeded.any():
                     stats["skipped_unseeded"] += 1
+                    continue
+                # ticket 0009 speckle suppression (surfaced by the
+                # curated census): the seeded part of a broken-off blob
+                # must itself clear the speckle floor — a harsh blob
+                # whose SEEDED part is 1 cell would otherwise mint a
+                # 1-3-cell speckle fragment (seed 1 surfacing: sid
+                # 382a2efdb06ea061, a 1-cell adapted fragment)
+                if int(seeded.sum()) < desc.DESCENT_MIN_BLOB_CELLS // 2:
+                    stats["skipped_speckle"] += 1
                     continue
                 stats["broken"] += 1
                 iid = self._new_instance_id(rng.child(f"mint:{i}"))

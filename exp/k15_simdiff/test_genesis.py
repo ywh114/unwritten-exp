@@ -210,6 +210,15 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
     full retained range. Re-pinned on seed 1 (2026-08-01): yarrow
     retained 3267 cells (partition_k 5) → covered 2736 (partition_k
     4, 7 clones); seagrass retained 1722 (4) → covered 466 (2, 6
+    clones). v1.4 re-pin (2026-08-03, ticket 0012 Task D slow tier):
+    the curated census PRUNED herb_forb.yarrow (no seed-1 range — its
+    asserts died with a KeyError). Replacement picked
+    deterministically: the first preset in sorted preset-id order
+    with retained ≥ 1500, partition_k(retained) ≥ 3 AND a coverage
+    draw that actually drops something (covered < retained) —
+    fungus.agaric: retained 1775 (partition_k 4) → covered 948
+    (partition_k 3, 13 clones). Seagrass re-verified UNCHANGED (its
+    draws key by preset id): retained 1722 (4) → covered 466 (2, 6
     clones)."""
     pack, sim = pack_sim
     rain = genesis_rain(pack, sim, world, capacity, seed=1)
@@ -246,16 +255,21 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
             assert clone.cells.shape == seeded.shape
             assert len(connected_components(clone.cells)) == 1
             _check_clone_field(clone, seeded, D, percap)
-    # re-pinned empirically on seed 1 (2026-08-01): the PRE-coverage
-    # retained ranges (3267 yarrow / 1722 seagrass ≥ floor — unchanged
-    # by coverage, they were pinned in v0.9) and the COVERED ranges the
-    # partition actually targets (2736 / 466 cells — ticket 0020).
-    assert partition_k(retained["herb_forb.yarrow"]) == 5
-    assert retained["herb_forb.yarrow"] >= 3200
+    # re-pinned empirically on seed 1 (2026-08-03, ticket 0012 Task D
+    # slow tier): the curated census PRUNED herb_forb.yarrow — its
+    # asserts are pinned to fungus.agaric, the first preset (sorted
+    # preset-id) with retained ≥ 1500, partition_k(retained) ≥ 3 and
+    # a coverage draw that actually drops something (covered <
+    # retained). PRE-coverage retained ranges (1775 agaric / 1722
+    # seagrass ≥ floor — unchanged by coverage) and the COVERED
+    # ranges the partition actually targets (948 / 466 cells — ticket
+    # 0020).
+    assert partition_k(retained["fungus.agaric"]) == 4
+    assert retained["fungus.agaric"] >= 1700
     assert partition_k(retained["runner_meadow.seagrass"]) == 4
     assert retained["runner_meadow.seagrass"] >= 1600
-    assert partition_k(minted["herb_forb.yarrow"]) == 4
-    assert minted["herb_forb.yarrow"] >= 2000
+    assert partition_k(minted["fungus.agaric"]) == 3
+    assert minted["fungus.agaric"] >= 900
     assert partition_k(minted["runner_meadow.seagrass"]) == 2
     assert 100 <= minted["runner_meadow.seagrass"] <= 1000
     assert k_gt1, "expected at least one preset with partition_k > 1 on seed 1"
@@ -304,7 +318,16 @@ def test_genesis_species_sparse_founders(pack_sim, world, k15_world):
     broken-off fringe is not speckle; the 32-cell floor still governs
     the ORIGINAL clone seeding — pre-descent). A true speckle
     instance (1-3 cells) still trips the bound (realized post-descent
-    minimum on seed 1: 7)."""
+    minimum on seed 1: 7). v1.4 re-pin (2026-08-03, ticket 0012 Task
+    D slow tier): the curated census surfaced a 1-cell seeded-part
+    fragment (sid 382a2efdb06ea061 — a harsh blob whose seeded part
+    was a single cell slipped past the ``seeded.any()`` check and
+    minted a 1-cell adapted instance at birth_g 159.67). The engine
+    now skips any break-off whose seeded part is below
+    DESCENT_MIN_BLOB_CELLS // 2 (the ``skipped_speckle`` counter: the
+    seeded part of a broken-off blob must itself clear the speckle
+    floor). RE-MEASURED realized post-descent minimum instance size
+    on seed 1 after the fix: 8 cells."""
     from exp.k15_simdiff.engine import Engine
 
     eng = Engine(1, pack=pack_sim[0], ctx=k15_world)
