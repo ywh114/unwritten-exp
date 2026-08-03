@@ -121,6 +121,14 @@ class _PlantaeBuilder(TreeBuilder):
                 (cls["name"], list(cls["plans"])))
         return groups
 
+    def stub_genera(self, pack, plan: str, preset: str) -> list[str]:
+        """Authored stub genera for *plan* under *preset* from
+        stubs.toml (0012): the empty (unseeded) genus nodes 0027 fills
+        post-sim."""
+        return [s["name"]["binomial"] for s in pack.stubs
+                if s.get("parent") == preset
+                and s.get("rank", "genus") == "genus"]
+
 
 _BUILDER = _PlantaeBuilder()
 

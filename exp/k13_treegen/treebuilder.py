@@ -120,6 +120,13 @@ class TreeBuilder:
                 (plan.class_name or plan.id, [plan.id]))
         return groups
 
+    def stub_genera(self, pack, plan: str, preset: str) -> list[str]:
+        """Authored stub genera for *plan* under *preset* (0012): empty
+        (unseeded) genus nodes — growth sources 0027 fills post-sim.
+        Default (fauna): none. Flora overrides with the stubs.toml
+        table (each stub hangs under its authored parent order)."""
+        return []
+
     # -- radiate model (0032) ----------------------------------------------
 
     def _radiate_flag(self, node, pin=None, propagated=None) -> str:
@@ -417,6 +424,14 @@ class TreeBuilder:
         genera += [(p, float(p.get("radiation", 0)), None,
                     hosted.get(p["label"], [])) for p in genus_pins]
         genera += [(None, 0.0, gname, grp) for gname, grp in pin_genera]
+        if fi == 1:
+            # authored stubs (0012): empty genus nodes for this order —
+            # growth sources 0027 fills post-sim (radiate resolves to
+            # post; no species). Each stub hangs under its authored
+            # parent order, so it appears exactly once.
+            genera += [(None, 0.0, gname, [])
+                       for gname in self.stub_genera(pack, order.plan,
+                                                     order.preset)]
         if pre_genus:
             genera += [(None, spread[i], None, [])
                        for i in range(1, n_spread)]

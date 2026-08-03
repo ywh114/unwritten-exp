@@ -24,6 +24,7 @@ class ContentPack:
     presets: dict[str, dict] = field(default_factory=dict)  # preset_id -> toml
     pins: list[dict] = field(default_factory=list)          # [[pin]] tables
     bundles: list[dict] = field(default_factory=list)       # [[bundle]] tables
+    stubs: list[dict] = field(default_factory=list)         # [[stub]] tables
     classes: list[dict] = field(default_factory=list)       # [[class]] tables
     palettes: dict[str, list[str]] = field(default_factory=dict)  # plan -> colors
     constraints: list = field(default_factory=list)         # Rule records
@@ -96,6 +97,24 @@ def load_content(content_dir: str | Path) -> ContentPack:
     pins_toml = _load_toml(d / "pins.toml")
     pins = pins_toml.get("pin", [])
     budget = pins_toml.get("budget", {})
+    stubs = _load_toml(d / "stubs.toml").get("stub", [])
+    # stub validation: an authored stub is an EMPTY (unseeded) node at a
+    # legal rank under a real plan — a growth source 0027 fills post-sim.
+    seen_stub_labels: set[str] = set()
+    for s in stubs:
+        assert s.get("label") and s.get("plan") and s.get("name") \
+            and s.get("parent"), \
+            f"stubs.toml: stub missing label/plan/name/parent: {s!r}"
+        assert s["plan"] in registry.plans, \
+            f"stubs.toml: {s['label']}: plan {s['plan']!r} not in registry"
+        assert s["parent"] in presets, \
+            f"stubs.toml: {s['label']}: parent {s['parent']!r} not a preset"
+        rank = s.get("rank", "genus")
+        assert rank in ("order", "family", "genus"), \
+            f"stubs.toml: {s['label']}: rank {rank!r} not legal"
+        assert s["label"] not in seen_stub_labels, \
+            f"stubs.toml: duplicate stub label {s['label']!r}"
+        seen_stub_labels.add(s["label"])
     bundles = _load_toml(d / "bundles.toml").get("bundle", [])
     # bundle-table validation: each bundle is a region x physiology
     # archetype — a real plan, a legal layer, non-empty anchor-clade
@@ -178,6 +197,7 @@ def load_content(content_dir: str | Path) -> ContentPack:
                                         tbl.get("responders", [])]
 
     return ContentPack(registry=registry, presets=presets, pins=pins,
-                       bundles=bundles, classes=classes, palettes=palettes,
-                       constraints=constraints, stems=stems, budget=budget,
+                       bundles=bundles, stubs=stubs, classes=classes,
+                       palettes=palettes, constraints=constraints,
+                       stems=stems, budget=budget,
                        stress_response=stress_response)

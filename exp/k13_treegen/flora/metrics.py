@@ -98,8 +98,16 @@ def check_frozen_axis(tree: Tree, pack: ContentPack) -> list[str]:
         prefix = nodes[0].path.rsplit(".o", 1)[0] + "."
         sub = [n for n in tree.nodes.values()
                if n.path.startswith(prefix) and (n.plan or "?") == plan]
-        opp = len(nodes) + sum(1 for n in sub
-                               if n.rank in (Rank.GENUS, Rank.FAMILY))
+        spaths = {n.path for n in nodes}
+        # opportunities = the OBSERVABLE mutation series: species plus
+        # genus/family edges on the path TO species. Empty stub genera
+        # (0012 scaffold, no species) are mutation series but invisible
+        # to this species-level check — counting them over-flagged small
+        # plans (coral: 29 stub genera inflated 3 species to 36 opp).
+        opp = len(nodes) + sum(
+            1 for n in sub
+            if n.rank in (Rank.GENUS, Rank.FAMILY)
+            and any(p.startswith(n.path + ".") for p in spaths))
         if opp < MIN_OPPORTUNITIES:
             continue
         present = set.intersection(*(set(n.axes) for n in nodes)) \
