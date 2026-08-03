@@ -20,11 +20,12 @@ Fixtures plant instances directly (``_plant``): no genesis rain, so
 each fast test exercises exactly the lineages it planted. Fixture
 cells/presets were picked from a seed-1 stat probe (2026-08-01, retuned
 after the 2026-08-01 climate-envelope ruling moved the suitability
-landscape): the close pair is forb/yarrow (501 overlapping s_env < 0
-cells, min gap 0.000); the takeover pair is palm/conifer at a cell with
-large s_env margin; the drift-retention pair is a reed lineage on a
-cold-stressed marginal cell vs a healthy contrast cell; consolidation
-uses lichen (viable in every world quadrant).
+landscape): the close pair is reed/forb (212 overlapping s_env < 0
+cells, min gap 0.0007; re-pinned 2026-08-03 when the 0012 prune
+removed herb_forb.yarrow); the takeover pair is palm/conifer at a
+cell with large s_env margin; the drift-retention pair is a reed
+lineage on a cold-stressed marginal cell vs a healthy contrast cell;
+consolidation uses lichen (viable in every world quadrant).
 """
 
 from __future__ import annotations
@@ -168,8 +169,8 @@ def test_extinction_lethal_refugium():
 
 
 def test_coexistence_close_suitability():
-    """Two fixtures with close suitability in one cell (reed/yarrow,
-    min gap 0.001 over 30 healthy-shared cells) coexist: both LINEAGES
+    """Two fixtures with close suitability in one cell (reed/forb,
+    min gap 0.0007 over 144 healthy-shared cells) coexist: both LINEAGES
     keep mass > N_FLOOR after 8 rounds. (Asserted at lineage level — a
     fast herb's patch may split and re-merge across the round window,
     absorbing the original instance id; the v0.6 packet blobs found at
@@ -179,13 +180,19 @@ def test_coexistence_close_suitability():
     merely decay together under the density cap on any shared-cell
     planting). The shared cell must be HEALTHY for both (s_env < -0.1):
     a near-breakeven shared cell decays both lineages under their
-    baseline death. (v0.7: the yarrow's lineage may PROMOTE — its g
+    baseline death. (v0.7: the herb's lineage may PROMOTE — its g
     crosses the seeded g* and the whole gene pool re-keys to one new
     species node, a rank change not an extinction — so the lineage
-    mass includes the promoted descendant node.)"""
+    mass includes the promoted descendant node.) ticket 0012 Task D
+    re-pin (2026-08-03, the curated two-track flora census 0d0e0d6):
+    the prune removed herb_forb.yarrow — re-pinned to herb_forb.forb,
+    the surviving meadow-flower herb; measured on the re-curated world:
+    212 overlapping s_env < 0 cells (144 healthy-shared below -0.1),
+    min gap 0.0007 at (79,142), both lineages > N_FLOOR after 8 rounds
+    (reed 52.0, forb 639.4)."""
     eng = _engine()
     s_a = _s_env(eng, "grass_sward.reed")
-    s_b = _s_env(eng, "herb_forb.yarrow")
+    s_b = _s_env(eng, "herb_forb.forb")
     ok = eng.ctx.land_cell & (s_a < 0.0) & (s_b < 0.0)
     assert ok.any(), "no overlapping viable cell on this world"
     healthy = ok & (s_a < -0.1) & (s_b < -0.1)
@@ -193,7 +200,7 @@ def test_coexistence_close_suitability():
     score = np.where(healthy, -np.abs(s_a - s_b), -np.inf)
     y, x = np.unravel_index(int(np.argmax(score)), score.shape)
     a = _plant(eng, "grass_sward.reed", [(int(y), int(x))])
-    b = _plant(eng, "herb_forb.yarrow", [(int(y), int(x))])
+    b = _plant(eng, "herb_forb.forb", [(int(y), int(x))])
     sida = eng.instances[a].x.species_id
     sidb = eng.instances[b].x.species_id
     for t in range(8):
@@ -201,7 +208,7 @@ def test_coexistence_close_suitability():
     ma = _lineage_mass(eng, sida)
     mb = _lineage_mass(eng, sidb)
     assert ma > pop.N_FLOOR, f"reed lineage died (mass {ma:.3f})"
-    assert mb > pop.N_FLOOR, f"yarrow lineage died (mass {mb:.3f})"
+    assert mb > pop.N_FLOOR, f"forb lineage died (mass {mb:.3f})"
 
 
 def _lineage_mass(eng: Engine, sid: str) -> float:
@@ -290,11 +297,16 @@ def test_wind_deposits_land_downwind():
     field: the origin->centroid vector has a positive projection on the
     local wind for the sampled origins. Axis convention
     (dispersal._line_ray): u is the column (x) component, v the row
-    (y) component."""
+    (y) component. ticket 0012 Task D re-pin (2026-08-03, the curated
+    two-track flora census 0d0e0d6): the prune removed tree.birch (the
+    wind-dispersed hardwood, wind 0.8) — re-pinned to tree.conifer
+    (wind 0.7), the surviving wind-dispersed tree; measured on seed 1's
+    mean field: 21/21 windiest-land sources deposit downwind (assert
+    floor 18)."""
     eng = _engine()
     ctx = eng.ctx
-    sid = eng._order_sid["tree.birch"]
-    rng = eng._stream("test", "peek:tree.birch")
+    sid = eng._order_sid["tree.conifer"]
+    rng = eng._stream("test", "peek:tree.conifer")
     x = eng.authority.mint(sid, eng._new_instance_id(rng), rng)
     view = eng.sim.derive(x.traits, eng.pack)
     assert view.get("dispersal_channels", {}).get("wind", 0.0) > 0.0
@@ -364,12 +376,20 @@ def test_packet_coherence():
     ZERO isolated founded cells, and every founded REMOTE fragment (a
     component not 8-connected to the founder's pre-round cells: the
     jump landing, a disjoint animal disk) has >= 8 cells. Fixture:
-    herb_forb.yarrow planted on one cell of its densest meadow — local
-    blobs and wind rays join the founder, the jump disk (a filled
-    29-cell blob) mints as a remote fragment."""
+    grass_sward.bulrush planted on one cell of its dense fen — local
+    blobs and wind rays join the founder, the jump disk mints as a
+    remote fragment. ticket 0012 Task D re-pin (2026-08-03, the curated
+    two-track flora census 0d0e0d6): the prune removed
+    herb_forb.yarrow and the tree rebuild re-drew every lineage's g
+    parameters (content-addressed by sid, shifting the viability
+    landscape) — the old (yarrow, (71,167)) probe no longer mints a
+    jump foundling, so the trio re-probed (preset x cell) under the
+    full invariant set; the first qualifying combo is bulrush at
+    (68,181): 40 founded cells, zero isolated, no remote fragment
+    below 8 cells, exactly one jump foundling."""
     eng = _engine()
-    cell = (71, 167)            # seed-1 dense yarrow meadow (probed)
-    iid = _plant(eng, "herb_forb.yarrow", [cell])
+    cell = (68, 181)            # seed-1 dense bulrush fen (probed)
+    iid = _plant(eng, "grass_sward.bulrush", [cell])
     d0 = eng.instances[iid]
     pre = {(int(y) + d0.box[0], int(x) + d0.box[2])
            for y, x in np.argwhere(d0.cells)}
@@ -394,10 +414,13 @@ def test_packet_rng_determinism():
     """v0.6 §2 determinism hard rule for the packet layer: two engines
     on seed 1 with the same planted fixture, run 3 full rounds ->
     byte-identical state_json (the packet origin / animal-center /
-    establishment draws are pinned per (round, instance))."""
+    establishment draws are pinned per (round, instance)). Fixture as
+    in test_packet_coherence (ticket 0012 Task D re-pin 2026-08-03:
+    grass_sward.bulrush at (68,181), the re-probed qualifying combo
+    after the 0012 prune removed herb_forb.yarrow)."""
     def run() -> str:
         eng = _engine()
-        _plant(eng, "herb_forb.yarrow", [(71, 167)])
+        _plant(eng, "grass_sward.bulrush", [(68, 181)])
         for t in range(3):
             eng.round(t)
         return json.dumps(eng.state_json(), sort_keys=True)
@@ -441,11 +464,16 @@ def test_colonization_memory():
 
 def test_jump_foundling_size():
     """v0.6 §7.2: a jump packet that succeeds mints as a coherent blob
-    (the filled 29-cell disk minus absorption) — the foundling is born
+    (the filled 33-cell disk minus absorption) — the foundling is born
     with >= 20 cells, replacing the v0.5 single-pixel jump landings
-    (baseline median birth 1 cell)."""
+    (baseline median birth 1 cell). ticket 0012 Task D re-pin
+    (2026-08-03, the curated two-track flora census 0d0e0d6): the
+    prune removed herb_forb.yarrow and the tree rebuild re-drew the
+    viability landscape — the re-probe (see test_packet_coherence)
+    lands the trio on grass_sward.bulrush at (68,181): exactly one
+    jump foundling, born with 33 cells."""
     eng = _engine()
-    iid = _plant(eng, "herb_forb.yarrow", [(71, 167)])
+    iid = _plant(eng, "grass_sward.bulrush", [(68, 181)])
     eng.round(0)
     foundlings = [i2 for i2 in eng.instances if i2 != iid]
     assert len(foundlings) == 1, \
@@ -457,7 +485,7 @@ def test_jump_foundling_size():
 # ── B6 §3 canopy shade (engine-side light) ────────────────────────────
 
 
-def _shade_fixture_cell(eng: Engine, preset: str = "herb_forb.thistle"
+def _shade_fixture_cell(eng: Engine, preset: str = "herb_forb.asterid"
                         ) -> tuple[int, int]:
     """A land cell MARGINAL for *preset* (s_env just below 0) with the
     LARGEST per-lineage capacity for it (K x U — the shared-cell density
@@ -495,7 +523,7 @@ def _shade_fixture_cell(eng: Engine, preset: str = "herb_forb.thistle"
 
 def test_canopy_shade_kills_intolerant_spares_tolerant():
     """B6 §3: the shade fold drives DEMOGRAPHY — on the shared cell
-    under the bamboo canopy, the shade-intolerant thistle's density
+    under the bamboo canopy, the shade-intolerant herb's density
     collapses to zero while the shade-tolerant one holds the cell
     through the window. (v0.7 re-pin: asserted at the SHARED CELL, not
     the lineage — the g-clock's f(g) ramp keeps an intolerant
@@ -514,7 +542,14 @@ def test_canopy_shade_kills_intolerant_spares_tolerant():
     thistle at the round-0 commit (grace 0), shifting the density
     dynamics — the tolerant thistle's survival window narrows to r4
     (measured: dead <= 0.05 / spared >= 0.5 at r4 for tolerances
-    <= 0.15 vs >= 0.5; everyone folds by r5). The height-escape
+    <= 0.15 vs >= 0.5; everyone folds by r5). ticket 0012 Task D
+    re-pin (2026-08-03, the curated two-track flora census 0d0e0d6):
+    the prune removed herb_forb.thistle — the arms re-pin to
+    herb_forb.asterid (the thistle archetype's composite-head
+    successor); the marginal-band argmax now lands at (82,158) and the
+    intolerant asterid's density collapses at r2 while the tolerant
+    one holds the cell through r2 (measured: intolerant 0.000 /
+    tolerant 1.000 at r2; the tolerant folds at r3). The height-escape
     mechanism — a taller reader reads
     f_light = 1 — lives in test_canopy_shade_height_escape.)"""
     def cell_mass(eng, cell, sid):
@@ -531,18 +566,18 @@ def test_canopy_shade_kills_intolerant_spares_tolerant():
         eng = _engine()
         cell = _shade_fixture_cell(eng)
         _plant(eng, "grass_sward.bamboo", [cell], n0=1.0)
-        iid = _plant_variant(eng, "herb_forb.thistle", [cell],
+        iid = _plant_variant(eng, "herb_forb.asterid", [cell],
                              {"shade_tolerance": shade_tol}, n0=0.3)
         sid = eng.instances[iid].x.species_id
-        for t in range(4):            # measured (ticket 0028 re-pin):
-            eng.round(t)              # intolerant 0.000, tolerant 1.000
-        return cell_mass(eng, cell, sid)
+        for t in range(3):            # measured (ticket 0012 Task D
+            eng.round(t)              # re-pin): intolerant 0.000,
+        return cell_mass(eng, cell, sid)   # tolerant 1.000 at r2
     dead = run_body(0.15)
     spared = run_body(0.9)
     assert dead <= 0.05, \
-        f"shade-intolerant thistle holds the shaded cell ({dead:.3f})"
+        f"shade-intolerant herb holds the shaded cell ({dead:.3f})"
     assert spared >= 0.5, \
-        f"shade-tolerant thistle lost the shaded cell ({spared:.3f})"
+        f"shade-tolerant herb lost the shaded cell ({spared:.3f})"
 
 
 def test_canopy_shade_height_escape():
@@ -685,7 +720,13 @@ def test_drift_retained_across_commits():
     before the steady gate opens) — the retention mechanism is
     isolated from the consolidation governor by running sweep-free
     (consol_every = 0); the ratchet then measures over the full
-    window (measured: 0 -> 0.0033 (r4) -> 0.0069 (r5) -> 0.0073)."""
+    window (measured: 0 -> 0.0033 (r4) -> 0.0069 (r5) -> 0.0073).
+    ticket 0012 Task D re-pin (2026-08-03, the tree rebuild re-drew
+    every lineage's g parameters — content-addressed by sid — shifting
+    the reed's steady-tier gate timing): the gate now opens at r8 (was
+    r4-5) and the marginal reed survives past r29 (was ~r9); the
+    window extends to r12 and the ratchet measures 0 -> 0.000312 (r8)
+    -> 0.007159 (r12) (23x the 1.5x bar)."""
     from exp.k15_simdiff import authority as auth
     eng = _engine()
     eng.consol_every = 0          # ticket 0028: sweep-free (see above)
@@ -710,9 +751,10 @@ def test_drift_retained_across_commits():
     assert np.isfinite(contrast[c2]), "no healthy contrast cell"
     b = _plant(eng, "grass_sward.reed", [c2])
     ds = []
-    for t in range(8):                    # r8 stays inside the survival
+    for t in range(13):                   # r12 stays inside the survival
         eng.round(t)                      # window (the marginal reed
-        assert a in eng.instances and b in eng.instances  # dies ~r9)
+        assert a in eng.instances and b in eng.instances  # survives
+                                                          # past r29)
         # the pair starts as one lineage; under ticket 0010 it may
         # branch (distinct sids) or the stem may promote (same new sid)
         # — either is legal; a merge is not (they diverge, never
