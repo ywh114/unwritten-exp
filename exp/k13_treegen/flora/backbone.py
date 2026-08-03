@@ -57,6 +57,10 @@ UNBINDABLE = ("signal", "storage", "defense")
 # phylum rule composes from plan.phylum only when unset).
 PHYLUM_BINOMIAL = {"seed": "Spermatophyta", "spore": "Sporae",
                    "decomposer": "Mycota"}
+# radiated singleton-tail sizing (0012 ruling 12/14, report §6): per
+# order, a heavy-tailed draw around this mean — ~200-250 empty genera
+# across the tree's ~34 orders.
+STUB_RADIATION_MEAN = 6.0
 
 
 class _PlantaeBuilder(TreeBuilder):
@@ -128,6 +132,16 @@ class _PlantaeBuilder(TreeBuilder):
         return [s["name"]["binomial"] for s in pack.stubs
                 if s.get("parent") == preset
                 and s.get("rank", "genus") == "genus"]
+
+    def radiated_stub_count(self, pack, plan: str, preset: str,
+                            stream) -> int:
+        """The radiated singleton-tail count for this order: a
+        deterministic heavy-tailed draw (report §6 hollow curve — most
+        orders a handful of near-empty genera, some many), targeting
+        ~200-250 total across the tree. Pinned stream: byte-stable per
+        seed."""
+        z = stream.child("rad_stubs").normal(0)
+        return max(0, round(STUB_RADIATION_MEAN * math.exp(0.5 * z)))
 
 
 _BUILDER = _PlantaeBuilder()

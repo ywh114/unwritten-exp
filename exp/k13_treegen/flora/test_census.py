@@ -256,3 +256,17 @@ def test_stub_genera_present_and_empty(pack, stubs):
     # empty genus node
     for s in stubs:
         assert s["name"]["binomial"] in empty_names, s["label"]
+
+
+def test_radiated_stub_tail(pack, stubs):
+    """The radiated singleton-tail bulk: beyond the authored stubs, the
+    tree carries a large tail of empty genera (report §6 ~200-275)."""
+    from exp.k13_treegen.flora.backbone import build
+    from exp.k13_treegen.model import Rank
+    tree = build(1, pack)
+    authored = {s["name"]["binomial"] for s in stubs}
+    empty = [n for n in tree.nodes.values()
+             if n.rank is Rank.GENUS and not any(
+                 c.parent == n.path for c in tree.nodes.values())]
+    radiated = [n for n in empty if n.name.binomial not in authored]
+    assert len(radiated) >= 150, len(radiated)

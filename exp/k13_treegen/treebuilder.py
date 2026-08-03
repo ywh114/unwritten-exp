@@ -127,6 +127,14 @@ class TreeBuilder:
         table (each stub hangs under its authored parent order)."""
         return []
 
+    def radiated_stub_count(self, pack, plan: str, preset: str,
+                            stream) -> int:
+        """The number of RADIATED stub genera (empty singleton-tail nodes,
+        0012 ruling 12/14) to create for *preset*'s order: deterministic
+        (pinned stream), sized per the report §6 hollow curve. Default
+        (fauna): none."""
+        return 0
+
     # -- radiate model (0032) ----------------------------------------------
 
     def _radiate_flag(self, node, pin=None, propagated=None) -> str:
@@ -432,6 +440,12 @@ class TreeBuilder:
             genera += [(None, 0.0, gname, [])
                        for gname in self.stub_genera(pack, order.plan,
                                                      order.preset)]
+            # radiated stubs (0012 ruling 12/14): the deterministic
+            # singleton-tail bulk — empty unnamed genera, per the report
+            # §6 hollow-curve sizing.
+            n_rad = self.radiated_stub_count(pack, order.plan,
+                                             order.preset, fam_stream)
+            genera += [(None, 0.0, None, []) for _ in range(n_rad)]
         if pre_genus:
             genera += [(None, spread[i], None, [])
                        for i in range(1, n_spread)]
