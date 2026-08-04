@@ -260,7 +260,7 @@ For C6 counter validation:
 
 # PART II — FLORA
 
-Mirror structure. Flora-side "body plans" are **growth forms**; "organs" are slot-bound structures on six slots (RFC): `architecture`, `leaf`, `root`, `display`, `fruit/seed`, `defense`, plus two proposed additions below. Corals, sponges, bryozoans, tube worms are flora-side (sessile structural, RFC §2).
+Mirror structure. Flora-side "body plans" are **growth forms**; "organs" are slot-bound structures on six slots (RFC): `architecture`, `leaf`, `root`, `display`, `fruit/seed`, `defense`, plus two proposed additions below. Corals, sponges, bryozoans, tube worms are flora-side (sessile structural, RFC §2). — SUPERSEDED 2026-08-04 (owner): sessile fauna reverts to FAUNA-side; the flora-side coral/sponge content was deleted from k13 (see unwritten-fauna-engine-rfc.md §Plans supersession).
 
 ## 6. Flora interfaces (generics)
 

@@ -32,7 +32,11 @@
 
 ## 2. Body plans, parts, generics
 
-**Plans** (a plan earns its place if a folk family or a biome visibly needs it): tetrapod, winged biped, finned, hexapod exoskeleton, octopod exoskeleton, shell (bivalve/gastropod), cephalopod, decapod crustacean, echinoderm, myriapod, worm-grade, soft-bodied pelagic, aerial buoyant. Corals and sponges are flora-side (sessile, structural).
+**Plans** (a plan earns its place if a folk family or a biome visibly needs it): tetrapod, winged biped, finned, hexapod exoskeleton, octopod exoskeleton, shell (bivalve/gastropod), cephalopod, decapod crustacean, echinoderm, myriapod, worm-grade, soft-bodied pelagic, aerial buoyant. Corals and sponges are flora-side (sessile, structural). — SUPERSEDED
+2026-08-04 (owner): sessile fauna reverts to FAUNA-side. The flora-side
+coral/sponge content was deleted from k13 (git history retains it); the
+rewrite handles flora and fauna on equal footing, and sessile fauna is
+discovered via the fuzzy finder.
 
 **Parts:** functional organs (heart, gut, osmoregulatory, respiratory — carry physiological axes, high adaptation weights, internal) and surface/nameable parts (ears, crests, dewlaps, horns, tail fans, per-region covering, coloration). **No drift-only axes:** every axis has an adaptation *weight*; ear size is thermal (Allen's rule), albedo is thermal, camouflage is predation — the weight spectrum decides which force dominates.
 
