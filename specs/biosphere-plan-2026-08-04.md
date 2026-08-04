@@ -1,9 +1,8 @@
 # Comprehensive plan — flora finalization and the rewrite
 
-**Status:** DRAFT for owner approval, 2026-08-04. Supersedes the
-ticket-by-ticket drift of July/August: the open queue is triaged
-against this plan (section 8), and nothing below starts without an
-explicit go.
+**Status:** APPROVED 2026-08-04, decisions D1–D4 as recorded in §9.
+Supersedes the ticket-by-ticket drift of July/August: the open queue
+is triaged against this plan (section 8).
 
 ## 0. The bottom line (from scratch/note)
 
@@ -130,9 +129,9 @@ which is why it gets its own phase and its own reality check.
 
 ## 5. Phase 3 — the rewrite, layer by layer
 
-In-repo (decision D3), as a new module beside k11–k15 (working name
-`exp/k16_biosphere/`; rename freely — the name matters less than the
-rule): flora and fauna on equal footing from day one, with clean
+In-repo (decision D3), as a new module beside k11–k15 — named
+**`exp/k15_biosphere/`** by the owner (D4): flora and fauna on equal
+footing from day one, with clean
 modular splits where they differ (sessile fauna comes home here,
 discovered by the fuzzy finder — the query-by-description facility —
 not by special cases).
@@ -187,6 +186,9 @@ range naturalness, biomass realism. Only when the scaffolding
 passes those eyes does content authoring resume (and the deleted
 coral/sponge set returns, fauna-side, through the fuzzy finder).
 
+When k15_biosphere is done, `exp/k15_simdiff/` and the orphaned
+`exp/k15_descent/` are REMOVED (owner ruling, D4).
+
 ## 7. Cross-cutting cleanups
 
 - **Specs:** this document sits on top; the addendum pile gets one
@@ -200,7 +202,7 @@ coral/sponge set returns, fauna-side, through the fuzzy finder).
   problem is treated as a design flaw of the codebase, fixed by the
   rewrite's structure, not by tougher subagents.
 
-## 8. Queue triage (proposal — confirm at plan approval)
+## 8. Queue triage (executed 2026-08-04)
 
 | Ticket | Read | Proposed disposition |
 |---|---|---|
@@ -221,22 +223,17 @@ coral/sponge set returns, fauna-side, through the fuzzy finder).
 Closures carry their design information into this document or the
 tickets that survive — nothing is just deleted (note's ruling).
 
-## 9. Decisions for the owner
+## 9. Decisions (owner, 2026-08-04)
 
-- **D1 — mass plumbing once or twice?** Recommended: research and
-  reality-check now (Phase 1), implement ONCE in the rewrite. The
-  alternative — plumbing mass into the current engine first — keeps
-  old runs "real" during the rewrite but pays for work slated for
-  deletion.
-- **D2 — freeze the current engine?** Recommended: yes, after Phase
-  0. 0019/0027/note-6 become rewrite requirements, not patches.
-- **D3 — rewrite location?** Recommended: this repo, new module —
-  keeps history, fixtures, the queue, and lets old-vs-new runs share
-  one debug tool. A new repo would split all of that.
-- **D4 — module working name?** `exp/k16_biosphere/` proposed;
-  cosmetic, veto freely.
+- **D1 — ONCE.** Research and reality-check now (Phase 1); the
+  mass-is-biomass plumbing is implemented only in the rewrite.
+- **D2 — YES.** The current engine freezes after Phase 0; 0019/0027/
+  note-6 are rewrite requirements, not patches.
+- **D3 — NEW MODULE** in this repo.
+- **D4 — `k15_biosphere`.** When the rewrite is done, remove
+  `exp/k15_simdiff/` and the orphaned `exp/k15_descent/`.
 
-## 10. First concrete steps, once approved
+## 10. First concrete steps (in flight since 2026-08-04)
 
 1. Ticket 0038 (debug tool) — briefed to a subagent with the
    artifact schema and the question classes above.
