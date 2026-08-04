@@ -641,9 +641,10 @@ def test_commit_leaves_derived_views_unchanged():
 def test_reduced_cache_budget():
     """The §5.1 reduced cache stays within REDUCED_CACHE_MB per live
     instance (ticket 0004: genesis clones share one cache per RADIATED
-    SPECIES — measure the shared one; 105 minted species on seed 1, the
-    v0.9 mint floor dropped the 41 all-sub-floor species — ticket
-    0009)."""
+    SPECIES — measure the shared one; 105 minted species on seed 1 at
+    the v0.9 landing — the ticket-0009 mint floor dropped the 41
+    all-sub-floor species, and its REMOVAL (ticket 0039) only raises
+    the count; the per-cache size bound is unaffected)."""
     eng = _engine()
     eng.genesis()
     seen = {}
@@ -1188,7 +1189,9 @@ def test_genesis_partition_diverges():
     ticket 0028; v1.3 ticket 0018: the pre-genesis descent ranks 12
     fragments at r1 (5 SPECIES + 7 SUBSPECIES, earned-g first-commit
     rank) and the lineage count GROWS 102 -> 107 by r10 (never below
-    the 102 start) vs the control's monotone fall to 94): genesis
+    the 102 start) vs the control's monotone fall to 94; ticket 0039
+    raises the genesis start count (sub-12 ranges now mint — the
+    qualitative asserts below are unaffected): genesis
     clone pairs of one lineage (minted under the
     radiated SPECIES sids since ticket 0004 — the 35 ORDER nodes are
     ancestors, never seeded) register REAL divides within R rounds.
