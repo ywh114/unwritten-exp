@@ -7,9 +7,11 @@ plan guard.  Plain pytest, no marks — runs in milliseconds.
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
-from exp.k15_biosphere.flora.mass import PLANS, percap_biomass
+from exp.k15_biosphere.flora.mass import PLANS, footprint_m2, percap_biomass
 from exp.k15_biosphere.flora.reality import CASES, evaluate
 
 # Reasonable axes per plan for the positive-mass guarantee.
@@ -102,3 +104,23 @@ def test_unknown_plan_raises():
 def test_unknown_tree_form_raises():
     with pytest.raises(ValueError):
         percap_biomass({"height_m": 10.0, "crown_spread_m": 4.0}, "tree", "bogus")
+
+
+def test_footprint_crown_wins_over_vestigial_clonal():
+    """Real crowns win over vestigial ~zero clonal axes (lock v1.1
+    amendment 3): spread = max(clonal_spread_m, crown_spread_m)."""
+    fp = footprint_m2({"clonal_spread_m": 0.01, "crown_spread_m": 13.9}, "tree")
+    assert fp == pytest.approx(math.pi * (13.9 / 2.0) ** 2)
+
+
+def test_footprint_clonal_wins_for_colony_former():
+    """Clonal extent is the footprint when it is the colony former
+    (grasses, runners)."""
+    fp = footprint_m2({"clonal_spread_m": 2.0, "crown_spread_m": 0.3}, "grass_sward")
+    assert fp == pytest.approx(math.pi * 1.0 ** 2)
+
+
+def test_footprint_fallback_when_both_zero():
+    """Both spreads zero → group fallback (0.3·H)²."""
+    fp = footprint_m2({"height_m": 1.0}, "herb_forb")
+    assert fp == pytest.approx((0.3 * 1.0) ** 2)
