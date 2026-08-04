@@ -22,8 +22,9 @@ penalty hook (ticket 0035 owner note).
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 from typing import Mapping
+
+from ..interface import MassEstimate
 
 # ── formula lock v1.1 constants (2026-08-04; amendments 1–2 same day) ────
 
@@ -91,21 +92,6 @@ PLANS = (
 )
 
 TREE_FORMS = ("broadleaf", "conifer", "tropical", "palm", "open")
-
-
-@dataclass
-class MassEstimate:
-    """Dry per-individual biomass (kg).
-
-    ``total_kg``: dry, incl. belowground; ``agb_kg``: aboveground dry.
-    ``proportions``: per-group intermediates (dbh_m, crown_dbh_ratio,
-    root_shoot, sward_kg_m2, …) for the future proportion-deviation
-    penalty hook (ticket 0035 owner note).
-    """
-
-    total_kg: float
-    agb_kg: float
-    proportions: dict[str, float]
 
 
 def footprint_m2(axes: Mapping[str, float], plan: str) -> float:
