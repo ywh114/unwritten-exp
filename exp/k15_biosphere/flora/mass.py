@@ -11,7 +11,11 @@ sward_kg_m2·footprint, total = agb·(1 + R_GRASS).  Seagrass
 (runner_meadow with medium "water") is the exception — its total is folded
 (incl. belowground), no R applied on top (lock v1.1 amendment 1).
 
-Formula lock v1.1 (orchestrator-locked 2026-08-04; amendments 1–2 same day):
+Footprint spread is max(clonal_spread_m, crown_spread_m): clonal extent
+matters when it is the colony former (grasses, runners), but a vestigial
+~zero clonal axis must not shrink a real crown (lock v1.1 amendment 3).
+
+Formula lock v1.1 (orchestrator-locked 2026-08-04; amendments 1–3 same day):
 every constant below is final and named as locked.  ``FLAGGED`` constants
 are acknowledged order-of-magnitude estimates pending better published data
 — do not "fix" them without a new lock.  ``MassEstimate.proportions``
@@ -26,7 +30,7 @@ from typing import Mapping
 
 from ..interface import MassEstimate
 
-# ── formula lock v1.1 constants (2026-08-04; amendments 1–2 same day) ────
+# ── formula lock v1.1 constants (2026-08-04; amendments 1–3 same day) ────
 
 # --- trees ---------------------------------------------------------------
 K_ASPECT_BROADLEAF = 18.0   # Hemery 2005 oak stand-grown crown:DBH, DOI 10.1016/j.foreco.2005.05.010
@@ -97,12 +101,15 @@ TREE_FORMS = ("broadleaf", "conifer", "tropical", "palm", "open")
 def footprint_m2(axes: Mapping[str, float], plan: str) -> float:
     """Cover/footprint area (m²) for per-area models and case densities.
 
-    π·(spread/2)² when a spread is given — clonal spread overrides crown —
-    else the group fallback: fungus → 1.0 m², everything else → (0.3·H)².
+    π·(spread/2)² with spread = max(clonal, crown) when either is given —
+    clonal extent matters when it is the colony former (grasses, runners),
+    but a vestigial ~zero clonal axis must not shrink a real crown (lock
+    v1.1 amendment 3); else the group fallback: fungus → 1.0 m², everything
+    else → (0.3·H)².
     """
     clonal = axes.get("clonal_spread_m", 0.0)
     crown = axes.get("crown_spread_m", 0.0)
-    spread = clonal if clonal > 0.0 else crown
+    spread = max(clonal, crown)
     if spread > 0.0:
         return math.pi * (spread / 2.0) ** 2
     if plan == "fungus":
