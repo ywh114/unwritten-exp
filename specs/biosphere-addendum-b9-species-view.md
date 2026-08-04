@@ -92,6 +92,17 @@ crown ratio, root-shoot, sward density, …) against viable envelopes.
   stress (from the cell) through the same stress machinery — to the sim, a
   self-stressed cactus looks exactly like a droughted oak, differing only in
   provenance. The sim never special-cases proportions.
+- **Authored exception bubbles (owner ruling 2026-08-04).** The viable
+  envelope per stress type is default region ∪ authored exception
+  bubbles: a pin whose proportions lie outside the default envelope
+  (giraffe, parasitic flower-only plants) carries an authored bubble —
+  center = the pinned proportions, radius per stress type — as part of
+  its content record. Bubbles are AUTHORING, never generated: the
+  sampler cannot mint them, so monsters cannot be laundered through
+  self-granted exemptions. Descendants inherit the bubble; drift inside
+  it is free (the clade radiates around the pinned form), drift beyond
+  its edge meets the normal cliff. Bubbles are per stress type and
+  independent (a support bubble implies no storage bubble).
 - **Equal footing.** Fauna exposes the identical field from its morphology
   hook (fauna's morphometrics axes are the same kind of proportion knobs).
 - **Acceptance case:** the B8-probe cactus (`succulent.cactus` at the
