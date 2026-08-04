@@ -62,13 +62,14 @@ def artifact() -> Artifact:
 def _decode_species_cells(sid: str, a: Artifact) -> set[int]:
     """Independent decode of a species' occupied flat indices directly
     from the raw density.json payload (mirrors the windowed-mask
-    convention: box = [x0, x1, y0, y1], x1/y1 exclusive, row-major)."""
+    convention: box = [y0, y1, x0, x1], Y-first, both ends exclusive,
+    row-major)."""
     H, W = a.world_shape()
     cells: set[int] = set()
     for e in a.density()["instances"]:
         if e["sid"] != sid:
             continue
-        x0, x1, y0, _ = e["box"]
+        y0, y1, x0, x1 = e["box"]
         w = x1 - x0
         for i, v in enumerate(e["mask"]):
             if v:

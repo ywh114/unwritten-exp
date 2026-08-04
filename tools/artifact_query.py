@@ -25,9 +25,10 @@ Artifact layout (exp/k15_simdiff/persist.py, k15 schema):
 
   state.json    run manifest + per-instance digest (iid -> cells/mass/
                 rain/sid/traits), retired iids, world shape
-  density.json  per-instance WINDOWED density: box = [x0, x1, y0, y1]
-                (x1/y1 EXCLUSIVE) + N (windowed f8 field, row-major) +
-                mask (u1 occupancy, len = (x1-x0)*(y1-y0))
+  density.json  per-instance WINDOWED density: box = [y0, y1, x0, x1]
+                (Y-FIRST, both ends EXCLUSIVE) + N (windowed f8 field,
+                row-major) + mask (u1 occupancy,
+                len = (x1-x0)*(y1-y0))
   tree.json     the amended species tree (k13 schema; species binomials
                 are NULL by design — the k15 authority never runs the
                 nomenclature layer, "interim handle" authority.py)
@@ -145,7 +146,7 @@ class Artifact:
                 occ = [i for i, v in enumerate(e["mask"]) if v]
                 if not occ:
                     continue
-                x0, x1, y0, _ = e["box"]
+                y0, y1, x0, x1 = e["box"]
                 w = x1 - x0
                 s = sets.setdefault(e["sid"], set())
                 s.update((y0 + i // w) * W + (x0 + i % w) for i in occ)
