@@ -44,7 +44,7 @@ from exp.k13_treegen.interface import Outcome
 from exp.k15_simdiff import dispersal as dsp
 from exp.k15_simdiff import population as pop
 from exp.k15_simdiff import stress_adapter as sa
-from exp.k15_simdiff.engine import Dressed, Engine, _dilate
+from exp.k15_simdiff.engine import Dressed, Engine, GENESIS_S, _dilate
 
 SEED = 1
 R_SLOW = 20
@@ -1022,6 +1022,102 @@ def test_hard_rule_runtime_guard(monkeypatch):
                  [(int(ys[mid]), int(xs[mid]))])
     eng.round(0)
     assert iid in eng.instances
+
+
+# ── ticket 0037: the per-cell total demand cap (budget v2) ─────────────
+
+
+def _stack_cell(eng: Engine) -> tuple[int, int]:
+    """The first land cell (row-major) whose capacity sits in the
+    middle band 0.4 < K < 0.8 — deterministic on seed 1. Moderate
+    enough for the cap tests: a 3-lineage stack at N0 = 0.5 lands
+    strictly above K·S (K·0.5 < 0.4 < ΣD = 3) yet scales above N_FLOOR
+    (scaled N = 0.5·K/6 ∈ (0.033, 0.067) >> N_FLOOR = 0.01), so the
+    squeeze is exact and no floor binds."""
+    ys, xs = np.nonzero(eng.ctx.land_cell)
+    for y, x in zip(ys, xs):
+        k = float(eng.K[y, x])
+        if 0.4 < k < 0.8:
+            return int(y), int(x)
+    raise AssertionError("no mid-band land cell on seed 1")
+
+
+def test_seed_cap_proportional_squeeze():
+    """Ticket 0037: a stacked cell never ends above K·S — three
+    lineages on one cell are scaled DOWN proportionally so the total
+    demand ΣD = K·S exactly (no floor binds: every scaled N is far
+    above N_FLOOR)."""
+    eng = _engine()
+    cell = _stack_cell(eng)
+    K = float(eng.K[cell])
+    percap = [1.0, 2.0, 3.0]
+    for i, pc in enumerate(percap):
+        iid = _plant(eng, "tree.oak", [cell])
+        d = eng.instances[iid]
+        d.N[...] = 0.5
+        d.percap = pc
+    total = 0.5 * sum(percap)
+    scale = min(1.0, K * GENESIS_S / total)
+    assert 0.0 < scale < 1.0, "test premise: the cell must be over K·S"
+    eng._cap_seed_demand()
+    after = [float(d.N[0, 0]) for d in eng.instances.values()]
+    # proportional: every lineage scaled by the SAME factor
+    assert all(a == pytest.approx(0.5 * scale) for a in after)
+    # the cell total is exactly K·S (no floor-bound cell here)
+    tot = sum(a * p for a, p in zip(after, percap))
+    assert tot == pytest.approx(K * GENESIS_S)
+
+
+def test_seed_cap_floor_bound_cell_keeps_floor():
+    """Ticket 0037 floor handling (owner ruling): a cell whose scaled
+    N would fall below N_FLOOR is KEPT at N_FLOOR — slight overshoot,
+    presence wins — while the other lineage takes the full proportional
+    squeeze; the cell total overshoots K·S by at most the floor."""
+    eng = _engine()
+    cell = _stack_cell(eng)
+    K = float(eng.K[cell])
+    small = _plant(eng, "tree.oak", [cell])
+    ds = eng.instances[small]
+    ds.N[...] = 0.0105                     # just above N_FLOOR pre-cap
+    ds.percap = 1.0
+    wall = _plant(eng, "grass_sward.reed", [cell])
+    dw = eng.instances[wall]
+    wall_N0 = max(10.0, 2.0 * K)           # any real squeeze scales <= 0.25
+    dw.N[...] = wall_N0
+    dw.percap = 1.0
+    eng._cap_seed_demand()
+    # the small lineage is floor-clamped (0.0105·scale < 0.01 for ANY
+    # scale < 1/1.05, and the wall forces scale ≤ 0.25 < 0.952)
+    assert float(eng.instances[small].N[0, 0]) == pytest.approx(pop.N_FLOOR)
+    # the wall took the full proportional squeeze (not floor-bound:
+    # wall_N0·scale >= 10·0.25 >> N_FLOOR)
+    scale = min(1.0, K * GENESIS_S / (0.0105 + wall_N0))
+    assert float(eng.instances[wall].N[0, 0]) == pytest.approx(wall_N0 * scale)
+    # the cell total is K·S plus the small floor overshoot only
+    tot = (float(eng.instances[wall].N[0, 0])
+           + float(eng.instances[small].N[0, 0]))
+    assert tot <= K * GENESIS_S + pop.N_FLOOR + 1e-12
+
+
+def test_seed_cap_deterministic():
+    """Ticket 0037: two identical mints + cap produce byte-identical N
+    (the cap is draw-free; the ΣD accumulation iterates sorted iids —
+    the hard rule's sorted() around float accumulation)."""
+    def run():
+        eng = _engine()
+        cell = _stack_cell(eng)
+        for pc in (1.0, 2.0, 3.0):
+            iid = _plant(eng, "tree.oak", [cell])
+            d = eng.instances[iid]
+            d.N[...] = 0.5
+            d.percap = pc
+        eng._cap_seed_demand()
+        return [(iid, eng.instances[iid].N.tobytes())
+                for iid in sorted(eng.instances)]
+    a, b = run(), run()
+    assert [x[0] for x in a] == [x[0] for x in b]
+    for (ia, na), (ib, nb) in zip(a, b):
+        assert ia == ib and na == nb
 
 
 # ── §12.1/2/3/8 slow full-run gate ───────────────────────────────────

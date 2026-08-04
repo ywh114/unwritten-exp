@@ -28,7 +28,10 @@ rain now seeds the whole viable range at the SMALL F0 (utilization
 u ≈ F0 · n_stack stays under the density cap even with heavy
 stacking) and then draws a per-component KEEP/DROP from the pinned
 genesis stream (whole blobs — never speckled cells) with keep
-probability GENESIS_COVER; a species whose every drawn component is
+probability GENESIS_COVER, TIERED by the species' pre-coverage
+retained cell count (ticket 0037: R < 200 no draw — the species seeds
+its whole viable range; 200-400 ramps p 1.0 -> 0.5; > 400 the flat
+0.5); a species whose every drawn component is
 dropped keeps its single largest component unconditionally, so the
 coverage draw can never cause extinction (only the ticket-0004/0009
 paths do: zero range and all-sub-floor ranges).
@@ -116,6 +119,21 @@ GENESIS_F0 = 0.1
 # viable range by cells); unseeded viable cells stay empty for §7
 # colonization.
 GENESIS_COVER = 0.5
+# ticket 0037 (owner ruling 2026-08-03): the TIERED coverage ramp — the
+# coverage draw's keep probability becomes a function of the species'
+# PRE-COVERAGE retained cell count R (the union of the floor-passing
+# proximity blobs, computed BEFORE the draws): R < GENESIS_COVER_MIN_R
+# -> NO draw at all (the species seeds its whole viable range — the
+# 0037 defect: a 78-cell mangrove lost its larger blob to the draw and
+# minted 36 of 78 viable cells); MIN_R <= R <= MAX_R -> per-blob keep
+# probability ramps linearly 1.0 -> GENESIS_COVER
+# (p = 1.0 - (R - MIN_R)/(MAX_R - MIN_R) * 0.5); R > MAX_R ->
+# GENESIS_COVER = 0.5 as before (a 2000-cell oak still leaves habitat
+# for §7 colonization). The 200/400 ramp replaces the earlier "cliff at
+# 200" (owner ruling); the largest-blob retry rule stays for the draw
+# regimes.
+GENESIS_COVER_MIN_R = 200
+GENESIS_COVER_MAX_R = 400
 PART_AREA_REF = 200     # partition: reference range area (cells)
 PART_K_MAX = 8          # partition: clone-count cap per preset
 PART_MIN_CELLS = 20     # partition: components below this stay single
@@ -589,7 +607,9 @@ def _covered_components(comps: list[np.ndarray], rng: Stream,
     order — since ticket 0033 §1 the call sites pass PROXIMITY blobs,
     proximity_components' sorted top-left of the dilated components), an
     independent keep/drop draw from ``rng.child("cover:{i}")`` with keep
-    probability *cover*. WHOLE blobs are kept or dropped (never
+    probability *cover* (ticket 0037: the callers pass the TIERED
+    per-species probability coverage_keep(R) — see _covered_tiered).
+    WHOLE blobs are kept or dropped (never
     speckled cells); a run where every draw drops is RETRIED by keeping
     the single largest blob unconditionally (ties → first emission
     order), so the coverage draw can never wipe out a lineage that has
@@ -602,6 +622,43 @@ def _covered_components(comps: list[np.ndarray], rng: Stream,
     if not sel:
         sel = [max(comps, key=lambda c: int(c.sum()))]
     return sel
+
+
+def coverage_keep(R: int) -> float:
+    """Ticket 0037: the per-species coverage keep probability for a
+    pre-coverage retained cell count R (the union of the floor-passing
+    proximity blobs, computed BEFORE the coverage draws). R <
+    GENESIS_COVER_MIN_R -> 1.0 (no draw — the caller seeds the whole
+    viable range); GENESIS_COVER_MIN_R <= R <= GENESIS_COVER_MAX_R ->
+    linear ramp 1.0 -> GENESIS_COVER (p = 1.0 - (R - MIN_R)/(MAX_R -
+    MIN_R) * 0.5 — 0.875 at R = 250); R > GENESIS_COVER_MAX_R ->
+    GENESIS_COVER = 0.5, the pre-0037 behavior."""
+    if R < GENESIS_COVER_MIN_R:
+        return 1.0
+    if R <= GENESIS_COVER_MAX_R:
+        return 1.0 - (R - GENESIS_COVER_MIN_R) \
+            / (GENESIS_COVER_MAX_R - GENESIS_COVER_MIN_R) * 0.5
+    return GENESIS_COVER
+
+
+def _covered_tiered(comps: list[np.ndarray], rng: Stream
+                    ) -> list[np.ndarray]:
+    """Ticket 0037: the TIERED coverage draw. Computes the pre-coverage
+    retained cell count R (sum of the floor-passing proximity blobs —
+    disjoint, so the count is their union) BEFORE any draw: R <
+    GENESIS_COVER_MIN_R -> NO coverage draw at all — every blob kept,
+    the species seeds its whole viable range (the 0037 defect: the
+    draw downsized a 78-cell mangrove to its smaller blob); otherwise
+    ``_covered_components`` with the ramped per-blob keep probability
+    coverage_keep(R). The draw regimes' child-stream addressing
+    (``rng.child(f"cover:{i}")`` in the pinned emission order) is
+    unchanged — only the probability is a function of R — and the
+    no-draw regime consumes nothing. Deterministic: R is a pure
+    function of the blobs, the draws are content-addressed."""
+    R = sum(int(c.sum()) for c in comps)
+    if R < GENESIS_COVER_MIN_R:
+        return comps
+    return _covered_components(comps, rng, cover=coverage_keep(R))
 
 
 # ── the genesis rain (single-lineage core: preset/tests) ───────────────
@@ -625,7 +682,10 @@ def _rain_for_view(view: dict, ctx: sa.WorldContext, seed: int,
     groups by proximity (proximity_components — disconnected pixels
     within GENESIS_PROX_R merge into one blob) and the floor is 12.
     Ticket 0020: partial coverage — a per-blob keep/drop draw
-    (``_covered_components``) then keeps ~GENESIS_COVER of the retained
+    (``_covered_tiered``, ticket 0037: TIERED by the pre-coverage
+    retained cell count — R < 200 no draw at all, 200-400 ramps the
+    per-blob keep probability 1.0 -> GENESIS_COVER, > 400 the flat
+    GENESIS_COVER) then keeps ~GENESIS_COVER of the retained
     blobs (whole blobs, never speckle), leaving the drawn-away viable
     cells unseeded for §7 colonization; a lineage whose every blob is
     drawn away keeps its largest blob, so the draw never causes
@@ -640,7 +700,7 @@ def _rain_for_view(view: dict, ctx: sa.WorldContext, seed: int,
     if not kept:
         return (), 0
     rng = Stream(seed, "k15.genesis", key)
-    kept = _covered_components(kept, rng)
+    kept = _covered_tiered(kept, rng)
     retained = np.logical_or.reduce(kept)
     range_cells = int(retained.sum())
     K_n = partition_k(range_cells)
@@ -735,10 +795,16 @@ def genesis_rain_species(pack, ctx: sa.WorldContext, seed: int,
        r-dilated range, disconnected-but-close pixels merged) below
        GENESIS_MIN_CELLS are dropped (never minted; §7 dispersal can
        re-find those cells).
-    4. **Partial coverage** (ticket 0020): per retained blob, a
-       keep/drop draw from ``Stream(seed, "k15.genesis", sid)``
-       (``rng.child("cover:{i}")``, pinned emission order) with keep
-       probability GENESIS_COVER — whole blobs kept or dropped, never
+    4. **Partial coverage** (ticket 0020; TIERED per ticket 0037): per
+       retained blob, a keep/drop draw from ``Stream(seed,
+       "k15.genesis", sid)`` (``rng.child("cover:{i}")``, pinned
+       emission order) with keep probability coverage_keep(R) where R
+       is the PRE-COVERAGE retained cell count (computed before the
+       draws): R < 200 -> NO draw — the species seeds its whole viable
+       range (the 0037 defect: the draw downsized a 78-cell mangrove
+       to its smaller blob); 200 <= R <= 400 -> linear 1.0 ->
+       GENESIS_COVER; R > 400 -> GENESIS_COVER = 0.5 as before — whole
+       blobs kept or dropped, never
        speckled cells; a species whose every drawn blob is dropped
        keeps its single largest blob unconditionally (the draw never
        causes extinction). Unseeded viable cells stay empty for §7
@@ -798,7 +864,7 @@ def genesis_rain_species(pack, ctx: sa.WorldContext, seed: int,
             out[sid] = ((), 0, ev["bundle"])
             continue
         rng = Stream(seed, "k15.genesis", sid)
-        big = _covered_components(big, rng)
+        big = _covered_tiered(big, rng)
         retained = np.logical_or.reduce(big)
         range_cells = int(retained.sum())
         K_n = partition_k(range_cells)

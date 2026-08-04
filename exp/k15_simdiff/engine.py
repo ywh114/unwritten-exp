@@ -120,6 +120,20 @@ DG_ENUM_SHARE = 0.05    # enum redraws' g contribution per generation
 # 2 x the single-lineage rate, d(A,B) = (g_A − g0) + (g_B − g0).
 ISO_G_GAIN = 1.0        # Δg base multiplier at full isolation
 ISO_RAMP_ROUNDS = 2     # rounds without gene flow to full isolation
+# ticket 0037 (owner ruling 2026-08-03): the per-cell TOTAL demand cap
+# at mint (budget v2 — proportional squeeze). Raw founder demand
+# D_i = max(F0·K_Li, N_FLOOR·percap_i) per lineage is computed as
+# before; per cell, if the SUM over all minted lineages on the cell
+# exceeds K·S, scale ALL of them down proportionally so the total =
+# K·S, then re-apply the floor (a cell whose scaled N would fall below
+# N_FLOOR is KEPT at N_FLOOR — slight overshoot, presence wins). S =
+# 0.5: seed saturation, matching the coverage fraction. Since D_i ∝
+# K_Li ∝ U_i the split is automatically proportional to substrate
+# share. The physically meaningful bound is the cell total ΣD ≤ K·S;
+# a per-lineage u_i = D/K_Li may still exceed 1 for a low-U lineage
+# (u_i ≤ S/U_i) — the correct crowding signal, not an over-capacity
+# cell.
+GENESIS_S = 0.5
 G_STEP_REF = 100.0      # the species-edge dg scale (flora backbone
                         # DG_* medians 300/150/60): forces.py's p_novel
                         # is a per-EDGE rate, so the rounds' per-round
@@ -599,11 +613,17 @@ class Engine:
         K_L(c, L) (F0 small: u ≈ F0 · n_stack stays under the density
         cap even with heavy stacking, so competition is left to the
         rounds), and per-component keep/drop draws
-        (genesis.GENESIS_COVER) leave unseeded viable habitat for §7
-        colonization — the first implementation's density budget
+        (genesis.GENESIS_COVER, TIERED by the pre-coverage retained
+        cell count — ticket 0037: R < 200 no draw, 200-400 ramps
+        p 1.0 -> 0.5, > 400 the flat 0.5) leave unseeded viable habitat
+        for §7 colonization — the first implementation's density budget
         claimed cells first-come-first-served in sid order and
         budget-dropped 51/150 species (occupancy by name hash), which
-        the owner rejected. ONE adapter evaluation per species: the
+        the owner rejected. Ticket 0037: at the END of the mint (after
+        the bundle seeding) a per-cell TOTAL demand cap squeezes every
+        stacked cell back to K·S (S = GENESIS_S = 0.5, proportional
+        squeeze, floor-clamped cells kept at N_FLOOR — see
+        _cap_seed_demand). ONE adapter evaluation per species: the
         seeding and the §5.1 cache share the same evaluation
         (genesis_rain_species returns the compact reduced bundle), and
         clones of one species have IDENTICAL genes, so the
@@ -712,6 +732,11 @@ class Engine:
         # mint + the adapted-fringe dress
         self._seed_bundles(progress=progress)
         tick("bundles")
+        # ticket 0037: the per-cell total demand cap over the WHOLE mint
+        # (species clones + bundle niche-dwellers; the 0018 descent
+        # fragments exempt) — the last genesis step, draw-free
+        self._cap_seed_demand()
+        tick("cap")
         if unseeded:
             self.authority.register_unseeded(sorted(unseeded))
         if _ds["broken"]:
@@ -735,7 +760,11 @@ class Engine:
         path inherits the species relaxation) with the same
         GENESIS_MIN_CELLS floor, and a per-blob coverage draw from
         ``Stream(seed, "k15.genesis", sid)`` (content-addressed by the
-        bundle sid, so the processing order never matters). NO clone
+        bundle sid, so the processing order never matters) — TIERED by
+        the pre-coverage retained cell count (ticket 0037,
+        gen._covered_tiered: R < 200 no draw at all, 200-400 ramps
+        1.0 -> GENESIS_COVER, > 400 flat GENESIS_COVER — the same
+        ramp as the species rain). NO clone
         partition (the partition is the headstart-speciation device;
         frozen lineages cannot diverge, so clones would just sit
         unmergeable) and ONE direct mint — never authority.mint, so the
@@ -785,7 +814,7 @@ class Engine:
                 unseeded += 1
                 continue
             rng = Stream(self.seed, "k15.genesis", sid)
-            kept = gen._covered_components(big, rng)
+            kept = gen._covered_tiered(big, rng)
             retained = np.logical_or.reduce(kept)
             N = gen._n_field(retained, K_L, percap)
             box = _mask_box(retained, full)
@@ -811,6 +840,64 @@ class Engine:
         # the summary line: unconditional (like the 0018 descent print)
         print(f"  bundles: {seeded}/{n} seeded "
               f"({cells} cells; {unseeded} unseeded)")
+
+    # ── ticket 0037: the per-cell total demand cap (budget v2) ────────
+
+    def _cap_seed_demand(self) -> None:
+        """Ticket 0037 (owner ruling 2026-08-03): the per-cell TOTAL
+        demand cap at mint — the proportional squeeze. Raw founder
+        demand D_i = max(F0·K_Li, N_FLOOR·percap_i) per lineage and
+        N_i = D_i/percap_i are computed as before (genesis.demand_field);
+        NEW: per cell, if the SUM over ALL lineages minted on the cell
+        exceeds K·S (S = GENESIS_S = 0.5 — seed saturation, matching
+        the coverage fraction), scale ALL of them down proportionally
+        so the total = K·S, then re-apply the floor (a cell whose
+        scaled N would fall below N_FLOOR is KEPT at N_FLOOR — slight
+        overshoot, presence wins; the physically meaningful bound is
+        the cell total ΣD ≤ K·S).
+
+        Runs at ENGINE mint time — AFTER the species rain AND the
+        bundle seeding retained sets are known — because bundles are
+        FROZEN but their N counts toward cell demand (the squeeze must
+        see every lineage minted on a cell, not the per-species rain's
+        isolated view). World-grid accumulation: sum per-cell demand
+        over every species clone + every bundle clone into one (H,W)
+        float64 grid (~512 KB at 256²), derive the per-cell scale
+        factor min(1, K·S/ΣD), then rescale each instance's windowed N
+        by its cells' factors, clamping floor-bound cells back to
+        N_FLOOR. Only the MINTED cells participate — the coverage-empty
+        cells have ΣD = 0 and stay empty.
+
+        The ticket-0018 descent's adapted fragments are EXEMPT by
+        construction (minted from their own founder formula over their
+        seeded part, after the rain — iid in ``self._birth_g``): they
+        neither contribute to ΣD nor get rescaled. Documented
+        exemption — the descent is not restructured.
+
+        Draw-free and deterministic: the accumulation iterates instances
+        in sorted iid order (the hard rule's sorted() around float
+        accumulation); same seed → byte-identical N."""
+        H, W = self.ctx.H, self.ctx.W
+        sumD = np.zeros((H, W), dtype=np.float64)
+        for iid in sorted(self.instances):
+            d = self.instances[iid]
+            if iid in self._birth_g:      # 0018 descent fragments: exempt
+                continue
+            y0, y1, x0, x1 = d.box
+            sumD[y0:y1, x0:x1] += d.N * d.percap
+        cap = self.K.astype(np.float64) * GENESIS_S
+        scale = np.ones((H, W), dtype=np.float64)
+        m = sumD > 0.0
+        scale[m] = np.minimum(1.0, cap[m] / sumD[m])
+        for iid in sorted(self.instances):
+            d = self.instances[iid]
+            if iid in self._birth_g:
+                continue
+            y0, y1, x0, x1 = d.box
+            f = scale[y0:y1, x0:x1]
+            N = d.N * f                  # float64; N = 0 cells stay 0
+            d.N = np.where((d.N > 0.0) & (N < pop.N_FLOOR),
+                           pop.N_FLOOR, N)
 
     # ── §10.1 pre-genesis descent (ticket 0018) ────────────────────────
 

@@ -30,15 +30,20 @@ from exp.k15_simdiff import population as pop
 from exp.k15_simdiff import stress_adapter as sa
 from exp.k15_simdiff.genesis import (
     GENESIS_COVER,
+    GENESIS_COVER_MIN_R,
     GENESIS_F,
     GENESIS_F0,
     GENESIS_MIN_CELLS,
     GENESIS_PROX_R,
     CloneSeed,
     _clone_units,
+    _covered_components,
+    _covered_tiered,
     _partition,
     _partition_range,
+    _rain_for_view,
     connected_components,
+    coverage_keep,
     genesis_rain,
     partition_k,
     proximity_components,
@@ -230,6 +235,194 @@ def test_partition_range_disconnected_retained():
     assert not chunks[0][28, 28:36].any()
 
 
+# ── ticket 0037: tiered coverage ────────────────────────────────────────
+
+
+def _synthetic_ctx(h: int = 40, w: int = 40):
+    """A bare WorldContext carrying only H/W (the synthetic rain only
+    reads them through valid_mask's dual branch)."""
+    ctx = sa.WorldContext()
+    ctx.H, ctx.W = h, w
+    return ctx
+
+
+def _synthetic_rain(mask: np.ndarray, key: str, seed: int = 1,
+                    h: int = 40, w: int = 40):
+    """A synthetic ``_rain_for_view`` over a handcrafted viability
+    mask: two factor planes (F = 0.8 on the mask, 0 elsewhere — plus a
+    dummy provenance requirement so the §5.1 reduction has a prov
+    axis), U = 1 everywhere, K = 1 everywhere (K_L = 1), percap = 1
+    (crown 5 m, no woodiness → D = max(F0, N_FLOOR) = 0.1, N = 0.1).
+    Returns (clones, range_cells)."""
+    factors = {
+        "F": np.where(mask, 0.8, 0.0).reshape(1, h, w),
+        "substrate_share": np.ones((h, w)),
+        "pressure:heat": np.zeros((1, h, w)),
+    }
+    view = {"medium": "dual", "crown_spread_m": 5.0, "woodiness": 0.0}
+    return _rain_for_view(view, _synthetic_ctx(h, w), seed, key, factors,
+                          np.ones((h, w)))
+
+
+def test_coverage_keep_ramp():
+    """Ticket 0037: the keep probability as a function of the
+    pre-coverage retained cell count R — R < 200 → 1.0 (the no-draw
+    regime), 200-400 → linear 1.0 → GENESIS_COVER, R > 400 → the flat
+    GENESIS_COVER = 0.5 (the pre-0037 behavior)."""
+    assert coverage_keep(0) == 1.0
+    assert coverage_keep(199) == 1.0
+    assert coverage_keep(200) == 1.0
+    assert coverage_keep(250) == pytest.approx(0.875)
+    assert coverage_keep(300) == pytest.approx(0.75)
+    assert coverage_keep(400) == pytest.approx(0.5)
+    assert coverage_keep(401) == pytest.approx(0.5)
+    assert coverage_keep(10**6) == pytest.approx(GENESIS_COVER)
+
+
+class _Poison(Stream):
+    """A Stream whose bernoulli draw must never fire (ticket 0037: the
+    R < GENESIS_COVER_MIN_R regime does NO coverage draw at all)."""
+    def bernoulli(self, p, clock, index=0):
+        raise AssertionError(
+            "a coverage draw fired below GENESIS_COVER_MIN_R")
+
+
+def test_covered_tiered_no_draw_below_200():
+    """Ticket 0037: a pre-coverage retained count R < 200 skips the
+    coverage draw entirely — every floor-passing blob is kept (the
+    species seeds its whole viable range) and the stream is never
+    touched (the poison stream proves the draw does not happen)."""
+    big = [c for c in proximity_components(_block(14, 10))]  # 140 cells
+    covered = _covered_tiered(big, _Poison(1, "k15.genesis", "poison"))
+    assert covered is big                     # returned unchanged, no draw
+    assert int(covered[0].sum()) == 140
+
+
+def test_covered_tiered_draw_regimes_address_pinned_streams():
+    """Ticket 0037: in the draw regimes (R >= 200) the tiered draw uses
+    the ramped probability coverage_keep(R) on the SAME pinned
+    content-addressed child streams (``cover:{i}``) — the kept set
+    equals an explicit recomputation of the draws, and above 400 the
+    outcome is literally the pre-0037 flat GENESIS_COVER draw."""
+    m = np.zeros((40, 40), dtype=bool)
+    m[2:22, 2:8] = True                        # 120
+    m[2:22, 30:36] = True                      # 120
+    m[27:33, 10:20] = True                     # 60 — > 5 from the others
+    big = [c for c in proximity_components(m)
+           if int(c.sum()) >= GENESIS_MIN_CELLS]
+    assert [int(b.sum()) for b in big] == [120, 120, 60]
+    R = 300
+    assert coverage_keep(R) == pytest.approx(0.75)
+    for seed in (1, 7, 99):
+        rng = Stream(seed, "k15.genesis", "draw")
+        kept = _covered_tiered(big, rng)
+        # explicit recomputation: same child streams, ramped p
+        rng2 = Stream(seed, "k15.genesis", "draw")
+        expected = [c for i, c in enumerate(big)
+                    if rng2.child(f"cover:{i}").bernoulli(0.75, 0)]
+        if not expected:
+            expected = [max(big, key=lambda c: int(c.sum()))]
+        assert len(kept) == len(expected)
+        for k, e in zip(kept, expected):
+            assert np.array_equal(k, e)
+    # large range: R > 400 → identical to the flat GENESIS_COVER
+    m6 = np.zeros((40, 40), dtype=bool)
+    m6[2:22, 2:8] = True
+    m6[2:22, 30:36] = True
+    m6[27:33, 10:20] = True
+    m6[2:22, 18:24] = True                        # 120 more, > 5 away
+    big6 = [c for c in proximity_components(m6)
+            if int(c.sum()) >= GENESIS_MIN_CELLS]
+    R6 = sum(int(b.sum()) for b in big6)
+    assert R6 >= 400 and coverage_keep(R6) == GENESIS_COVER
+    for seed in (3, 42):
+        tiered = _covered_tiered(big6, Stream(seed, "k15.genesis", "big"))
+        flat = _covered_components(big6, Stream(seed, "k15.genesis", "big"),
+                                   GENESIS_COVER)
+        assert len(tiered) == len(flat)
+        for t, f in zip(tiered, flat):
+            assert np.array_equal(t, f)
+
+
+def test_covered_tiered_midrange_keep_statistics():
+    """Statistical (ticket 0037): a mid-range draw (R = 300, p_keep =
+    0.75) keeps, over many seeds, a realized fraction of the retained
+    cells that is a proper fraction between 0.5 and 1.0 — the ramp's
+    whole point: narrow ranges are no longer downsized by the flat
+    0.5 (the 78-cell mangrove lost its larger blob pre-0037)."""
+    m = np.zeros((40, 40), dtype=bool)
+    m[2:22, 2:8] = True
+    m[2:22, 30:36] = True
+    m[27:33, 10:20] = True
+    big = [c for c in proximity_components(m)
+           if int(c.sum()) >= GENESIS_MIN_CELLS]
+    fracs = []
+    for seed in range(1, 301):
+        kept = _covered_tiered(big, Stream(seed, "k15.genesis", "stat"))
+        fracs.append(sum(int(k.sum()) for k in kept) / 300.0)
+    fracs = np.asarray(fracs)
+    assert 0.70 <= fracs.mean() <= 0.95, fracs.mean()
+
+
+def test_rain_small_range_seeds_full_range():
+    """Ticket 0037 done-means (small range): a synthetic species whose
+    pre-coverage retained count R < 200 seeds its WHOLE viable range —
+    no coverage draw — where the pre-0037 flat draw downsized narrow
+    ranges (the ticket's mangrove lost its larger blob and minted 36
+    of 78 viable cells)."""
+    m = np.zeros((40, 40), dtype=bool)
+    m[5:15, 5:15] = True                       # 100 cells
+    m[20:22, 20:32] = True                     # 24 cells, > 5 away
+    clones, range_cells = _synthetic_rain(m, "small")
+    assert range_cells == 124
+    union = np.logical_or.reduce([c.cells for c in clones])
+    assert np.array_equal(union, m)            # the full viable range
+    for clone in clones:
+        assert clone.N.dtype == np.float32
+        assert np.allclose(clone.N[clone.cells], 0.1)
+
+
+def test_rain_midrange_matches_explicit_draws():
+    """Ticket 0037: a mid-range synthetic rain (R = 300, p_keep =
+    0.75) applies the coverage draw with the RAMPED probability on the
+    pinned ``cover:{i}`` child streams — the minted union equals an
+    explicit recomputation of the draws (the draw addressing is
+    unchanged by the ramp)."""
+    m = np.zeros((40, 40), dtype=bool)
+    m[2:22, 2:8] = True
+    m[2:22, 30:36] = True
+    m[27:33, 10:20] = True
+    clones, range_cells = _synthetic_rain(m, "mid", seed=3)
+    big = [c for c in proximity_components(m)
+           if int(c.sum()) >= GENESIS_MIN_CELLS]
+    rng = Stream(3, "k15.genesis", "mid")
+    kept = [c for i, c in enumerate(big)
+            if rng.child(f"cover:{i}").bernoulli(0.75, 0)]
+    if not kept:
+        kept = [max(big, key=lambda c: int(c.sum()))]
+    expected = np.logical_or.reduce(kept)
+    assert range_cells == int(expected.sum())
+    union = np.logical_or.reduce([c.cells for c in clones])
+    assert np.array_equal(union, expected)
+
+
+def test_rain_tiered_determinism():
+    """Ticket 0037: two identical synthetic rains (draw regime, R =
+    300) → byte-identical cells and N fields (the ramp is draw-free
+    except the pinned coverage streams; same seed → byte-identical)."""
+    m = np.zeros((40, 40), dtype=bool)
+    m[2:22, 2:8] = True
+    m[2:22, 30:36] = True
+    m[27:33, 10:20] = True
+    a = _synthetic_rain(m, "det", seed=5)
+    b = _synthetic_rain(m, "det", seed=5)
+    assert a[1] == b[1]
+    assert len(a[0]) == len(b[0])
+    for ca, cb in zip(a[0], b[0]):
+        assert ca.cells.tobytes() == cb.cells.tobytes()
+        assert ca.N.tobytes() == cb.N.tobytes()
+
+
 # ── world-dependent genesis (slow: 35 adapter evaluations per call) ────
 
 
@@ -263,10 +456,13 @@ def _expected_retained(seeded: np.ndarray, key: str, seed: int = 1
                        ) -> tuple[np.ndarray | None, int]:
     """The ticket 0020 covered retained mask, recomputed independently:
     PROXIMITY blobs (ticket 0033 §1 — proximity_components, the blob
-    stage's grouping unit) → mint floor (ticket 0009) → per-blob
-    keep/drop draws (``rng.child(f"cover:{i}")``, pinned emission
-    order, keep probability GENESIS_COVER) with the largest-blob retry
-    (the coverage draw never causes extinction). Returns (covered mask,
+    stage's grouping unit) → mint floor (ticket 0009) → the TIERED
+    coverage keep/drop (ticket 0037: R = the pre-coverage retained
+    cell count, computed BEFORE the draws; R < GENESIS_COVER_MIN_R ->
+    no draw at all — every blob kept; otherwise per-blob draws
+    ``rng.child(f"cover:{i}")``, pinned emission order, keep
+    probability coverage_keep(R)) with the largest-blob retry (the
+    coverage draw never causes extinction). Returns (covered mask,
     pre-coverage retained cell count)."""
     rng = Stream(seed, "k15.genesis", key)
     big = [c for c in proximity_components(seeded)
@@ -274,10 +470,13 @@ def _expected_retained(seeded: np.ndarray, key: str, seed: int = 1
     if not big:
         return None, 0
     n_ret = int(sum(int(c.sum()) for c in big))
-    sel = [c for i, c in enumerate(big)
-           if rng.child(f"cover:{i}").bernoulli(GENESIS_COVER, 0)]
-    if not sel:
-        sel = [max(big, key=lambda c: int(c.sum()))]
+    if n_ret < GENESIS_COVER_MIN_R:
+        sel = big
+    else:
+        sel = [c for i, c in enumerate(big)
+               if rng.child(f"cover:{i}").bernoulli(coverage_keep(n_ret), 0)]
+        if not sel:
+            sel = [max(big, key=lambda c: int(c.sum()))]
     return np.logical_or.reduce(sel), n_ret
 
 
@@ -314,7 +513,13 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
     documented exception, the owner's merge-into-one-instance ruling);
     sub-floor islands inside a kept blob are dropped, so the clone
     union is the covered set MINUS the dropped specks. Count =
-    max(K, #units) when the surplus is absorbable. Re-pinned on seed 1
+    max(K, #units) when the surplus is absorbable. v1.6 re-pin
+    (ticket 0037): the coverage keep probability is TIERED by the
+    pre-coverage retained count R (``_expected_retained`` mirrors
+    coverage_keep: R < 200 no draw, 200-400 ramped, > 400 flat
+    GENESIS_COVER) — the agaric/seagrass pinned values below stand
+    because both retain > 400 cells (flat-draw regime, draws
+    unchanged). Re-pinned on seed 1
     at the 0033 landing: fungus.agaric retained 2477 (partition_k 4) →
     covered 1884 (partition_k 4); runner_meadow.seagrass retained 2030
     (4) → covered 515 (2)."""
@@ -435,7 +640,17 @@ def test_genesis_species_sparse_founders(pack_sim, world, k15_world):
     §1): the proximity blob stage + 12-cell floor admit the
     strip-habitat lineages — lineage survival re-measured at the 0033
     landing: 101/123 seeded (pre-0033 the un-pruned 150-species tree
-    seeded 102)."""
+    seeded 102). v1.6 (ticket 0037): the coverage keep probability is
+    TIERED by the pre-coverage retained count (R < 200 no draw,
+    200-400 ramped, > 400 flat GENESIS_COVER) and the per-cell total
+    demand cap (GENESIS_S = 0.5, proportional squeeze, floor-clamped
+    cells kept at N_FLOOR) runs at the end of the mint — the u anatomy
+    printed below is the POST-cap anatomy (re-measured at landing:
+    u p50 0.955 / frac u>1 0.477 / stacking mean 5.04 / median coverage
+    0.404 vs the v1.1 baseline 1.22 / 0.58 / 5.31 / 0.29;
+    tmp/0037_probe.py) and stays REPORTED, not asserted — u_i =
+    D/K_Li may exceed 1 for a low-U lineage under the cap (u_i ≤ S/U_i,
+    the correct crowding signal; the bound is the cell total ΣD ≤ K·S)."""
     from exp.k15_simdiff.engine import Engine
 
     eng = Engine(1, pack=pack_sim[0], ctx=k15_world)
