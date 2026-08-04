@@ -104,6 +104,13 @@ not a code dump). Tickets 0035 and 0031 close into this; the
 mass-is-biomass plumbing lands ONCE, in the rewrite (decision D1).
 
 ## 4. Phase 2 — the biomass/coverage design (note: "serious thinking")
+**DELIVERED 2026-08-04 as addendum B8
+(specs/biosphere-addendum-b8-capacity-accounting.md): two-level
+accounting (cell pool at X=400 t/ha per productivity unit,
+provisional; lineage cap < pool, substrate-structured with spill,
+NOT a simple fraction — the A/B understory emergence case is the
+acceptance test; mixing term TBD). Probe evidence + the 200 m
+cactus (proportion-guard motivation) recorded in B8.**
 
 The note's demand: biomasses must make sense and tune with NATURAL
 knobs — never per-species fiddling. A grass sward's capacity is
