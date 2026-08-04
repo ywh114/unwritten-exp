@@ -1,4 +1,9 @@
-# K15 sim-diff engine (flora rounds) — build spec v1.8
+# K15 sim-diff engine (flora rounds) — build spec v1.9
+
+2026-08-04. v1.9 (ticket 0039, owner ruling) supersedes v1.8 in ONE
+respect: the genesis mint floor GENESIS_MIN_CELLS is REMOVED — every
+proximity blob is mintable however small (§15 entry; prose below that
+still names the floor is stale pending the rewrite-era spec cleanup).
 
 2026-08-01. v1.8 (ticket 0012, the curated two-track census,
 2026-08-03) supersedes v1.7: genesis seeds the CURATED tree (52
@@ -9,9 +14,9 @@ ENVELOPE + polyphyletic ANCHOR-CLADE SET; a bundle is a region ×
 physiology archetype standing in for an aggregate of species, NOT a
 tree node). §10: after the species mint, each bundle (sorted-label
 order) is evaluated once and seeded through the SAME gates (F_worst ≥
-GENESIS_F ∩ medium-valid ∩ the K_L gates, GENESIS_MIN_CELLS floor,
-GENESIS_COVER per-component draws from `k15.genesis` keyed by the
-bundle sid) — ONE instance per bundle (no clone partition: frozen
+GENESIS_F ∩ medium-valid ∩ the K_L gates, no mint floor since
+v1.9/ticket 0039, GENESIS_COVER per-component draws from
+`k15.genesis` keyed by the bundle sid) — ONE instance per bundle (no clone partition: frozen
 lineages cannot diverge), minted OUTSIDE the taxonomy (sid
 `bundle.<label>`, never authority.mint). FROZEN BY CONSTRUCTION: the
 §4 verdict feed skips bundle instances (no select/mutate/Δg/_refresh),
@@ -768,10 +773,11 @@ colonization.
    lineages per populated cell). Every species reads its full factor
    product — for freshwater plans that INCLUDES the habitat term (it
    replaces their medium boundary; B5 §4.5).
-3. **Mint floor** (ticket 0009, option (a)): connected components of
-   the seeded range below GENESIS_MIN_CELLS are DROPPED — never minted
-   as established instances (§7 dispersal can re-find those cells in
-   later rounds).
+3. **Mint floor — REMOVED** (v1.9, ticket 0039, owner ruling; this
+   step used to drop blobs below GENESIS_MIN_CELLS): every proximity
+   blob of the seeded range is minted, however small — speckles can't
+   emit propagules and neighbor speckles join into one instance, so
+   the floor bought nothing.
 4. **Partial coverage** (ticket 0020): per retained (≥ floor)
    component, in the pinned emission order (sorted top-left,
    row-major), an independent keep/drop draw from
@@ -797,8 +803,8 @@ colonization.
    sibling lineages from round 0 — subspecies candidates, merge-exempt
    for MERGE_GRACE rounds, free to diverge independently.
 6. **Extinction paths** (ticket 0004): a species with no mintable
-   cells — zero range, or every component below GENESIS_MIN_CELLS — is
-   NEVER minted; the engine registers it with the authority
+   cells — zero range (the only unseeded bucket since v1.9/ticket
+   0039) — is NEVER minted; the engine registers it with the authority
    (`TreeAuthority.register_unseeded`) so the §9 extinction pass marks
    it extinct at the first commit — reflog entry, branch terminated,
    the record stays as a ghost.
@@ -1063,7 +1069,7 @@ counts are small).
 | MEM_ROUNDS / MEM_PENALTY | 7.3 | 3 / 0.25 | colonization memory retention / down-weight |
 | SEEDBANK_KEEP | 7.3 | 0.5 | persistent rain carryover |
 | GENESIS_F / GENESIS_F0 / GENESIS_COVER | 10 | **0.5 (settled)** / **0.1 (ticket 0020)** / **0.5 (ticket 0020)** | genesis threshold / capacity-relative sparse founder demand fraction / per-component coverage keep probability (partial range coverage) |
-| GENESIS_MIN_CELLS | 10 | **32 (ticket 0009)** | genesis mint floor — components below this are dropped (DIFF_MIN_CELLS sliver scale) |
+| ~~GENESIS_MIN_CELLS~~ | — | REMOVED (ticket 0039, v1.9) | the genesis mint floor is gone — every proximity blob mints however small; see §15 v1.9 |
 | GENESIS_K_L_GATE | 10.1 | **True (ticket 0018)** | eligibility gate — seed only where K_L ≥ N_FLOOR·percap (the whole freak-tail handling: the descent is seeded-only, so gate-excluded clamp cells are never candidates; toggleable — off + P_ADAPT=0 ⇒ genesis byte-identical to HEAD) |
 | P_ADAPT / P_BREAKOFF | 10.1 | **0.1 / 0.2 (ticket 0018, cal)** | species' chance at adaptation (ONE pinned roll per species) / per-harsh-blob break-off probability |
 | S_ENV_TAIL / DESCENT_MIN_BLOB_CELLS | 10.1 | **−0.15 / 8 (ticket 0018, cal)** | marginal-tail threshold on s_env (F_worst ∈ [0.5, 0.575]) / minimum harsh-blob cells to break off |
@@ -1114,6 +1120,20 @@ counts are small).
 
 ## 15. Changelog
 
+- **v1.9** (2026-08-04, ticket 0039 — owner ruling): the genesis mint
+  floor GENESIS_MIN_CELLS is REMOVED entirely, in both roles (the
+  blob-level floor in the species rain AND the engine's bundle
+  seeding; the inside-blob island drop in _clone_units). Every
+  proximity blob is mintable however small. Rationale (owner note
+  item 1a): speckle instances can't emit propagules anyway (emission
+  comes from occupied frontier cells) and neighbor speckles already
+  join into one instance via the proximity join — the floor bought
+  nothing. Measured seed 1: 94 → 107 species minted, 59,465 → 67,587
+  cells occupied, sub-12 instances 4 → 1,739 (dominated by in-blob
+  strip units minting single-instance). The ticket-0004 unseeded
+  bucket is now zero-range ONLY. Descending prose that still names
+  the floor is stale pending the rewrite-era spec cleanup
+  (biosphere-plan-2026-08-04.md §7).
 - **v1.7** (2026-08-02, ticket 0013 — the delivery pass): K15 stops
   dying with the process. `persist.py` writes the per-run dump under
   `exp/k15_simdiff/out/seed_NNNNNNNN/` (k11/k14 convention, registered
@@ -1391,7 +1411,8 @@ counts are small).
   demand D = GENESIS_F0 · K_L (F0 settled 0.1 within 0.05–0.15; K_L
   reused from population.lineage_capacity; N = D/percap floored at
   N_FLOOR — the clamp stays) and applies PARTIAL coverage: per
-  retained (≥ GENESIS_MIN_CELLS) component, a keep/drop draw from
+  retained proximity blob (no size floor since v1.9/ticket 0039), a
+  keep/drop draw from
   `Stream(seed, "k15.genesis", sid).child("cover:{i}")` with keep
   probability GENESIS_COVER (settled 0.5) — whole blobs kept or
   dropped, never speckled cells; a species whose every drawn component
