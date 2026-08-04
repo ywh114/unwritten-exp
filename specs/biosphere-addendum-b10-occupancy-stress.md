@@ -66,7 +66,10 @@ view, cell fields, crowding fields) — probeable by nudge-and-recompute
   only true escapes are partitioning (different substrate, stratum,
   phenology) — which is why competition stress is per shared resource,
   or differentiation could not relieve it. Diversity is what an
-  endless arms race leaves behind.
+  endless arms race leaves behind. These three types are the initial
+  sanity-check set (owner ruling 2026-08-04); fauna and marine/
+  freshwater bring more competition types later — no new types until
+  these prove out.
 
 ## 3. What stress does — exactly two effects
 
@@ -98,14 +101,16 @@ view, cell fields, crowding fields) — probeable by nudge-and-recompute
 - **Selection force only.** Marginal-benefit pressure modulates the
   selection force; drift and runaway stay UNDIRECTED. Valley
   crossings are theirs alone.
-- **Time-reversal locality.** Evolution is after-the-fact history
-  (closed-form, no ticks): moves may be temporally nonlocal —
-  compressed generations, big steps — but every trajectory must
-  decompose into locally motivated steps: non-decreasing benefit
-  (selection) or neutrality (drift). A tree shooting up through a
-  flat-benefit zone fails time-reversal (reversed, every intermediate
-  step is unmotivated); a tree at the canopy step shooting through
-  passes.
+- **Time-reversal locality.** Our evolution is NOT natural selection:
+  it is after-the-fact history that KNOWS the consequences of its
+  moves — it sees ahead in time (closed-form, no ticks). Precisely
+  because of that, the trajectory must make sense under time reversal:
+  every step locally motivated in both directions — non-decreasing
+  benefit (selection) or neutrality (drift). A tree shooting up
+  through a flat-benefit zone fails time-reversal (reversed, every
+  intermediate step is unmotivated); a tree at the canopy step
+  shooting through passes. Seeing ahead decides HOW FAR a move goes
+  along a motivated path, never WHICH paths are legal.
 
 Note the unification: B9's plateau-with-cliffs intrinsic curve is
 already marginal-benefit-shaped (flat inside the envelope — moving
