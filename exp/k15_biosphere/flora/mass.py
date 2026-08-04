@@ -5,12 +5,18 @@ belowground, ``agb_kg`` is the aboveground split.  Pure scalar per-individual
 functions; deterministic by construction (no randomness, no streams, no
 wall-clock — AGENTS.md determinism hard rule), so no numpy is needed here.
 
-Formula lock v1 (orchestrator-locked 2026-08-04): every constant below is
-final and named as locked.  ``FLAGGED`` constants are acknowledged
-order-of-magnitude estimates pending better published data — do not "fix"
-them without a new lock.  ``MassEstimate.proportions`` exposes the per-group
-intermediates for the future proportion-deviation penalty hook (ticket 0035
-owner note).
+Grass-sward per-m² constants (grass_sward and land runner_meadow) are
+ABOVEGROUND standing crop (Gill 2002's 0.08–0.93 kg/m² is AG): agb =
+sward_kg_m2·footprint, total = agb·(1 + R_GRASS).  Seagrass
+(runner_meadow with medium "water") is the exception — its total is folded
+(incl. belowground), no R applied on top (lock v1.1 amendment 1).
+
+Formula lock v1.1 (orchestrator-locked 2026-08-04; amendments 1–2 same day):
+every constant below is final and named as locked.  ``FLAGGED`` constants
+are acknowledged order-of-magnitude estimates pending better published data
+— do not "fix" them without a new lock.  ``MassEstimate.proportions``
+exposes the per-group intermediates for the future proportion-deviation
+penalty hook (ticket 0035 owner note).
 """
 
 from __future__ import annotations
@@ -19,7 +25,7 @@ import math
 from dataclasses import dataclass
 from typing import Mapping
 
-# ── formula lock v1 constants (2026-08-04, final) ───────────────────────
+# ── formula lock v1.1 constants (2026-08-04; amendments 1–2 same day) ────
 
 # --- trees ---------------------------------------------------------------
 K_ASPECT_BROADLEAF = 18.0   # Hemery 2005 oak stand-grown crown:DBH, DOI 10.1016/j.foreco.2005.05.010
@@ -44,9 +50,9 @@ A_HERB = 0.05
 HERB_EXP = 0.75             # Tadaki-family; sanity 0.5 m, 0.15 m² → 7 g
 R_HERB = 3.0                # Jackson 1996 lower end, DOI 10.1007/BF00333714, FLAGGED
 
-# --- grass_sward / runner_meadow (per-area model × footprint) ------------
+# --- grass_sward / runner_meadow (per-area AGB model × footprint) --------
 GRASS_KG_M2_PER_M = 1.0
-GRASS_CAP = 0.9             # Gill 2002, DOI 10.1046/j.1466-822x.2001.00267.x; sward_kg_m2 = min(GRASS_KG_M2_PER_M·H, GRASS_CAP)
+GRASS_CAP = 0.9             # Gill 2002, DOI 10.1046/j.1466-822x.2001.00267.x; ABOVEGROUND standing crop (range 0.08–0.93 kg/m²): sward_kg_m2 = min(GRASS_KG_M2_PER_M·H, GRASS_CAP); agb = sward·footprint, total = agb·(1+R_GRASS) (lock v1.1 amendment 1)
 SEAGRASS_KG_M2_PER_M = 1.5
 SEAGRASS_CAP = 1.5          # Serrano 2016, DOI 10.5194/bg-13-491-2016; TOTAL incl. belowground folded in
 R_GRASS = 3.0               # Jackson lower, FLAGGED
@@ -183,11 +189,13 @@ def _herb(axes: Mapping[str, float], plan: str, form: str | None):
 
 
 def _grass(axes: Mapping[str, float], plan: str, form: str | None):
+    """Grass sward: the per-m² constant is ABOVEGROUND standing crop (Gill
+    2002); BGB via R_GRASS on top (lock v1.1 amendment 1)."""
     h = axes.get("height_m", 0.0)
     fp = footprint_m2(axes, plan)
     sward = min(GRASS_KG_M2_PER_M * h, GRASS_CAP)
-    total = sward * fp
-    agb = total / (1.0 + R_GRASS)
+    agb = sward * fp
+    total = agb * (1.0 + R_GRASS)
     return total, agb, {
         "sward_kg_m2": sward,
         "footprint_m2": fp,
@@ -207,9 +215,11 @@ def _runner_meadow(axes: Mapping[str, float], plan: str, form: str | None):
         agb = total / 2.7
         props = {"sward_kg_m2": sward, "footprint_m2": fp, "root_shoot": 0.0}
     else:
+        # Land runner_meadow = grass path: sward is ABOVEGROUND standing
+        # crop; BGB via R_GRASS on top (lock v1.1 amendment 1).
         sward = min(GRASS_KG_M2_PER_M * h, GRASS_CAP)
-        total = sward * fp
-        agb = total / (1.0 + R_GRASS)
+        agb = sward * fp
+        total = agb * (1.0 + R_GRASS)
         props = {"sward_kg_m2": sward, "footprint_m2": fp, "root_shoot": R_GRASS}
     return total, agb, props
 

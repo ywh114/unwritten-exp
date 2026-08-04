@@ -7,14 +7,20 @@ in CASES.  Density models (the ``density`` field of each case):
     "closure"              10_000 / footprint individuals per ha (crown closure)
     "full_cover"           1 / footprint individuals per m² (ground fully covered)
     ("cover_fraction", f)  f / footprint individuals per m²
+    ("stems_per_ha", n)    fixed n individuals per ha (open-canopy stands)
     float                  fixed individuals per m²
 
-Run:  PYTHONPATH=. uv run python -m exp.k15_biosphere.reality
+Run:  PYTHONPATH=. uv run python -m exp.k15_biosphere.flora.reality
 """
 
 from __future__ import annotations
 
-from exp.k15_biosphere.mass import footprint_m2, percap_biomass
+from exp.k15_biosphere.flora.mass import footprint_m2, percap_biomass
+
+# Mature boreal stand, silvicultural-typical stem count — FLAGGED.  Crown
+# closure is a temperate/tropical density model and overstates open-canopy
+# boreal density (lock v1.1 amendment 2).
+STEMS_PER_HA = 400.0
 
 CASES = [
     dict(
@@ -37,9 +43,9 @@ CASES = [
         name="taiga_stand",
         plan="tree", form="conifer",
         axes=dict(height_m=18.0, crown_spread_m=3.0, wood_density=0.45, woodiness=1.0),
-        density="closure", basis="agb",
+        density=("stems_per_ha", STEMS_PER_HA), basis="agb",
         lo=15.0, hi=100.0, unit="t/ha",
-        source="IPCC ~50 t/ha for managed boreal conifer",
+        source="IPCC ~50 t/ha for managed boreal; STEMS_PER_HA = 400, mature boreal stand, silvicultural-typical, FLAGGED; closure model overstates open-canopy density",
     ),
     dict(
         name="pasture_sward",
@@ -85,14 +91,22 @@ CASES = [
 
 
 def _density_per_unit(case: dict, footprint: float) -> float:
-    """Individuals per unit area: per m², except "closure" which is per ha."""
+    """Individuals per unit area: per m², except "closure" and
+    "stems_per_ha" which are per ha."""
     model = case["density"]
     if model == "closure":
         return 10000.0 / footprint
     if model == "full_cover":
         return 1.0 / footprint
-    if isinstance(model, tuple) and model[0] == "cover_fraction":
-        return model[1] / footprint
+    if isinstance(model, tuple):
+        mode, value = model
+        if mode == "cover_fraction":
+            return value / footprint
+        if mode == "stems_per_ha":
+            return value
+        raise ValueError(
+            f"unknown density model {mode!r} in case {case['name']!r}"
+        )
     if isinstance(model, (int, float)):
         return float(model)
     raise ValueError(f"unknown density model {model!r} in case {case['name']!r}")

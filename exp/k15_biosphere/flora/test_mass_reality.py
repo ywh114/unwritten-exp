@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from exp.k15_biosphere.mass import PLANS, percap_biomass
-from exp.k15_biosphere.reality import CASES, evaluate
+from exp.k15_biosphere.flora.mass import PLANS, percap_biomass
+from exp.k15_biosphere.flora.reality import CASES, evaluate
 
 # Reasonable axes per plan for the positive-mass guarantee.
 REASONABLE_AXES = {
