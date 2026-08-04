@@ -19,6 +19,11 @@ read — computed on read, never stored:
 - **Substrate-weighted demand** — per-lineage demand (a Lineage
   scalar) × the cell's substrate mix matching the lineage's
   preferences, multiplicative (B10 §1's unit-calibration anchor).
+- **Substrate distribution** (ticket 0050) — the per-lineage pmf over
+  the cell's substrate classes (w_s ∝ mix[s] × pref[s], normalized;
+  empty pref uniform over the mix): where the lineage's holdings
+  STAND — the geometric per-class crowding fields (crowding.py) read
+  it, holdings stay cell totals.
 - **Remainder** — pool and coverage left after current holdings; this
   is the A/B mechanism (B10 §6.1) that later painting stages read.
 
@@ -345,6 +350,29 @@ class OccupancyState:
             return 1.0
         return sum(self.cell.substrate_mix[s] * pref.get(s, 0.0)
                    for s in sorted(self.cell.substrate_mix))
+
+    def substrate_distribution(self, ref: str) -> tuple[tuple[str, float], ...]:
+        """The lineage's distribution over the cell's substrate classes
+        (ticket 0050): w_s ∝ mix[s] × pref[s], normalized to a pmf over
+        the classes in the cell's mix (sorted by class — deterministic).
+        An empty preference is UNIFORM OVER THE MIX (w_s = mix[s]) — no
+        preference weighting: generalists spread with the mix; specialists
+        concentrate on their class.  Holdings stay cell totals — this is
+        where the holdings STAND (the per-class claim shares the crowding
+        fields read), never a division of the holding itself.  A lineage
+        with no usable substrate in the cell (match 0) reads all zeros —
+        it stands nowhere, claims nothing."""
+        pref = self._lineage(ref).substrate_pref
+        classes = sorted(self.cell.substrate_mix)
+        if not pref:
+            return tuple((s, self.cell.substrate_mix[s]) for s in classes)
+        total = sum(self.cell.substrate_mix[s] * pref.get(s, 0.0)
+                    for s in classes)
+        if total <= 0.0:
+            return tuple((s, 0.0) for s in classes)
+        return tuple(
+            (s, self.cell.substrate_mix[s] * pref.get(s, 0.0) / total)
+            for s in classes)
 
     def substrate_weighted_demand_t(self, ref: str) -> float:
         """The lineage's demand at full match × the cell's matching

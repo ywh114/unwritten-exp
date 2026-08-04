@@ -22,7 +22,10 @@ mat.  Covers:
 - the equilibrium solver (B10 §5): n=1 reproduces
   self_crowding_equilibrium_t (the derived cap), lower equilibrium
   under stress, the A/B fixture, low-p near-monoculture, the quadrant
-  shapes, determinism, and input purity.
+  shapes, and the GEOMETRIC partitioning equilibrium on mixed
+  substrate cells (ticket 0050: specialists settle at their
+  match-scaled cap, disjoint-preference lineages solve as isolated
+  monocultures), determinism, and input purity.
 
 Plain pytest, no marks — runs in milliseconds.
 """
@@ -104,9 +107,9 @@ def _tussock(ref: str = "sward", **kw) -> Lineage:
     return _lineage("grass_sward.tussock", ref, **kw)
 
 
-def _sphagnum(**kw) -> Lineage:
+def _sphagnum(ref: str = "moss", **kw) -> Lineage:
     """moss_grade.sphagnum: ground layer, kg_m2 (per-area) cover."""
-    return _lineage("moss_grade.sphagnum", "moss", **kw)
+    return _lineage("moss_grade.sphagnum", ref, **kw)
 
 
 def _cell(productivity: float = 1.0, cell_ha: float = 1600.0,
@@ -675,6 +678,77 @@ def test_ab_fixture_nearly_equal_holdings_different_remainders():
     # three quarters (poor, near-monoculture binding)
     assert eq_rich / pool_rich == pytest.approx(0.2594, rel=1e-3)
     assert eq_poor / pool_poor == pytest.approx(0.7470, rel=1e-3)
+
+
+def test_ab_fixture_mixed_substrate_cell():
+    """The A/B shape holds through dynamics on a MIXED substrate cell
+    (ticket 0050): a generalist canopy on clay+sand still settles at
+    its match-1 derived cap, and the rich/poor holding ratio tracks f
+    (≈1.157), not the pool (×3.33) — the per-class geometry does not
+    disturb the productivity-flat cap."""
+    def solve(p: float) -> tuple[float, float]:
+        ln = _clean(_oak())
+        st = OccupancyState(_cell(p, mix={"clay": 0.5, "sand": 0.5}), [ln])
+        eq = equilibrium_holdings(st, _benign(ln.view))["oak"]
+        return eq, st.pool_t - eq
+
+    eq_rich, rem_rich = solve(2.5)
+    eq_poor, rem_poor = solve(0.75)
+    assert eq_rich / eq_poor == pytest.approx(
+        prodscale_f(2.5) / prodscale_f(0.75), rel=1e-7)
+    assert eq_rich / eq_poor == pytest.approx(1.157, abs=1e-3)
+    # the match-1 cap still binds (the generalist spreads with the mix)
+    assert eq_rich == pytest.approx(_cap_t(2.5), rel=1e-7)
+    assert eq_poor == pytest.approx(_cap_t(0.75), rel=1e-7)
+    assert rem_rich > 1.0e6 and rem_poor < 2.0e5
+
+
+def test_equilibrium_specialist_on_mixed_cell():
+    """A substrate-specialist canopy on a mixed cell settles at its
+    match-SCALED derived cap through the dynamics solver (ticket
+    0050): f(p)·L·cell_ha·match with match the preferred class's
+    share — the geometric per-class equilibrium reproduces the cap
+    exactly (no guardrail disagrees)."""
+    ln = _clean(_oak(substrate_pref={"clay": 1.0}))
+    st = OccupancyState(_cell(1.0, mix={"clay": 0.5, "sand": 0.5}), [ln])
+    eq = equilibrium_holdings(st, _benign(ln.view))["oak"]
+    assert eq == pytest.approx(substrate_capacity_t(st, "oak"), rel=1e-7)
+    assert eq == pytest.approx(_cap_t(1.0, match=0.5), rel=1e-7)
+
+
+def test_equilibrium_partition_relief_dynamics():
+    """Through the dynamics solver, disjoint-preference lineages settle
+    at their ISOLATED per-class equilibria — neither's stress ever
+    includes the other's claims (ticket 0050: partitioning relieves
+    competition geometrically, so the pair solves exactly as two
+    monocultures sharing the cell).  Two same-preset swards partition
+    the cell's clay/sand classes under a shared climate — the same
+    species, different substrate niche (B10 §2's partitioning is the
+    only true escape)."""
+    clay = _clean(_tussock(ref="clay_sward",
+                           substrate_pref={"clay": 1.0}))
+    sand = _clean(_tussock(ref="sand_sward",
+                           substrate_pref={"sand": 1.0}))
+    cell = _cell(1.0, mix={"clay": 0.5, "sand": 0.5})
+    climate = _benign(clay.view)           # identical envelopes
+
+    def solve_pair() -> dict:
+        st = OccupancyState(cell, [clay, sand])
+        return equilibrium_holdings(st, climate)
+
+    def solve_alone(ref: str, ln: Lineage) -> float:
+        st = OccupancyState(cell, [ln])
+        return equilibrium_holdings(st, climate)[ref]
+
+    eq = solve_pair()
+    assert eq["clay_sward"] == pytest.approx(
+        solve_alone("clay_sward", clay), rel=1e-7)
+    assert eq["sand_sward"] == pytest.approx(
+        solve_alone("sand_sward", sand), rel=1e-7)
+    assert eq["clay_sward"] > 0.0 and eq["sand_sward"] > 0.0
+    # and neither is excluded — both survive at their own equilibria
+    # (determinism: identical builds, identical holdings)
+    assert solve_pair() == eq
 
 
 def test_low_p_favorable_near_monoculture():
