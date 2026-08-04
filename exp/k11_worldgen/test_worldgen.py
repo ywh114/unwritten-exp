@@ -849,7 +849,7 @@ def test_persist_roundtrip(tmp_path):
     ocean = elev < 0.35
     hy = build_hydrology(elev, ocean)
     cl = build_climate(elev, hy, 0.35, seed=SEED)
-    bm, _sim = classify_biomes(elev, hy, cl, 0.35)
+    bm, sim = classify_biomes(elev, hy, cl, 0.35)
     names = [b["name"] for b in BIOMES]
     cx = derive_complex(hy, bm, names)[0]
     from exp.k11_worldgen.aquatic import classify_aquatic
@@ -857,9 +857,9 @@ def test_persist_roundtrip(tmp_path):
     aq = classify_aquatic(elev, hy, cl, 0.35)
     cur = build_currents(elev, ocean, 0.35, seed=SEED)
     world = {"elev": elev, "hydro": hy, "climate": cl, "biome_map": bm,
-             "cover": forest_cover(bm, cl["P"]), "complex": cx,
-             "plates": plates, "ocean_mask": ocean, "aquatic": aq,
-             "currents": cur}
+             "biome_sim": sim, "cover": forest_cover(bm, cl["P"]),
+             "complex": cx, "plates": plates, "ocean_mask": ocean,
+             "aquatic": aq, "currents": cur}
     delivered = upscale_world(elev, hy, cl, cx, 0.35, factor=4, aquatic=aq)
     marks = compute_marks(delivered, hy, 0.35, 4)
     save_world(str(tmp_path), world, delivered, SEED, 0.35, 4,

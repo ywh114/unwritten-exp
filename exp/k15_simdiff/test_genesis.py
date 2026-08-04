@@ -515,11 +515,13 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
     GENESIS_COVER). v1.7 (ticket 0039, owner ruling 2026-08-04): the
     mint floor is REMOVED ENTIRELY — every proximity blob is retained,
     however small, so retained/covered counts GROW and the R-ramp
-    regime may shift species (the pinned values below are PRE-0039 and
-    need re-pinning from an actual slow run). Re-pinned on seed 1 at
-    the 0033 landing: fungus.agaric retained 2477 (partition_k 4) →
-    covered 1884 (partition_k 4); runner_meadow.seagrass retained 2030
-    (4) → covered 515 (2)."""
+    regime may shift species. Re-pinned on seed 1 at the 0033 landing:
+    fungus.agaric retained 2477 (partition_k 4) → covered 1884
+    (partition_k 4); runner_meadow.seagrass retained 2030 (4) →
+    covered 515 (2). v1.9 re-pin (2026-08-04, post-0039 slow run on
+    seed 1): agaric retained 2559 (pk 4) → minted 1442 (pk 3 — its
+    covered partition_k fell 4 → 3); seagrass retained 2150 (4) →
+    minted 475 (2, unchanged)."""
     pack, sim = pack_sim
     rain = genesis_rain(pack, sim, world, capacity, seed=1)
     assert set(rain) == set(pack.presets)
@@ -562,23 +564,20 @@ def test_genesis_partition_structure(world, pack_sim, capacity):
             assert (len(connected_components(clone.cells)) == 1
                     or any(np.array_equal(clone.cells, s) for s in strips))
             _check_clone_field(clone, seeded, D, percap)
-    # RE-PIN NEEDED (ticket 0039): the pins below are PRE-0039 — the
-    # floor removal admits sub-12 blobs, so retained/covered counts grow
-    # and partition_k may step up; re-pin from an actual slow run (the
-    # fast tier cannot run this test). The >= bounds are monotone-safe;
-    # the == partition_k asserts may move.
-    # re-pinned empirically on seed 1 at the 0033 §1 landing (2026-08-03):
-    # the proximity blob stage + 12-cell floor admit the strip-shaped
-    # ranges, so fungus.agaric retained 2477 (pk 4) → covered 1884
-    # (pk 4) and runner_meadow.seagrass retained 2030 (4) → covered 515
-    # (2) — agaric's COVERED partition_k rose 3 → 4 (its covered range
-    # grew from 948 to 1884 cells with the admitted strips).
+    # RE-PINNED at v1.9 (ticket 0039, 2026-08-04 — post floor-removal
+    # slow run on seed 1): the floor removal admits sub-12 blobs, so the
+    # retained counts GREW — fungus.agaric 2477 → 2559,
+    # runner_meadow.seagrass 2030 → 2150 (retained partition_k 4 for
+    # both, unchanged) — while the covered sets MOVED: agaric minted
+    # 1884 → 1442 (its covered partition_k dropped 4 → 3), seagrass
+    # minted 515 → 475 (partition_k 2, unchanged). The asserts below
+    # carry the re-pinned numbers (agaric minted is exactly 1442).
     assert partition_k(retained["fungus.agaric"]) == 4
     assert retained["fungus.agaric"] >= 2400
     assert partition_k(retained["runner_meadow.seagrass"]) == 4
     assert retained["runner_meadow.seagrass"] >= 1900
-    assert partition_k(minted["fungus.agaric"]) == 4
-    assert minted["fungus.agaric"] >= 1800
+    assert partition_k(minted["fungus.agaric"]) == 3
+    assert minted["fungus.agaric"] >= 1442
     assert partition_k(minted["runner_meadow.seagrass"]) == 2
     assert 100 <= minted["runner_meadow.seagrass"] <= 1000
     assert k_gt1, "expected at least one preset with partition_k > 1 on seed 1"
