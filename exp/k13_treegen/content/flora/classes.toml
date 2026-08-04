@@ -35,16 +35,6 @@ phylum = "spore"
 plans = ["macroalgae_holdfast"]
 
 [[class]]
-name = "Anthozoa"
-phylum = "spore"
-plans = ["coral_grade"]
-
-[[class]]
-name = "Demospongiae"
-phylum = "spore"
-plans = ["sponge_grade"]
-
-[[class]]
 name = "Lecanoromycetes"
 phylum = "decomposer"
 plans = ["lichen"]

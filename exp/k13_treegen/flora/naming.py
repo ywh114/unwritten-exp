@@ -26,8 +26,6 @@ PLAN_SUFFIX_GRADE = {
     "floating_leaf": ["water"],
     "floater": ["water"],
     "macroalgae_holdfast": ["water"],
-    "coral_grade": ["water"],
-    "sponge_grade": ["water"],
     "fungus": ["fungus"],
     "lichen": ["fungus"],
 }

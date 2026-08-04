@@ -51,14 +51,6 @@ colors = ["white", "cream", "yellow", "green", "brown"]
 [palette.macroalgae_holdfast]
 colors = ["green", "brown", "red", "yellow"]
 
-[palette.coral_grade]
-colors = ["white", "cream", "yellow", "orange", "red", "pink", "purple",
-          "blue", "green", "brown"]
-
-[palette.sponge_grade]
-colors = ["white", "cream", "yellow", "orange", "red", "purple",
-          "brown", "green"]
-
 [palette.fungus]
 colors = ["white", "cream", "yellow", "orange", "red", "brown", "black",
           "purple"]

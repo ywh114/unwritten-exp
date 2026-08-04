@@ -799,7 +799,7 @@ def _sal_tol_eff(view: dict, sal_tol: float) -> float:
     adapted package BUYS tolerance; a pressure:salinity responder with
     no factor read until this wiring). Shared by the ground stratum
     (land/dual) and the water-chemistry stratum (water plans — the
-    halophyte presets are kelp/seagrass/coral/sponge, all water)."""
+    halophyte presets are kelp/seagrass, all water)."""
     if str(view.get("nutrient_package") or "none") == "halophyte":
         return sal_tol + HALOPHYTE_CREDIT
     return sal_tol
@@ -972,9 +972,9 @@ def _water_chemistry(view: dict, ctx: WorldContext) -> dict[str, np.ndarray]:
         f_sal = np.ones((H, W), dtype=np.float32)
     else:
         # B6 §2 halophyte grade credit (shared with the ground stratum
-        # — the halophyte presets are water plans: kelp/seagrass/coral/
-        # sponge, all salinity_tolerance ~0.9-0.95; the credit grades
-        # the ionic excess, the osmotic half rides water_potential).
+        # — the halophyte presets are water plans: kelp/seagrass, all
+        # salinity_tolerance ~0.9-0.95; the credit grades the ionic
+        # excess, the osmotic half rides water_potential).
         sal_tol_eff = _sal_tol_eff(view, sal_tol)
         f_sal = excess_suit(ctx.sal_water,
                             np.float32(min(max(sal_tol_eff, 0.0), 1.0)),

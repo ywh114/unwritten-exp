@@ -103,7 +103,7 @@ def check_frozen_axis(tree: Tree, pack: ContentPack) -> list[str]:
         # genus/family edges on the path TO species. Empty stub genera
         # (0012 scaffold, no species) are mutation series but invisible
         # to this species-level check — counting them over-flagged small
-        # plans (coral: 29 stub genera inflated 3 species to 36 opp).
+        # plans (29 stub genera once inflated 3 species to 36 opp).
         opp = len(nodes) + sum(
             1 for n in sub
             if n.rank in (Rank.GENUS, Rank.FAMILY)
@@ -140,9 +140,8 @@ def check_frozen_axis(tree: Tree, pack: ContentPack) -> list[str]:
             vals = {str(n.axes[ax]) for n in nodes}
             # a value pinned AT an axis bound is content-intended and the
             # mutation is one-sided there (outward draws clip back) — the
-            # bound-sit is not the v1 freeze bug (0032: coral bloom at
-            # its floor, sponge growing-season at its ceiling tripped
-            # this on seed 2 of a small plan).
+            # bound-sit is not the v1 freeze bug (0032: a small plan
+            # pinned at its bounds tripped this on seed 2).
             if spec.bounds and len(vals) == 1:
                 lo, hi = spec.bounds
                 try:

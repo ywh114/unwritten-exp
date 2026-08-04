@@ -42,8 +42,8 @@ def tree1(pack):
 
 
 def test_content_loads(pack):
-    assert len(pack.registry.plans) == 16
-    assert len(pack.presets) >= 30
+    assert len(pack.registry.plans) == 14
+    assert len(pack.presets) == 29
     assert pack.pins
     assert pack.constraints
     # the flora size axis is height_m, unit=length (registry accepts it)
@@ -83,7 +83,7 @@ def test_structure(tree1):
     assert len(phyla) == 3
     assert all(n.name.binomial for n in phyla)
     classes = [n for n in tree1.nodes.values() if n.rank is Rank.CLASS]
-    assert len(classes) == 9     # real classes from classes.toml (0032)
+    assert len(classes) == 7     # real classes from classes.toml (0032)
     assert {n.name.binomial for n in classes} >= {
         "Magnoliopsida", "Liliopsida", "Bryopsida", "Polypodiopsida",
         "Agaricomycetes"}
@@ -302,8 +302,6 @@ def test_derived_flower_color_presets(tree1):
         "floating_leaf.waterlily": "white",
         "floater.duckweed": "green",
         "macroalgae_holdfast.kelp": "brown",
-        "coral_grade.branching_coral": "brown",
-        "sponge_grade.barrel_sponge": "brown",
         "fungus.agaric": "brown",
         "lichen.crust": "brown",
     }

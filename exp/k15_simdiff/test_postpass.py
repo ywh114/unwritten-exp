@@ -44,7 +44,7 @@ def _digest(nodes) -> str:
 # the family-fill species (parents = demand-created genera) and the
 # old family-attached species (the 0034 bug being fixed) are excluded.
 GENUS_HOST_DIGEST = (
-    "a3909e272e72c0ee014bd718dc98f53f68bcb50de5a085204ade703585468088")
+    "12a9295e72d6bc6e0f9efb0c3436cdd77cf49ca7078ba9c1ea6f8174bf175bc6")
 
 
 @pytest.fixture(scope="module")
@@ -93,16 +93,21 @@ def test_default_completion_fills_empty_genera(tree, post_tree):
 def test_bundle_demand_creates_anchored_daughters(post_tree, pack):
     """A bundle demand creates daughters under its anchor clades, with
     the envelope's stress tolerances (the shared stress-interface axes)."""
-    # the reef-stony-corals bundle anchors include Acropora (an authored
-    # stub) — its genus should carry bundle daughters
-    acro = [n for n in post_tree.nodes.values()
-            if n.rank is Rank.GENUS and n.name.binomial == "Acropora"]
-    assert acro, "Acropora stub missing from the post tree"
+    # the boreal-forest-herbs bundle anchors include Monotropa (a post
+    # genus) — its genus should carry bundle daughters
+    mono = [n for n in post_tree.nodes.values()
+            if n.rank is Rank.GENUS and n.name.binomial == "Monotropa"]
+    assert mono, "Monotropa genus missing from the post tree"
     daughters = [c for c in post_tree.nodes.values()
-                 if c.parent == acro[0].path and c.rank is Rank.SPECIES]
+                 if c.parent == mono[0].path and c.rank is Rank.SPECIES]
     assert daughters
-    # the daughters carry the marine envelope's salinity tolerance
-    assert all(d.axes.get("salinity_tolerance", 0) >= 0.9 for d in daughters)
+    # the bundle-demand daughters carry the boreal envelope's defining
+    # trait (mycorrhizal = ericoid) and its shade tolerance (~0.8 drawn
+    # around the envelope; the genus's own daughters sit ~0.3)
+    ericoid = [d for d in daughters
+               if d.axes.get("mycorrhizal") == "ericoid"]
+    assert ericoid, "no boreal-envelope bundle daughters under Monotropa"
+    assert all(d.axes.get("shade_tolerance", 0) >= 0.5 for d in ericoid)
 
 
 def test_determinism(tree, pack):

@@ -286,7 +286,7 @@ plan_scope = "all"
 consumers = ["id", "tell", "draw"]
 salience = 0.2
 # phyllotaxis for the draw code and the ID tells; "none" for the
-# leafless grades (fungus, sponge, coral, crust lichen).
+# leafless grades (fungus, crust lichen).
 
 [axis.leaf_color]
 block = "patternation"
@@ -1042,11 +1042,11 @@ tier = "steady"
 value_type = "scalar"
 mutation = "ratio"
 sigma = 0.06
-bounds = [0.0, 1.0]                # peat moss, kelp forest, reef builders
+bounds = [0.0, 1.0]                # peat moss, kelp forest, seagrass beds
 plan_scope = "all"
 consumers = ["tell"]
 salience = 0.2
-# Ecosystem engineering (peat/kelp/reef) — engine-pending (B6 table);
+# Ecosystem engineering (peat/kelp/seagrass) — engine-pending (B6 table);
 # the old "stress"/"pop" claims lied (nothing reads it yet).
 
 [axis.coloniality]

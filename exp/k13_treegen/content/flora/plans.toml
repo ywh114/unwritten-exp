@@ -219,41 +219,6 @@ covering = ["none"]
 phenology = ["evergreen", "ephemeral"]
 sensor_array = ["tropism_standard"]
 
-[plan.coral_grade]
-phylum = "spore"
-frame = "sessile_colonial"
-medium = "water"
-class_name = "Corallia"
-slots = ["colony", "polyp", "skeleton"]
-[plan.coral_grade.generics]
-support = ["skeleton_massive", "skeleton_branching", "skeleton_plating",
-           "skeleton_encrusting", "soft_body"]
-feeding_organ = ["C3_foliage", "carnivore_trap"]
-signal = ["coral_spawn"]
-dispersal = ["water_buoyant"]
-defense = ["none", "chemical_alkaloids", "spines"]
-storage = ["none"]
-covering = ["none"]
-phenology = ["synchronous_mass", "evergreen"]
-sensor_array = ["tropism_standard"]
-
-[plan.sponge_grade]
-phylum = "spore"
-frame = "sessile_colonial"
-medium = "water"
-class_name = "Spongiae"
-slots = ["body", "ostia"]
-[plan.sponge_grade.generics]
-support = ["body_encrusting", "body_tube", "body_barrel"]
-feeding_organ = ["carnivore_trap"]
-signal = ["coral_spawn"]
-dispersal = ["water_buoyant"]
-defense = ["none", "spines", "chemical_alkaloids"]
-storage = ["none"]
-covering = ["none"]
-phenology = ["evergreen"]
-sensor_array = ["tropism_standard"]
-
 [plan.fungus]
 phylum = "decomposer"
 frame = "fungal"

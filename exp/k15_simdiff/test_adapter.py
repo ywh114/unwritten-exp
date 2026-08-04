@@ -678,8 +678,8 @@ def test_fertility_symbiosis_credits():
 def test_halophyte_salinity_grade_credit():
     """B6 §2: nutrient_package "halophyte" is a salinity-tolerance GRADE
     credit (a pressure:salinity responder with no factor read — this is
-    the read). Water plans (kelp/seagrass/coral/sponge are the halophyte
-    presets) and land plans both benefit; the credit raises the
+    the read). Water plans (kelp/seagrass are the halophyte presets)
+    and land plans both benefit; the credit raises the
     effective tolerance, so the same salt water scores higher."""
     salty = np.full((H, W), 0.9, dtype=np.float32)          # ocean-ish
     plain = evaluate(base_view(medium="water", salinity_tolerance=0.8,

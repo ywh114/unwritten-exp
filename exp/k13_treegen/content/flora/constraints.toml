@@ -52,8 +52,8 @@ when = { axis = "serotiny", state = "yes" }
 state_plans = ["tree", "shrub"]
 require_enum = { fire_strategy = ["resprouter", "seeder"] }
 
-# Spinescence is an aridity + herbivore-pressure package (land plans —
-# a sponge's spicules are none of this rule's business).
+# Spinescence is an aridity + herbivore-pressure package (a land-plant
+# rule — sessile aquatics are none of this rule's business).
 [[rule]]
 id = "spinescence_aridity"
 when = { axis = "mechanical_defense", state = "spine", plans = ["tree", "shrub", "herb_forb", "grass_sward", "rosette_mat", "succulent", "fern_grade", "moss_grade"] }
@@ -180,7 +180,7 @@ state_plans = ["fern_grade", "macroalgae_holdfast"]
 [[rule]]
 id = "sporangium_plans"
 when = { axis = "fruit_type", state = "sporangium" }
-state_plans = ["moss_grade", "fungus", "lichen", "coral_grade", "sponge_grade"]
+state_plans = ["moss_grade", "fungus", "lichen"]
 
 # Insect-pollinated flowers ADVERTISE: the dull wind set (green/brown/
 # black — only reachable from the "none" pathway or ~0 expression) is

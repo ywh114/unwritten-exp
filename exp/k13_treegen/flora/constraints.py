@@ -12,8 +12,7 @@ Rule semantics (constraints.toml):
     when = { axis = X, state = S | [S, ...] }   trigger: enum in state(s)
     when = { axis = X, above = f }              trigger: scalar above f
     when.plans = [plan, ...]      rule SCOPE: the rule fires only on
-        these plans (spinescence_aridity is a land-plant rule; a sponge's
-        spicules are none of its business)
+        these plans (spinescence_aridity is a land-plant rule)
     state_plans = [plan, ...]     trigger-state LEGALITY: the trigger
         state is only a thing on these plans — off-plan it snaps back
         to the parent's prior value (a lichen cannot redraw its way

@@ -576,29 +576,6 @@ axes = { support = "crustose", drought_tolerance = 0.9 }
 flags = ["pinned"]
 note = "bedrock-outcrop first colonist (Lecanoraceae)"
 
-# ──  reef tokens  ──────────────────────────────────────────────────────
-[[pin]]
-preset = "coral_grade.branching_coral"
-label = "branching-corals"
-name = { binomial = "Acropora", folk = "branching coral" }
-rank = "genus"
-radiate = "pre"
-radiation = 2
-axes = { engineer_impact = 0.95 }
-flags = ["pinned"]
-note = "radiation capped 4->2 (CENSUS keep radiation <= 2; 0033 §4, 2026-08-03) — reef diversity rides the bundles + authored stubs"
-
-[[pin]]
-preset = "sponge_grade.barrel_sponge"
-label = "barrel-sponges"
-name = { binomial = "Xestospongia", folk = "barrel sponge" }
-rank = "genus"
-radiate = "pre"
-radiation = 2
-axes = { engineer_impact = 0.6 }
-flags = ["pinned"]
-note = "radiation capped 4->2 (CENSUS keep radiation <= 2; 0033 §4, 2026-08-03) — the 17 radiated species were unseeded/dead; reef diversity rides the bundles + stubs"
-
 # ──  rare archetype (species pin, herb_forb.forb)  ─────────────────────
 [[pin]]
 preset = "herb_forb.forb"
