@@ -95,8 +95,10 @@ P_BREAKOFF = 0.2
 # (see the design-as-built note).
 S_ENV_TAIL = -0.15
 # Blobs below this many cells are never broken off (fringe speckle).
-# Smaller than the GENESIS_MIN_CELLS mint floor on purpose: the harsh
-# tail is a thin fringe by nature. Cal: 8 = meaningful-cluster scale.
+# The harsh tail is a thin fringe by nature (the genesis mint floor
+# this once sat below — GENESIS_MIN_CELLS — was removed by ticket
+# 0039; the descent floor is now independent). Cal: 8 = meaningful-
+# cluster scale.
 DESCENT_MIN_BLOB_CELLS = 8
 # The g-earning scale (the rebuild's fix): g_end = DES_G_FRAC ×
 # n_gen × rate_mult. Settled 3.0 — the FAST-tail head-start: the

@@ -630,13 +630,16 @@ class Engine:
         view/vital/percap and the cache are evaluated ONCE per species
         and shared by reference (the bbox optimization; _refresh
         replaces rather than mutates, so sharing is copy-on-drift safe).
-        Species with no mintable cells (zero range or every proximity
-        blob below GENESIS_MIN_CELLS) are NEVER minted: registered with
-        the authority (register_unseeded) so the normal update()
-        extinction pass marks them extinct at the first commit — reflog
-        entry, branch terminated (ticket 0004; measured on seed 1 after
-        the 0033 §1 relaxation: 22/123 unseeded — 8 zero-range + 14
-        all-sub-floor, 101 minted).
+        Species with no mintable cells (zero range — the ticket-0009
+        all-sub-floor bucket is GONE since ticket 0039, owner ruling
+        2026-08-04: every proximity blob is mintable, however small)
+        are NEVER minted: registered with the authority
+        (register_unseeded) so the normal update() extinction pass
+        marks them extinct at the first commit — reflog entry, branch
+        terminated (ticket 0004; measured on seed 1 after the 0033 §1
+        relaxation: 22/123 unseeded — 8 zero-range + 14 all-sub-floor,
+        101 minted — re-measurement after the 0039 removal pending,
+        see scratch/0039_probe.py).
         Deterministic: species processed in sorted sid order, every
         draw from pinned k15 streams. Ticket 0012 (ruling 13): after the
         species mint, ``_seed_bundles`` mints ONE frozen generic
@@ -757,8 +760,8 @@ class Engine:
         species rain uses (F_worst >= GENESIS_F ∩ medium-valid ∩
         K_L > K_EPS, the K_L-gate when live), the same proximity blob
         stage (gen.proximity_components — ticket 0033 §1: the bundle
-        path inherits the species relaxation) with the same
-        GENESIS_MIN_CELLS floor, and a per-blob coverage draw from
+        path inherits the species relaxation; ticket 0039: no mint
+        floor, every blob seeds) and a per-blob coverage draw from
         ``Stream(seed, "k15.genesis", sid)`` (content-addressed by the
         bundle sid, so the processing order never matters) — TIERED by
         the pre-coverage retained cell count (ticket 0037,
@@ -771,9 +774,10 @@ class Engine:
         authority's mint/redraw/_alive never see bundles. FROZEN by
         construction: the verdict feed skips bundle iids — no
         select()/mutate()/Δg/_refresh, they participate only via
-        population, dispersal, and stress. An unseeded bundle (no blob
-        at/above GENESIS_MIN_CELLS) counts as unseeded and never
-        registers with the authority. Deterministic: every draw from
+        population, dispersal, and stress. An unseeded bundle (no
+        viable blob at all — zero range; the mint floor is gone since
+        ticket 0039) counts as unseeded and never registers with the
+        authority. Deterministic: every draw from
         pinned k15 streams; same seed → byte-identical."""
         full = (0, self.ctx.H, 0, self.ctx.W)
         order = sorted(self.pack.bundles, key=lambda b: b["label"])
@@ -808,8 +812,7 @@ class Engine:
                   & (K_L > pop.K_EPS))
             if gen.GENESIS_K_L_GATE:
                 ok &= K_L >= pop.N_FLOOR * percap
-            big = [c for c in gen.proximity_components(ok)
-                   if int(c.sum()) >= gen.GENESIS_MIN_CELLS]
+            big = gen.proximity_components(ok)
             if not big:
                 unseeded += 1
                 continue
