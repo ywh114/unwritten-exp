@@ -209,27 +209,33 @@ def test_shade_step_flat_steep_quiet():
     to the canopy profile: high and FLAT well below the top (small
     height gains buy zero marginal relief — the shade trap), STEEP just
     below the canopy top (a nudge crosses the top stratum's coverage —
-    strong marginal relief), QUIET at/above the top."""
+    strong marginal relief), QUIET at/above the top.  The probe view is
+    the oak's (shade_tolerance 0.35), so every shaded value reads the
+    ATTENUATED shade (1 − tolerance) × the raw cover — the constant
+    factor preserves the step shape (B10 §6.4)."""
     def shade_at(h: float) -> float:
         st = OccupancyState(_cell(), [_oak(), _probe(h)])
         st.paint("oak", 400_000.0)
         return competition_canopy(_probe(h).view, st)["value"]
 
-    # the oak's painted cover — the shade the probe reads at its feet
+    # the oak's painted cover — the shade the probe reads at its feet,
+    # attenuated by the probe view's tolerance
     st0 = OccupancyState(_cell(), [_oak()])
     st0.paint("oak", 400_000.0)
     c_oak = canopy_profile(st0).covered_fraction
     assert c_oak > 0.0
+    tol = _oak().view.get("shade_tolerance", 0.0)
+    atten = (1.0 - tol) * c_oak
 
     # FLAT deep understory: 12 m vs 13 m read the same shade
-    assert shade_at(12.0) == pytest.approx(c_oak)
-    assert shade_at(13.0) == pytest.approx(c_oak)
+    assert shade_at(12.0) == pytest.approx(atten)
+    assert shade_at(13.0) == pytest.approx(atten)
     assert shade_at(13.0) == pytest.approx(shade_at(12.0), abs=1e-12)
-    # STEEP just below the top: the full top-stratum coverage is
-    # crossed by a nudge through 25 m
-    assert shade_at(24.9) == pytest.approx(c_oak)
+    # STEEP just below the top: the full attenuated top-stratum shade
+    # is crossed by a nudge through 25 m
+    assert shade_at(24.9) == pytest.approx(atten)
     assert shade_at(25.5) == 0.0
-    assert shade_at(24.9) - shade_at(25.5) == pytest.approx(c_oak)
+    assert shade_at(24.9) - shade_at(25.5) == pytest.approx(atten)
     # QUIET at/above the top
     assert shade_at(25.0) == 0.0
     assert shade_at(26.0) == 0.0
@@ -238,6 +244,38 @@ def test_shade_step_flat_steep_quiet():
     vals = [shade_at(h) for h in hs]
     assert all(vals[i] >= vals[i + 1] - 1e-12 for i in range(len(vals) - 1))
     assert vals[0] > 0.0 and vals[-1] == 0.0
+
+
+def test_canopy_shade_attenuated_by_tolerance():
+    """B10 §6.4: shade_tolerance ATTENUATES the canopy stress —
+    effective = shade × (1 − tolerance), clipped to [0, 1] — the B5
+    idiom (a tolerance attenuates its stress) applied to shade: a
+    shade-tolerant lineage reads a LOWER shade stress, so tolerance
+    genuinely relieves the term and the pressure probe can report it
+    (the shade-trap escape).  The field read exposes the raw shade and
+    the attenuation; a missing/non-numeric tolerance reads 0.0 (no
+    attenuation — the pre-tolerance behavior, documented neutral)."""
+    st = OccupancyState(_cell(), [_oak(), _probe(12.0)])
+    st.paint("oak", 400_000.0)
+    raw = canopy_profile(st).covered_fraction
+    base_view = _probe(12.0).view            # the oak's view: tol 0.35
+    tol = base_view.get("shade_tolerance")
+
+    term = competition_canopy(base_view, st)
+    assert term["value"] == pytest.approx(raw * (1.0 - tol), rel=1e-9)
+    assert term["field"]["above_fraction"] == pytest.approx(raw, rel=1e-9)
+    assert term["field"]["shade_tolerance"] == tol
+    assert term["field"]["effective_shade"] == term["value"]
+    assert "tolerance" in term["cause"]
+    # the attenuation is monotone in the tolerance
+    assert competition_canopy(dict(base_view, shade_tolerance=0.1), st)[
+        "value"] > term["value"]
+    # a missing tolerance reads 0.0 → the raw shade (documented neutral)
+    no_tol = competition_canopy(dict(base_view, shade_tolerance=None), st)
+    assert no_tol["value"] == pytest.approx(raw, rel=1e-9)
+    # a full-attenuation tolerance (≥ 1) clips the stress to 0
+    full = competition_canopy(dict(base_view, shade_tolerance=1.5), st)
+    assert full["value"] == 0.0
 
 
 def test_canopy_self_is_quiet():
@@ -426,14 +464,23 @@ def test_clay_canopy_shades_clay_sward_not_sand_sward():
 
     clay_shade = competition_canopy(clay_sward.view, st)
     sand_shade = competition_canopy(sand_sward.view, st)
-    assert clay_shade["value"] == pytest.approx(cover, rel=1e-9)
+    # the tussock sward's shade is ATTENUATED by its shade tolerance
+    # (effective = shade × (1 − tolerance), B10 §6.4); the sand sward
+    # reads none (nothing stands above it on sand)
+    tol = clay_sward.view.get("shade_tolerance", 0.0)
+    assert clay_shade["value"] == pytest.approx(
+        (1.0 - tol) * cover, rel=1e-9)
     assert sand_shade["value"] == 0.0
     # the sand sward's quiet cause names the geometry
     assert "quiet" in sand_shade["cause"]
-    # the field read exposes the per-class geometry
+    # the field read exposes the per-class geometry + the attenuation
     assert clay_shade["field"]["per_class"]["clay"]["above_fraction"] \
         == pytest.approx(cover, rel=1e-9)
     assert clay_shade["field"]["per_class"]["sand"]["above_fraction"] == 0.0
+    assert clay_shade["field"]["above_fraction"] == pytest.approx(
+        cover, rel=1e-9)
+    assert clay_shade["field"]["shade_tolerance"] == tol
+    assert clay_shade["field"]["effective_shade"] == clay_shade["value"]
 
 
 def test_specialist_vs_generalist_asymmetry_under_substrate_canopy():
@@ -451,11 +498,13 @@ def test_specialist_vs_generalist_asymmetry_under_substrate_canopy():
     st.paint("oak", 400_000.0)
 
     cover = canopy_profile(st).covered_fraction
+    tol = clay_sward.view.get("shade_tolerance", 0.0)   # the swards' 0.2
     shade_clay = competition_canopy(clay_sward.view, st)["value"]
     shade_gen = competition_canopy(generalist.view, st)["value"]
     shade_sand = competition_canopy(sand_sward.view, st)["value"]
-    assert shade_clay == pytest.approx(cover, rel=1e-9)        # full
-    assert shade_gen == pytest.approx(0.5 * cover, rel=1e-9)   # half
+    # attenuated by the (shared) sward tolerance: full / half / none
+    assert shade_clay == pytest.approx((1.0 - tol) * cover, rel=1e-9)
+    assert shade_gen == pytest.approx((1.0 - tol) * 0.5 * cover, rel=1e-9)
     assert shade_sand == 0.0                                   # none
     assert shade_clay > shade_gen > 0.0 == shade_sand
 

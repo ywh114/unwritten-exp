@@ -26,13 +26,13 @@ pressure is a property of the record's real landscape (the intrinsic
 block rides through the probe's reassembly), so the acceptance cases
 run with the real intrinsic leakage.
 
-One documented deferral (ticket note): the shade-trap acceptance's
-"shade_tolerance pressure positive" is NOT tested — shade_tolerance is
-a view tolerance key whose wiring belongs to the environmental/compose
-side (B5 §4.4's deferred shade-as-competition axes); the machine table
-has no clean home for it, and inventing one is out of scope.  The test
-asserts the boundary instead (no shade_tolerance pressure records) and
-bubbles the question.  Bubbled to the orchestrator.
+One documented boundary (orchestrator answer to the bubbled question,
+2026-08-04): the shade-trap acceptance's "shade_tolerance pressure
+positive" is implemented via the B5 idiom — shade_tolerance ATTENUATES
+the canopy competition stress (effective = shade × (1 − tolerance),
+crowding.competition_canopy), so tolerance genuinely relieves the
+shade term and the probe reads a positive pressure for it.  The
+tolerance is wired direction "+" only.
 
 Plain pytest, no marks — runs in milliseconds.
 """
@@ -166,15 +166,19 @@ def test_probe_step_constant_documented():
 def test_wiring_table_mirrors_the_human_texts():
     """The L3 responder table mirrors the human wiring texts in
     crowding.py and flora/view.py (ticket brief): CANOPY → height_m /
-    crown_spread_m; MECHANICAL → crown_spread_m / height_m /
-    wood_density; ENERGETICS → root_depth_m / root_spread_m;
-    GROUND_COVER → height_m / crown_spread_m / footprint (the
-    mass-hook π·max(clonal, crown)² geometry — clonal_spread_m is its
-    second driver); SUBSTRATE → root_depth_m / substrate preference
-    (the preference axis is a deferred B2 addendum — root_depth_m is
-    the only probeable responder today)."""
-    canopy = {t for t, _ in WIRING_TABLE["competition:canopy"]}
-    assert canopy == {"height_m", "crown_spread_m"}
+    crown_spread_m / shade_tolerance (the tolerance attenuates the
+    shade stress, direction "+" only — B10 §6.4); MECHANICAL →
+    crown_spread_m / height_m / wood_density; ENERGETICS →
+    root_depth_m / root_spread_m; GROUND_COVER → height_m /
+    crown_spread_m / footprint (the mass-hook π·max(clonal, crown)²
+    geometry — clonal_spread_m is its second driver); SUBSTRATE →
+    root_depth_m / substrate preference (the preference axis is a
+    deferred B2 addendum — root_depth_m is the only probeable responder
+    today)."""
+    canopy = dict(WIRING_TABLE["competition:canopy"])
+    assert set(canopy) == {"height_m", "crown_spread_m", "shade_tolerance"}
+    assert canopy["shade_tolerance"] == ("+",)   # more tolerance always
+                                                 # attenuates more
     mech = {t for t, _ in WIRING_TABLE["mechanical_support"]}
     assert mech == {"crown_spread_m", "height_m", "wood_density"}
     energy = {t for t, _ in WIRING_TABLE["energetics"]}
@@ -273,13 +277,13 @@ def test_probe_trait_rejects_uncommitted_axis():
 def test_low_stress_no_pull_top_canopy():
     """A canopy lineage at the top reads canopy stress 0 (nothing above
     it — crowding's quiet) — pressure ∝ stress, so its canopy pressures
-    are EXACTLY 0.0: no pull toward height or crown (B10 §4 low stress
-    → no pull)."""
+    are EXACTLY 0.0: no pull toward height, crown, or shade tolerance
+    (B10 §4 low stress → no pull)."""
     rec, ln = _pair("tree.oak", "oak")
     st = OccupancyState(_cell(), [ln])
     st.paint("oak", 200_000.0)
     pr = _pressures(rec, st, "oak")
-    for trait in ("height_m", "crown_spread_m"):
+    for trait in ("height_m", "crown_spread_m", "shade_tolerance"):
         e = _entry(pr, "competition:canopy", trait)
         assert e.stress == 0.0
         assert e.pressure == 0.0 and e.direction == "none"
@@ -414,7 +418,7 @@ def test_ab_equilibrium_and_pressure():
     # the pressure block at each equilibrium (full-stack read)
     for rec, st in ((rec_rich, st_rich), (rec_poor, st_poor)):
         pr = _pressures(rec, st, "oak")
-        for trait in ("height_m", "crown_spread_m"):
+        for trait in ("height_m", "crown_spread_m", "shade_tolerance"):
             e = _entry(pr, "competition:canopy", trait)
             assert e.stress == 0.0 and e.pressure == 0.0
         sub = _entry(pr, "competition:substrate", "root_depth_m")
@@ -507,22 +511,23 @@ def test_shade_trap_strict_zero_and_step():
     canopy reads STRICTLY ZERO height pressure (the shade is high but
     FLAT in its neighbourhood — an evolutionary leap with no benefit in
     the middle — so it is NOT pulled toward height; exact 0.0, not
-    epsilon), while a lineage one probe step below the canopy top feels
-    the step: nudging height crosses the top stratum's coverage, the
-    shade drops to zero, and the pressure is STRONG (relief == the
-    shade itself).  The near-top move is exactly the time-reversal-
-    local case: every intermediate step from just-below to through is
-    motivated (B10 §4).
-
-    shade_tolerance is a view TOLERANCE key whose wiring belongs to the
-    environmental/compose side (the deferred shade-as-competition axes,
-    B5 §4.4) — the machine table has no clean home for it, so the probe
-    deliberately carries no shade_tolerance pressure (asserted below).
-    BUBBLED to the orchestrator (ticket note): how should shade
-    tolerance become a wired responder? — the acceptance's
-    "shade_tolerance pressure positive" needs that wiring."""
-    # the shared canopy: a 25 m oak at 200 kt — shade ≈ 0.263
+    epsilon) and a POSITIVE shade_tolerance pressure (tolerance
+    attenuates the shade term — effective = shade × (1 − tolerance) —
+    so adapting toward tolerance pays immediately: the shade-trap
+    escape).  A lineage one probe step below the canopy top feels the
+    step: nudging height crosses the top stratum's coverage, the shade
+    drops to zero, and the height pressure is STRONG (relief == the
+    shade itself), while its shade_tolerance pressure is ~zero relative
+    to it (at the base the top is right above its crown — the
+    tolerance channel is negligible next to the height step).  The
+    near-top move is exactly the time-reversal-local case: every
+    intermediate step from just-below to through is motivated (B10 §4)."""
+    # the shared canopy: a 25 m oak at 200 kt — raw shade ≈ 0.263,
+    # attenuated by the oak-record's 0.35 tolerance → effective 0.171
     _, oak = _pair("tree.oak", "oak")
+    raw_shade = 0.2626
+    tol = 0.35
+    effective = raw_shade * (1.0 - tol)
 
     # deep understory: a 5 m tree under the oak
     rec_deep, deep = _pair("tree.oak", "understory",
@@ -533,17 +538,25 @@ def test_shade_trap_strict_zero_and_step():
     pr = _pressures(rec_deep, st, "understory")
     h = _entry(pr, "competition:canopy", "height_m")
     assert h.stress > 0.0                    # genuinely shaded (not vacuous)
-    assert h.stress == pytest.approx(0.2626, abs=1e-3)
+    assert h.stress == pytest.approx(effective, abs=1e-3)
     assert h.relief == 0.0                   # flat benefit zone: no relief
     assert h.pressure == 0.0                 # STRICTLY zero — exact, not
                                              # epsilon (B10 §4)
     assert h.direction == "none"
     c = _entry(pr, "competition:canopy", "crown_spread_m")
     assert c.pressure == 0.0
-    # no shade_tolerance wiring exists yet (the bubbled boundary):
-    # the probe carries no such entry on any wired stress key
-    for key, entries in pr.items():
-        assert all(e.trait != "shade_tolerance" for e in entries)
+    # the shade-trap escape: shade_tolerance pressure is POSITIVE —
+    # tolerance genuinely relieves the shade term (B10 §6.4): the
+    # marginal relief is the RAW shade per unit tolerance, so
+    # pressure = effective × raw > 0
+    t = _entry(pr, "competition:canopy", "shade_tolerance")
+    assert t.direction == "+"
+    assert t.stress == pytest.approx(effective, abs=1e-3)
+    raw_actual = t.stress / (1.0 - tol)      # back out the raw shade
+    assert t.marginal_relief == pytest.approx(raw_actual, rel=1e-9)
+    assert t.pressure > 0.0
+    assert t.pressure == pytest.approx(t.stress * t.marginal_relief,
+                                       rel=1e-9)
 
     # just below the canopy top: a 24.99 m tree under the same oak —
     # +0.1% of 24.99 (PROBE_REL_STEP) clears the 25 m top stratum
@@ -553,12 +566,21 @@ def test_shade_trap_strict_zero_and_step():
     st2.paint("near_top", 10_000.0)
     pr2 = _pressures(rec_near, st2, "near_top")
     h2 = _entry(pr2, "competition:canopy", "height_m")
-    assert h2.stress == pytest.approx(0.2626, abs=1e-3)
+    assert h2.stress == pytest.approx(effective, abs=1e-3)
     assert h2.direction == "+"
     assert h2.relief == h2.stress            # shade drops to zero exactly
     assert h2.pressure > 1.0                 # strong — dragged through
     assert h2.pressure == pytest.approx(h2.stress * h2.stress
                                         / h2.probe_step, rel=1e-9)
+    # ~zero shade_tolerance pressure next to the height step: the
+    # canopy top is right above its crown, so tolerance still pays a
+    # little (the oak above it) — but an order of magnitude below the
+    # height channel (a lineage AT the top reads exactly 0, asserted in
+    # test_low_stress_no_pull_top_canopy)
+    t2 = _entry(pr2, "competition:canopy", "shade_tolerance")
+    assert t2.pressure == pytest.approx(t2.stress * t2.marginal_relief,
+                                        rel=1e-9)
+    assert 0.0 < t2.pressure < 0.05 * h2.pressure
 
 
 # ──  determinism audit  ──────────────────────────────────────────────────

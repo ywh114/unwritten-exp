@@ -341,11 +341,13 @@ def substrate_field(state: OccupancyState) -> SubstrateField:
 # L3 content; B10 §2's trait wiring: canopy → height/crown, substrate →
 # roots/substrate preference, phenology → leafout/bloom timing).
 CANOPY_WIRING = (
-    "responder traits height_m / crown_spread_m (canopy → height/crown): "
-    "a lineage below the canopy profile is pulled through the shade step "
-    "by marginal relief (probed); deep below it, zero marginal relief — "
-    "no height pull, adaptation toward shade tolerance instead (B10 §4). "
-    "The responder TABLE is L3 content."
+    "responder traits height_m / crown_spread_m / shade_tolerance (canopy "
+    "→ height/crown; shade_tolerance ATTENUATES the shade stress — "
+    "effective = shade × (1 − tolerance), the B5 idiom applied to shade, "
+    "B10 §6.4): a lineage below the canopy profile is pulled through the "
+    "shade step by marginal relief (probed); deep below it, zero marginal "
+    "relief for height — no height pull, adaptation toward shade tolerance "
+    "instead (B10 §4).  The responder TABLE is L3 content."
 )
 GROUND_COVER_WIRING = (
     "responder traits height_m / crown_spread_m / footprint (ground → "
@@ -432,7 +434,16 @@ def competition_canopy(view: Mapping, state: OccupancyState) -> dict:
     shade trap, zero pull toward height); just below the canopy top a
     nudge crosses the top stratum's coverage (strong marginal relief —
     the lineage is dragged through the step); at or above the top it is
-    quiet (0 — nothing stands above the lineage's own crown)."""
+    quiet (0 — nothing stands above the lineage's own crown).
+
+    The shade the lineage reads is ATTENUATED by its shade tolerance —
+    effective = shade × (1 − shade_tolerance), clipped to [0, 1] — the
+    B5 idiom (a tolerance attenuates its stress) applied to shade (B10
+    §6.4: a shaded lineage adapts toward shade tolerance, and the probe
+    reads that relief because the term consumes the tolerance).  A
+    missing / non-numeric shade_tolerance reads 0.0 — no attenuation,
+    the documented neutral (the pre-tolerance behavior).  The field
+    read exposes both the RAW shade and the attenuation."""
     h = view.get("height_m")
     h = float(h) if isinstance(h, (int, float)) else 0.0
     per_class = dict(per_class_canopy_profile(state))
@@ -446,6 +457,9 @@ def competition_canopy(view: Mapping, state: OccupancyState) -> dict:
     # the mixture: the lineage's OWN weights pick the classes it
     # stands on — disjoint-preference lineages read their own classes
     shade = sum(w.get(s, 0.0) * by_class[s] for s in by_class)
+    tol = view.get("shade_tolerance")
+    tol = float(tol) if isinstance(tol, (int, float)) else 0.0
+    effective = min(1.0, max(0.0, shade * (1.0 - tol)))
     prof = canopy_profile(state)
     standing = [s for s, dist_w in dist
                 if dist_w > 0.0 and per_class[s].strata]
@@ -457,16 +471,19 @@ def competition_canopy(view: Mapping, state: OccupancyState) -> dict:
                  f"on its substrate classes — quiet")
     else:
         n = len(standing)
-        cause = (f"shade {shade:.3g}: {n} "
+        cause = (f"shade {shade:.3g} × (1 − {tol:.3g} tolerance) = "
+                 f"{effective:.3g}: {n} "
                  f"{'class' if n == 1 else 'classes'} with canopy "
                  f"above {h:.3g} m (top {prof.top_height_m:.3g} m, "
                  f"total cover {prof.covered_fraction:.3g})")
     return _term(
-        key="competition:canopy", value=shade, resource="canopy",
+        key="competition:canopy", value=effective, resource="canopy",
         cause=cause, dominant_refs=_dominant_refs(prof.strata, 2),
         field=dict(top_height_m=prof.top_height_m,
                    covered_fraction=prof.covered_fraction,
                    above_fraction=shade,
+                   shade_tolerance=tol,
+                   effective_shade=effective,
                    per_class={s: dict(
                        top_height_m=per_class[s].top_height_m,
                        covered_fraction=per_class[s].covered_fraction,

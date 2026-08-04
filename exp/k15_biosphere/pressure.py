@@ -63,15 +63,17 @@ THE WIRING TABLE (``WIRING_TABLE``) is the L3 responder table (B10 §4:
 wiring — the three competition types (crowding.py) and the two
 intrinsic types (flora/view.py) — each with the responder traits and
 their allowed move directions, mirroring the human wiring texts in
-crowding.py (CANOPY: height_m / crown_spread_m; GROUND_COVER:
-height_m / crown_spread_m / footprint — footprint is the mass-hook
-geometry π·max(clonal_spread_m, crown_spread_m)², so clonal_spread_m
-is wired as its second driver; SUBSTRATE: root_depth_m / substrate
-preference — the preference axis is a deferred B2 addendum, so
-root_depth_m is the only probeable responder today) and flora/view.py
-(MECHANICAL: crown_spread_m / height_m / wood_density; ENERGETICS:
-root_depth_m / root_spread_m).  The table is deliberately MINIMAL and
-graduates to content later (ticket note); the environmental responders
+crowding.py (CANOPY: height_m / crown_spread_m / shade_tolerance —
+the tolerance attenuates the shade stress, effective = shade × (1 −
+tolerance), direction "+" only, B10 §6.4; GROUND_COVER: height_m /
+crown_spread_m / footprint — footprint is the mass-hook geometry
+π·max(clonal_spread_m, crown_spread_m)², so clonal_spread_m is wired
+as its second driver; SUBSTRATE: root_depth_m / substrate preference —
+the preference axis is a deferred B2 addendum, so root_depth_m is the
+only probeable responder today) and flora/view.py (MECHANICAL:
+crown_spread_m / height_m / wood_density; ENERGETICS: root_depth_m /
+root_spread_m).  The table is deliberately MINIMAL and graduates to
+content later (ticket note); the environmental responders
 (dynamics.py's wiring strings) are not wired yet.  Whether a wired
 trait actually carries relief is the LANDSCAPE's call, not the table's:
 several wired traits show zero relief on today's content (wood_density
@@ -122,10 +124,15 @@ PROBE_REL_STEP = 1e-3
 # relieves.
 WIRING_TABLE: Mapping[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     # competition:canopy — shade (CANOPY_WIRING: "height_m /
-    # crown_spread_m"): height clears the canopy step, crown spreads it.
+    # crown_spread_m / shade_tolerance"): height clears the canopy step,
+    # crown spreads it, and shade_tolerance attenuates the shade stress
+    # (effective = shade × (1 − tolerance), B10 §6.4 — a shaded lineage
+    # adapts toward tolerance; direction "+" only: more tolerance always
+    # attenuates more).
     "competition:canopy": (
         ("height_m", ("+", "-")),
         ("crown_spread_m", ("+", "-")),
+        ("shade_tolerance", ("+",)),
     ),
     # competition:ground_cover — the ground-plane contest
     # (GROUND_COVER_WIRING: "height_m / crown_spread_m / footprint";
