@@ -17,6 +17,12 @@ the 15 m willow for a second canopy stratum.  Covers:
   lineage's self-crowding equilibrium == f(p) · L · matching-substrate
   ha) and the monoculture limit (the equilibrium reads as the derived
   cap);
+- the GEOMETRIC partitioning escape (ticket 0050): per-substrate-class
+  crowding fields and the weighted-mixture stresses — disjoint
+  preferences never enter each other's classes (a clay canopy shades a
+  clay sward, not a sand sward), specialist vs generalist asymmetry
+  under a substrate-specific canopy, and n=1 invariance on a MIXED
+  substrate cell (specialist and generalist alike);
 - per-resource independence (the substrate contest does not leak into
   the canopy shade), probeability (nudge-and-recompute is
   deterministic, pure, and reads the landscape), and the determinism
@@ -49,9 +55,11 @@ from exp.k15_biosphere.crowding import (
     crowding,
     ground_cover_field,
     lineage_cap_scale_t,
+    per_class_canopy_profile,
     prodscale_f,
     self_crowding_equilibrium_t,
     substrate_capacity_t,
+    substrate_class_capacity_t,
     substrate_field,
 )
 
@@ -97,9 +105,9 @@ def _tussock(ref: str = "sward", **kw) -> Lineage:
     return _lineage("grass_sward.tussock", ref, **kw)
 
 
-def _sphagnum(**kw) -> Lineage:
+def _sphagnum(ref: str = "moss", **kw) -> Lineage:
     """moss_grade.sphagnum: ground layer, kg_m2 (per-area) cover."""
-    return _lineage("moss_grade.sphagnum", "moss", **kw)
+    return _lineage("moss_grade.sphagnum", ref, **kw)
 
 
 def _probe(height_m: float) -> Lineage:
@@ -340,6 +348,144 @@ def test_substrate_stress_is_reciprocal():
     v2 = competition_substrate(a_view, st)["value"]
     assert v2 > v1                          # a's stress rose because of b
     assert v2 == pytest.approx(crowding(substrate_field(st).total_pressure))
+
+
+# ──  geometric partitioning (ticket 0050)  ───────────────────────────────
+
+
+def test_partition_relief_disjoint_preferences():
+    """Two ground lineages with DISJOINT substrate preferences (clay vs
+    sand) on a clay+sand cell read only their OWN class's contest: each
+    lineage's pressure comes from its holdings on its class, the other
+    never enters its crowding field (ticket 0050 — the GEOMETRIC
+    escape, not just capacity-weighted).  Distinct presets → distinct
+    views → unambiguous view→lineage resolution."""
+    cell = _cell(mix={"clay": 0.5, "sand": 0.5})
+    clay = _tussock(ref="clay_sward", substrate_pref={"clay": 1.0})
+    sand = _sphagnum(ref="sand_moss", substrate_pref={"sand": 1.0})
+    st = OccupancyState(cell, [clay, sand])
+    st.paint("clay_sward", 100_000.0)      # q_clay = 0.5
+    st.paint("sand_moss", 50_000.0)        # q_sand = 0.25
+
+    # per-class capacities are the class's AREA SHARE (geometric)
+    c_cap = substrate_class_capacity_t(st, "clay")   # f(1)·L·1600·0.5
+    s_cap = substrate_class_capacity_t(st, "sand")
+    assert c_cap == s_cap == pytest.approx(0.5 * _cap_t(1.0))
+    # the per-class contest on each class comes from that class's
+    # lineage only (claims = holdings × w, w = 1 on the preferred class)
+    fld = substrate_field(st)
+    assert dict(fld.per_class)["clay"] == pytest.approx(100_000.0 / c_cap)
+    assert dict(fld.per_class)["sand"] == pytest.approx(50_000.0 / s_cap)
+    # the ground-cover contest partitions the same way
+    gc = ground_cover_field(st)
+    assert dict(gc.per_class)["clay"] == pytest.approx(
+        st.coverage("sward"), rel=1e-9)
+    assert dict(gc.per_class)["sand"] == pytest.approx(
+        st.coverage("ground"), rel=1e-9)
+
+    clay_term = competition_substrate(clay.view, st)
+    sand_term = competition_substrate(sand.view, st)
+    assert clay_term["value"] == pytest.approx(crowding(100_000.0 / c_cap))
+    assert sand_term["value"] == pytest.approx(crowding(50_000.0 / s_cap))
+    # ZERO mutual crowding: growing the sand moss does not move the
+    # clay sward's substrate stress (nor its ground-cover stress)
+    st2 = OccupancyState(cell, [clay, sand])
+    st2.paint("clay_sward", 100_000.0)
+    st2.paint("sand_moss", 150_000.0)      # q_sand -> 0.75
+    assert competition_substrate(clay.view, st2)["value"] == \
+        pytest.approx(clay_term["value"])
+    assert competition_substrate(clay.view, st2)["field"]["contest"] == \
+        clay_term["field"]["contest"]
+    assert competition_ground_cover(clay.view, st2)["value"] == \
+        pytest.approx(competition_ground_cover(clay.view, st)["value"])
+    assert competition_substrate(sand.view, st2)["value"] == \
+        pytest.approx(crowding(150_000.0 / s_cap))
+
+
+def test_clay_canopy_shades_clay_sward_not_sand_sward():
+    """The owner's nit, direct: a canopy standing on CLAY shades a clay
+    sward but NOT a sand-living sward — its strata land on clay only
+    (cover × w_s), so the sand sward's weighted mixture reads no shade
+    (ticket 0050)."""
+    cell = _cell(mix={"clay": 0.5, "sand": 0.5})
+    oak = _oak(substrate_pref={"clay": 1.0})
+    clay_sward = _tussock(ref="clay_sward", substrate_pref={"clay": 1.0})
+    sand_sward = _sphagnum(ref="sand_moss", substrate_pref={"sand": 1.0})
+    st = OccupancyState(cell, [oak, clay_sward, sand_sward])
+    st.paint("oak", 400_000.0)
+    st.paint("clay_sward", 20_000.0)
+    st.paint("sand_moss", 20_000.0)
+
+    profs = dict(per_class_canopy_profile(st))
+    # the oak's FULL cover lands on clay (w_clay = 1); sand has no
+    # canopy strata at all — the per-class field is the geometry
+    cover = canopy_profile(st).covered_fraction
+    assert profs["clay"].covered_fraction == pytest.approx(cover, rel=1e-9)
+    assert profs["sand"].strata == ()
+    assert profs["clay"].top_height_m == pytest.approx(25.0)
+
+    clay_shade = competition_canopy(clay_sward.view, st)
+    sand_shade = competition_canopy(sand_sward.view, st)
+    assert clay_shade["value"] == pytest.approx(cover, rel=1e-9)
+    assert sand_shade["value"] == 0.0
+    # the sand sward's quiet cause names the geometry
+    assert "quiet" in sand_shade["cause"]
+    # the field read exposes the per-class geometry
+    assert clay_shade["field"]["per_class"]["clay"]["above_fraction"] \
+        == pytest.approx(cover, rel=1e-9)
+    assert clay_shade["field"]["per_class"]["sand"]["above_fraction"] == 0.0
+
+
+def test_specialist_vs_generalist_asymmetry_under_substrate_canopy():
+    """A substrate-specific canopy shades a specialist on its class
+    FULLY (w = 1 there), a generalist (empty pref — uniform over the
+    mix) only by its mix-weighted share, and a specialist on the other
+    class NOT AT ALL — the geometric partitioning's asymmetry
+    (ticket 0050)."""
+    cell = _cell(mix={"clay": 0.5, "sand": 0.5})
+    oak = _oak(substrate_pref={"clay": 1.0})
+    clay_sward = _tussock(ref="clay_sward", substrate_pref={"clay": 1.0})
+    sand_sward = _sphagnum(ref="sand_moss", substrate_pref={"sand": 1.0})
+    generalist = _tussock(ref="gen_sward")       # empty pref -> w = mix
+    st = OccupancyState(cell, [oak, clay_sward, sand_sward, generalist])
+    st.paint("oak", 400_000.0)
+
+    cover = canopy_profile(st).covered_fraction
+    shade_clay = competition_canopy(clay_sward.view, st)["value"]
+    shade_gen = competition_canopy(generalist.view, st)["value"]
+    shade_sand = competition_canopy(sand_sward.view, st)["value"]
+    assert shade_clay == pytest.approx(cover, rel=1e-9)        # full
+    assert shade_gen == pytest.approx(0.5 * cover, rel=1e-9)   # half
+    assert shade_sand == 0.0                                   # none
+    assert shade_clay > shade_gen > 0.0 == shade_sand
+
+
+@pytest.mark.parametrize("p", [0.25, 0.75, 1.0, 2.5])
+@pytest.mark.parametrize("pref,match", [
+    ({"peat": 1.0}, 0.5),                  # specialist: w concentrates
+    ({}, 1.0),                             # generalist: w = mix
+    ({"peat": 1.0, "sand": 1.0}, 1.0),     # full generalist: w = mix
+])
+def test_n1_mixed_cell_reproduces_derived_cap(p, pref, match):
+    """n=1 invariance on a MIXED substrate cell (ticket 0050): the lone
+    lineage's self-crowding equilibrium still equals the derived cap
+    f(p)·L·cell_ha·match — specialist and generalist alike.  The
+    mixture Σ_s w_s·crowding(x·w_s/C_s) zeroes net growth at the cap
+    exactly for indicator prefs (w concentrates on the preferred
+    class, where x = C_s = match·f·L·cell_ha) and uniform prefs
+    (w = mix, where every q_s = x/(f·L·cell_ha))."""
+    st = OccupancyState(_cell(p, mix={"peat": 0.5, "sand": 0.5}),
+                        [_oak(substrate_pref=pref)])
+    eq = self_crowding_equilibrium_t(st, "oak")
+    assert eq == pytest.approx(_cap_t(p, match=match), rel=1e-7)
+    # the n=1 equation solved is the crowding one
+    st2 = OccupancyState(_cell(p, mix={"peat": 0.5, "sand": 0.5}),
+                         [_oak(substrate_pref=pref)])
+    st2.paint("oak", eq)
+    total = sum(t["value"] for t in
+                competition_stress(_oak(substrate_pref=pref).view,
+                                   st2).values())
+    assert total == pytest.approx(1.0, rel=1e-6)
 
 
 # ──  per-resource independence  ──────────────────────────────────────────
